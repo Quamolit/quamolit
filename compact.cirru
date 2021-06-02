@@ -34,7 +34,7 @@
           defn on-update (instant old-args args old-state state) instant
         |render $ quote
           defn render (props & children)
-            fn (state mutate! instant tick) (; .log js/console instant)
+            fn (state mutate! instant tick) (; js/console.log instant)
               alpha
                 {,} :style $ {,} :opacity
                   / (:presence instant) 1000
@@ -128,7 +128,7 @@
               create-simple-comp :code-table init-state nil render
               , & args
         |init-state $ quote
-          defn init-state () $ repeat 3 (repeat 3 |edit)
+          defn init-state () $ repeat (repeat |edit 3) 3
         |render $ quote
           defn render () $ fn (state mutate! instant tick) (; .log js/console state)
             translate
@@ -166,9 +166,13 @@
                 upper-bound $ last bound
               cond
                   < velocity 0
-                  if (< next-data lower-bound) (assoc instant data-key lower-bound velocity-key 0) (assoc instant data-key next-data)
+                  if (< next-data lower-bound)
+                    -> instant (assoc data-key lower-bound) (assoc velocity-key 0)
+                    assoc instant data-key next-data
                 (> velocity 0)
-                  if (> next-data upper-bound) (assoc instant data-key upper-bound velocity-key 0) (assoc instant data-key next-data)
+                  if (> next-data upper-bound)
+                    -> instant (assoc data-key upper-bound) (assoc velocity-key 0)
+                    assoc instant data-key next-data
                 true instant
         |tween $ quote
           defn tween (range-data range-bound x)
@@ -206,7 +210,7 @@
             if (= old-state state) instant $ let
                 next-value $ if state 1 0
                 next-v $ if state 0.002 -0.002
-              assoc instant :play-target next-value :play-v next-v
+              -> instant (assoc :play-target next-value) (assoc :play-v next-v)
         |init-state $ quote
           defn init-state () true
         |render $ quote
@@ -295,7 +299,9 @@
             fn (event dispatch) (mutate!)
         |on-update $ quote
           defn on-update (instant old-args args old-state state)
-            if (not= old-state state) (assoc instant :n-v 0.004 :n-target state) instant
+            if (not= old-state state)
+              -> instant (assoc :n-v 0.004) (assoc :n-target state)
+              , instant
         |init-state $ quote
           defn init-state () 0
         |render $ quote
@@ -384,7 +390,7 @@
               , result
         |expand-app $ quote
           defn expand-app (markup old-tree states build-mutate tick elapsed)
-            ; .log js/console |caches: $ map first (map key @comp-caches)
+            ; js/console.log |caches: $ map first (map key @comp-caches)
             let
                 initial-coord $ []
               expand-component markup old-tree initial-coord states build-mutate true tick elapsed
@@ -516,7 +522,7 @@
           [] quamolit.types :refer $ [] Component
       :defs $ {}
         |locate-target $ quote
-          defn locate-target (tree coord) (; .log js/console |locating coord tree)
+          defn locate-target (tree coord) (; js/console.log |locating coord tree)
             if
               = 0 $ count coord
               , tree $ let
@@ -677,9 +683,9 @@
                 :init-state $ or init-state default-init-state
                 :update-state $ or update-state merge
                 :init-instant $ or init-instant default-init-instant
-                :on-tick default-on-tick
-                :on-update default-on-update
-                :on-unmount default-on-unmount
+                :on-tick $ or on-tick default-on-tick
+                :on-update $ or on-update default-on-update
+                :on-unmount $ or on-unmount default-on-unmount
                 :remove? default-remove?
                 :render render
                 :tree nil
@@ -742,7 +748,7 @@
               reset! tree-ref tree
               reset! tick-ref new-tick
               call-paint tree target
-              ; .log js/console |tree tree
+              ; js/console.log |tree tree
         |focus-ref $ quote
           defatom focus-ref $ []
         |tree-ref $ quote (defatom tree-ref nil)
@@ -753,9 +759,9 @@
           defatom tick-ref $ get-tick
         |mutate-factory $ quote
           defn mutate-factory (states-ref)
-            fn (coord) (; .log js/console "|build new mutate" coord)
-              fn (& state-args) (; .log js/console |coord: coord) (; .log js/console |states-ref @states-ref)
-                ; .log js/console |old-state $ get @states-ref coord
+            fn (coord) (; js/console.log "|build new mutate" coord)
+              fn (& state-args) (; js/console.log |coord: coord) (; js/console.log |states-ref @states-ref)
+                ; js/console.log |old-state $ get @states-ref coord
                 let
                     component $ locate-target @tree-ref
                       slice coord 0 $ - (count coord) 1
@@ -773,7 +779,7 @@
                   ; .log js/console |new-states new-states
                   reset! states-ref new-states
         |configure-canvas $ quote
-          defn configure-canvas (app-container) (.setAttribute app-container |width js/window.innerWidth) (.setAttribute app-container |height js/window.innerHeight)
+          defn configure-canvas (app-container) (.!setAttribute app-container |width js/window.innerWidth) (.!setAttribute app-container |height js/window.innerHeight)
         |handle-event $ quote
           defn handle-event (coord event-name event dispatch)
             let
@@ -786,7 +792,7 @@
           defn setup-events (root-element dispatch)
             let
                 ctx $ .getContext root-element |2d
-              .addEventListener root-element |click $ fn (event)
+              .!addEventListener root-element |click $ fn (event)
                 let
                     hit-region $ aget event |region
                   ; .log js/console |hit: event hit-region
@@ -796,11 +802,11 @@
                       reset! focus-ref coord
                       handle-event coord :click event dispatch
                     reset! focus-ref $ []
-              .addEventListener root-element |keypress $ fn (event)
+              .!addEventListener root-element |keypress $ fn (event)
                 let
                     coord @focus-ref
                   handle-event coord :keypress event dispatch
-              .addEventListener root-element |keydown $ fn (event)
+              .!addEventListener root-element |keydown $ fn (event)
                 let
                     coord @focus-ref
                   handle-event coord :keydown event dispatch
@@ -810,16 +816,16 @@
         |call-paint $ quote
           defn call-paint (tree target) (; .log js/console tree)
             let
-                ctx $ .getContext target |2d
+                ctx $ .!getContext target |2d
                 w js/window.innerWidth
                 h js/window.innerHeight
               reset! *paint-eff $ {}
                 :alpha-stack $ [] 1
-              .clearRect ctx 0 0 w h
-              .save ctx
-              .translate ctx (/ w 2) (/ h 2)
+              .!clearRect ctx 0 0 w h
+              .!save ctx
+              .!translate ctx (/ w 2) (/ h 2)
               paint ctx tree *paint-eff
-              .restore ctx
+              .!restore ctx
       :proc $ quote ()
     |quamolit.comp.task $ {}
       :ns $ quote
@@ -853,11 +859,11 @@
                 old-index $ nth old-args 2
                 new-index $ nth args 2
               if (not= old-index new-index)
-                assoc instant :index-velocity
-                  /
+                -> instant
+                  assoc :index-velocity $ /
                     - new-index $ :index instant
                     , 300
-                  , :index-target new-index
+                  assoc :index-target new-index
                 , instant
         |handle-input $ quote
           defn handle-input (task-id task-text)
@@ -915,7 +921,8 @@
           defn handle-remove (task-id)
             fn (event dispatch) (dispatch :rm task-id)
         |on-unmount $ quote
-          defn on-unmount (instant) (; .log js/console "|calling unmount" instant) (assoc instant :presence-velocity -3 :left-velocity -0.09)
+          defn on-unmount (instant) (; .log js/console "|calling unmount" instant)
+            -> instant (assoc :presence-velocity -3) (assoc :left-velocity -0.09)
       :proc $ quote ()
     |quamolit.comp.clock $ {}
       :ns $ quote
@@ -1100,9 +1107,9 @@
                   let
                       old-x $ nth old-args the-key
                       new-x $ nth args the-key
-                    if (= old-x new-x) new-instant $ assoc new-instant the-v
-                      / (- new-x old-x) 600
-                      , the-target new-x
+                    if (= old-x new-x) new-instant $ -> new-instant
+                      assoc the-v $ / (- new-x old-x) 600
+                      assoc the-target new-x
               -> instant (check-number 0 :x0-v :x0-target) (check-number 1 :y0-v :y0-target) (check-number 2 :x1-v :x1-target) (check-number 3 :y1-v :y1-target)
         |comp-6 $ quote
           defn comp-6 (& args)
@@ -1179,7 +1186,8 @@
               create-simple-comp :eight nil nil render-8
               , & args
         |on-unmount $ quote
-          defn on-unmount (instant tick) (; .log js/console "|stroke unmount") (assoc instant :presence-v -0.003 :numb? false)
+          defn on-unmount (instant) (; .log js/console "|stroke unmount")
+            -> instant (assoc :presence-v -0.003) (assoc :numb? false)
         |comp-9 $ quote
           defn comp-9 (& args)
               create-simple-comp :nine nil nil render-9
@@ -1229,9 +1237,9 @@
           defn init-state (& args) :portal
         |render $ quote
           defn render (timestamp store)
-            fn (state mutate! instant tick) (; .log js/console state)
+            fn (state mutate! instant tick) (; js/console.log state)
               group
-                {,} :style $ {,}
+                {} $ :style ({})
                 if (= state :portal)
                   comp-fade-in-out ({,}) (comp-portal mutate!)
                 if (= state :todolist) (comp-todolist timestamp store)
@@ -1301,7 +1309,7 @@
       :ns $ quote (ns quamolit.util.time)
       :defs $ {}
         |get-tick $ quote
-          defn get-tick () $ .valueOf (new js/Date)
+          defn get-tick () $ js/Date.now
       :proc $ quote ()
     |quamolit.comp.finder $ {}
       :ns $ quote
@@ -1509,7 +1517,7 @@
                   n 20
                   angle $ / 360 n
                   shift 10
-                  rotation $ rem (/ tick 40) 360
+                  rotation $ rem (/ tick 400) 360
                   r 100
                   rl 200
                   curve-points $ map (range n)
@@ -1636,10 +1644,11 @@
           defn on-tick (instant tick elapsed)
             if
               > (rand-int 100) 40
-              conj (slice instant 3)
-                [] (get-tick) (random-point)
-                [] (get-tick) (random-point)
-                [] (get-tick) (random-point)
+              concat (slice instant 3)
+                []
+                  [] (get-tick) (random-point)
+                  [] (get-tick) (random-point)
+                  [] (get-tick) (random-point)
               , instant
         |remove? $ quote
           defn remove? (instant) true
@@ -1793,7 +1802,7 @@
                   {,} :style $ {,} :opacity
                     * (:presence instant) 0.001
                   rect $ {,} :style
-                    {,}
+                    {}
                       :fill-style $ hsl 200 80 60
                       :w 4
                       :h 30
@@ -1819,9 +1828,11 @@
         |render-loop! $ quote
           defn render-loop! (timestamp)
             let
-                target $ .querySelector js/document |#app
+                target $ js/document.querySelector |#app
               render-page (comp-container timestamp @store-ref) states-ref target
-              reset! loop-ref $ js/requestAnimationFrame render-loop!
+              js/setTimeout
+                fn () $ reset! loop-ref (js/requestAnimationFrame render-loop!)
+                , 10
         |states-ref $ quote
           defatom states-ref $ {}
         |store-ref $ quote
@@ -1831,13 +1842,13 @@
         |main! $ quote
           defn main! () (load-console-formatter!)
             let
-                target $ .querySelector js/document |#app
+                target $ js/document.querySelector |#app
               configure-canvas target
               setup-events target dispatch!
               js/requestAnimationFrame render-loop!
             set! js/window.onresize $ fn (event)
               let
-                  target $ .querySelector js/document |#app
+                  target $ .!querySelector js/document |#app
                 configure-canvas target
       :proc $ quote ()
     |quamolit.comp.icons-table $ {}
