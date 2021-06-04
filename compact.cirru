@@ -110,7 +110,7 @@
     |quamolit.types $ {}
       :ns $ quote (ns quamolit.types)
       :defs $ {}
-        |Component $ quote (defrecord Component :name :coord :args :states :instant :init-state :update-state :init-instant :on-tick :on-update :on-unmount :remove? :render :tree :fading?)
+        |Component $ quote (defrecord Component :name :child-map :actions :on-tick :render :tree)
         |Shape $ quote (defrecord Shape :name :style :event :children)
       :proc $ quote ()
       :configs $ {}
@@ -388,132 +388,6 @@
                   , items
               ; if (not result) (js/console.log result items)
               , result
-        |expand-app $ quote
-          defn expand-app (markup old-tree states build-mutate tick elapsed)
-            ; js/console.log |caches: $ map first (map key @comp-caches)
-            let
-                initial-coord $ []
-              expand-component markup old-tree initial-coord states build-mutate true tick elapsed
-        |expand-component $ quote
-          defn expand-component (markup old-tree coord states build-mutate at-place? tick elapsed)
-            let
-                child-coord $ conj coord (:name markup)
-                existed? $ some? old-tree
-                state-tree $ get states (:name markup)
-              ; .log js/console |child-coord: child-coord
-              ; .log js/console |component (:name markup) coord
-              ; .log js/console states
-              if existed?
-                let
-                    old-args $ :args old-tree
-                    old-states $ :states old-tree
-                    old-instant $ :instant old-tree
-                    new-args $ :args markup
-                    old-state $ get old-states (quote data)
-                    init-state $ :init-state markup
-                    new-state $ if
-                      and (some? state-tree)
-                        contains? state-tree $ quote data
-                      get state-tree $ quote data
-                      apply init-state new-args
-                    on-tick $ :on-tick markup
-                    on-update $ :on-update markup
-                    new-instant $ -> old-instant (on-tick tick elapsed) (on-update old-args new-args old-state new-state)
-                  if
-                    and (identical? old-states state-tree)
-                      identical? (:render old-tree) (:render markup)
-                      identical? old-instant new-instant
-                      =seq old-args new-args
-                    do (; println "|reusing tree" child-coord) (; println old-args new-args) (; println coord old-states state-tree) old-tree
-                    let
-                        mutate! $ build-mutate child-coord
-                        new-shape $ -> (:render markup) (apply new-args)
-                          apply $ [] new-state mutate! new-instant tick
-                        new-tree $ if (relevant-record? Component new-shape)
-                          expand-component new-shape (:tree old-tree) child-coord state-tree build-mutate at-place? tick elapsed
-                          expand-shape new-shape (:tree old-tree) child-coord child-coord state-tree build-mutate at-place? tick elapsed
-                      ; .log js/console "|existing state" coord state-tree
-                      merge old-tree $ {} (:args new-args) (:states state-tree) (:instant new-instant) (:tree new-tree)
-                let
-                    args $ :args markup
-                    init-state $ :init-state markup
-                    init-instant $ :init-instant markup
-                    state $ if
-                      and (some? state-tree)
-                        contains? state-tree $ quote data
-                      get state-tree $ quote data
-                      apply init-state args
-                    instant $ init-instant args state at-place?
-                    mutate! $ build-mutate child-coord
-                    shape $ -> (:render markup) (apply args)
-                      apply $ [] state mutate! instant tick
-                    tree $ if (relevant-record? Component shape) (expand-component shape nil child-coord state-tree build-mutate false tick elapsed) (expand-shape shape nil child-coord child-coord state-tree build-mutate false tick elapsed)
-                  merge markup $ {} (:coord child-coord) (:args args) (:states state-tree) (:instant instant) (:tree tree)
-        |expand-shape $ quote
-          defn expand-shape (markup old-tree coord c-coord states build-mutate at-place? tick elapsed)
-            let
-                old-children $ get old-tree :children
-                cached-map $ pairs-map
-                  either old-children $ {}
-                new-children $ -> (:children markup)
-                  map $ fn (child)
-                    let
-                        child-key $ first child
-                        child-markup $ last child
-                        child-coord $ conj coord child-key
-                        old-child-tree $ get cached-map child-key
-                        child-state $ get states child-key
-                      [] child-key $ if (relevant-record? child-markup Component) (expand-component child-markup old-child-tree child-coord child-state build-mutate at-place? tick elapsed) (expand-shape child-markup old-child-tree child-coord coord child-state build-mutate at-place? tick elapsed)
-              if (some? old-tree)
-                let
-                    merged-children $ merge-children ([]) old-children new-children coord states build-mutate at-place? tick elapsed
-                  merge markup $ {} (:coord coord) (:children merged-children)
-                merge markup $ {} (:children new-children) (:coord coord)
-        |merge-children $ quote
-          defn merge-children (acc old-children new-children coord states build-mutate at-place? tick elapsed)
-            let
-                was-empty? $ empty? old-children
-                now-empty? $ empty? new-children
-                old-cursor $ first old-children
-                new-cursor $ first new-children
-              cond
-                  and was-empty? now-empty?
-                  , acc
-                (and (not was-empty?) (not now-empty?) (= (first old-cursor) (first new-cursor)))
-                  recur
-                    conj acc $ [] (first new-cursor) (last new-cursor)
-                    rest old-children
-                    rest new-children
-                    , coord states build-mutate at-place? tick elapsed
-                (and (not now-empty?) (or was-empty? (= 1 (compare-more (first old-cursor) (first new-cursor)))))
-                  let
-                      child-key $ first new-cursor
-                      child $ last new-cursor
-                      new-acc $ conj acc ([] child-key child)
-                    recur new-acc old-children (rest new-children) coord states build-mutate at-place? tick elapsed
-                (and (not was-empty?) (or now-empty? (= -1 (compare-more (first old-cursor) (first new-cursor)))))
-                  let
-                      child-key $ first old-cursor
-                      child $ last old-cursor
-                      component? $ relevant-record? Component child
-                      child-coord $ conj coord child-key
-                      new-acc $ if component?
-                        if (:fading? child)
-                          if
-                            let
-                                remove? $ :remove? child
-                              remove? $ :instant child
-                            , acc $ conj acc
-                              [] child-key $ expand-component child child child-coord states build-mutate at-place? tick elapsed
-                          let
-                              old-instant $ :instant child
-                              on-unmount $ :on-unmount child
-                              new-instant $ on-unmount old-instant
-                            conj acc $ [] child-key
-                              merge child $ {} (:instant new-instant) (:fading? true)
-                        , acc
-                    recur new-acc (rest old-children) new-children coord states build-mutate at-place? tick elapsed
-                :else acc
       :proc $ quote
           declare expand-component
     |quamolit.controller.resolve $ {}
@@ -731,13 +605,15 @@
             quasiquote $ defn ~comp-name ~args
               let
                   ret $ do ~@body
+                  renderer $ :render ret
+                  child-map $ :child-map ret
                 %{} Component
                   :name $ ~ (turn-keyword comp-name)
                   :on-tick $ :on-tick ret
-                  :child-map $ :child-map ret
-                  :render $ :render ret
+                  :child-map child-map
+                  :render renderer
                   :actions $ :action ret
-                  :tree nil
+                  :tree $ renderer child-map
       :proc $ quote ()
     |quamolit.core $ {}
       :ns $ quote
@@ -749,12 +625,11 @@
           [] quamolit.controller.resolve :refer $ [] resolve-target locate-target
       :defs $ {}
         |render-page $ quote
-          defn render-page (markup states-ref target)
+          defn render-page (tree target)
             let
                 new-tick $ get-tick
                 elapsed $ - new-tick @tick-ref
-                tree $ expand-app markup @tree-ref @states-ref (mutate-factory states-ref) new-tick elapsed
-              ; .info js/console "|rendering page..." @states-ref
+              js/console.info "|render page:" tree
               reset! tree-ref tree
               reset! tick-ref new-tick
               call-paint tree target
@@ -767,27 +642,6 @@
             :alpha-stack $ [] 1
         |tick-ref $ quote
           defatom tick-ref $ get-tick
-        |mutate-factory $ quote
-          defn mutate-factory (states-ref)
-            fn (coord) (; js/console.log "|build new mutate" coord)
-              fn (& state-args) (; js/console.log |coord: coord) (; js/console.log |states-ref @states-ref)
-                ; js/console.log |old-state $ get @states-ref coord
-                let
-                    component $ locate-target @tree-ref
-                      slice coord 0 $ - (count coord) 1
-                    state-path $ conj coord (quote data)
-                    maybe-state $ get-in @states-ref state-path
-                    old-state $ if (some? maybe-state) maybe-state
-                      let
-                          init-state $ :init-state component
-                          args $ :args component
-                        apply init-state args
-                    update-state $ :update-state component
-                    new-state $ apply update-state (prepend state-args old-state)
-                    new-states $ assoc-in @states-ref state-path new-state
-                  ; .log js/console |component component
-                  ; .log js/console |new-states new-states
-                  reset! states-ref new-states
         |configure-canvas $ quote
           defn configure-canvas (app-container) (.!setAttribute app-container |width js/window.innerWidth) (.!setAttribute app-container |height js/window.innerHeight)
         |handle-event $ quote
@@ -1713,7 +1567,7 @@
       :ns $ quote (ns quamolit.util.order)
       :defs $ {}
         |by-coord $ quote
-          defn by-coord (a b) (; .log js/console |comparing a b)
+          defn by-coord (a b) (; js/console.log |comparing a b)
             cond
                 = (count a) (count b) 0
                 , 0
@@ -1721,7 +1575,7 @@
                 , -1
               (and (> (count a) 0) (= (count b) 0))
                 , 1
-              :else $ case
+              true $ case
                 compare (first a) (first b)
                 -1 -1
                 1 1
@@ -1850,14 +1704,13 @@
           defn render-loop! (timestamp)
             let
                 target $ js/document.querySelector |#app
-              render-page (comp-container timestamp @store-ref) states-ref target
+              render-page (comp-container timestamp @store-ref) target
               js/setTimeout
                 fn () $ reset! loop-ref (js/requestAnimationFrame render-loop!)
                 , 10
-        |states-ref $ quote
-          defatom states-ref $ {}
         |store-ref $ quote
-          defatom store-ref $ []
+          defatom store-ref $ {}
+            :states $ {}
         |reload! $ quote
           defn reload! () (js/cancelAnimationFrame @loop-ref) (js/requestAnimationFrame render-loop!) (.log js/console "|code updated...")
         |main! $ quote
@@ -2182,7 +2035,8 @@
               .translate ctx x y
         |paint $ quote
           defn paint (ctx tree eff-ref)
-            if (relevant-record? Component tree)
+            if
+              and (record? tree) (relevant-record? Component tree)
               recur ctx (:tree tree) eff-ref
               do (paint-one ctx tree eff-ref)
                 &doseq
