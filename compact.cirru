@@ -12,13 +12,17 @@
           [] quamolit.util.iterate :refer $ [] iterate-instant
       :defs $ {}
         |comp-fade-in-out $ quote
-          defcomp comp-fade-in-out (props & children) (; js/console.log instant)
-            {} $ :render
-              fn (m)
-                alpha
-                  {,} :style $ {,} :opacity
-                    / (:presence instant) 1000
-                  , & children
+          defcomp comp-fade-in-out (states props & children) (; js/console.log instant)
+            let
+                cursor $ :cursor states
+                state $ either (:data states)
+                  {} $ :presence 0
+              {} $ :render
+                fn (m)
+                  alpha
+                    {,} :style $ {,} :opacity
+                      / (:presence state) 1000
+                    , & children
         |init-instant $ quote
           defn init-instant (args state at?)
             {} (:presence 0) (:presence-v 3) (:numb? false)
@@ -46,7 +50,7 @@
           [] quamolit.util.iterate :refer $ [] iterate-instant tween
       :defs $ {}
         |comp-portal $ quote
-          defcomp comp-portal (mutate-navigate)
+          defcomp comp-portal (cursor)
             {}
               :child-map $ {}
               :render $ fn (m)
@@ -54,46 +58,46 @@
                   button $ {,} :style
                     style-button 0 0 |Todolist $ hsl 0 120 60
                     , :event
-                      {,} :click $ handle-navigate mutate-navigate :todolist
+                      {,} :click $ handle-navigate cursor :todolist
                   button $ {,} :style
                     style-button 1 0 |Clock $ hsl 300 80 80
                     , :event
-                      {,} :click $ handle-navigate mutate-navigate :clock
+                      {,} :click $ handle-navigate cursor :clock
                   button $ {,} :style
                     style-button 2 0 |Solar $ hsl 140 80 80
                     , :event
-                      {,} :click $ handle-navigate mutate-navigate :solar
+                      {,} :click $ handle-navigate cursor :solar
                   button $ {,} :style
                     style-button 3 0 "|Binary Tree" $ hsl 140 20 30
                     , :event
-                      {,} :click $ handle-navigate mutate-navigate :binary-tree
+                      {,} :click $ handle-navigate cursor :binary-tree
                   button $ {,} :style
                     style-button 0 1 |Table $ hsl 340 80 80
                     , :event
-                      {,} :click $ handle-navigate mutate-navigate :code-table
+                      {,} :click $ handle-navigate cursor :code-table
                   button $ {,} :style
                     style-button 1 1 |Finder $ hsl 60 80 45
                     , :event
-                      {,} :click $ handle-navigate mutate-navigate :finder
+                      {,} :click $ handle-navigate cursor :finder
                   button $ {,} :style
                     style-button 2 1 |Raining $ hsl 260 80 80
                     , :event
-                      {,} :click $ handle-navigate mutate-navigate :raining
+                      {,} :click $ handle-navigate cursor :raining
                   button $ {,} :style
                     style-button 3 1 |Icons $ hsl 30 80 80
                     , :event
-                      {,} :click $ handle-navigate mutate-navigate :icons
+                      {,} :click $ handle-navigate cursor :icons
                   button $ {,} :style
                     style-button 0 2 |Curve $ hsl 100 80 80
                     , :event
-                      {,} :click $ handle-navigate mutate-navigate :curve
+                      {,} :click $ handle-navigate cursor :curve
                   button $ {,} :style
                     style-button 1 2 "|Folding fan" $ hsl 200 80 80
                     , :event
-                      {,} :click $ handle-navigate mutate-navigate :folding-fan
+                      {,} :click $ handle-navigate cursor :folding-fan
         |handle-navigate $ quote
-          defn handle-navigate (mutate-navigate next-page)
-            fn (event dispatch) (mutate-navigate next-page)
+          defn handle-navigate (cursor next-page)
+            fn (e d!) (d! cursor next-page)
         |style-button $ quote
           defn style-button (x y page-name bg-color)
             {} (:w 180) (:h 60)
@@ -119,22 +123,25 @@
           [] quamolit.util.keyboard :refer $ [] keycode->key
       :defs $ {}
         |comp-code-table $ quote
-          defcomp comp-code-table () (; js/console.log state)
-            {} $ :render
-              fn (m)
-                translate
-                  {,} :style $ {,} :x -160 :y -160
-                  -> state $ map-indexed
-                    fn (i row)
-                      [] i $ group ({})
-                        -> row $ map-indexed
-                          fn (j content)
-                            [] j $ let
-                                move-x $ * i 100
-                                move-y $ * j 60
-                              translate
-                                {,} :style $ {,} :x move-x :y move-y
-                                textbox $ {,} :style ({,} :w 80 :h 40 :text content)
+          defcomp comp-code-table (states) (; js/console.log state)
+            let
+                cursor $ :cursor states
+                state $ either (:data states) ([])
+              {} $ :render
+                fn (m)
+                  translate
+                    {,} :style $ {,} :x -160 :y -160
+                    -> state $ map-indexed
+                      fn (i row)
+                        [] i $ group ({})
+                          -> row $ map-indexed
+                            fn (j content)
+                              [] j $ let
+                                  move-x $ * i 100
+                                  move-y $ * j 60
+                                translate
+                                  {,} :style $ {,} :x move-x :y move-y
+                                  textbox $ {,} :style ({,} :w 80 :h 40 :text content)
         |init-state $ quote
           defn init-state () $ repeat (repeat |edit 3) 3
       :proc $ quote ()
@@ -186,40 +193,44 @@
           [] quamolit.comp.debug :refer $ [] comp-debug
       :defs $ {}
         |comp-icon-play $ quote
-          defcomp comp-icon-play () $ {}
-            :render $ fn (m)
-              let
-                  tw $ fn (a0 a1)
-                    tween ([] a0 a1) ([] 0 1) (:play-value instant)
-                rect
-                  {,} :style
-                    {} (:w 60) (:h 60)
-                      :fill-style $ hsl 40 80 90
-                    , :event $ {,} :click (handle-click mutate!)
-                  path $ {,} :style
-                    {}
-                      :points $ [] ([] -20 -20) ([] -20 20)
-                        [] (tw -5 0) (tw 20 10)
-                        [] (tw -5 0) (tw -20 -10)
-                      :fill-style $ hsl 120 50 60
-                  path $ {,} :style
-                    {}
-                      :points $ []
-                        [] (tw 5 0) (tw -20 -10)
-                        [] 20 $ tw -20 0
-                        [] 20 $ tw 20 0
-                        [] (tw 5 0) (tw 20 10)
-                      :fill-style $ hsl 120 50 60
-                  ; comp-debug instant $ {}
+          defcomp comp-icon-play (states)
+            let
+                cursor $ :cursor states
+                state $ either (:data states)
+                  {} $ :play-value 0
+              {} $ :render
+                fn (m)
+                  let
+                      tw $ fn (a0 a1)
+                        tween ([] a0 a1) ([] 0 1) (:play-value state)
+                    rect
+                      {,} :style
+                        {} (:w 60) (:h 60)
+                          :fill-style $ hsl 40 80 90
+                        , :event $ {,} :click
+                          fn (e d!)
+                            d! cursor $ update state :play-value inc
+                      path $ {,} :style
+                        {}
+                          :points $ [] ([] -20 -20) ([] -20 20)
+                            [] (tw -5 0) (tw 20 10)
+                            [] (tw -5 0) (tw -20 -10)
+                          :fill-style $ hsl 120 50 60
+                      path $ {,} :style
+                        {}
+                          :points $ []
+                            [] (tw 5 0) (tw -20 -10)
+                            [] 20 $ tw -20 0
+                            [] 20 $ tw 20 0
+                            [] (tw 5 0) (tw 20 10)
+                          :fill-style $ hsl 120 50 60
+                      ; comp-debug state $ {}
         |on-tick $ quote
           defn on-tick (instant tick elapsed)
             iterate-instant instant :play-value :play-v elapsed $ [] (:play-target instant) (:play-target instant)
         |update-state $ quote (def update-state not)
         |remove? $ quote
           defn remove? (instant) true
-        |handle-click $ quote
-          defn handle-click (mutate!)
-            fn (event dispatch) (mutate!)
         |on-update $ quote
           defn on-update (instant old-args args old-state state)
             if (= old-state state) instant $ let
@@ -276,65 +287,70 @@
         |update-state $ quote
           defn update-state (x) (inc x)
         |comp-icon-increase $ quote
-          defcomp comp-icon-increase () $ {}
-            :render $ fn (m)
-              let
-                  n1 $ :n instant
-                rect
-                  {,} :style
-                    {} (:w 60) (:h 60)
-                      :fill-style $ hsl 0 0 90
-                    , :event $ {,} :click (handle-click mutate!)
-                  translate
-                    {,} :style $ {,} :x -12
-                    rotate
-                      {,} :style $ {,} :angle (* 90 n1)
-                      line $ {,} :style
-                        {}
-                          :stroke-style $ hsl 0 80 30
-                          :x0 -7
-                          :y0 0
-                          :x1 7
-                          :y1 0
-                          :line-width 2
-                      line $ {,} :style
-                        {}
-                          :stroke-style $ hsl 0 80 30
-                          :x0 0
-                          :y0 -7
-                          :x1 0
-                          :y1 7
-                          :line-width 2
-                  translate
-                    {,} :style $ {} (:x 10)
-                    []
-                      [] (+ state 1)
-                        translate
-                          {,} :style $ {,} :y
-                            * -20 $ - state n1
-                          alpha
-                            {,} :style $ {,} :opacity
-                              - (+ 1 n1) state
-                            text $ {,} :style
-                              {}
-                                :text $ str (+ state 1)
-                                :fill-style $ hsl 0 80 30
-                                :font-family "|Wawati SC Regular"
-                      [] state $ translate
-                        {,} :style $ {,} :y
-                          * 20 $ - n1 (- state 1)
-                        alpha
-                          {,} :style $ {,} :opacity (- state n1)
-                          text $ {,} :style
+          defcomp comp-icon-increase (states)
+            let
+                cursor $ :cursor states
+                state $ either (:data states)
+                  {} (:v 0) (:n 0)
+                v $ :v state
+              {} $ :render
+                fn (m)
+                  let
+                      n1 $ :n state
+                    rect
+                      {,} :style
+                        {} (:w 60) (:h 60)
+                          :fill-style $ hsl 0 0 90
+                        , :event $ {,} :click
+                          fn (e d!)
+                            d! cursor $ update state :v inc
+                      translate
+                        {,} :style $ {,} :x -12
+                        rotate
+                          {,} :style $ {,} :angle (* 90 n1)
+                          line $ {,} :style
                             {}
-                              :text $ str state
-                              :fill-style $ hsl 0 80 30
-                              :font-family "|Wawati SC Regular"
+                              :stroke-style $ hsl 0 80 30
+                              :x0 -7
+                              :y0 0
+                              :x1 7
+                              :y1 0
+                              :line-width 2
+                          line $ {,} :style
+                            {}
+                              :stroke-style $ hsl 0 80 30
+                              :x0 0
+                              :y0 -7
+                              :x1 0
+                              :y1 7
+                              :line-width 2
+                      translate
+                        {,} :style $ {} (:x 10)
+                        {}
+                            + v 1
+                            translate
+                              {,} :style $ {,} :y
+                                * -20 $ - v n1
+                              alpha
+                                {,} :style $ {,} :opacity
+                                  - (+ 1 n1) v
+                                text $ {,} :style
+                                  {}
+                                    :text $ str (+ v 1)
+                                    :fill-style $ hsl 0 80 30
+                                    :font-family "|Wawati SC Regular"
+                          v $ translate
+                            {,} :style $ {,} :y
+                              * 20 $ - n1 (- v 1)
+                            alpha
+                              {,} :style $ {,} :opacity (- v n1)
+                              text $ {,} :style
+                                {}
+                                  :text $ str v
+                                  :fill-style $ hsl 0 80 30
+                                  :font-family "|Wawati SC Regular"
         |remove? $ quote
           defn remove? (instant) true
-        |handle-click $ quote
-          defn handle-click (mutate!)
-            fn (event dispatch) (mutate!)
         |on-update $ quote
           defn on-update (instant old-args args old-state state)
             if (not= old-state state)
@@ -542,7 +558,7 @@
       :ns $ quote
         ns quamolit.comp.todolist $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp group rect text
+          [] quamolit.alias :refer $ [] defcomp group rect text >>
           [] quamolit.render.element :refer $ [] translate button input alpha
           [] quamolit.comp.task :refer $ [] comp-task
           [] quamolit.util.iterate :refer $ [] iterate-instant tween
@@ -559,9 +575,9 @@
                 assoc new-instant :numb? true
                 , new-instant
         |event-button $ quote
-          defn event-button (mutate! draft)
-            {,} :click $ fn (simple-event dispatch) (dispatch :add draft)
-              mutate! $ {,} :draft |
+          defn event-button (cursor draft)
+            {,} :click $ fn (e d!) (d! :add draft)
+              d! cursor $ {} (:draft |)
         |style-button $ quote
           def style-button $ {} (:w 80) (:h 40) (:text |add)
         |handle-click $ quote
@@ -571,49 +587,63 @@
         |on-update $ quote
           defn on-update (instant old-args args old-state state) instant
         |handle-input $ quote
-          defn handle-input (mutate! default-text)
-            fn (simple-event dispatch)
+          defn handle-input (cursor default-text)
+            fn (e d!)
               let
                   user-text $ js/prompt "|input to canvas:" default-text
-                mutate! $ {,} :draft user-text
+                d! cursor $ {} (:draft user-text)
         |init-state $ quote
           defn init-state (store args) ({,} :draft |)
         |init-instant $ quote
           defn init-instant (args state at-place?) ({,} :presence 0 :presence-v 3 :numb? false)
         |comp-todolist $ quote
-          defcomp comp-todolist (timestamp store) (; js/console.info |todolist: store state)
-            alpha
-              {,} :style $ {,} :opacity
-                / (:presence instant) 1000
-              translate ({,} :style position-header)
-                translate
-                  {,} :style $ {,} :x -20 :y 40
-                  input $ {,} :style
-                    {,} :w 400 :h 40 :text $ :draft state
-                    , :event
-                      {,} :click $ handle-input mutate! (:draft state)
-                translate
-                  {,} :style $ {,} :x 240 :y 40
-                  button $ {,} :style style-button :event
-                    event-button mutate! $ :draft state
-              translate ({,} :style position-body)
-                group ({,})
-                  -> store (reverse)
-                    map-indexed $ fn (index task)
-                      let
-                          shift-x $ js/Math.max -40
-                            js/Math.min 0 $ * -40
-                              +
-                                if
-                                  = (count store) 1
-                                  , 0 $ if
-                                    > (:presence-v instant) 0
-                                    / index $ - (count store) 1
-                                    - 1 $ if (= index 0) 0
-                                      / index $ - (count store) 1
-                                - 1 $ / (:presence instant) 500
-                        [] (:id task) (comp-task timestamp task index shift-x)
-              comp-debug instant $ {}
+          defcomp comp-todolist (states timestamp) (; js/console.info |todolist: states)
+            let
+                cursor $ :cursor states
+                state $ either (:data states)
+                  {} (:draft "\"")
+                    :tasks $ []
+                    :presence 0
+                    :presence-v 0
+                tasks $ :tasks state
+              {} $ :render
+                fn (m)
+                  alpha
+                    {,} :style $ {,} :opacity
+                      / (:presence state) 1000
+                    translate ({,} :style position-header)
+                      translate
+                        {,} :style $ {,} :x -20 :y 40
+                        input $ {,} :style
+                          {,} :w 400 :h 40 :text $ :draft state
+                          , :event
+                            {,} :click $ handle-input cursor (:draft state)
+                      translate
+                        {,} :style $ {,} :x 240 :y 40
+                        button $ {,} :style style-button :event
+                          event-button cursor $ :draft state
+                    translate
+                      {} $ :style position-body
+                      group ({})
+                        -> tasks (reverse)
+                          map-indexed $ fn (index task)
+                            let
+                                shift-x $ js/Math.max -40
+                                  js/Math.min 0 $ * -40
+                                    +
+                                      if
+                                        = (count tasks) 1
+                                        , 0 $ if
+                                          > (:presence-v state) 0
+                                          / index $ - (count tasks) 1
+                                          - 1 $ if (= index 0) 0
+                                            / index $ - (count tasks) 1
+                                      - 1 $ / (:presence state) 500
+                              [] (:id task)
+                                comp-task
+                                  >> states $ :id task
+                                  , timestamp task index shift-x
+                    comp-debug state $ {}
         |on-unmount $ quote
           defn on-unmount (instant) (assoc instant :presence-v -3)
         |position-body $ quote
@@ -624,6 +654,14 @@
         ns quamolit.alias $ :require
           [] quamolit.types :refer $ [] Component Shape
       :defs $ {}
+        |>> $ quote
+          defn >> (states k)
+            let
+                parent-cursor $ either (:cursor states) ([])
+                branch $ get states k
+              assoc
+                either branch $ {}
+                , :cursor $ append parent-cursor k
         |native-rotate $ quote
           defn native-rotate (props & children) (create-shape :native-rotate props children)
         |default-init-state $ quote
@@ -849,31 +887,35 @@
               :fill-style $ hsl 0 0 60
               :text text
         |comp-task $ quote
-          defcomp comp-task (timestamp task index shift-x)
-            {} $ :render
-              fn (m)
-                translate
-                  {,} :style $ {,} :x
-                    + shift-x $ :left instant
-                    , :y
-                      -
-                        * 60 $ :index instant
-                        , 140
-                  alpha
-                    {,} :style $ {,} :opacity
-                      / (:presence instant) 1000
-                    translate
-                      {,} :style $ {,} :x -200
-                      comp-toggler (:done? task) (:id task)
-                    input $ {,} :style
-                      style-input $ :text task
-                      , :event
-                        {,} :click $ handle-input (:id task) (:text task)
-                    translate
-                      {,} :style $ {,} :x 280
-                      rect $ {,} :style style-remove :event
-                        {,} :click $ handle-remove (:id task)
-                    comp-debug task $ {}
+          defcomp comp-task (states timestamp task index shift-x)
+            let
+                cursor $ :cursor states
+                state $ either (:data states)
+                  {} (:left 0) (:index 0) (:presence state)
+              {} $ :render
+                fn (m)
+                  translate
+                    {,} :style $ {,} :x
+                      + shift-x $ :left state
+                      , :y
+                        -
+                          * 60 $ :index state
+                          , 140
+                    alpha
+                      {,} :style $ {,} :opacity
+                        / (:presence state) 1000
+                      translate
+                        {,} :style $ {,} :x -200
+                        comp-toggler (:done? task) (:id task)
+                      input $ {,} :style
+                        style-input $ :text task
+                        , :event
+                          {,} :click $ handle-input (:id task) (:text task)
+                      translate
+                        {,} :style $ {,} :x 280
+                        rect $ {,} :style style-remove :event
+                          {,} :click $ handle-remove (:id task)
+                      comp-debug task $ {}
         |init-instant $ quote
           defn init-instant (args state at-place?)
             let
@@ -902,7 +944,7 @@
           [] quamolit.comp.debug :refer $ [] comp-debug
       :defs $ {}
         |comp-clock $ quote
-          defcomp comp-clock (timestamp)
+          defcomp comp-clock (states)
             let
                 now $ new js/Date
                 hrs $ .getHours now
@@ -911,21 +953,21 @@
                 get-ten $ fn (x)
                   js/Math.floor $ / x 10
                 get-one $ fn (x) (rem x 10)
-              ; .log js/console secs
+              ; js/console.log secs
               {} $ :render
                 fn (m)
                   group ({,})
-                    comp-digit (get-ten hrs)
+                    comp-digit states (get-ten hrs)
                       {,} :style $ {,} :x -200
-                    comp-digit (get-one hrs)
+                    comp-digit states (get-one hrs)
                       {,} :style $ {,} :x -140
-                    comp-digit (get-ten mins)
+                    comp-digit states (get-ten mins)
                       {,} :style $ {,} :x -60
-                    comp-digit (get-one mins)
+                    comp-digit states (get-one mins)
                       {,} :style $ {,} :x 0
-                    comp-digit (get-ten secs)
+                    comp-digit states (get-ten secs)
                       {,} :style $ {,} :x 80
-                    comp-digit (get-one secs)
+                    comp-digit states (get-one secs)
                       {,} :style $ {,} :x 140
                     comp-debug now $ {,} :y -60
       :proc $ quote ()
@@ -942,9 +984,6 @@
             iterate-instant instant :folding-value :folding-v elapsed $ [] 0 1000
         |update-state $ quote
           defn update-state (state) (not state)
-        |handle-toggle $ quote
-          defn handle-toggle (mutate!)
-            fn (e dispatch) (mutate!)
         |remove? $ quote
           defn remove? (instant) true
         |on-update $ quote
@@ -960,56 +999,67 @@
         |on-unmount $ quote
           defn on-unmount (instant) instant
         |comp-folding-fan $ quote
-          defcomp comp-folding-fan () $ {}
-            :render $ fn (m)
-              let
-                  n 24
-                  image-w 650
-                  image-h 432
-                  image-unit $ / image-w n
-                  dest-w 650
-                  dest-h 432
-                  dest-unit $ / dest-w n
-                group ({})
-                  translate
-                    {} $ :style ({,} :x 0 :y 160)
-                    -> (range n)
-                      map $ fn (i)
-                        [] i $ rotate
-                          {} $ :style
-                            {,} :angle $ *
-                              tween ([] 0 6) ([] 0 1000) (:folding-value instant)
-                              + 0.5 $ - i (/ n 2)
-                          image $ {}
-                            :style $ {} (:src |assets/lotus.jpg)
-                              :sx $ * i image-unit
-                              :sy 0
-                              :sw image-unit
-                              :sh image-h
-                              :dx $ - 0 (/ image-unit 2)
-                              :dy $ - 10 dest-h
-                              :dw dest-unit
-                              :dh dest-h
-                  button $ {}
-                    :style $ {} (:text |Toggle) (:x 160) (:y 200)
-                      :surface-color $ hsl 30 80 60
-                      :text-color $ hsl 0 0 100
-                    :event $ {}
-                      :click $ handle-toggle mutate!
+          defcomp comp-folding-fan (states)
+            let
+                cursor $ :cursor states
+                state $ either (:data states)
+                  {} (:folding-value 0) (:folded? false)
+              {} $ :render
+                fn (m)
+                  let
+                      n 24
+                      image-w 650
+                      image-h 432
+                      image-unit $ / image-w n
+                      dest-w 650
+                      dest-h 432
+                      dest-unit $ / dest-w n
+                    group ({})
+                      translate
+                        {} $ :style ({,} :x 0 :y 160)
+                        -> (range n)
+                          map $ fn (i)
+                            [] i $ rotate
+                              {} $ :style
+                                {,} :angle $ *
+                                  tween ([] 0 6) ([] 0 1000) (:folding-value state)
+                                  + 0.5 $ - i (/ n 2)
+                              image $ {}
+                                :style $ {} (:src |assets/lotus.jpg)
+                                  :sx $ * i image-unit
+                                  :sy 0
+                                  :sw image-unit
+                                  :sh image-h
+                                  :dx $ - 0 (/ image-unit 2)
+                                  :dy $ - 10 dest-h
+                                  :dw dest-unit
+                                  :dh dest-h
+                      button $ {}
+                        :style $ {} (:text |Toggle) (:x 160) (:y 200)
+                          :surface-color $ hsl 30 80 60
+                          :text-color $ hsl 0 0 100
+                        :event $ {}
+                          :click $ fn (e d!)
+                            d! cursor $ update state :folded? not
       :proc $ quote ()
     |quamolit.comp.digits $ {}
       :ns $ quote
         ns quamolit.comp.digits $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp rect group line
+          [] quamolit.alias :refer $ [] defcomp rect group line >>
           [] quamolit.render.element :refer $ [] alpha translate
           [] quamolit.util.iterate :refer $ [] iterate-instant tween
       :defs $ {}
         |comp-3 $ quote
-          defcomp comp-3 (props)
+          defcomp comp-3 (states props)
             {} $ :render
               fn (m)
-                translate props (comp-stroke 0 0 40 0) (comp-stroke 40 0 40 40) (comp-stroke 40 40 40 80) (comp-stroke 40 80 0 80) (comp-stroke 40 40 0 40)
+                translate props
+                  comp-stroke (>> states 0) 0 0 40 0
+                  comp-stroke (>> states 1) 40 0 40 40
+                  comp-stroke (>> states 2) 40 40 40 80
+                  comp-stroke (>> states 3) 40 80 0 80
+                  comp-stroke (>> states 4) 40 40 0 40
         |on-tick $ quote
           defn on-tick (instant tick elapsed)
             let
@@ -1025,53 +1075,70 @@
                 assoc new-instant :numb? true
                 , new-instant
         |comp-stroke $ quote
-          defcomp comp-stroke (x0 y0 x1 y1)
-            ; .log js/console |watching $ :presence instant
-            {} $ :render
-              fn (m)
-                group ({})
-                  alpha
-                    {,} :style $ {,} :opacity (:presence instant)
-                    line $ {,} :style
-                      {}
-                        :x0 $ :x0 instant
-                        :y0 $ :y0 instant
-                        :x1 $ :x1 instant
-                        :y1 $ :y1 instant
+          defcomp comp-stroke (states x0 y0 x1 y1)
+            ; js/console.log |watching $ :presence instant
+            let
+                cursor $ :cursor states
+                state $ either (:data states)
+                  {} (:presence 0) (:x0 x0) (:y0 y0) (:x1 x1) (:y1 y1)
+              {} $ :render
+                fn (m)
+                  group ({})
+                    alpha
+                      {,} :style $ {,} :opacity (:presence state)
+                      line $ {,} :style
+                        {}
+                          :x0 $ :x0 state
+                          :y0 $ :y0 state
+                          :x1 $ :x1 state
+                          :y1 $ :y1 state
         |comp-7 $ quote
-          defcomp comp-7 (props)
+          defcomp comp-7 (states props)
             {} $ :render
               fn (m)
-                translate props (comp-stroke 0 0 40 0) (comp-stroke 40 0 40 40) (comp-stroke 40 40 40 80)
+                translate props
+                  comp-stroke (>> states 0) 0 0 40 0
+                  comp-stroke (>> states 1) 40 0 40 40
+                  comp-stroke (>> states 2) 40 40 40 80
         |comp-2 $ quote
-          defcomp comp-2 (props)
+          defcomp comp-2 (states props)
             {} $ :render
               fn (m)
-                translate props (comp-stroke 0 0 40 0) (comp-stroke 40 0 40 40) (comp-stroke 40 40 0 40) (comp-stroke 0 40 0 80) (comp-stroke 0 80 40 80)
+                translate props
+                  comp-stroke (>> states 0) 0 0 40 0
+                  comp-stroke (>> states 1) 40 0 40 40
+                  comp-stroke (>> states 2) 40 40 0 40
+                  comp-stroke (>> states 3) 0 40 0 80
+                  comp-stroke (>> states 4) 0 80 40 80
         |comp-4 $ quote
-          defcomp comp-4 (props)
+          defcomp comp-4 (states props)
             {} $ :render
               fn (m)
-                translate props (comp-stroke 0 0 0 40) (comp-stroke 0 40 40 40) (comp-stroke 40 40 40 80) (comp-stroke 40 40 40 0)
+                translate props
+                  comp-stroke (>> states 0) 0 0 0 40
+                  comp-stroke (>> states 1) 0 40 40 40
+                  comp-stroke (>> states 2) 40 40 40 80
+                  comp-stroke (>> states 3) 40 40 40 0
         |comp-1 $ quote
-          defcomp comp-1 (props)
+          defcomp comp-1 (states props)
             {} $ :render
               fn (m)
-                translate props (comp-stroke 40 0 40 40) (comp-stroke 40 40 40 80)
+                translate props
+                  comp-stroke (>> states 0) 40 0 40 40
+                  comp-stroke (>> states 1) 40 40 40 80
         |comp-digit $ quote
-          defcomp comp-digit (n props)
-            case n
-              0 $ comp-0 props
-              1 $ comp-1 props
-              2 $ comp-2 props
-              3 $ comp-3 props
-              4 $ comp-4 props
-              5 $ comp-5 props
-              6 $ comp-6 props
-              7 $ comp-7 props
-              8 $ comp-8 props
-              9 $ comp-9 props
-              comp-0 props
+          defcomp comp-digit (states n props)
+            case-default n (comp-0 states props)
+              0 $ comp-0 states props
+              1 $ comp-1 states props
+              2 $ comp-2 states props
+              3 $ comp-3 states props
+              4 $ comp-4 states props
+              5 $ comp-5 states props
+              6 $ comp-6 states props
+              7 $ comp-7 states props
+              8 $ comp-8 states props
+              9 $ comp-9 states props
         |on-update $ quote
           defn on-update (instant old-args args old-state state) (; .log js/console "|stroke updaete" old-args args)
             let
@@ -1084,15 +1151,27 @@
                       assoc the-target new-x
               -> instant (check-number 0 :x0-v :x0-target) (check-number 1 :y0-v :y0-target) (check-number 2 :x1-v :x1-target) (check-number 3 :y1-v :y1-target)
         |comp-6 $ quote
-          defcomp comp-6 (props)
+          defcomp comp-6 (states props)
             {} $ :render
               fn (m)
-                translate props (comp-stroke 40 0 0 0) (comp-stroke 0 0 0 40) (comp-stroke 0 40 40 40) (comp-stroke 40 40 40 80) (comp-stroke 40 80 0 80) (comp-stroke 0 80 0 40)
+                translate props
+                  comp-stroke (>> states 0) 40 0 0 0
+                  comp-stroke (>> states 1) 0 0 0 40
+                  comp-stroke (>> states 2) 0 40 40 40
+                  comp-stroke (>> states 3) 40 40 40 80
+                  comp-stroke (>> states 4) 40 80 0 80
+                  comp-stroke (>> states 5) 0 80 0 40
         |comp-0 $ quote
-          defcomp comp-0 (props)
+          defcomp comp-0 (states props)
             {} $ :render
               fn (m)
-                translate props (comp-stroke 0 0 40 0) (comp-stroke 40 0 40 40) (comp-stroke 40 40 40 80) (comp-stroke 40 80 0 80) (comp-stroke 0 80 0 40) (comp-stroke 0 40 0 0)
+                translate props
+                  comp-stroke (>> states 0) 0 0 40 0
+                  comp-stroke (>> states 1) 40 0 40 40
+                  comp-stroke (>> states 2) 40 40 40 80
+                  comp-stroke (>> states 3) 40 80 0 80
+                  comp-stroke (>> states 4) 0 80 0 40
+                  comp-stroke (>> states 5) 0 40 0 0
         |init-instant $ quote
           defn init-instant (args state at?) (; .log js/console "|stroke init:" args)
             let-sugar
@@ -1100,23 +1179,41 @@
                   , args
               {} (:numb? false) (:presence 0) (:presence-v 0.003) (:x0 x0) (:x1 x1) (:y0 y0) (:y1 y1) (:x0-v 0) (:x1-v 0) (:y0-v 0) (:y1-v 0) (:x0-target 0) (:y0-target 0) (:x1-target 0) (:y1-target 0)
         |comp-5 $ quote
-          defcomp comp-5 (props)
+          defcomp comp-5 (states props)
             {} $ :render
               fn (m)
-                translate props (comp-stroke 40 0 0 0) (comp-stroke 0 0 0 40) (comp-stroke 0 40 40 40) (comp-stroke 40 40 40 80) (comp-stroke 40 80 0 80)
+                translate props
+                  comp-stroke (>> states 0) 40 0 0 0
+                  comp-stroke (>> states 1) 0 0 0 40
+                  comp-stroke (>> states 2) 0 40 40 40
+                  comp-stroke (>> states 3) 40 40 40 80
+                  comp-stroke (>> states 4) 40 80 0 80
         |comp-8 $ quote
-          defcomp comp-8 (props)
+          defcomp comp-8 (states props)
             {} $ :render
               fn (m)
-                translate props (comp-stroke 0 0 40 0) (comp-stroke 40 0 40 40) (comp-stroke 40 40 40 80) (comp-stroke 40 80 0 80) (comp-stroke 0 80 0 40) (comp-stroke 0 40 0 0) (comp-stroke 0 40 40 40)
+                translate props
+                  comp-stroke (>> states 0) 0 0 40 0
+                  comp-stroke (>> states 1) 40 0 40 40
+                  comp-stroke (>> states 2) 40 40 40 80
+                  comp-stroke (>> states 3) 40 80 0 80
+                  comp-stroke (>> states 4) 0 80 0 40
+                  comp-stroke (>> states 5) 0 40 0 0
+                  comp-stroke (>> states 6) 0 40 40 40
         |on-unmount $ quote
           defn on-unmount (instant) (; .log js/console "|stroke unmount")
             -> instant (assoc :presence-v -0.003) (assoc :numb? false)
         |comp-9 $ quote
-          defcomp comp-9 (props)
+          defcomp comp-9 (states props)
             {} $ :render
               fn (m)
-                translate props (comp-stroke 40 40 0 40) (comp-stroke 0 40 0 0) (comp-stroke 0 0 40 0) (comp-stroke 40 0 40 40) (comp-stroke 40 40 40 80) (comp-stroke 40 80 0 80)
+                translate props
+                  comp-stroke (>> states 0) 40 40 0 40
+                  comp-stroke (>> states 1) 0 40 0 0
+                  comp-stroke (>> states 2) 0 0 40 0
+                  comp-stroke (>> states 3) 40 0 40 40
+                  comp-stroke (>> states 4) 40 40 40 80
+                  comp-stroke (>> states 5) 40 80 0 80
       :proc $ quote ()
     |quamolit.util.keyboard $ {}
       :ns $ quote
@@ -1134,7 +1231,7 @@
       :ns $ quote
         ns quamolit.comp.container $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp group
+          [] quamolit.alias :refer $ [] defcomp group >>
           [] quamolit.render.element :refer $ [] translate button
           [] quamolit.comp.todolist :refer $ [] comp-todolist
           [] quamolit.comp.digits :refer $ [] comp-digit
@@ -1161,12 +1258,13 @@
                 tab $ :tab state
               {}
                 :child-map $ {}
-                  :portal $ if (= tab :portal) (comp-portal mutate!)
-                  :todolist $ if (= tab :todolist) (comp-todolist timestamp store)
+                  :portal $ if (= tab :portal) (comp-portal cursor)
+                  :todolist $ if (= tab :todolist)
+                    comp-todolist (>> states :todolist) timestamp
                   :clock $ if (= tab :clock)
                     translate
                       {,} :style $ {,} :x 0 :y 0
-                      comp-clock timestamp
+                      comp-clock $ >> states :clock
                   :solar $ if (= tab :solar)
                     translate
                       {,} :style $ {,} :x 0 :y 0
@@ -1182,11 +1280,11 @@
                   :finder $ if (= tab :finder)
                     translate
                       {,} :style $ {,} :x 0 :y 40
-                      comp-finder timestamp
+                      comp-finder $ >> states :finder
                   :raining $ if (= tab :raining)
                     translate
                       {,} :style $ {,} :x 0 :y 40
-                      comp-raining timestamp
+                      comp-raining (>> states :raining) timestamp
                   :icons $ if (= tab :icons)
                     translate
                       {,} :style $ {,} :x 0 :y 40
@@ -1197,31 +1295,31 @@
                       comp-ring timestamp
                   :folding-fan $ if (= tab :folding-fan)
                     translate
-                      {,} :style $ {,} :x 0 :y 40
-                      comp-folding-fan
-                  :portal $ if (not= tab :portal)
+                      {} $ :style
+                        {} (:x 0) (:y 40)
+                      comp-folding-fan $ >> states :folding-fan
+                  :back $ if (not= tab :back)
                     translate
-                      {,} :style $ {,} :x -400 :y -140
-                      button $ {,} :style (style-button |Back) :event
-                        {,} :click $ handle-back mutate!
+                      {} $ :style ({,} :x -400 :y -140)
+                      button $ {}
+                        :style $ style-button |Back
+                        :event $ {}
+                          :click $ fn (e d!) (d! cursor :portal)
                 :render $ fn (m)
                   group
                     {} $ :style ({})
-                    comp-fade-in-out ({}) (:portal m)
+                    comp-fade-in-out (>> states :portal) ({}) (:portal m)
                     :todolist m
-                    comp-fade-in-out ({}) (:clock m)
-                    comp-fade-in-out ({}) (:solar m)
-                    comp-fade-in-out ({}) (:binary-tree m)
-                    comp-fade-in-out ({}) (:code-table m)
-                    comp-fade-in-out ({}) (:finder m)
-                    comp-fade-in-out ({}) (:raining m)
-                    comp-fade-in-out ({}) (:icons m)
-                    comp-fade-in-out ({}) (:curve m)
-                    comp-fade-in-out ({}) (:folding-fan m)
-                    comp-fade-in-out ({}) (:portal m)
-        |handle-back $ quote
-          defn handle-back (mutate!)
-            fn (event dispatch) (mutate! :portal)
+                    comp-fade-in-out (>> states :clock) ({}) (:clock m)
+                    comp-fade-in-out (>> states :solar) ({}) (:solar m)
+                    comp-fade-in-out (>> states :binary-tree) ({}) (:binary-tree m)
+                    comp-fade-in-out (>> states :code-table) ({}) (:code-table m)
+                    comp-fade-in-out (>> states :finder) ({}) (:finder m)
+                    comp-fade-in-out (>> states :raining) ({}) (:raining m)
+                    comp-fade-in-out (>> states :icons) ({}) (:icons m)
+                    comp-fade-in-out (>> states :curve) ({}) (:curve m)
+                    comp-fade-in-out (>> states :folding-fan) ({}) (:folding-fan m)
+                    comp-fade-in-out (>> states :back) ({}) (:back m)
         |init-state $ quote
           defn init-state (& args) :portal
         |style-button $ quote
@@ -1245,39 +1343,43 @@
       :ns $ quote
         ns quamolit.comp.finder $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp rect group
+          [] quamolit.alias :refer $ [] defcomp rect group >>
           [] quamolit.comp.folder :refer $ [] comp-folder
       :defs $ {}
         |card-collection $ quote
           def card-collection $ [] ([] "|喷雪花" "|檵木" "|石楠" "|文竹") ([] "|紫云英" "|绣球花" "|蔷薇") ([] "|金银花" "|栗树" "|婆婆纳" "|鸡爪槭") ([] "|卷柏" "|稻" "|马尾松" "|五角星花" "|苔藓") ([] "|芍药" "|木棉")
         |comp-finder $ quote
-          defcomp comp-finder (timestamp) (; js/console.log instant state)
-            {} $ :render
-              fn (m)
-                rect
-                  {,} :style
-                    {,} :w 1000 :h 600 :fill-style $ hsl 100 40 90
-                    , :event $ {,} :click (handle-back mutate!)
-                  group ({})
-                    -> (first state)
-                      map-indexed $ fn (index folder) (; .log js/console folder)
-                        let
-                            ix $ rem index 4
-                            iy $ js/Math.floor (/ index 4)
-                            position $ []
-                              - (* ix 200) 200
-                              - (* iy 200) 100
-                          [] index $ comp-folder folder position mutate! index
-                            = index $ last state
-                      filter $ fn (entry)
-                        let-sugar
-                              [] index tree
-                              , entry
-                            target $ last state
-                          if (some? target) (= index target) true
-        |handle-back $ quote
-          defn handle-back (mutate!)
-            fn (event dispatch) (mutate! nil)
+          defcomp comp-finder (states)
+            let
+                cursor $ :cursor states
+                state $ either (:data states) ({})
+              ; js/console.log state state
+              {} $ :render
+                fn (m)
+                  rect
+                    {,} :style
+                      {,} :w 1000 :h 600 :fill-style $ hsl 100 40 90
+                      , :event $ {,} :click
+                        fn (e d!) (d! cursor nil)
+                    group ({})
+                      -> (first state)
+                        map-indexed $ fn (index folder) (; js/console.log folder)
+                          let
+                              ix $ rem index 4
+                              iy $ js/Math.floor (/ index 4)
+                              position $ []
+                                - (* ix 200) 200
+                                - (* iy 200) 100
+                            [] index $ comp-folder (>> states index) folder position
+                              fn $
+                              , index
+                                = index $ last state
+                        filter $ fn (entry)
+                          let-sugar
+                                [] index tree
+                                , entry
+                              target $ last state
+                            if (some? target) (= index target) true
         |init-state $ quote
           defn init-state (& args) ([] card-collection nil)
         |update-state $ quote
@@ -1327,39 +1429,43 @@
           [] quamolit.util.iterate :refer $ [] iterate-instant
       :defs $ {}
         |comp-file-card $ quote
-          defcomp comp-file-card (card-name position navigate-this index parent-ratio popup?)
-            {} $ :render
-              fn (m)
-                let
-                    popup-ratio $ / (:popup instant) 1000
-                    shift-x $ first position
-                    shift-y $ last position
-                    move-x $ * shift-x
-                      + 0.1 $ * 0.9 (- 1 popup-ratio)
-                    move-y $ * shift-y
-                      + 0.1 $ * 0.9 (- 1 popup-ratio)
-                    scale-ratio $ /
-                      + 0.2 $ * 0.8 popup-ratio
-                      , parent-ratio
-                  translate
-                    {,} :style $ {,}
-                    alpha
-                      {,} :style $ {,} :opacity
-                        / (:presence instant) 1000
-                      translate
-                        {,} :style $ {,} :x move-x :y move-y
-                        scale
-                          {,} :style $ {,} :ratio scale-ratio
-                          rect
-                            {,} :style
-                              {,} :w 520 :h 360 :fill-style $ hsl 200 80 80
-                              , :event $ {,} :click (handle-click navigate-this index popup?)
-                            text $ {,} :style
-                              {,} :fill-style (hsl 0 0 100) :text card-name :size 60
+          defcomp comp-file-card (states card-name position cursor index parent-ratio popup?)
+            let
+                cursor $ :cursor states
+                state $ either (:data states)
+                  {} (:popup 0) (:presence 0)
+              {} $ :render
+                fn (m)
+                  let
+                      popup-ratio $ / (:popup state) 1000
+                      shift-x $ first position
+                      shift-y $ last position
+                      move-x $ * shift-x
+                        + 0.1 $ * 0.9 (- 1 popup-ratio)
+                      move-y $ * shift-y
+                        + 0.1 $ * 0.9 (- 1 popup-ratio)
+                      scale-ratio $ /
+                        + 0.2 $ * 0.8 popup-ratio
+                        , parent-ratio
+                    translate
+                      {,} :style $ {,}
+                      alpha
+                        {,} :style $ {,} :opacity
+                          / (:presence state) 1000
+                        translate
+                          {,} :style $ {,} :x move-x :y move-y
+                          scale
+                            {,} :style $ {,} :ratio scale-ratio
+                            rect
+                              {,} :style
+                                {,} :w 520 :h 360 :fill-style $ hsl 200 80 80
+                                , :event $ {,} :click (handle-click cursor index popup?)
+                              text $ {,} :style
+                                {,} :fill-style (hsl 0 0 100) :text card-name :size 60
         |handle-click $ quote
-          defn handle-click (navigate-this index popup?)
-            fn (event dispatch)
-              navigate-this $ if popup? nil index
+          defn handle-click (cursor index popup?)
+            fn (e d!)
+              d! cursor $ if popup? nil index
         |init-instant $ quote
           defn init-instant (args state at?) ({,} :numb? false :popup 0 :popup-v 0 :presence 0 :presence-v 3)
         |on-tick $ quote
@@ -1435,7 +1541,7 @@
                     n 20
                     angle $ / 360 n
                     shift 10
-                    rotation $ rem (/ tick 400) 360
+                    rotation $ rem (/ timestamp 400) 360
                     r 100
                     rl 200
                     curve-points $ map (range n)
@@ -1471,7 +1577,7 @@
       :ns $ quote
         ns quamolit.comp.folder $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp rect text group
+          [] quamolit.alias :refer $ [] defcomp rect text group >>
           [] quamolit.render.element :refer $ [] translate scale alpha
           [] quamolit.util.iterate :refer $ [] iterate-instant tween
           [] quamolit.comp.file-card :refer $ [] comp-file-card
@@ -1498,15 +1604,15 @@
               if (not= old-popup? popup?)
                 assoc instant :popup-v $ if popup? 3 -3
                 , instant
-        |handle-back $ quote
-          defn handle-back (mutate-navitate index)
-            fn (event dispatch) (mutate-navitate index)
         |comp-folder $ quote
-          defcomp comp-folder (cards position navigate index popup?) (; js/console.log state)
+          defcomp comp-folder (states cards position navigate index popup?) (; js/console.log state)
             let
+                cursor $ :cursor states
+                state $ either (:data states)
+                  {} (:popup 0) (:presence 0)
                 shift-x $ first position
                 shift-y $ last position
-                popup-ratio $ / (:popup instant) 1000
+                popup-ratio $ / (:popup state) 1000
                 place-x $ * shift-x (- 1 popup-ratio)
                 place-y $ * shift-y (- 1 popup-ratio)
                 ratio $ + 0.2 (* 0.8 popup-ratio)
@@ -1519,11 +1625,11 @@
                       {,} :style $ {,} :ratio ratio
                       alpha
                         {,} :style $ {,} :opacity
-                          * 0.6 $ / (:presence instant) 1000
+                          * 0.6 $ / (:presence state) 1000
                         rect $ {,} :style
                           {,} :w 600 :h 400 :fill-style $ hsl 0 80 bg-light
                           , :event
-                            {,} :click $ handle-back navigate index
+                            {,} :click $ fn (e d!) (navigate index)
                       group ({,})
                         -> cards
                           map-indexed $ fn (index card-name)
@@ -1534,7 +1640,7 @@
                                   * 200 $ + 0.1 (* 0.9 popup-ratio)
                                 card-y $ * (- jy 1.5)
                                   * 100 $ + 0.1 (* 0.9 popup-ratio)
-                              comp-file-card card-name ([] card-x card-y) mutate! index ratio $ = state index
+                              comp-file-card (>> states index) card-name ([] card-x card-y) cursor index ratio $ = state index
                           filter $ fn (entry)
                             let
                                 index $ first entry
@@ -1543,7 +1649,7 @@
                         rect $ {,} :style
                           {,} :w 600 :h 400 :fill-style $ hsl 0 80 0 0
                           , :event
-                            {,} :click $ handle-back navigate index
+                            {,} :click $ fn (e d!) (navigate index)
         |init-state $ quote
           defn init-state (cards position _ index popup?) nil
         |init-instant $ quote
@@ -1555,7 +1661,7 @@
       :ns $ quote
         ns quamolit.comp.raining $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp rect group
+          [] quamolit.alias :refer $ [] defcomp rect group >>
           [] quamolit.comp.raindrop :refer $ [] comp-raindrop
       :defs $ {}
         |on-tick $ quote
@@ -1571,17 +1677,20 @@
         |remove? $ quote
           defn remove? (instant) true
         |comp-raining $ quote
-          defcomp comp-raining (timestamp)
-            ; .log js/console $ pr-str instant
-            {} $ :render
-              fn (m)
-                group ({})
-                  -> instant $ map
-                    fn (entry)
-                      let
-                          child-key $ first entry
-                          child $ last entry
-                        [] child-key $ comp-raindrop child timestamp
+          defcomp comp-raining (states timestamp)
+            let
+                cursor $ :cursor states
+                state $ either (:data states) ([])
+              ; js/console.log $ pr-str state
+              {} $ :render
+                fn (m)
+                  group ({})
+                    -> state $ map
+                      fn (entry)
+                        let
+                            child-key $ first entry
+                            child $ last entry
+                          [] child-key $ comp-raindrop (>> states child-key) child timestamp
         |random-point $ quote
           defn random-point () $ []
             - (rand-int 1400) 600
@@ -1641,11 +1750,11 @@
                 y2 -100
                 shift-a $ *
                   + 0.02 $ * 0.001 r1
-                  js/Math.sin $ / tick
+                  js/Math.sin $ / timestamp
                     + 800 $ * r2 100
                 shift-b $ *
                   + 0.03 $ * 0.001 r3
-                  js/Math.sin $ / tick
+                  js/Math.sin $ / timestamp
                     + 1300 $ * 60 r4
               {} $ :render
                 fn (m)
@@ -1680,28 +1789,31 @@
       :ns $ quote
         ns quamolit.comp.raindrop $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] create-comp rect
+          [] quamolit.alias :refer $ [] defcomp rect
           [] quamolit.render.element :refer $ [] translate alpha
           [] quamolit.util.iterate :refer $ [] iterate-instant
       :defs $ {}
         |comp-raindrop $ quote
-          defcomp comp-raindrop (position timestamp)
-            {} $ :render
-              fn (m)
-                let
-                    x $ first position
-                    y $ last position
-                  alpha
-                    {,} :style $ {,} :opacity
-                      * (:presence instant) 0.001
-                    rect $ {,} :style
-                      {}
-                        :fill-style $ hsl 200 80 60
-                        :w 4
-                        :h 30
-                        :x x
-                        :y $ + y
-                          * 0.04 $ - tick (:begin-tick instant)
+          defcomp comp-raindrop (states position timestamp)
+            let
+                state $ either (:data states)
+                  {} (:presence 0) (:begin-tick 0)
+              {} $ :render
+                fn (m)
+                  let
+                      x $ first position
+                      y $ last position
+                    alpha
+                      {,} :style $ {,} :opacity
+                        * (:presence state) 0.001
+                      rect $ {,} :style
+                        {}
+                          :fill-style $ hsl 200 80 60
+                          :w 4
+                          :h 30
+                          :x x
+                          :y $ + y
+                            * 0.04 $ - timestamp (:begin-tick state)
         |init-instant $ quote
           defn init-instant (args state at-place?)
             {} (:presence 0) (:presence-v 3)
@@ -1850,12 +1962,18 @@
                       text $ {,} :style style-text
         |textbox $ quote
           defcomp textbox (props)
-            {} $ :render
-              fn (m)
-                let
-                    style $ assoc (:style props) :text state
-                  input $ {,} :style style :event
-                    {,} :keydown $ handle-keydown mutate!
+            let
+                cursor $ []
+                state "\"TODO"
+              {} $ :render
+                fn (m)
+                  let
+                      style $ assoc (:style props) :text state
+                    input $ {,} :style style :event
+                      {,} :keydown $ fn (e d!)
+                        let
+                            event $ :event e
+                          d! cursor (.-keyCode event) (.-shiftKey event)
         |alpha $ quote
           defcomp alpha (props & children)
             {} $ :render
@@ -1883,10 +2001,6 @@
                     native-rotate $ {,} :style ({,} :angle angle)
                     group ({}) (arrange-children children)
                     native-restore $ {}
-        |handle-keydown $ quote
-          defn handle-keydown (mutate!)
-            fn (event dispatch)
-              mutate! (.-keyCode event) (.-shiftKey event)
         |button $ quote
           defcomp button (props)
             ; js/console.log $ :style props
@@ -1936,7 +2050,7 @@
               fn (m)
                 rotate
                   {,} :style $ {,} :angle
-                    rem (/ tick 8) 360
+                    rem (/ timestamp 8) 360
                   arc $ {,} :style style-large
                   translate
                     {,} :style $ {,} :x 100 :y -40
@@ -2194,12 +2308,9 @@
             {} $ :render
               fn (m)
                 rect $ {,} :style
-                  style-toggler $ :done-value instant
+                  style-toggler $ :done-value done?
                   , :event
-                    {,} :click $ handle-click task-id
-        |handle-click $ quote
-          defn handle-click (task-id)
-            fn (event dispatch) (dispatch :toggle task-id)
+                    {,} :click $ fn (e d!) (d! :toggle task-id)
         |init-instant $ quote
           defn init-instant (args state at!)
             let
