@@ -17,7 +17,8 @@
                 cursor $ :cursor states
                 state $ either (:data states)
                   {} $ :presence 0
-              {} $ :tree
+              []
+                fn $ timestamp dispatch!
                 alpha
                   {,} :style $ {,} :opacity
                     / (:presence state) 1000
@@ -93,7 +94,8 @@
                   {,} :click $ handle-navigate cursor :folding-fan
         |handle-navigate $ quote
           defn handle-navigate (cursor next-page)
-            fn (e d!) (d! cursor next-page)
+            fn (e d!)
+              d! cursor $ {} (:tab next-page)
         |style-button $ quote
           defn style-button (x y page-name bg-color)
             {} (:w 180) (:h 60)
@@ -320,33 +322,31 @@
                           :line-width 2
                   translate
                     {,} :style $ {} (:x 10)
-                    {}
-                        + v 1
-                        translate
-                          {} $ :style
-                            {} $ :y
-                              * -20 $ - v n1
-                          alpha
-                            {} $ :style
-                              {} $ :opacity
-                                - (+ 1 n1) v
-                            text $ {}
-                              :style $ {}
-                                :text $ str (+ v 1)
-                                :fill-style $ hsl 0 80 30
-                                :font-family "|Wawati SC Regular"
-                      v $ translate
+                    translate
+                      {} $ :style
+                        {} $ :y
+                          * -20 $ - v n1
+                      alpha
                         {} $ :style
-                          {} $ :y
-                            * 20 $ - n1 (- v 1)
-                        alpha
-                          {} $ :style
-                            {} $ :opacity (- v n1)
-                          text $ {}
-                            :style $ {}
-                              :text $ str v
-                              :fill-style $ hsl 0 80 30
-                              :font-family "|Wawati SC Regular"
+                          {} $ :opacity
+                            - (+ 1 n1) v
+                        text $ {}
+                          :style $ {}
+                            :text $ str (+ v 1)
+                            :fill-style $ hsl 0 80 30
+                            :font-family "|Wawati SC Regular"
+                    translate
+                      {} $ :style
+                        {} $ :y
+                          * 20 $ - n1 (- v 1)
+                      alpha
+                        {} $ :style
+                          {} $ :opacity (- v n1)
+                        text $ {}
+                          :style $ {}
+                            :text $ str v
+                            :fill-style $ hsl 0 80 30
+                            :font-family "|Wawati SC Regular"
         |remove? $ quote
           defn remove? (instant) true
         |on-update $ quote
@@ -550,17 +550,14 @@
           defn image (props & children) (create-shape :image props children)
         |arrange-children $ quote
           defn arrange-children (children)
-            if
-              list? $ first children
-              .sort-by (first children) first
-              if (map? children)
-                -> children (to-pairs)
-                  filter $ fn (entry)
-                    some? $ last entry
-                -> children
-                  map-indexed $ fn (idx x) ([] idx x)
-                  filter $ fn (entry)
-                    some? $ last entry
+            cond
+                list? $ first children
+                first children
+              (map? children) (raise "\"unknown")
+              true $ -> children
+                map-indexed $ fn (idx x) ([] idx x)
+                filter $ fn (entry)
+                  some? $ last entry
         |path $ quote
           defn path (props & children) (create-shape :path props children)
         |native-transform $ quote
@@ -633,14 +630,14 @@
           [] quamolit.controller.resolve :refer $ [] resolve-target locate-target
       :defs $ {}
         |render-page $ quote
-          defn render-page (tree target)
+          defn render-page (tree target dispatch!)
             let
                 new-tick $ get-tick
                 elapsed $ - new-tick @tick-ref
               ; js/console.info "|render page:" tree
               reset! tree-ref tree
               reset! tick-ref new-tick
-              call-paint tree target
+              call-paint tree target dispatch!
               ; js/console.log |tree tree
         |focus-ref $ quote
           defatom focus-ref $ []
@@ -656,10 +653,10 @@
           defn handle-event (coord event-name event dispatch)
             let
                 maybe-listener $ resolve-target @tree-ref event-name coord
-              ; .log js.console "|handle event" maybe-listener coord event-name @tree-ref
+              ; js/console.log "|handle event" maybe-listener coord event-name @tree-ref
               if (some? maybe-listener)
                 do (.preventDefault event) (maybe-listener event dispatch)
-                ; .log js/console "|no target"
+                ; js/console.log "|no target"
         |setup-events $ quote
           defn setup-events (root-element dispatch)
             let
@@ -686,7 +683,7 @@
                 nil? $ aget ctx |addHitRegion
                 js/alert "|You need to enable experimental canvas features to view this app"
         |call-paint $ quote
-          defn call-paint (tree target) (; .log js/console tree)
+          defn call-paint (tree target dispatch!) (; .log js/console tree)
             let
                 ctx $ .!getContext target |2d
                 w js/window.innerWidth
@@ -696,7 +693,7 @@
               .!clearRect ctx 0 0 w h
               .!save ctx
               .!translate ctx (/ w 2) (/ h 2)
-              paint ctx tree *paint-eff $ []
+              paint ctx tree *paint-eff ([]) dispatch!
               .!restore ctx
       :proc $ quote ()
     |quamolit.comp.task $ {}
@@ -1085,75 +1082,75 @@
           [] quamolit.comp.debug :refer $ [] comp-debug
       :defs $ {}
         |comp-container $ quote
-          defcomp comp-container (timestamp store) (; js/console.log state)
+          defcomp comp-container (timestamp store)
             let
                 states $ :states store
-                state $ either (:data store)
+                state $ either (:data states)
                   {} $ :tab :portal
                 cursor $ []
                 tab $ :tab state
-              {} $ :tree
-                group
-                  {} $ :style ({})
-                  comp-fade-in-out (>> states :portal) ({})
-                    if (= tab :portal) (comp-portal cursor)
-                  comp-fade-in-out (>> states :back) ({})
-                    if (not= tab :portal)
-                      translate
-                        {} $ :style ({,} :x -400 :y -140)
-                        button $ {}
-                          :style $ style-button |Back
-                          :event $ {}
-                            :click $ fn (e d!) (d! cursor :portal)
-                  comp-fade-in-out (>> states :todolist) ({})
-                    if (= tab :todolist)
-                      comp-todolist (>> states :todolist) timestamp
-                  comp-fade-in-out (>> states :clock) ({})
-                    if (= tab :clock)
-                      translate
-                        {,} :style $ {,} :x 0 :y 0
-                        comp-clock $ >> states :clock
-                  comp-fade-in-out (>> states :solar) ({})
-                    if (= tab :solar)
-                      translate
-                        {,} :style $ {,} :x 0 :y 0
-                        comp-solar timestamp 8
-                  comp-fade-in-out (>> states :binary-tree) ({})
-                    if (= tab :binary-tree)
-                      translate
-                        {,} :style $ {,} :x 0 :y 240
-                        comp-binary-tree timestamp 5
-                  comp-fade-in-out (>> states :code-table) ({})
-                    if (= tab :code-table)
-                      translate
-                        {,} :style $ {,} :x 0 :y 40
-                        comp-code-table
-                  comp-fade-in-out (>> states :finder) ({})
-                    if (= tab :finder)
-                      translate
-                        {,} :style $ {,} :x 0 :y 40
-                        comp-finder $ >> states :finder
-                  comp-fade-in-out (>> states :raining) ({})
-                    if (= tab :raining)
-                      translate
-                        {,} :style $ {,} :x 0 :y 40
-                        comp-raining (>> states :raining) timestamp
-                  comp-fade-in-out (>> states :curve) ({})
-                    if (= tab :curve)
-                      translate
-                        {,} :style $ {,} :x 0 :y 40
-                        comp-ring timestamp
-                  comp-fade-in-out (>> states :icons) ({})
-                    if (= tab :icons)
-                      translate
-                        {,} :style $ {,} :x 0 :y 40
-                        comp-icons-table timestamp
-                  comp-fade-in-out (>> states :folding-fan) ({})
-                    if (= tab :folding-fan)
-                      translate
-                        {} $ :style
-                          {} (:x 0) (:y 40)
-                        comp-folding-fan $ >> states :folding-fan
+              group
+                {} $ :style ({})
+                comp-fade-in-out (>> states :portal) ({})
+                  if (= tab :portal) (comp-portal cursor)
+                comp-fade-in-out (>> states :todolist) ({})
+                  if (= tab :todolist)
+                    comp-todolist (>> states :todolist) timestamp
+                comp-fade-in-out (>> states :clock) ({})
+                  if (= tab :clock)
+                    translate
+                      {,} :style $ {,} :x 0 :y 0
+                      comp-clock $ >> states :clock
+                comp-fade-in-out (>> states :solar) ({})
+                  if (= tab :solar)
+                    translate
+                      {,} :style $ {,} :x 0 :y 0
+                      comp-solar timestamp 8
+                comp-fade-in-out (>> states :binary-tree) ({})
+                  if (= tab :binary-tree)
+                    translate
+                      {,} :style $ {,} :x 0 :y 240
+                      comp-binary-tree timestamp 5
+                comp-fade-in-out (>> states :code-table) ({})
+                  if (= tab :code-table)
+                    translate
+                      {,} :style $ {,} :x 0 :y 40
+                      comp-code-table $ >> states :code-table
+                comp-fade-in-out (>> states :finder) ({})
+                  if (= tab :finder)
+                    translate
+                      {,} :style $ {,} :x 0 :y 40
+                      comp-finder $ >> states :finder
+                comp-fade-in-out (>> states :raining) ({})
+                  if (= tab :raining)
+                    translate
+                      {,} :style $ {,} :x 0 :y 40
+                      comp-raining (>> states :raining) timestamp
+                comp-fade-in-out (>> states :curve) ({})
+                  if (= tab :curve)
+                    translate
+                      {,} :style $ {,} :x 0 :y 40
+                      comp-ring timestamp
+                comp-fade-in-out (>> states :icons) ({})
+                  if (= tab :icons)
+                    translate
+                      {,} :style $ {,} :x 0 :y 40
+                      comp-icons-table (>> states :icons) timestamp
+                comp-fade-in-out (>> states :folding-fan) ({})
+                  if (= tab :folding-fan)
+                    translate
+                      {} $ :style
+                        {} (:x 0) (:y 40)
+                      comp-folding-fan $ >> states :folding-fan
+                comp-fade-in-out (>> states :back) ({})
+                  if (not= tab :portal)
+                    translate
+                      {} $ :style ({,} :x -400 :y -140)
+                      button $ {}
+                        :style $ style-button |Back
+                        :event $ {}
+                          :click $ fn (e d!)
+                            d! cursor $ assoc state :tab :portal
         |init-state $ quote
           defn init-state (& args) :portal
         |style-button $ quote
@@ -1194,7 +1191,8 @@
                   , :event $ {,} :click
                     fn (e d!) (d! cursor nil)
                 group ({})
-                  -> (first state)
+                  ->
+                    [] $ [] "\"a" "\"c"
                     map-indexed $ fn (index folder) (; js/console.log folder)
                       let
                           ix $ rem index 4
@@ -1324,6 +1322,7 @@
     |quamolit.updater.core $ {}
       :ns $ quote
         ns quamolit.updater.core $ :require ([] quamolit.schema :as schema)
+          [] quamolit.cursor :refer $ [] update-states
       :defs $ {}
         |task-add $ quote
           defn task-add (store op-data tick)
@@ -1351,8 +1350,10 @@
                   assoc task :text text
                   , task
         |updater-fn $ quote
-          defn updater-fn (store op op-data tick) (; .log js/console "|store update:" op op-data tick)
-            case-default op store
+          defn updater-fn (store op op-data tick) (; js/console.log "|store update:" op op-data tick)
+            case-default op
+              do (js/console.log "\"unknown op" op) store
+              :states $ update-states store op-data
               :add $ task-add store op-data tick
               :rm $ task-rm store op-data tick
               :update $ task-update store op-data tick
@@ -1535,6 +1536,19 @@
         |get-tick $ quote
           defn get-tick () $ .valueOf (new js/Date)
       :proc $ quote ()
+    |quamolit.cursor $ {}
+      :ns $ quote (ns quamolit.cursor)
+      :defs $ {}
+        |update-states $ quote
+          defn update-states (store op-data)
+            let
+                cursor $ first op-data
+                data $ last op-data
+              assoc-in store
+                concat ([] :states) cursor $ [] :data
+                , data
+      :proc $ quote ()
+      :configs $ {}
     |quamolit.util.order $ {}
       :ns $ quote (ns quamolit.util.order)
       :defs $ {}
@@ -1663,31 +1677,37 @@
       :defs $ {}
         |dispatch! $ quote
           defn dispatch! (op op-data)
-            let
-                new-tick $ get-tick
-                new-store $ updater-fn @store-ref op op-data new-tick
-              reset! store-ref new-store
+            if (list? op)
+              recur :states $ [] op op-data
+              do (println "\"dispatch" op op-data)
+                let
+                    new-tick $ get-tick
+                    new-store $ with-js-log (updater-fn @store-ref op op-data new-tick)
+                  reset! store-ref new-store
         |loop-ref $ quote (defatom loop-ref nil)
         |render-loop! $ quote
-          defn render-loop! (timestamp)
+          defn render-loop! (? t)
             let
                 target $ js/document.querySelector |#app
-              render-page (comp-container timestamp @store-ref) target
-              js/setTimeout
-                fn () $ reset! loop-ref (js/requestAnimationFrame render-loop!)
-                , 100
+              ; js/console.log "\"store" @store-ref
+              render-page
+                comp-container (js/Date.now) @store-ref
+                , target dispatch!
+              reset! loop-ref $ js/setTimeout
+                fn () $ js/requestAnimationFrame render-loop!
+                , 80
         |store-ref $ quote
           defatom store-ref $ {}
             :states $ {}
         |reload! $ quote
-          defn reload! () (js/cancelAnimationFrame @loop-ref) (js/requestAnimationFrame render-loop!) (js/console.log "|code updated...")
+          defn reload! () (js/clearTimeout @loop-ref) (render-loop!) (js/console.log "|code updated...")
         |main! $ quote
           defn main! () (load-console-formatter!)
             let
                 target $ js/document.querySelector |#app
               configure-canvas target
               setup-events target dispatch!
-              js/requestAnimationFrame render-loop!
+              render-loop!
             set! js/window.onresize $ fn (event)
               let
                   target $ .!querySelector js/document |#app
@@ -1696,20 +1716,20 @@
     |quamolit.comp.icons-table $ {}
       :ns $ quote
         ns quamolit.comp.icons-table $ :require
-          [] quamolit.alias :refer $ [] defcomp text line group
+          [] quamolit.alias :refer $ [] defcomp text line group >>
           [] quamolit.render.element :refer $ [] translate
           [] quamolit.comp.icon-increase :refer $ [] comp-icon-increase
           [] quamolit.comp.icon-play :refer $ [] comp-icon-play
       :defs $ {}
         |comp-icons-table $ quote
-          defcomp comp-icons-table (timestamp)
+          defcomp comp-icons-table (states timestamp)
             group ({})
               translate
                 {,} :style $ {,} :x -200
-                comp-icon-increase
+                comp-icon-increase $ >> states :increase
               translate
                 {,} :style $ {,} :x 0
-                comp-icon-play
+                comp-icon-play $ >> states :play
       :proc $ quote ()
     |quamolit.render.element $ {}
       :ns $ quote
@@ -1728,7 +1748,7 @@
               group ({})
                 native-save $ {}
                 native-translate $ assoc props :style style
-                group ({}) (arrange-children children)
+                group ({}) & children
                 native-restore $ {}
         |scale $ quote
           defcomp scale (props & children)
@@ -1992,14 +2012,22 @@
                 y $ or (:y style) 0
               .translate ctx x y
         |paint $ quote
-          defn paint (ctx tree eff-ref coord) (; js/console.log "\"paint" tree)
+          defn paint (ctx tree eff-ref coord dispatch!) (; js/console.log "\"paint" tree)
             if (nil? tree) nil $ if
               and (record? tree) (relevant-record? Component tree)
-              recur ctx (:tree tree) eff-ref $ conj coord (:name tree)
+              let
+                  on-tick $ :on-tick tree
+                if (fn? on-tick)
+                  on-tick (js/Date.now) dispatch!
+                recur ctx (:tree tree) eff-ref
+                  conj coord $ :name tree
+                  , dispatch!
               do (paint-one ctx tree eff-ref coord)
                 &doseq
                   cursor $ :children tree
-                  paint ctx (last cursor) eff-ref $ conj coord (first cursor)
+                  paint ctx (last cursor) eff-ref
+                    conj coord $ first cursor
+                    , dispatch!
         |paint-line $ quote
           defn paint-line (ctx style)
             let
