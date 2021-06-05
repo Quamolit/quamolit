@@ -12,17 +12,43 @@
           [] quamolit.util.iterate :refer $ [] iterate-instant
       :defs $ {}
         |comp-fade-in-out $ quote
-          defcomp comp-fade-in-out (states props & children) (; js/console.log instant)
+          defcomp comp-fade-in-out (states props p1) (; js/console.log instant)
             let
                 cursor $ :cursor states
+                v 0.1
                 state $ either (:data states)
-                  {} $ :presence 0
+                  {} (:stage :hidden) (:opacity 0) (:p1 nil) (:time 0)
               []
-                fn $ timestamp dispatch!
+                fn (timestamp d!)
+                  case-default (:stage state)
+                    println "\"unknown stage" $ :stage state
+                    :hidden $ when (some? p1)
+                      d! cursor $ merge state
+                        {} (:stage :showing)
+                          :opacity $ + v 0
+                          :p1 p1
+                          :time timestamp
+                    :showing $ if
+                      >= (:opacity state) 1
+                      d! cursor $ {} (:stage :show) (:opacity 1) (:p1 p1) (:time nil)
+                      d! cursor $ update state :opacity
+                        fn (x) (+ x v)
+                    :show $ if (nil? p1)
+                      d! cursor $ {} (:stage :hiding)
+                        :opacity $ - 1 v
+                        :p1 $ :p1 state
+                        :time timestamp
+                    :hiding $ if
+                      <= (:opacity state) 0
+                      d! cursor $ {} (:stage :hidden) (:opacity 0.01) (:p1 nil) (:time nil)
+                      d! cursor $ update state :opacity
+                        fn (x) (- x v)
                 alpha
-                  {,} :style $ {,} :opacity
-                    / (:presence state) 1000
-                  , & children
+                  {} $ :style
+                    {} $ :opacity (:opacity state)
+                  case-default (:stage state)
+                    either p1 $ :p1 state
+                    :hidden nil
         |init-instant $ quote
           defn init-instant (args state at?)
             {} (:presence 0) (:presence-v 3) (:numb? false)
@@ -1679,10 +1705,10 @@
           defn dispatch! (op op-data)
             if (list? op)
               recur :states $ [] op op-data
-              do (println "\"dispatch" op op-data)
+              do (; println "\"dispatch" op op-data)
                 let
                     new-tick $ get-tick
-                    new-store $ with-js-log (updater-fn @store-ref op op-data new-tick)
+                    new-store $ updater-fn @store-ref op op-data new-tick
                   reset! store-ref new-store
         |loop-ref $ quote (defatom loop-ref nil)
         |render-loop! $ quote
@@ -1695,7 +1721,7 @@
                 , target dispatch!
               reset! loop-ref $ js/setTimeout
                 fn () $ js/requestAnimationFrame render-loop!
-                , 80
+                , 40
         |store-ref $ quote
           defatom store-ref $ {}
             :states $ {}
@@ -1813,12 +1839,11 @@
           defcomp alpha (props & children)
             {} $ :tree
               let
-                  style $ merge ({,} :opacity 0.5) (:style props)
+                  style $ merge ({,} :opacity 0.01) (:style props)
                 group ({})
                   native-save $ {}
                   native-alpha $ assoc props :style style
-                  group ({}) (arrange-children children)
-                  native-restore $ {}
+                  , & children $ native-restore ({})
         |pi-ratio $ quote
           def pi-ratio $ / js/Math.PI 180
         |rotate $ quote
@@ -1946,6 +1971,16 @@
                 or (:x style) 0
                 or (:y style) 0
                 or (:max-width style) 400
+        |bound-opacity $ quote
+          defn bound-opacity (o)
+            cond
+                nil? o
+                , 1
+              (not (number? 0))
+                do (js/console.warn "\"invalid opacity" 0) 1
+              (< o 0) 0
+              (> o 1) 1
+              true o
         |paint-restore $ quote
           defn paint-restore (ctx style eff-ref) (.restore ctx) (swap! eff-ref update :alpha-stack rest)
         |paint-alpha $ quote
@@ -1953,7 +1988,7 @@
             let
                 inherent-opacity $ first (:alpha-stack @eff-ref)
                 opacity $ * inherent-opacity
-                  or (:opacity style) 0.5
+                  bound-opacity $ :opacity style
               aset ctx "\"globalAlpha" opacity
               swap! eff-ref update :alpha-stack $ fn (alpha-stack)
                 prepend (rest alpha-stack) opacity
