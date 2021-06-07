@@ -15,34 +15,35 @@
           defcomp comp-fade-in-out (states props p1) (; js/console.log instant)
             let
                 cursor $ :cursor states
-                v 0.1
+                v 0.004
                 state $ either (:data states)
-                  {} (:stage :hidden) (:opacity 0) (:p1 nil) (:time 0)
+                  {} (:stage :hidden) (:opacity 0) (:p1 nil)
               []
-                fn (timestamp d!)
+                fn (elapsed d!)
                   case-default (:stage state)
                     println "\"unknown stage" $ :stage state
                     :hidden $ when (some? p1)
                       d! cursor $ merge state
                         {} (:stage :showing)
-                          :opacity $ + v 0
+                          :opacity $ + (* elapsed v) 0
                           :p1 p1
-                          :time timestamp
                     :showing $ if
                       >= (:opacity state) 1
-                      d! cursor $ {} (:stage :show) (:opacity 1) (:p1 p1) (:time nil)
+                      d! cursor $ {} (:stage :show) (:opacity 1) (:p1 p1)
                       d! cursor $ update state :opacity
-                        fn (x) (+ x v)
+                        fn (x)
+                          + x $ * elapsed v
                     :show $ if (nil? p1)
                       d! cursor $ {} (:stage :hiding)
-                        :opacity $ - 1 v
+                        :opacity $ - 1 (* elapsed v)
                         :p1 $ :p1 state
-                        :time timestamp
+                      d! cursor $ assoc state :p1 p1
                     :hiding $ if
                       <= (:opacity state) 0
-                      d! cursor $ {} (:stage :hidden) (:opacity 0.01) (:p1 nil) (:time nil)
+                      d! cursor $ {} (:stage :hidden) (:opacity 0.01) (:p1 nil)
                       d! cursor $ update state :opacity
-                        fn (x) (- x v)
+                        fn (x)
+                          - x $ * elapsed v
                 alpha
                   {} $ :style
                     {} $ :opacity (:opacity state)
@@ -663,7 +664,7 @@
               ; js/console.info "|render page:" tree
               reset! tree-ref tree
               reset! tick-ref new-tick
-              call-paint tree target dispatch!
+              call-paint tree target dispatch! elapsed
               ; js/console.log |tree tree
         |focus-ref $ quote
           defatom focus-ref $ []
@@ -709,7 +710,7 @@
                 nil? $ aget ctx |addHitRegion
                 js/alert "|You need to enable experimental canvas features to view this app"
         |call-paint $ quote
-          defn call-paint (tree target dispatch!) (; .log js/console tree)
+          defn call-paint (tree target dispatch! elapsed) (; .log js/console tree)
             let
                 ctx $ .!getContext target |2d
                 w js/window.innerWidth
@@ -717,10 +718,13 @@
               reset! *paint-eff $ {}
                 :alpha-stack $ [] 1
               .!clearRect ctx 0 0 w h
-              .!save ctx
+              ; .!save ctx
               .!translate ctx (/ w 2) (/ h 2)
-              paint ctx tree *paint-eff ([]) dispatch!
-              .!restore ctx
+              paint ctx tree *paint-eff ([]) dispatch! elapsed
+              .!translate ctx
+                negate $ / w 2
+                negate $ / h 2
+              ; .!restore ctx
       :proc $ quote ()
     |quamolit.comp.task $ {}
       :ns $ quote
@@ -821,7 +825,7 @@
     |quamolit.comp.clock $ {}
       :ns $ quote
         ns quamolit.comp.clock $ :require
-          [] quamolit.alias :refer $ [] defcomp group
+          [] quamolit.alias :refer $ [] defcomp group >>
           [] quamolit.render.element :refer $ [] translate
           [] quamolit.comp.digits :refer $ [] comp-digit
           [] quamolit.comp.debug :refer $ [] comp-debug
@@ -837,22 +841,22 @@
                   js/Math.floor $ / x 10
                 get-one $ fn (x) (rem x 10)
               ; js/console.log secs
-              {} $ :render
-                fn (m)
-                  group ({,})
-                    comp-digit states (get-ten hrs)
-                      {,} :style $ {,} :x -200
-                    comp-digit states (get-one hrs)
-                      {,} :style $ {,} :x -140
-                    comp-digit states (get-ten mins)
-                      {,} :style $ {,} :x -60
-                    comp-digit states (get-one mins)
-                      {,} :style $ {,} :x 0
-                    comp-digit states (get-ten secs)
-                      {,} :style $ {,} :x 80
-                    comp-digit states (get-one secs)
-                      {,} :style $ {,} :x 140
-                    comp-debug now $ {,} :y -60
+              []
+                fn $ elapsed d!
+                group ({,})
+                  comp-digit (>> states :h1) (get-ten hrs)
+                    {,} :style $ {,} :x -280
+                  comp-digit (>> states :h) (get-one hrs)
+                    {,} :style $ {,} :x -200
+                  comp-digit (>> states :m1) (get-ten mins)
+                    {,} :style $ {,} :x -80
+                  comp-digit (>> states :m) (get-one mins)
+                    {,} :style $ {,} :x 0
+                  comp-digit (>> states :s1) (get-ten secs)
+                    {,} :style $ {,} :x 120
+                  comp-digit (>> states :s) (get-one secs)
+                    {,} :style $ {,} :x 200
+                  ; comp-debug now $ {,} :y -60
       :proc $ quote ()
     |quamolit.comp.folding-fan $ {}
       :ns $ quote
@@ -930,15 +934,23 @@
           [] quamolit.alias :refer $ [] defcomp rect group line >>
           [] quamolit.render.element :refer $ [] alpha translate
           [] quamolit.util.iterate :refer $ [] iterate-instant tween
+          [] quamolit.comp.fade-in-out :refer $ [] comp-fade-in-out
       :defs $ {}
         |comp-3 $ quote
           defcomp comp-3 (states props)
             translate props
-              comp-stroke (>> states 0) 0 0 40 0
-              comp-stroke (>> states 1) 40 0 40 40
-              comp-stroke (>> states 2) 40 40 40 80
-              comp-stroke (>> states 3) 40 80 0 80
-              comp-stroke (>> states 4) 40 40 0 40
+              comp-fade-in-out (>> states 0) ({})
+                comp-stroke (>> states :stroke-0) 0 1 1 1
+              comp-fade-in-out (>> states 1) ({})
+                comp-stroke (>> states :stroke-1) 1 1 1 0
+              comp-fade-in-out (>> states 2) ({})
+                comp-stroke (>> states :stroke-3) 1 0 0 0
+              comp-fade-in-out (>> states 3) ({}) nil
+              comp-fade-in-out (>> states 4) ({}) nil
+              comp-fade-in-out (>> states 5) ({})
+                comp-stroke (>> states :stroke-5) 0 2 1 2
+              comp-fade-in-out (>> states 6) ({})
+                comp-stroke (>> states :stroke-6) 1 2 1 1
         |on-tick $ quote
           defn on-tick (instant tick elapsed)
             let
@@ -959,42 +971,92 @@
             let
                 cursor $ :cursor states
                 state $ either (:data states)
-                  {} (:presence 0) (:x0 x0) (:y0 y0) (:x1 x1) (:y1 y1)
-              group ({})
-                alpha
-                  {,} :style $ {,} :opacity (:presence state)
-                  line $ {,} :style
-                    {}
-                      :x0 $ :x0 state
-                      :y0 $ :y0 state
-                      :x1 $ :x1 state
-                      :y1 $ :y1 state
+                  {} (:x0 0) (:y0 0) (:x1 0) (:y1 0)
+                v 0.12
+                h 100
+                w 60
+              []
+                fn (elapsed d!)
+                  when-not
+                    and
+                      = x0 $ :x0 state
+                      = y0 $ :y0 state
+                      = x1 $ :x1 state
+                      = y1 $ :y1 state
+                    d! cursor $ -> state
+                      update :x0 $ fn (n)
+                        + n $ * v (- x0 n)
+                      update :y0 $ fn (n)
+                        + n $ * v (- y0 n)
+                      update :x1 $ fn (n)
+                        + n $ * v (- x1 n)
+                      update :y1 $ fn (n)
+                        + n $ * v (- y1 n)
+                group ({})
+                  alpha
+                    {,} :style $ {,} :opacity 1
+                    line $ {,} :style
+                      {}
+                        :x0 $ * w (:x0 state)
+                        :y0 $ * h (:y0 state)
+                        :x1 $ * w (:x1 state)
+                        :y1 $ * h (:y1 state)
+                        :line-width 2
+                        :stroke-style $ hsl 240 90 80
         |comp-7 $ quote
           defcomp comp-7 (states props)
             translate props
-              comp-stroke (>> states 0) 0 0 40 0
-              comp-stroke (>> states 1) 40 0 40 40
-              comp-stroke (>> states 2) 40 40 40 80
+              comp-fade-in-out (>> states 0) ({}) nil
+              comp-fade-in-out (>> states 1) ({})
+                comp-stroke (>> states :stroke-1) 1 1 1 0
+              comp-fade-in-out (>> states 2) ({})
+                comp-stroke (>> states :stroke-3) 1 0 0 0
+              comp-fade-in-out (>> states 3) ({}) nil
+              comp-fade-in-out (>> states 4) ({}) nil
+              comp-fade-in-out (>> states 5) ({}) nil
+              comp-fade-in-out (>> states 6) ({})
+                comp-stroke (>> states :stroke-6) 1 2 1 1
         |comp-2 $ quote
           defcomp comp-2 (states props)
             translate props
-              comp-stroke (>> states 0) 0 0 40 0
-              comp-stroke (>> states 1) 40 0 40 40
-              comp-stroke (>> states 2) 40 40 0 40
-              comp-stroke (>> states 3) 0 40 0 80
-              comp-stroke (>> states 4) 0 80 40 80
+              comp-fade-in-out (>> states 0) ({})
+                comp-stroke (>> states :stroke-0) 0 1 1 1
+              comp-fade-in-out (>> states 1) ({})
+                comp-stroke (>> states :stroke-6) 1 1 1 0
+              comp-fade-in-out (>> states 2) ({})
+                comp-stroke (>> states :stroke-2) 1 0 0 0
+              comp-fade-in-out (>> states 3) ({}) nil
+              comp-fade-in-out (>> states 4) ({})
+                comp-stroke (>> states :stroke-4) 0 1 0 2
+              comp-fade-in-out (>> states 5) ({})
+                comp-stroke (>> states :stroke-5) 0 2 1 2
+              comp-fade-in-out (>> states 6) ({}) nil
         |comp-4 $ quote
           defcomp comp-4 (states props)
             translate props
-              comp-stroke (>> states 0) 0 0 0 40
-              comp-stroke (>> states 1) 0 40 40 40
-              comp-stroke (>> states 2) 40 40 40 80
-              comp-stroke (>> states 3) 40 40 40 0
+              comp-fade-in-out (>> states 0) ({})
+                comp-stroke (>> states :stroke-0) 0 1 1 1
+              comp-fade-in-out (>> states 1) ({})
+                comp-stroke (>> states :stroke-1) 1 1 1 0
+              comp-fade-in-out (>> states 2) ({}) nil
+              comp-fade-in-out (>> states 3) ({})
+                comp-stroke (>> states :stroke-3) 0 0 0 1
+              comp-fade-in-out (>> states 4) ({}) nil
+              comp-fade-in-out (>> states 5) ({}) nil
+              comp-fade-in-out (>> states 6) ({})
+                comp-stroke (>> states :stroke-6) 1 2 1 1
         |comp-1 $ quote
           defcomp comp-1 (states props)
             translate props
-              comp-stroke (>> states 0) 40 0 40 40
-              comp-stroke (>> states 1) 40 40 40 80
+              comp-fade-in-out (>> states 0) ({}) nil
+              comp-fade-in-out (>> states 1) ({})
+                comp-stroke (>> states :stroke-2) 1 1 1 0
+              comp-fade-in-out (>> states 2) ({}) nil
+              comp-fade-in-out (>> states 3) ({}) nil
+              comp-fade-in-out (>> states 4) ({}) nil
+              comp-fade-in-out (>> states 5) ({}) nil
+              comp-fade-in-out (>> states 6) ({})
+                comp-stroke (>> states :stroke-6) 1 2 1 1
         |comp-digit $ quote
           defcomp comp-digit (states n props)
             case-default n (comp-0 states props)
@@ -1022,21 +1084,35 @@
         |comp-6 $ quote
           defcomp comp-6 (states props)
             translate props
-              comp-stroke (>> states 0) 40 0 0 0
-              comp-stroke (>> states 1) 0 0 0 40
-              comp-stroke (>> states 2) 0 40 40 40
-              comp-stroke (>> states 3) 40 40 40 80
-              comp-stroke (>> states 4) 40 80 0 80
-              comp-stroke (>> states 5) 0 80 0 40
+              comp-fade-in-out (>> states 0) ({})
+                comp-stroke (>> states :stroke-0) 1 1 0 1
+              comp-fade-in-out (>> states 1) ({}) nil
+              comp-fade-in-out (>> states 2) ({})
+                comp-stroke (>> states :stroke-2) 1 0 0 0
+              comp-fade-in-out (>> states 3) ({})
+                comp-stroke (>> states :stroke-3) 0 0 0 1
+              comp-fade-in-out (>> states 4) ({})
+                comp-stroke (>> states :stroke-4) 0 1 0 2
+              comp-fade-in-out (>> states 5) ({})
+                comp-stroke (>> states :stroke-5) 0 2 1 2
+              comp-fade-in-out (>> states 6) ({})
+                comp-stroke (>> states :stroke-6) 1 2 1 1
         |comp-0 $ quote
           defcomp comp-0 (states props)
             translate props
-              comp-stroke (>> states 0) 0 0 40 0
-              comp-stroke (>> states 1) 40 0 40 40
-              comp-stroke (>> states 2) 40 40 40 80
-              comp-stroke (>> states 3) 40 80 0 80
-              comp-stroke (>> states 4) 0 80 0 40
-              comp-stroke (>> states 5) 0 40 0 0
+              comp-fade-in-out (>> states 0) ({}) nil
+              comp-fade-in-out (>> states 1) ({})
+                comp-stroke (>> states :stroke-1) 1 1 1 0
+              comp-fade-in-out (>> states 2) ({})
+                comp-stroke (>> states :stroke-2) 1 0 0 0
+              comp-fade-in-out (>> states 3) ({})
+                comp-stroke (>> states :stroke-4) 0 0 0 1
+              comp-fade-in-out (>> states 4) ({})
+                comp-stroke (>> states :stroke-3) 0 1 0 2
+              comp-fade-in-out (>> states 5) ({})
+                comp-stroke (>> states :stroke-5) 0 2 1 2
+              comp-fade-in-out (>> states 6) ({})
+                comp-stroke (>> states :stroke-6) 1 2 1 1
         |init-instant $ quote
           defn init-instant (args state at?) (; .log js/console "|stroke init:" args)
             let-sugar
@@ -1046,33 +1122,54 @@
         |comp-5 $ quote
           defcomp comp-5 (states props)
             translate props
-              comp-stroke (>> states 0) 40 0 0 0
-              comp-stroke (>> states 1) 0 0 0 40
-              comp-stroke (>> states 2) 0 40 40 40
-              comp-stroke (>> states 3) 40 40 40 80
-              comp-stroke (>> states 4) 40 80 0 80
+              comp-fade-in-out (>> states 0) ({})
+                comp-stroke (>> states :stroke-4) 1 1 0 1
+              comp-fade-in-out (>> states 1) ({}) nil
+              comp-fade-in-out (>> states 2) ({})
+                comp-stroke (>> states :stroke-1) 1 0 0 0
+              comp-fade-in-out (>> states 3) ({})
+                comp-stroke (>> states :stroke-0) 0 0 0 1
+              comp-fade-in-out (>> states 4) ({}) nil
+              comp-fade-in-out (>> states 5) ({})
+                comp-stroke (>> states :stroke-5) 0 2 1 2
+              comp-fade-in-out (>> states 6) ({})
+                comp-stroke (>> states :stroke-6) 1 2 1 1
         |comp-8 $ quote
           defcomp comp-8 (states props)
             translate props
-              comp-stroke (>> states 0) 0 0 40 0
-              comp-stroke (>> states 1) 40 0 40 40
-              comp-stroke (>> states 2) 40 40 40 80
-              comp-stroke (>> states 3) 40 80 0 80
-              comp-stroke (>> states 4) 0 80 0 40
-              comp-stroke (>> states 5) 0 40 0 0
-              comp-stroke (>> states 6) 0 40 40 40
+              comp-fade-in-out (>> states 0) ({})
+                comp-stroke (>> states :stroke-0) 0 1 1 1
+              comp-fade-in-out (>> states 1) ({})
+                comp-stroke (>> states :stroke-1) 1 1 1 0
+              comp-fade-in-out (>> states 2) ({})
+                comp-stroke (>> states :stroke-2) 1 0 0 0
+              comp-fade-in-out (>> states 3) ({})
+                comp-stroke (>> states :stroke-3) 0 0 0 1
+              comp-fade-in-out (>> states 4) ({})
+                comp-stroke (>> states :stroke-4) 0 1 0 2
+              comp-fade-in-out (>> states 5) ({})
+                comp-stroke (>> states :stroke-5) 0 2 1 2
+              comp-fade-in-out (>> states 6) ({})
+                comp-stroke (>> states :stroke-6) 1 2 1 1
         |on-unmount $ quote
           defn on-unmount (instant) (; .log js/console "|stroke unmount")
             -> instant (assoc :presence-v -0.003) (assoc :numb? false)
         |comp-9 $ quote
           defcomp comp-9 (states props)
             translate props
-              comp-stroke (>> states 0) 40 40 0 40
-              comp-stroke (>> states 1) 0 40 0 0
-              comp-stroke (>> states 2) 0 0 40 0
-              comp-stroke (>> states 3) 40 0 40 40
-              comp-stroke (>> states 4) 40 40 40 80
-              comp-stroke (>> states 5) 40 80 0 80
+              comp-fade-in-out (>> states 0) ({})
+                comp-stroke (>> states :stroke-0) 0 1 1 1
+              comp-fade-in-out (>> states 1) ({})
+                comp-stroke (>> states :stroke-2) 1 0 1 1
+              comp-fade-in-out (>> states 2) ({})
+                comp-stroke (>> states :stroke-1) 1 0 0 0
+              comp-fade-in-out (>> states 3) ({})
+                comp-stroke (>> states :stroke-3) 0 0 0 1
+              comp-fade-in-out (>> states 4) ({}) nil
+              comp-fade-in-out (>> states 5) ({})
+                comp-stroke (>> states :stroke-5) 0 2 1 2
+              comp-fade-in-out (>> states 6) ({})
+                comp-stroke (>> states :stroke-6) 1 2 1 1
       :proc $ quote ()
     |quamolit.util.keyboard $ {}
       :ns $ quote
@@ -1125,7 +1222,7 @@
                 comp-fade-in-out (>> states :clock) ({})
                   if (= tab :clock)
                     translate
-                      {,} :style $ {,} :x 0 :y 0
+                      {,} :style $ {,} :x 0 :y -100
                       comp-clock $ >> states :clock
                 comp-fade-in-out (>> states :solar) ({})
                   if (= tab :solar)
@@ -1194,7 +1291,7 @@
       :ns $ quote (ns quamolit.util.time)
       :defs $ {}
         |get-tick $ quote
-          defn get-tick () $ js/Date.now
+          defn get-tick () $ js/performance.now
       :proc $ quote ()
     |quamolit.comp.finder $ {}
       :ns $ quote
@@ -1717,16 +1814,16 @@
                 target $ js/document.querySelector |#app
               ; js/console.log "\"store" @store-ref
               render-page
-                comp-container (js/Date.now) @store-ref
+                comp-container (get-tick) @store-ref
                 , target dispatch!
               reset! loop-ref $ js/setTimeout
-                fn () $ js/requestAnimationFrame render-loop!
-                , 40
+                fn () $ reset! *raq (js/requestAnimationFrame render-loop!)
+                , 20
         |store-ref $ quote
           defatom store-ref $ {}
             :states $ {}
         |reload! $ quote
-          defn reload! () (js/clearTimeout @loop-ref) (render-loop!) (js/console.log "|code updated...")
+          defn reload! () (js/clearTimeout @loop-ref) (js/cancelAnimationFrame @*raq) (render-loop!) (js/console.log "|code updated...")
         |main! $ quote
           defn main! () (load-console-formatter!)
             let
@@ -1738,6 +1835,7 @@
               let
                   target $ .!querySelector js/document |#app
                 configure-canvas target
+        |*raq $ quote (defatom *raq nil)
       :proc $ quote ()
     |quamolit.comp.icons-table $ {}
       :ns $ quote
@@ -1861,7 +1959,7 @@
         |button $ quote
           defcomp button (props) (; js/console.log "\"button" props)
             let
-                style $ :style props
+                style $ either (:style props) ({})
                 guide-text $ or (:text style) |button
                 x $ or (:x style) 0
                 y $ or (:y style) 0
@@ -2047,29 +2145,28 @@
                 y $ or (:y style) 0
               .translate ctx x y
         |paint $ quote
-          defn paint (ctx tree eff-ref coord dispatch!) (; js/console.log "\"paint" tree)
+          defn paint (ctx tree eff-ref coord dispatch! elapsed) (; js/console.log "\"paint" tree)
             if (nil? tree) nil $ if
               and (record? tree) (relevant-record? Component tree)
               let
                   on-tick $ :on-tick tree
-                if (fn? on-tick)
-                  on-tick (js/Date.now) dispatch!
+                if (fn? on-tick) (on-tick elapsed dispatch!)
                 recur ctx (:tree tree) eff-ref
                   conj coord $ :name tree
-                  , dispatch!
+                  , dispatch! elapsed
               do (paint-one ctx tree eff-ref coord)
                 &doseq
                   cursor $ :children tree
                   paint ctx (last cursor) eff-ref
                     conj coord $ first cursor
-                    , dispatch!
+                    , dispatch! elapsed
         |paint-line $ quote
           defn paint-line (ctx style)
             let
-                x0 $ or (:x0 style) 0
-                y0 $ or (:y0 style) 0
-                x1 $ or (:x1 style) 40
-                y1 $ or (:y1 style) 40
+                x0 $ either (:x0 style) 0
+                y0 $ either (:y0 style) 0
+                x1 $ either (:x1 style) 40
+                y1 $ either (:y1 style) 40
                 line-width $ or (:line-width style) 4
                 stroke-style $ or (:stroke-style style) (hsl 200 70 50)
                 line-cap $ or (:line-cap style) |round
