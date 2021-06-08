@@ -2031,10 +2031,10 @@
         |paint-one $ quote
           defn paint-one (ctx directive eff-ref coord)
             let
-                op $ :name directive
-                style $ :style directive
-                event $ :event directive
-              ; .log js/console :paint-one op style
+                op $ &get directive :name
+                style $ &get directive :style
+                event $ &get directive :event
+              ;  js/console :paint-one op style
               case-default op
                 do (.log js/console "|painting not implemented" directive) @eff-ref
                 :line $ paint-line ctx style
@@ -2163,23 +2163,23 @@
         |paint-line $ quote
           defn paint-line (ctx style)
             let
-                x0 $ either (:x0 style) 0
-                y0 $ either (:y0 style) 0
-                x1 $ either (:x1 style) 40
-                y1 $ either (:y1 style) 40
-                line-width $ or (:line-width style) 4
-                stroke-style $ or (:stroke-style style) (hsl 200 70 50)
-                line-cap $ or (:line-cap style) |round
-                line-join $ or (:line-join style) |round
-                miter-limit $ or (:miter-limit style) 8
-              .beginPath ctx
-              .moveTo ctx x0 y0
-              .lineTo ctx x1 y1
-              aset ctx |lineWidth line-width
-              aset ctx |strokeStyle stroke-style
-              aset ctx |lineCap line-cap
-              aset ctx |miterLimit miter-limit
-              .stroke ctx
+                x0 $ either (.get style :x0) 0
+                y0 $ either (.get style :y0) 0
+                x1 $ either (.get style :x1) 40
+                y1 $ either (.get style :y1) 40
+                line-width $ or (.get style :line-width) 4
+                stroke-style $ or (.get style :stroke-style) (hsl 200 70 50)
+                line-cap $ or (.get style :line-cap) |round
+                line-join $ or (.get style :line-join) |round
+                miter-limit $ or (.get style :miter-limit) 8
+              .!beginPath ctx
+              .!moveTo ctx x0 y0
+              .!lineTo ctx x1 y1
+              set! (.-lineWidth ctx) line-width
+              set! (.-strokeStyle ctx) stroke-style
+              set! (.-lineCap ctx) line-cap
+              set! (.-miterLimit ctx) miter-limit
+              .!stroke ctx
         |paint-path $ quote
           defn paint-path (ctx style)
             let
