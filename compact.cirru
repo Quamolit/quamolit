@@ -1214,58 +1214,58 @@
                 tab $ :tab state
               group
                 {} $ :style ({})
-                comp-fade-in-out (>> states :portal) ({})
+                comp-fade-in-out (>> states :fade-portal) ({})
                   if (= tab :portal) (comp-portal cursor)
-                comp-fade-in-out (>> states :todolist) ({})
+                comp-fade-in-out (>> states :fade-todolist) ({})
                   if (= tab :todolist)
                     comp-todolist (>> states :todolist) timestamp
-                comp-fade-in-out (>> states :clock) ({})
+                comp-fade-in-out (>> states :fade-clock) ({})
                   if (= tab :clock)
                     translate
                       {,} :style $ {,} :x 0 :y -100
                       comp-clock $ >> states :clock
-                comp-fade-in-out (>> states :solar) ({})
+                comp-fade-in-out (>> states :fade-solar) ({})
                   if (= tab :solar)
                     translate
                       {,} :style $ {,} :x 0 :y 0
                       comp-solar timestamp 8
-                comp-fade-in-out (>> states :binary-tree) ({})
+                comp-fade-in-out (>> states :fade-binary-tree) ({})
                   if (= tab :binary-tree)
                     translate
                       {,} :style $ {,} :x 0 :y 240
                       comp-binary-tree timestamp 5
-                comp-fade-in-out (>> states :code-table) ({})
+                comp-fade-in-out (>> states :fade-code-table) ({})
                   if (= tab :code-table)
                     translate
                       {,} :style $ {,} :x 0 :y 40
                       comp-code-table $ >> states :code-table
-                comp-fade-in-out (>> states :finder) ({})
+                comp-fade-in-out (>> states :fade-finder) ({})
                   if (= tab :finder)
                     translate
                       {,} :style $ {,} :x 0 :y 40
                       comp-finder $ >> states :finder
-                comp-fade-in-out (>> states :raining) ({})
+                comp-fade-in-out (>> states :fade-raining) ({})
                   if (= tab :raining)
                     translate
                       {,} :style $ {,} :x 0 :y 40
-                      comp-raining (>> states :raining) timestamp
-                comp-fade-in-out (>> states :curve) ({})
+                      comp-raining $ >> states :inde-raining
+                comp-fade-in-out (>> states :fade-curve) ({})
                   if (= tab :curve)
                     translate
                       {,} :style $ {,} :x 0 :y 40
                       comp-ring timestamp
-                comp-fade-in-out (>> states :icons) ({})
+                comp-fade-in-out (>> states :fade-icons) ({})
                   if (= tab :icons)
                     translate
                       {,} :style $ {,} :x 0 :y 40
                       comp-icons-table (>> states :icons) timestamp
-                comp-fade-in-out (>> states :folding-fan) ({})
+                comp-fade-in-out (>> states :fade-folding-fan) ({})
                   if (= tab :folding-fan)
                     translate
                       {} $ :style
                         {} (:x 0) (:y 40)
                       comp-folding-fan $ >> states :folding-fan
-                comp-fade-in-out (>> states :back) ({})
+                comp-fade-in-out (>> states :fade-back) ({})
                   if (not= tab :portal)
                     translate
                       {} $ :style ({,} :x -400 :y -140)
@@ -1629,24 +1629,44 @@
         |remove? $ quote
           defn remove? (instant) true
         |comp-raining $ quote
-          defcomp comp-raining (states timestamp)
+          defcomp comp-raining (states)
             let
                 cursor $ :cursor states
-                state $ either (:data states) ([])
+                state $ either (:data states) (random-rains 40)
+                on-earth $ fn (key d!)
+                  d! cursor $ -> state
+                    .filter $ fn (pair)
+                      not= (first pair) key
               ; js/console.log $ pr-str state
-              group ({})
-                -> state $ map
-                  fn (entry)
-                    let
-                        child-key $ first entry
-                        child $ last entry
-                      [] child-key $ comp-raindrop (>> states child-key) child timestamp
+              []
+                fn (elapsed d!)
+                  if
+                    nil? $ :data states
+                    d! cursor state
+                    if
+                      > (rand 10) 7
+                      d! cursor $ concat state (random-rains 3)
+                group ({})
+                  -> state $ map
+                    fn (entry)
+                      let
+                          child-key $ first entry
+                          position $ last entry
+                        [] child-key $ comp-raindrop (>> states child-key) child-key position on-earth
         |random-point $ quote
           defn random-point () $ []
             - (rand-int 1400) 600
             - (rand-int 600) 400
         |on-update $ quote
           defn on-update (instant old-args args old-state state) instant
+        |random-rains $ quote
+          defn random-rains (n)
+            -> (range n)
+              .map $ fn (x)
+                [] (rand 1000)
+                  {}
+                    :x $ - (rand 1000) 500
+                    :y $ - (rand 200) 400
         |init-instant $ quote
           defn init-instant (args state at?)
             let
@@ -1656,8 +1676,6 @@
               , init-val
         |on-unmount $ quote
           defn on-unmount (instant tick) instant
-        |get-tick $ quote
-          defn get-tick () $ .valueOf (new js/Date)
       :proc $ quote ()
     |quamolit.cursor $ {}
       :ns $ quote (ns quamolit.cursor)
@@ -1753,26 +1771,48 @@
           [] quamolit.alias :refer $ [] defcomp rect
           [] quamolit.render.element :refer $ [] translate alpha
           [] quamolit.util.iterate :refer $ [] iterate-instant
+          quamolit.util.time :refer $ get-tick
       :defs $ {}
         |comp-raindrop $ quote
-          defcomp comp-raindrop (states position timestamp)
+          defcomp comp-raindrop (states key position on-earth)
             let
+                cursor $ :cursor states
                 state $ either (:data states)
-                  {} (:presence 0) (:begin-tick 0)
-              let
-                  x $ first position
-                  y $ last position
-                alpha
-                  {,} :style $ {,} :opacity
-                    * (:presence state) 0.001
-                  rect $ {,} :style
-                    {}
-                      :fill-style $ hsl 200 80 60
-                      :w 4
-                      :h 30
-                      :x x
-                      :y $ + y
-                        * 0.04 $ - timestamp (:begin-tick state)
+                  {}
+                    :birth-tick $ get-tick
+                    :opacity 0
+                    :dy 0
+                earth 200
+              []
+                fn (elapsed d!)
+                  d! cursor $ update state :dy
+                    fn (dy)
+                      + dy $ * elapsed 0.10
+                  if
+                    >
+                      + (:y position) (:dy state)
+                      , earth
+                    on-earth key d!
+                let
+                    dy $ :dy state
+                    y $ + (:y position) dy
+                    dropped? $ >= y (- earth 40)
+                  alpha
+                    {} $ :style
+                      {} $ :opacity
+                        cond
+                          dropped? $ rand 0.5
+                          (>= y (- earth 80))
+                            / (- earth y) 80
+                          (< dy 100) (/ dy 100)
+                          true 1
+                    rect $ {,} :style
+                      {}
+                        :fill-style $ hsl 200 80 80
+                        :w $ if dropped? (rand 200) 3
+                        :h $ if dropped? (rand 6) 30
+                        :x $ :x position
+                        :y y
         |init-instant $ quote
           defn init-instant (args state at-place?)
             {} (:presence 0) (:presence-v 3)
