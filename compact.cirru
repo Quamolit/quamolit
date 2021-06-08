@@ -50,23 +50,6 @@
                   case-default (:stage state)
                     either p1 $ :p1 state
                     :hidden nil
-        |init-instant $ quote
-          defn init-instant (args state at?)
-            {} (:presence 0) (:presence-v 3) (:numb? false)
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed)
-            let
-                new-instant $ iterate-instant instant :presence :presence-v elapsed ([] 0 1000)
-              if
-                and
-                  < (:presence-v instant) 0
-                  = (:presence new-instant) 0
-                assoc new-instant :numb? true
-                , new-instant
-        |on-unmount $ quote
-          defn on-unmount (instant) (assoc instant :presence-v -3)
-        |on-update $ quote
-          defn on-update (instant old-args args old-state state) instant
       :proc $ quote ()
     |quamolit.comp.portal $ {}
       :ns $ quote
@@ -951,20 +934,6 @@
                 comp-stroke (>> states :stroke-5) 0 2 1 2
               comp-fade-in-out (>> states 6) ({})
                 comp-stroke (>> states :stroke-6) 1 2 1 1
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed)
-            let
-                fading? $ < (:presence-v instant) 0
-                new-instant $ -> instant
-                  iterate-instant :presence :presence-v elapsed $ [] 0 1
-                  iterate-instant :x0 :x0-v elapsed $ repeat 2 (:x0-target instant)
-                  iterate-instant :y0 :y0-v elapsed $ repeat 2 (:y0-target instant)
-                  iterate-instant :x1 :x1-v elapsed $ repeat 2 (:x1-target instant)
-                  iterate-instant :y1 :y1-v elapsed $ repeat 2 (:y1-target instant)
-              if
-                and fading? $ = 0 (:presence new-instant)
-                assoc new-instant :numb? true
-                , new-instant
         |comp-stroke $ quote
           defcomp comp-stroke (states x0 y0 x1 y1)
             ; js/console.log |watching $ :presence instant
@@ -1070,17 +1039,6 @@
               7 $ comp-7 states props
               8 $ comp-8 states props
               9 $ comp-9 states props
-        |on-update $ quote
-          defn on-update (instant old-args args old-state state) (; .log js/console "|stroke updaete" old-args args)
-            let
-                check-number $ fn (new-instant the-key the-v the-target)
-                  let
-                      old-x $ nth old-args the-key
-                      new-x $ nth args the-key
-                    if (= old-x new-x) new-instant $ -> new-instant
-                      assoc the-v $ / (- new-x old-x) 600
-                      assoc the-target new-x
-              -> instant (check-number 0 :x0-v :x0-target) (check-number 1 :y0-v :y0-target) (check-number 2 :x1-v :x1-target) (check-number 3 :y1-v :y1-target)
         |comp-6 $ quote
           defcomp comp-6 (states props)
             translate props
@@ -1113,12 +1071,6 @@
                 comp-stroke (>> states :stroke-5) 0 2 1 2
               comp-fade-in-out (>> states 6) ({})
                 comp-stroke (>> states :stroke-6) 1 2 1 1
-        |init-instant $ quote
-          defn init-instant (args state at?) (; .log js/console "|stroke init:" args)
-            let-sugar
-                  [] x0 y0 x1 y1
-                  , args
-              {} (:numb? false) (:presence 0) (:presence-v 0.003) (:x0 x0) (:x1 x1) (:y0 y0) (:y1 y1) (:x0-v 0) (:x1-v 0) (:y0-v 0) (:y1-v 0) (:x0-target 0) (:y0-target 0) (:x1-target 0) (:y1-target 0)
         |comp-5 $ quote
           defcomp comp-5 (states props)
             translate props
@@ -1151,9 +1103,6 @@
                 comp-stroke (>> states :stroke-5) 0 2 1 2
               comp-fade-in-out (>> states 6) ({})
                 comp-stroke (>> states :stroke-6) 1 2 1 1
-        |on-unmount $ quote
-          defn on-unmount (instant) (; .log js/console "|stroke unmount")
-            -> instant (assoc :presence-v -0.003) (assoc :numb? false)
         |comp-9 $ quote
           defcomp comp-9 (states props)
             translate props
@@ -1214,58 +1163,58 @@
                 tab $ :tab state
               group
                 {} $ :style ({})
-                comp-fade-in-out (>> states :portal) ({})
+                comp-fade-in-out (>> states :fade-portal) ({})
                   if (= tab :portal) (comp-portal cursor)
-                comp-fade-in-out (>> states :todolist) ({})
+                comp-fade-in-out (>> states :fade-todolist) ({})
                   if (= tab :todolist)
                     comp-todolist (>> states :todolist) timestamp
-                comp-fade-in-out (>> states :clock) ({})
+                comp-fade-in-out (>> states :fade-clock) ({})
                   if (= tab :clock)
                     translate
                       {,} :style $ {,} :x 0 :y -100
                       comp-clock $ >> states :clock
-                comp-fade-in-out (>> states :solar) ({})
+                comp-fade-in-out (>> states :fade-solar) ({})
                   if (= tab :solar)
                     translate
                       {,} :style $ {,} :x 0 :y 0
                       comp-solar timestamp 8
-                comp-fade-in-out (>> states :binary-tree) ({})
+                comp-fade-in-out (>> states :fade-binary-tree) ({})
                   if (= tab :binary-tree)
                     translate
                       {,} :style $ {,} :x 0 :y 240
                       comp-binary-tree timestamp 5
-                comp-fade-in-out (>> states :code-table) ({})
+                comp-fade-in-out (>> states :fade-code-table) ({})
                   if (= tab :code-table)
                     translate
                       {,} :style $ {,} :x 0 :y 40
                       comp-code-table $ >> states :code-table
-                comp-fade-in-out (>> states :finder) ({})
+                comp-fade-in-out (>> states :fade-finder) ({})
                   if (= tab :finder)
                     translate
                       {,} :style $ {,} :x 0 :y 40
                       comp-finder $ >> states :finder
-                comp-fade-in-out (>> states :raining) ({})
+                comp-fade-in-out (>> states :fade-raining) ({})
                   if (= tab :raining)
                     translate
                       {,} :style $ {,} :x 0 :y 40
-                      comp-raining (>> states :raining) timestamp
-                comp-fade-in-out (>> states :curve) ({})
+                      comp-raining $ >> states :inde-raining
+                comp-fade-in-out (>> states :fade-curve) ({})
                   if (= tab :curve)
                     translate
                       {,} :style $ {,} :x 0 :y 40
                       comp-ring timestamp
-                comp-fade-in-out (>> states :icons) ({})
+                comp-fade-in-out (>> states :fade-icons) ({})
                   if (= tab :icons)
                     translate
                       {,} :style $ {,} :x 0 :y 40
                       comp-icons-table (>> states :icons) timestamp
-                comp-fade-in-out (>> states :folding-fan) ({})
+                comp-fade-in-out (>> states :fade-folding-fan) ({})
                   if (= tab :folding-fan)
                     translate
                       {} $ :style
                         {} (:x 0) (:y 40)
                       comp-folding-fan $ >> states :folding-fan
-                comp-fade-in-out (>> states :back) ({})
+                comp-fade-in-out (>> states :fade-back) ({})
                   if (not= tab :portal)
                     translate
                       {} $ :style ({,} :x -400 :y -140)
@@ -1616,48 +1565,39 @@
           [] quamolit.alias :refer $ [] defcomp rect group >>
           [] quamolit.comp.raindrop :refer $ [] comp-raindrop
       :defs $ {}
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed)
-            if
-              > (rand-int 100) 40
-              concat (slice instant 3)
-                []
-                  [] (get-tick) (random-point)
-                  [] (get-tick) (random-point)
-                  [] (get-tick) (random-point)
-              , instant
-        |remove? $ quote
-          defn remove? (instant) true
         |comp-raining $ quote
-          defcomp comp-raining (states timestamp)
+          defcomp comp-raining (states)
             let
                 cursor $ :cursor states
-                state $ either (:data states) ([])
+                state $ either (:data states) (random-rains 40)
+                on-earth $ fn (key d!)
+                  d! cursor $ -> state
+                    .filter $ fn (pair)
+                      not= (first pair) key
               ; js/console.log $ pr-str state
-              group ({})
-                -> state $ map
-                  fn (entry)
-                    let
-                        child-key $ first entry
-                        child $ last entry
-                      [] child-key $ comp-raindrop (>> states child-key) child timestamp
-        |random-point $ quote
-          defn random-point () $ []
-            - (rand-int 1400) 600
-            - (rand-int 600) 400
-        |on-update $ quote
-          defn on-update (instant old-args args old-state state) instant
-        |init-instant $ quote
-          defn init-instant (args state at?)
-            let
-                init-val $ -> (repeat 80 0)
-                  map-indexed $ fn (index x)
-                    [] index $ random-point
-              , init-val
-        |on-unmount $ quote
-          defn on-unmount (instant tick) instant
-        |get-tick $ quote
-          defn get-tick () $ .valueOf (new js/Date)
+              []
+                fn (elapsed d!)
+                  if
+                    nil? $ :data states
+                    d! cursor state
+                    if
+                      > (rand 10) 7
+                      d! cursor $ concat state (random-rains 3)
+                group ({})
+                  -> state $ map
+                    fn (entry)
+                      let
+                          child-key $ first entry
+                          position $ last entry
+                        [] child-key $ comp-raindrop (>> states child-key) child-key position on-earth
+        |random-rains $ quote
+          defn random-rains (n)
+            -> (range n)
+              .map $ fn (x)
+                [] (rand 1000)
+                  {}
+                    :x $ - (rand 1000) 500
+                    :y $ - (rand 200) 400
       :proc $ quote ()
     |quamolit.cursor $ {}
       :ns $ quote (ns quamolit.cursor)
@@ -1753,42 +1693,48 @@
           [] quamolit.alias :refer $ [] defcomp rect
           [] quamolit.render.element :refer $ [] translate alpha
           [] quamolit.util.iterate :refer $ [] iterate-instant
+          quamolit.util.time :refer $ get-tick
       :defs $ {}
         |comp-raindrop $ quote
-          defcomp comp-raindrop (states position timestamp)
+          defcomp comp-raindrop (states key position on-earth)
             let
+                cursor $ :cursor states
                 state $ either (:data states)
-                  {} (:presence 0) (:begin-tick 0)
-              let
-                  x $ first position
-                  y $ last position
-                alpha
-                  {,} :style $ {,} :opacity
-                    * (:presence state) 0.001
-                  rect $ {,} :style
-                    {}
-                      :fill-style $ hsl 200 80 60
-                      :w 4
-                      :h 30
-                      :x x
-                      :y $ + y
-                        * 0.04 $ - timestamp (:begin-tick state)
-        |init-instant $ quote
-          defn init-instant (args state at-place?)
-            {} (:presence 0) (:presence-v 3)
-              :begin-tick $ .valueOf (new js/Date)
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed)
-            iterate-instant instant :presence :presence-v elapsed $ [] 0 1000
-        |on-unmount $ quote
-          defn on-unmount (instant) (assoc instant :presence-v -3)
-        |on-update $ quote
-          defn on-update (instant old-args args old-state state) instant
-        |remove? $ quote
-          defn remove? (instant)
-            and
-              = 0 $ :presence instant
-              = 0 $ :presence-v instant
+                  {}
+                    :birth-tick $ get-tick
+                    :opacity 0
+                    :dy 0
+                earth 200
+              []
+                fn (elapsed d!)
+                  d! cursor $ update state :dy
+                    fn (dy)
+                      + dy $ * elapsed 0.10
+                  if
+                    >
+                      + (:y position) (:dy state)
+                      , earth
+                    on-earth key d!
+                let
+                    dy $ :dy state
+                    y $ + (:y position) dy
+                    dropped? $ >= y (- earth 40)
+                  alpha
+                    {} $ :style
+                      {} $ :opacity
+                        cond
+                          dropped? $ rand 0.5
+                          (>= y (- earth 80))
+                            / (- earth y) 80
+                          (< dy 100) (/ dy 100)
+                          true 1
+                    rect $ {,} :style
+                      {}
+                        :fill-style $ hsl 200 80 80
+                        :w $ if dropped? (rand 200) 3
+                        :h $ if dropped? (rand 6) 30
+                        :x $ :x position
+                        :y y
       :proc $ quote ()
     |quamolit.main $ {}
       :ns $ quote
