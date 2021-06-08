@@ -1197,7 +1197,7 @@
                   if (= tab :raining)
                     translate
                       {,} :style $ {,} :x 0 :y 40
-                      comp-raining $ >> states :inde-raining
+                      comp-raining $ >> states :raining
                 comp-fade-in-out (>> states :fade-curve) ({})
                   if (= tab :curve)
                     translate
@@ -1426,10 +1426,21 @@
             case-default op
               do (js/console.log "\"unknown op" op) store
               :states $ update-states store op-data
+              :gc-states $ gc-states store op-data
               :add $ task-add store op-data tick
               :rm $ task-rm store op-data tick
               :update $ task-update store op-data tick
               :toggle $ task-toggle store op-data tick
+        |gc-states $ quote
+          defn gc-states (store op-data)
+            let
+                cursor $ first op-data
+                fields $ last op-data
+              update-in store
+                concat ([] :states) cursor
+                fn (dict)
+                  ; println $ count dict
+                  select-keys dict $ conj fields :data
       :proc $ quote ()
     |quamolit.comp.ring $ {}
       :ns $ quote
@@ -1582,7 +1593,10 @@
                     d! cursor state
                     if
                       > (rand 10) 7
-                      d! cursor $ concat state (random-rains 3)
+                      let
+                          new-state $ concat state (random-rains 3)
+                        d! cursor new-state
+                        d! :gc-states $ [] cursor (.map new-state first)
                 group ({})
                   -> state $ map
                     fn (entry)
