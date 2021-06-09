@@ -15,7 +15,7 @@
           defcomp comp-fade-in-out (states props p1) (; js/console.log instant)
             let
                 cursor $ :cursor states
-                v 0.004
+                v 4
                 state $ either (:data states)
                   {} (:stage :hidden) (:opacity 0) (:p1 nil)
               []
@@ -479,7 +479,7 @@
         |init-instant $ quote
           defn init-instant (args state at-place?) ({,} :presence 0 :presence-v 3 :numb? false)
         |comp-todolist $ quote
-          defcomp comp-todolist (states timestamp) (; js/console.info |todolist: states)
+          defcomp comp-todolist (states) (; js/console.info |todolist: states)
             let
                 cursor $ :cursor states
                 state $ either (:data states)
@@ -524,7 +524,7 @@
                               [] (:id task)
                                 comp-task
                                   >> states $ :id task
-                                  , timestamp task index shift-x
+                                  , task index shift-x
                     comp-debug state $ {}
         |on-unmount $ quote
           defn on-unmount (instant) (assoc instant :presence-v -3)
@@ -759,7 +759,7 @@
               :fill-style $ hsl 0 0 60
               :text text
         |comp-task $ quote
-          defcomp comp-task (states timestamp task index shift-x)
+          defcomp comp-task (states task index shift-x)
             let
                 cursor $ :cursor states
                 state $ either (:data states)
@@ -941,7 +941,6 @@
                 cursor $ :cursor states
                 state $ either (:data states)
                   {} (:x0 0) (:y0 0) (:x1 0) (:y1 0)
-                v 0.12
                 h 100
                 w 60
               []
@@ -952,15 +951,17 @@
                       = y0 $ :y0 state
                       = x1 $ :x1 state
                       = y1 $ :y1 state
-                    d! cursor $ -> state
-                      update :x0 $ fn (n)
-                        + n $ * v (- x0 n)
-                      update :y0 $ fn (n)
-                        + n $ * v (- y0 n)
-                      update :x1 $ fn (n)
-                        + n $ * v (- x1 n)
-                      update :y1 $ fn (n)
-                        + n $ * v (- y1 n)
+                    let
+                        v $ * elapsed 6
+                      d! cursor $ -> state
+                        update :x0 $ fn (n)
+                          + n $ * v (- x0 n)
+                        update :y0 $ fn (n)
+                          + n $ * v (- y0 n)
+                        update :x1 $ fn (n)
+                          + n $ * v (- x1 n)
+                        update :y1 $ fn (n)
+                          + n $ * v (- y1 n)
                 group ({})
                   alpha
                     {,} :style $ {,} :opacity 1
@@ -1167,7 +1168,7 @@
                   if (= tab :portal) (comp-portal cursor)
                 comp-fade-in-out (>> states :fade-todolist) ({})
                   if (= tab :todolist)
-                    comp-todolist (>> states :todolist) timestamp
+                    comp-todolist $ >> states :todolist
                 comp-fade-in-out (>> states :fade-clock) ({})
                   if (= tab :clock)
                     translate
@@ -1177,7 +1178,7 @@
                   if (= tab :solar)
                     translate
                       {,} :style $ {,} :x 0 :y 0
-                      comp-solar timestamp 8
+                      comp-solar (>> states :solar) 4
                 comp-fade-in-out (>> states :fade-binary-tree) ({})
                   if (= tab :binary-tree)
                     translate
@@ -1202,12 +1203,12 @@
                   if (= tab :curve)
                     translate
                       {,} :style $ {,} :x 0 :y 40
-                      comp-ring timestamp
+                      comp-ring $ >> states :ring
                 comp-fade-in-out (>> states :fade-icons) ({})
                   if (= tab :icons)
                     translate
                       {,} :style $ {,} :x 0 :y 40
-                      comp-icons-table (>> states :icons) timestamp
+                      comp-icons-table $ >> states :icons
                 comp-fade-in-out (>> states :fade-folding-fan) ({})
                   if (= tab :folding-fan)
                     translate
@@ -1240,7 +1241,8 @@
       :ns $ quote (ns quamolit.util.time)
       :defs $ {}
         |get-tick $ quote
-          defn get-tick () $ js/performance.now
+          defn get-tick () (; "\"return value in seconds")
+            * 0.001 $ js/performance.now
       :proc $ quote ()
     |quamolit.comp.finder $ {}
       :ns $ quote
@@ -1450,36 +1452,41 @@
           [] quamolit.comp.debug :refer $ [] comp-debug
       :defs $ {}
         |comp-ring $ quote
-          defcomp comp-ring (timestamp)
+          defcomp comp-ring (states)
             let
-                n 20
-                angle $ / 360 n
+                cursor $ :cursor states
+                state $ or (:data states) 0
+                n 32
+                unit $ * 2 (/ &PI n)
                 shift 10
-                rotation $ rem (/ timestamp 400) 360
-                r 100
-                rl 200
-                curve-points $ map (range n)
-                  fn (x)
+                rotation $ rem state 360
+                r 60
+                rl 360
+                curve-points $ -> (range n)
+                  map $ fn (x)
                     let
-                        this-angle $ * angle (inc x)
-                        angle-1 $ + (- this-angle rotation angle) shift
+                        this-angle $ * unit (inc x)
+                        angle-1 $ + (- this-angle rotation unit) shift
                         angle-2 $ - (+ this-angle rotation) shift
                       []
                         * rl $ sin angle-1
-                        - 0 $ * rl (cos angle-1)
+                        negate $ * rl (cos angle-1)
                         * rl $ sin angle-2
-                        - 0 $ * rl (cos angle-2)
+                        negate $ * rl (cos angle-2)
                         * r $ sin this-angle
-                        - 0 $ * r (cos this-angle)
-              group ({})
-                path $ {,} :style
-                  {}
-                    :points $ concat
-                      [] $ [] 0 (- 0 r)
-                      , curve-points
-                    :line-width 2
-                    :stroke-style $ hsl 300 80 60
-                comp-debug (js/Math.floor rotation) ({})
+                        negate $ * r (cos this-angle)
+              []
+                fn (elapsed d!)
+                  d! cursor $ + state (* elapsed 0.3)
+                group ({})
+                  path $ {,} :style
+                    {}
+                      :points $ concat
+                        [] $ [] 0 (- 0 r)
+                        , curve-points
+                      :line-width 1
+                      :stroke-style $ hsl 300 80 60
+                  comp-debug (js/Math.floor rotation) ({})
         |cos $ quote
           defn cos (x)
             js/Math.cos $ * js/Math.PI (/ x 180)
@@ -1723,7 +1730,7 @@
                 fn (elapsed d!)
                   d! cursor $ update state :dy
                     fn (dy)
-                      + dy $ * elapsed 0.10
+                      + dy $ * elapsed 100
                   if
                     >
                       + (:y position) (:dy state)
@@ -1806,7 +1813,7 @@
           [] quamolit.comp.icon-play :refer $ [] comp-icon-play
       :defs $ {}
         |comp-icons-table $ quote
-          defcomp comp-icons-table (states timestamp)
+          defcomp comp-icons-table (states)
             group ({})
               translate
                 {,} :style $ {,} :x -200
@@ -1952,28 +1959,35 @@
       :ns $ quote
         ns quamolit.comp.solar $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp group rect arc
+          [] quamolit.alias :refer $ [] defcomp group rect arc >>
           [] quamolit.render.element :refer $ [] rotate translate scale
       :defs $ {}
         |comp-solar $ quote
-          defcomp comp-solar (timestamp level)
-            ; .log js/console :tick $ / tick 10
-            rotate
-              {,} :style $ {,} :angle
-                rem (/ timestamp 8) 360
-              arc $ {,} :style style-large
-              translate
-                {,} :style $ {,} :x 100 :y -40
-                arc $ {,} :style style-small
-              if (> level 0)
-                scale
-                  {,} :style $ {,} :ratio 0.8
+          defcomp comp-solar (states level)
+            ; js/console.log :tick $ / tick 10
+            let
+                cursor $ :cursor states
+                state $ or (:data states) 0
+              []
+                fn (elapsed d!)
+                  d! cursor $ + state (* elapsed 100)
+                rotate
+                  {,} :style $ {,} :angle (rem state 360)
+                  arc $ {} (:style style-large)
                   translate
-                    {,} :style $ {,} :x 20 :y 180
-                    comp-solar timestamp $ - level 1
+                    {,} :style $ {,} :x 100 :y -40
+                    arc $ {} (:style style-small)
+                  if (> level 0)
+                    scale
+                      {,} :style $ {,} :ratio 0.6
+                      translate
+                        {,} :style $ {,} :x 260 :y 40
+                        comp-solar (>> states :next) (- level 1)
         |style-large $ quote
           def style-large $ {}
             :fill-style $ hsl 80 80 80
+            :stroke-style $ hsl 200 50 60 0.5
+            :line-width 1
             :r 60
         |style-small $ quote
           def style-small $ {}
@@ -2063,9 +2077,9 @@
                 s-angle $ * pi-ratio
                   or (:s-angle style) 0
                 e-angle $ * pi-ratio
-                  or (:e-angle style) 60
+                  or (:e-angle style) 300
                 line-width $ or (:line-width style) 4
-                counterclockwise $ or (:counterclockwise style) true
+                counterclockwise $ or (:counterclockwise style) false
                 line-cap $ or (:line-cap style) |round
                 line-join $ or (:line-join style) |round
                 miter-limit $ or (:miter-limit style) 8
