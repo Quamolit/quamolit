@@ -676,7 +676,7 @@
                     hit-region $ aget event |region
                   if (some? hit-region)
                     let
-                        coord $ :coord (parse-cirru-edn hit-region)
+                        coord $ parse-cirru-edn hit-region
                       js/console.log |hit: event coord
                       reset! focus-ref coord
                       handle-event coord :click event dispatch
@@ -1994,9 +1994,9 @@
                 op $ &get directive :name
                 style $ &get directive :style
                 event $ &get directive :event
-              ;  js/console :paint-one op style
+              ;  js/console.log :paint-one op style
               case-default op
-                do (.log js/console "|painting not implemented" directive) @eff-ref
+                do (js/console.log "|painting not implemented" directive) @eff-ref
                 :line $ paint-line ctx style
                 :path $ paint-path ctx style
                 :text $ paint-text ctx style
@@ -2040,14 +2040,14 @@
               (> o 1) 1
               true o
         |paint-restore $ quote
-          defn paint-restore (ctx style eff-ref) (.restore ctx) (swap! eff-ref update :alpha-stack rest)
+          defn paint-restore (ctx style eff-ref) (.!restore ctx) (swap! eff-ref update :alpha-stack rest)
         |paint-alpha $ quote
           defn paint-alpha (ctx style eff-ref)
             let
                 inherent-opacity $ first (:alpha-stack @eff-ref)
                 opacity $ * inherent-opacity
                   bound-opacity $ :opacity style
-              aset ctx "\"globalAlpha" opacity
+              set! (.-globalAlpha ctx) opacity
               swap! eff-ref update :alpha-stack $ fn (alpha-stack)
                 prepend (rest alpha-stack) opacity
         |paint-save $ quote
@@ -2072,38 +2072,34 @@
               .beginPath ctx
               .arc ctx x y r s-angle e-angle counterclockwise
               if (some? event)
-                let
-                    caller $ aget ctx |addHitRegion
-                    options $ js-object
-                      :id $ write-cirru-edn
-                        {}
-                          :id $ gen-id!
-                          :coord coord
-                  ; .log js/console "|hit region" coord $ some? caller
-                  if (some? caller) (.call caller ctx options)
+                if
+                  some? $ .-addHitRegion ctx
+                  .!addHitRegion ctx $ js-object
+                    :id $ write-cirru-edn coord
               if
                 some? $ :fill-style style
                 do
-                  aset ctx "\"fillStyle" $ :fill-style style
-                  .fill ctx
+                  set! (.-fillStyle ctx) (:fill-style style)
+                  .!fill ctx
               if
                 some? $ :stroke-style style
-                do (aset ctx "\"lineWidth" line-width)
-                  aset ctx "\"strokeStyle" $ :stroke-style style
-                  aset ctx "\"lineCap" line-cap
-                  aset ctx "\"miterLimit" miter-limit
-                  .stroke ctx
+                do
+                  set! (.-lineWidth ctx) line-width
+                  set! (.-strokeStyle ctx) (:stroke-style style)
+                  set! (.-lineCap ctx) line-cap
+                  set! (.-miterLimit ctx) miter-limit
+                  .!stroke ctx
         |paint-scale $ quote
           defn paint-scale (ctx style)
             let
                 ratio $ or (:ratio style) 1.2
-              .scale ctx ratio ratio
+              .!scale ctx ratio ratio
         |paint-translate $ quote
           defn paint-translate (ctx style)
             let
                 x $ or (:x style) 0
                 y $ or (:y style) 0
-              .translate ctx x y
+              .!translate ctx x y
         |paint $ quote
           defn paint (ctx tree eff-ref coord dispatch! elapsed) (; js/console.log "\"paint" tree)
             if (nil? tree) nil $ if
@@ -2150,22 +2146,26 @@
               &doseq
                 coords $ rest points
                 case (count coords) (raise "|not supported coords")
-                  2 $ .lineTo ctx (get coords 0) (get coords 1)
-                  4 $ .quadraticCurveTo ctx (get coords 0) (get coords 1) (get coords 2) (get coords 3)
-                  6 $ .bezierCurveTo ctx (get coords 0) (get coords 1) (get coords 2) (get coords 3) (get coords 4) (get coords 5)
+                  2 $ .!lineTo ctx (nth coords 0) (nth coords 1)
+                  4 $ .!quadraticCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3)
+                  6 $ .!bezierCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3) (nth coords 4) (nth coords 5)
               if (contains? style :stroke-style)
                 do
-                  aset ctx |lineWidth $ or (:line-width style) 4
-                  aset ctx |strokeStyle $ :stroke-style style
-                  aset ctx |lineCap $ or (:line-cap style) |round
-                  aset ctx |lineJoin $ or (:line-join style) |round
-                  aset ctx |milterLimit $ or (:milter-limit style) 8
-                  .stroke ctx
+                  set! (.-lineWidth ctx)
+                    or (:line-width style) 4
+                  set! (.-strokeStyle ctx) (:stroke-style style)
+                  set! (.-lineCap ctx)
+                    or (:line-cap style) |round
+                  set! (.-lineJoin ctx)
+                    or (:line-join style) |round
+                  set! (.-milterLimit ctx)
+                    or (:milter-limit style) 8
+                  .!stroke ctx
               if (contains? style :fill-style)
                 do
-                  aset ctx |fillStyle $ :fill-style style
-                  .closePath ctx
-                  .fill ctx
+                  set! (.-fillStyle ctx) (:fill-style style)
+                  .!closePath ctx
+                  .!fill ctx
         |paint-image $ quote
           defn paint-image (ctx style coord)
             let
@@ -2178,7 +2178,7 @@
                 dw $ or (:dw style) 40
                 dh $ or (:dh style) 40
                 image $ get-image (:src style)
-              .drawImage ctx image sx sy sw sh dx dy dw dh
+              .!drawImage ctx image sx sy sw sh dx dy dw dh
         |get-image $ quote
           defn get-image (src)
             if (contains? @*image-pool src) (get @*image-pool src)
@@ -2202,34 +2202,29 @@
                   or (:y style) 0
                   / h 2
                 line-width $ or (:line-width style) 2
-              .beginPath ctx
-              .rect ctx x y w h
+              .!beginPath ctx
+              .!rect ctx x y w h
               if (some? event)
-                let
-                    caller $ aget ctx |addHitRegion
-                    options $ js-object
-                      :id $ write-cirru-edn
-                        {}
-                          :id $ gen-id!
-                          :coord coord
-                  ; js/console.log "|hit region" coord $ some? caller
-                  if (some? caller) (.!addHitRegion ctx options)
+                if
+                  some? $ .-addHitRegion ctx
+                  .!addHitRegion ctx $ js-object
+                    :id $ write-cirru-edn coord
               if (contains? style :fill-style)
                 do
-                  aset ctx "\"fillStyle" $ :fill-style style
-                  .fill ctx
+                  set! (.-fillStyle ctx) (:fill-style style)
+                  .!fill ctx
               if (contains? style :stroke-style)
                 do
-                  aset ctx "\"strokeStyle" $ :stroke-style style
-                  aset ctx "\"lineWidth" line-width
-                  .stroke ctx
+                  set! (.-strokeStyle ctx) (:stroke-style style)
+                  set! (.-lineWidth ctx) line-width
+                  .!stroke ctx
         |paint-group! $ quote
           defn paint-group! $
         |paint-rotate $ quote
           defn paint-rotate (ctx style)
             let
                 angle $ or (:angle style) 30
-              .rotate ctx angle
+              .!rotate ctx angle
       :proc $ quote ()
     |quamolit.comp.task-toggler $ {}
       :ns $ quote
