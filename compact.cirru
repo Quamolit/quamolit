@@ -7,7 +7,7 @@
     |quamolit.comp.fade-in-out $ {}
       :ns $ quote
         ns quamolit.comp.fade-in-out $ :require
-          [] quamolit.alias :refer $ [] defcomp
+          [] quamolit.alias :refer $ [] defcomp >>
           [] quamolit.render.element :refer $ [] alpha
           [] quamolit.util.iterate :refer $ [] iterate-instant
       :defs $ {}
@@ -49,6 +49,51 @@
                     {} $ :opacity (:opacity state)
                   case-default (:stage state)
                     either p1 $ :p1 state
+                    :hidden nil
+        |comp-fade-fn $ quote
+          defcomp comp-fade-fn (states props f1) (; js/console.log instant)
+            let
+                cursor $ :cursor states
+                v 4
+                state $ either (:data states)
+                  {} (:stage :hidden) (:opacity 0) (:f1 nil)
+                p1 $ f1 (>> states :renderer) (:opacity state) (:stage state)
+              []
+                fn (elapsed d!)
+                  case-default (:stage state)
+                    println "\"unknown stage" $ :stage state
+                    :hidden $ when (some? p1)
+                      d! cursor $ merge state
+                        {} (:stage :showing)
+                          :opacity $ + (* elapsed v) 0
+                          :f1 f1
+                    :showing $ if
+                      >= (:opacity state) 1
+                      d! cursor $ {} (:stage :show) (:opacity 1) (:f1 f1)
+                      d! cursor $ -> state
+                        update :opacity $ fn (x)
+                          + x $ * elapsed v
+                        assoc :f1 f1
+                    :show $ if (nil? p1)
+                      d! cursor $ {} (:stage :hiding)
+                        :opacity $ - 1 (* elapsed v)
+                        :f1 $ .get state :f1
+                      d! cursor $ assoc state :f1 f1
+                    :hiding $ if
+                      <= (:opacity state) 0
+                      d! cursor $ {} (:stage :hidden) (:opacity 0.01) (:f1 nil)
+                      d! cursor $ update state :opacity
+                        fn (x)
+                          - x $ * elapsed v
+                alpha
+                  {} $ :style
+                    {} $ :opacity (:opacity state)
+                  case-default (:stage state)
+                    either p1 $ 
+                      :f1 state
+                      >> states :renderer
+                      :opacity state
+                      :stage state
                     :hidden nil
       :proc $ quote ()
     |quamolit.comp.portal $ {}
@@ -445,6 +490,8 @@
           [] quamolit.comp.task :refer $ [] comp-task
           [] quamolit.util.iterate :refer $ [] iterate-instant tween
           [] quamolit.comp.debug :refer $ [] comp-debug
+          [] quamolit.math :refer $ [] bound-x
+          quamolit.comp.fade-in-out :refer $ comp-fade-fn
       :defs $ {}
         |on-tick $ quote
           defn on-tick (instant tick elapsed)
@@ -456,80 +503,83 @@
                   = (:presence new-instant) 0
                 assoc new-instant :numb? true
                 , new-instant
-        |event-button $ quote
-          defn event-button (cursor draft)
-            {,} :click $ fn (e d!) (d! :add draft)
-              d! cursor $ {} (:draft |)
         |style-button $ quote
           def style-button $ {} (:w 80) (:h 40) (:text |add)
         |handle-click $ quote
           defn handle-click (simple-event dispatch set-state) (.log js/console simple-event)
         |position-header $ quote
-          def position-header $ {} (:x 0) (:y -200)
+          def position-header $ {} (:x 0) (:y -240)
         |on-update $ quote
           defn on-update (instant old-args args old-state state) instant
-        |handle-input $ quote
-          defn handle-input (cursor default-text)
-            fn (e d!)
-              let
-                  user-text $ js/prompt "|input to canvas:" default-text
-                d! cursor $ {} (:draft user-text)
         |init-state $ quote
           defn init-state (store args) ({,} :draft |)
         |init-instant $ quote
           defn init-instant (args state at-place?) ({,} :presence 0 :presence-v 3 :numb? false)
         |comp-todolist $ quote
-          defcomp comp-todolist (states) (; js/console.info |todolist: states)
+          defcomp comp-todolist (states tasks presence stage) (; js/console.info |todolist: states)
             let
                 cursor $ :cursor states
                 state $ either (:data states)
                   {} (:draft "\"")
-                    :tasks $ []
-                    :presence 0
-                    :presence-v 0
-                tasks $ :tasks state
-              {} $ :render
-                fn (m)
-                  alpha
-                    {,} :style $ {,} :opacity
-                      / (:presence state) 1000
-                    translate ({,} :style position-header)
-                      translate
-                        {,} :style $ {,} :x -20 :y 40
-                        input $ {,} :style
-                          {,} :w 400 :h 40 :text $ :draft state
-                          , :event
-                            {,} :click $ handle-input cursor (:draft state)
-                      translate
-                        {,} :style $ {,} :x 240 :y 40
-                        button $ {,} :style style-button :event
-                          event-button cursor $ :draft state
-                    translate
-                      {} $ :style position-body
-                      group ({})
-                        -> tasks (reverse)
-                          map-indexed $ fn (index task)
+                    :orphins $ []
+                add-orphin $ fn (task-id d!)
+                  d! cursor $ update state :orphins
+                    fn (xs) (conj xs task-id)
+                rm-orphin $ fn (task-id d!)
+                  d! cursor $ update state :orphins
+                    fn (xs)
+                      -> xs $ filter
+                        fn (x) (not= x task-id)
+              [] nil $ alpha
+                {,} :style $ {,} :opacity 0.5
+                translate ({,} :style position-header)
+                  translate
+                    {,} :style $ {,} :x -20 :y 40
+                    input $ {,} :style
+                      {,} :w 400 :h 40 :text $ :draft state
+                      , :event
+                        {} $ :click
+                          fn (e d!)
                             let
-                                shift-x $ js/Math.max -40
-                                  js/Math.min 0 $ * -40
-                                    +
-                                      if
-                                        = (count tasks) 1
-                                        , 0 $ if
-                                          > (:presence-v state) 0
-                                          / index $ - (count tasks) 1
-                                          - 1 $ if (= index 0) 0
-                                            / index $ - (count tasks) 1
-                                      - 1 $ / (:presence state) 500
-                              [] (:id task)
-                                comp-task
-                                  >> states $ :id task
-                                  , task index shift-x
-                    comp-debug state $ {}
+                                user-text $ js/prompt "|input to canvas:" (:draft state)
+                              d! cursor $ assoc state :draft user-text
+                  translate
+                    {,} :style $ {,} :x 240 :y 40
+                    button $ {} (:style style-button)
+                      :event $ {}
+                        :click $ fn (e d!)
+                          d! :add $ :draft state
+                          d! cursor $ -> state (assoc :draft |)
+                translate
+                  {} $ :style position-body
+                  group ({}) & $ -> tasks (reverse)
+                    map-indexed $ fn (idx task)
+                      let
+                          shift-x $ case-default stage 0 (:hidden -40) (:show 0)
+                            :showing $ bound-x -40 0
+                              -> presence (* 3) (- 1)
+                                - $ * idx
+                                  / 2 $ count tasks
+                                * 40
+                            :hiding $ bound-x -40 0
+                              -> presence (* 3) (- 1)
+                                - $ *
+                                  - (count tasks) idx 1
+                                  / 2 $ count tasks
+                                * 40
+                        comp-fade-fn
+                          >> states $ :id task
+                          {}
+                          fn (renderer-states opacity stage) (comp-task renderer-states task idx shift-x opacity stage add-orphin rm-orphin)
+                  group ({}) & $ -> (:orphins state)
+                    map $ fn (task-id)
+                      comp-fade-fn (>> states task-id) ({})
+                        fn (opacity stage renderer-states) nil
+                ; comp-debug state $ {}
         |on-unmount $ quote
           defn on-unmount (instant) (assoc instant :presence-v -3)
         |position-body $ quote
-          def position-body $ {} (:x 0) (:y 40)
+          def position-body $ {} (:x 0) (:y 0)
       :proc $ quote ()
     |quamolit.alias $ {}
       :ns $ quote
@@ -713,11 +763,12 @@
       :ns $ quote
         ns quamolit.comp.task $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp group rect
+          [] quamolit.alias :refer $ [] defcomp group rect >>
           [] quamolit.render.element :refer $ [] translate alpha input
           [] quamolit.util.iterate :refer $ [] iterate-instant
           [] quamolit.comp.task-toggler :refer $ [] comp-toggler
           [] quamolit.comp.debug :refer $ [] comp-debug
+          [] quamolit.math :refer $ [] bound-x bound-opacity
       :defs $ {}
         |on-tick $ quote
           defn on-tick (instant tick elapsed) (; .log js/console "|on tick data:" instant tick elapsed)
@@ -759,33 +810,59 @@
               :fill-style $ hsl 0 0 60
               :text text
         |comp-task $ quote
-          defcomp comp-task (states task index shift-x)
+          defcomp comp-task (states task idx shift-x presence stage add-orphin rm-orphin)
             let
                 cursor $ :cursor states
                 state $ either (:data states)
-                  {} (:left 0) (:index 0) (:presence state)
-              translate
-                {,} :style $ {,} :x
-                  + shift-x $ :left state
-                  , :y
-                    -
-                      * 60 $ :index state
-                      , 140
-                alpha
-                  {,} :style $ {,} :opacity
-                    / (:presence state) 1000
-                  translate
-                    {,} :style $ {,} :x -200
-                    comp-toggler (:done? task) (:id task)
-                  input $ {,} :style
-                    style-input $ :text task
-                    , :event
-                      {,} :click $ handle-input (:id task) (:text task)
-                  translate
-                    {,} :style $ {,} :x 280
-                    rect $ {,} :style style-remove :event
-                      {,} :click $ handle-remove (:id task)
-                  comp-debug task $ {}
+                  {} (:left 0) (:idx 0)
+                v 5
+              []
+                fn (elapsed d!)
+                  let
+                      old-idx $ :idx state
+                      new-idx $ cond
+                          > idx old-idx
+                          bound-x 0 idx $ + old-idx (* elapsed v)
+                        (< idx old-idx)
+                          bound-x idx 100 $ - old-idx (* elapsed v)
+                        true old-idx
+                      new-left $ case-default stage 0 (:show 0) (:hidden -40)
+                        :showing $ bound-x -40 0
+                          - (* 40 presence) 40
+                        :hiding $ bound-x -40 0
+                          - (* 40 presence) 40
+                    if
+                      or (not= old-idx new-idx)
+                        not= new-left $ :left state
+                      d! cursor $ -> state (assoc :left new-left) (assoc :idx new-idx)
+                    if
+                      and (= stage :hiding) (= new-left -40)
+                      do (; println "\"removed")
+                        rm-orphin (:id task) d!
+                translate
+                  {,} :style $ {,} :x
+                    + shift-x $ :left state
+                    , :y
+                      -
+                        * 60 $ :idx state
+                        , 140
+                  alpha
+                    {,} :style $ {,} :opacity 1
+                    translate
+                      {,} :style $ {,} :x -200
+                      comp-toggler (>> states :toggler) (:done? task) (:id task)
+                    input $ {,} :style
+                      style-input $ :text task
+                      , :event
+                        {,} :click $ handle-input (:id task) (:text task)
+                    translate
+                      {,} :style $ {,} :x 280
+                      rect $ {,} :style style-remove :event
+                        {} $ :click
+                          fn (e d!)
+                            add-orphin (:id task) d!
+                            d! :rm $ :id task
+                    ; comp-debug task $ {} (:y 20)
         |init-instant $ quote
           defn init-instant (args state at-place?)
             let
@@ -798,9 +875,6 @@
         |style-remove $ quote
           def style-remove $ {} (:w 40) (:h 40)
             :fill-style $ hsl 0 80 40
-        |handle-remove $ quote
-          defn handle-remove (task-id)
-            fn (event dispatch) (dispatch :rm task-id)
         |on-unmount $ quote
           defn on-unmount (instant) (; .log js/console "|calling unmount" instant)
             -> instant (assoc :presence-velocity -3) (assoc :left-velocity -0.09)
@@ -1144,7 +1218,7 @@
           [] quamolit.comp.portal :refer $ [] comp-portal
           [] quamolit.comp.clock :refer $ [] comp-clock
           [] quamolit.comp.solar :refer $ [] comp-solar
-          [] quamolit.comp.fade-in-out :refer $ [] comp-fade-in-out
+          [] quamolit.comp.fade-in-out :refer $ [] comp-fade-in-out comp-fade-fn
           [] quamolit.comp.binary-tree :refer $ [] comp-tree-waving
           [] quamolit.comp.code-table :refer $ [] comp-code-table
           [] quamolit.comp.finder :refer $ [] comp-finder
@@ -1166,9 +1240,10 @@
                 {} $ :style ({})
                 comp-fade-in-out (>> states :fade-portal) ({})
                   if (= tab :portal) (comp-portal cursor)
-                comp-fade-in-out (>> states :fade-todolist) ({})
-                  if (= tab :todolist)
-                    comp-todolist $ >> states :todolist
+                comp-fade-fn (>> states :fade-todolist) ({})
+                  fn (renderer-states opacity stage)
+                    if (= tab :todolist)
+                      comp-todolist renderer-states (:tasks store) opacity stage
                 comp-fade-in-out (>> states :fade-clock) ({})
                   if (= tab :clock)
                     translate
@@ -1400,29 +1475,33 @@
       :defs $ {}
         |task-add $ quote
           defn task-add (store op-data tick)
-            conj store $ merge schema/task
-              {} (:id tick) (:text op-data)
+            update store :tasks $ fn (tasks)
+              conj tasks $ merge schema/task
+                {} (:id tick) (:text op-data)
         |task-rm $ quote
           defn task-rm (store op-data tick)
-            -> store $ filter
-              fn (task)
-                not= op-data $ :id task
+            update store :tasks $ fn (tasks)
+              -> tasks $ filter
+                fn (task)
+                  not= op-data $ :id task
         |task-toggle $ quote
           defn task-toggle (store op-data tick)
-            -> store $ map
-              fn (task)
-                if
-                  = op-data $ :id task
-                  update task :done? not
-                  , task
+            update store :tasks $ fn (tasks)
+              -> tasks $ map
+                fn (task)
+                  if
+                    = op-data $ :id task
+                    update task :done? not
+                    , task
         |task-update $ quote
           defn task-update (store op-data tick)
-            let[] (task-id text) op-data $ -> store
-              map $ fn (task)
-                if
-                  = task-id $ :id task
-                  assoc task :text text
-                  , task
+            update store :tasks $ fn (tasks)
+              let[] (task-id text) op-data $ -> tasks
+                map $ fn (task)
+                  if
+                    = task-id $ :id task
+                    assoc task :text text
+                    , task
         |updater-fn $ quote
           defn updater-fn (store op op-data tick) (; js/console.log "|store update:" op op-data tick)
             case-default op
@@ -1633,6 +1712,24 @@
                 , data
       :proc $ quote ()
       :configs $ {}
+    |quamolit.math $ {}
+      :ns $ quote (ns quamolit.math)
+      :defs $ {}
+        |bound-opacity $ quote
+          defn bound-opacity (o)
+            cond
+                nil? o
+                , 1
+              (not (number? 0))
+                do (js/console.warn "\"invalid opacity" 0) 1
+              (< o 0) 0
+              (> o 1) 1
+              true o
+        |bound-x $ quote
+          defn bound-x (left right x)
+            js/Math.min (js/Math.max left x) right
+      :proc $ quote ()
+      :configs $ {}
     |quamolit.util.order $ {}
       :ns $ quote (ns quamolit.util.order)
       :defs $ {}
@@ -1796,6 +1893,7 @@
         |store-ref $ quote
           defatom store-ref $ {}
             :states $ {}
+            :tasks $ []
         |reload! $ quote
           defn reload! () (js/clearTimeout @loop-ref) (js/cancelAnimationFrame @*raq) (render-loop!) (js/console.log "|code updated...")
         |main! $ quote
@@ -2008,6 +2106,7 @@
           [] quamolit.util.string :refer $ [] hsl
           [] quamolit.types :refer $ [] Component
           [] quamolit.util.string :refer $ [] gen-id!
+          quamolit.math :refer $ bound-opacity
       :defs $ {}
         |paint-one $ quote
           defn paint-one (ctx directive eff-ref coord)
@@ -2050,16 +2149,6 @@
                 or (:x style) 0
                 or (:y style) 0
                 or (:max-width style) 400
-        |bound-opacity $ quote
-          defn bound-opacity (o)
-            cond
-                nil? o
-                , 1
-              (not (number? 0))
-                do (js/console.warn "\"invalid opacity" 0) 1
-              (< o 0) 0
-              (> o 1) 1
-              true o
         |paint-restore $ quote
           defn paint-restore (ctx style eff-ref) (.!restore ctx) (swap! eff-ref update :alpha-stack rest)
         |paint-alpha $ quote
@@ -2253,15 +2342,32 @@
           [] quamolit.util.string :refer $ [] hsl
           [] quamolit.util.iterate :refer $ [] iterate-instant tween
           [] quamolit.alias :refer $ [] defcomp group rect
+          quamolit.math :refer $ bound-x bound-opacity
       :defs $ {}
         |comp-toggler $ quote
-          defcomp comp-toggler (done? task-id) (; js/console.log |done: instant)
-            {} $ :render
-              fn (m)
-                rect $ {,} :style
-                  style-toggler $ :done-value done?
-                  , :event
-                    {,} :click $ fn (e d!) (d! :toggle task-id)
+          defcomp comp-toggler (states done? task-id)
+            let
+                cursor $ :cursor states
+                state $ or (:data states) 0
+                v 4
+              ; js/console.log |done: done? state
+              []
+                fn (elapsed d!)
+                  if done?
+                    if (< state 1)
+                      d! cursor $ bound-opacity
+                        + state $ * v elapsed
+                    if (> state 0)
+                      d! cursor $ bound-opacity
+                        - state $ * v elapsed
+                rect $ {}
+                  :style
+                    {} (:w 40) (:h 40)
+                      :fill-style $ hsl
+                        + 240 $ * 120 state
+                        , 80 60
+                    , :event $ {}
+                      :click $ fn (e d!) (d! :toggle task-id)
         |init-instant $ quote
           defn init-instant (args state at!)
             let
@@ -2282,11 +2388,4 @@
                   > (:done-value instant) 500
                   , -3 3
                 , instant
-        |style-toggler $ quote
-          defn style-toggler (done-value)
-            {} (:w 40) (:h 40)
-              :fill-style $ hsl
-                tween ([] 360 200) ([] 0 1000) done-value
-                , 80
-                  tween ([] 40 80) ([] 0 1000) done-value
       :proc $ quote ()
