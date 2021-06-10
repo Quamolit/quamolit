@@ -677,7 +677,7 @@
                   if (some? hit-region)
                     let
                         coord $ parse-cirru-edn hit-region
-                      js/console.log |hit: event coord
+                      ; js/console.log |hit: event coord
                       reset! focus-ref coord
                       handle-event coord :click event dispatch
                     reset! focus-ref $ []
@@ -1145,7 +1145,7 @@
           [] quamolit.comp.clock :refer $ [] comp-clock
           [] quamolit.comp.solar :refer $ [] comp-solar
           [] quamolit.comp.fade-in-out :refer $ [] comp-fade-in-out
-          [] quamolit.comp.binary-tree :refer $ [] comp-binary-tree
+          [] quamolit.comp.binary-tree :refer $ [] comp-tree-waving
           [] quamolit.comp.code-table :refer $ [] comp-code-table
           [] quamolit.comp.finder :refer $ [] comp-finder
           [] quamolit.comp.raining :refer $ [] comp-raining
@@ -1155,7 +1155,7 @@
           [] quamolit.comp.debug :refer $ [] comp-debug
       :defs $ {}
         |comp-container $ quote
-          defcomp comp-container (timestamp store)
+          defcomp comp-container (store)
             let
                 states $ :states store
                 state $ either (:data states)
@@ -1183,7 +1183,7 @@
                   if (= tab :binary-tree)
                     translate
                       {,} :style $ {,} :x 0 :y 240
-                      comp-binary-tree timestamp 5
+                      comp-tree-waving $ >> states :binary-tree
                 comp-fade-in-out (>> states :fade-code-table) ({})
                   if (= tab :code-table)
                     translate
@@ -1675,11 +1675,11 @@
                 shift-a $ *
                   + 0.02 $ * 0.001 r1
                   js/Math.sin $ / timestamp
-                    + 800 $ * r2 100
+                    + 8 $ * r2 11
                 shift-b $ *
-                  + 0.03 $ * 0.001 r3
+                  + 0.031 $ * 0.001 r3
                   js/Math.sin $ / timestamp
-                    + 1300 $ * 60 r4
+                    + 13 $ * 6 r4
               group ({})
                 path $ {,} :style
                   {}
@@ -1705,6 +1705,15 @@
                         {,} :style $ {,} :angle
                           + (* 20 shift-b) 10
                         comp-binary-tree timestamp $ dec level
+        |comp-tree-waving $ quote
+          defcomp comp-tree-waving (states)
+            let
+                cursor $ :cursor states
+                state $ or (:data states) 0
+              []
+                fn (elapsed d!)
+                  d! cursor $ + state (* 10 elapsed)
+                comp-binary-tree state 5
       :proc $ quote
           declare comp-binary-tree
     |quamolit.comp.raindrop $ {}
@@ -1780,9 +1789,7 @@
             let
                 target $ js/document.querySelector |#app
               ; js/console.log "\"store" @store-ref
-              render-page
-                comp-container (get-tick) @store-ref
-                , target dispatch!
+              render-page (comp-container @store-ref) target dispatch!
               reset! loop-ref $ js/setTimeout
                 fn () $ reset! *raq (js/requestAnimationFrame render-loop!)
                 , 20
@@ -2005,9 +2012,9 @@
         |paint-one $ quote
           defn paint-one (ctx directive eff-ref coord)
             let
-                op $ &get directive :name
-                style $ &get directive :style
-                event $ &get directive :event
+                op $ .get directive :name
+                style $ .get directive :style
+                event $ .get directive :event
               ;  js/console.log :paint-one op style
               case-default op
                 do (js/console.log "|painting not implemented" directive) @eff-ref

@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@calcit/procs@^0.3.30":
-  version "0.3.30"
-  resolved "https://registry.npmjs.org/@calcit/procs/-/procs-0.3.30.tgz#b3b9b27e0c23705f2af79b137fe915d19d7c2de6"
-  integrity sha512-WhC3uaH619enpo4IoLHKgChDAqusRlwMRurXzjYK4Vixmh6mGYbtCqRZ5QuXovjUkUgR8gXm4jznnBnWqRTFiA==
+"@calcit/procs@^0.3.33":
+  version "0.3.33"
+  resolved "https://registry.npmjs.org/@calcit/procs/-/procs-0.3.33.tgz#3fe55e41b50c561eb35d46e3b5bb2a6ab0d6e626"
+  integrity sha512-NbpDm9aJQe4gknFmFtMUviP2YWU7HsuRr9SrKUA/1U8rAsvDl0CFR5hGutr1O8IpXZPThK9FHEH1kLY0IxNxow==
   dependencies:
     "@calcit/ternary-tree" "0.0.13"
     "@cirru/parser.ts" "^0.0.3"
@@ -32,9 +32,9 @@ colorette@^1.2.2:
   integrity sha512-MKGMzyfeuutC/ZJ1cba9NqcNpfeqMUcYmyF1ZFY6/Cn7CNSAKx6a+s48sqLqyAiZuaP2TcqMhoo+dlwFnVxT9w==
 
 esbuild@^0.12.5:
-  version "0.12.7"
-  resolved "https://registry.npmjs.org/esbuild/-/esbuild-0.12.7.tgz#0243ff94b241d9c815720083633731bc5b601b24"
-  integrity sha512-vxENKWBo928ErLiT/uUv8Sl2EoC5cF3cZzCTc8hDEh9ZAZ75xblJCr72NeJo74lxWaGopIePZPIWq1qDpLUHQQ==
+  version "0.12.8"
+  resolved "https://registry.npmjs.org/esbuild/-/esbuild-0.12.8.tgz#ac90da77cb3bfbf49ab815200bcef7ffe1a3348f"
+  integrity sha512-sx/LwlP/SWTGsd9G4RlOPrXnIihAJ2xwBUmzoqe2nWwbXORMQWtAGNJNYLBJJqa3e9PWvVzxdrtyFZJcr7D87g==
 
 fsevents@~2.3.1:
   version "2.3.2"
@@ -71,9 +71,9 @@ path-parse@^1.0.6:
   integrity sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw==
 
 postcss@^8.3.0:
-  version "8.3.0"
-  resolved "https://registry.npmjs.org/postcss/-/postcss-8.3.0.tgz#b1a713f6172ca427e3f05ef1303de8b65683325f"
-  integrity sha512-+ogXpdAjWGa+fdYY5BQ96V/6tAo+TdSSIMP5huJBIygdWwKtVoB5JWZ7yUd4xZ8r+8Kvvx4nyg/PQ071H4UtcQ==
+  version "8.3.1"
+  resolved "https://registry.npmjs.org/postcss/-/postcss-8.3.1.tgz#71f380151c227f83b898294a46481f689f86b70a"
+  integrity sha512-9qH0MGjsSm+fjxOi3GnwViL1otfi7qkj+l/WX5gcRGmZNGsIcqc+A5fBkE6PUobEQK4APqYVaES+B3Uti98TCw==
   dependencies:
     colorette "^1.2.2"
     nanoid "^3.1.23"
