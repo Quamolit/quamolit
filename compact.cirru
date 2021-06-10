@@ -15,7 +15,7 @@
           defcomp comp-fade-in-out (states props p1) (; js/console.log instant)
             let
                 cursor $ :cursor states
-                v 0.004
+                v 4
                 state $ either (:data states)
                   {} (:stage :hidden) (:opacity 0) (:p1 nil)
               []
@@ -479,7 +479,7 @@
         |init-instant $ quote
           defn init-instant (args state at-place?) ({,} :presence 0 :presence-v 3 :numb? false)
         |comp-todolist $ quote
-          defcomp comp-todolist (states timestamp) (; js/console.info |todolist: states)
+          defcomp comp-todolist (states) (; js/console.info |todolist: states)
             let
                 cursor $ :cursor states
                 state $ either (:data states)
@@ -524,7 +524,7 @@
                               [] (:id task)
                                 comp-task
                                   >> states $ :id task
-                                  , timestamp task index shift-x
+                                  , task index shift-x
                     comp-debug state $ {}
         |on-unmount $ quote
           defn on-unmount (instant) (assoc instant :presence-v -3)
@@ -676,7 +676,7 @@
                     hit-region $ aget event |region
                   if (some? hit-region)
                     let
-                        coord $ :coord (parse-cirru-edn hit-region)
+                        coord $ parse-cirru-edn hit-region
                       js/console.log |hit: event coord
                       reset! focus-ref coord
                       handle-event coord :click event dispatch
@@ -759,7 +759,7 @@
               :fill-style $ hsl 0 0 60
               :text text
         |comp-task $ quote
-          defcomp comp-task (states timestamp task index shift-x)
+          defcomp comp-task (states task index shift-x)
             let
                 cursor $ :cursor states
                 state $ either (:data states)
@@ -941,7 +941,6 @@
                 cursor $ :cursor states
                 state $ either (:data states)
                   {} (:x0 0) (:y0 0) (:x1 0) (:y1 0)
-                v 0.12
                 h 100
                 w 60
               []
@@ -952,15 +951,17 @@
                       = y0 $ :y0 state
                       = x1 $ :x1 state
                       = y1 $ :y1 state
-                    d! cursor $ -> state
-                      update :x0 $ fn (n)
-                        + n $ * v (- x0 n)
-                      update :y0 $ fn (n)
-                        + n $ * v (- y0 n)
-                      update :x1 $ fn (n)
-                        + n $ * v (- x1 n)
-                      update :y1 $ fn (n)
-                        + n $ * v (- y1 n)
+                    let
+                        v $ * elapsed 6
+                      d! cursor $ -> state
+                        update :x0 $ fn (n)
+                          + n $ * v (- x0 n)
+                        update :y0 $ fn (n)
+                          + n $ * v (- y0 n)
+                        update :x1 $ fn (n)
+                          + n $ * v (- x1 n)
+                        update :y1 $ fn (n)
+                          + n $ * v (- y1 n)
                 group ({})
                   alpha
                     {,} :style $ {,} :opacity 1
@@ -1167,7 +1168,7 @@
                   if (= tab :portal) (comp-portal cursor)
                 comp-fade-in-out (>> states :fade-todolist) ({})
                   if (= tab :todolist)
-                    comp-todolist (>> states :todolist) timestamp
+                    comp-todolist $ >> states :todolist
                 comp-fade-in-out (>> states :fade-clock) ({})
                   if (= tab :clock)
                     translate
@@ -1177,7 +1178,7 @@
                   if (= tab :solar)
                     translate
                       {,} :style $ {,} :x 0 :y 0
-                      comp-solar timestamp 8
+                      comp-solar (>> states :solar) 4
                 comp-fade-in-out (>> states :fade-binary-tree) ({})
                   if (= tab :binary-tree)
                     translate
@@ -1202,12 +1203,12 @@
                   if (= tab :curve)
                     translate
                       {,} :style $ {,} :x 0 :y 40
-                      comp-ring timestamp
+                      comp-ring $ >> states :ring
                 comp-fade-in-out (>> states :fade-icons) ({})
                   if (= tab :icons)
                     translate
                       {,} :style $ {,} :x 0 :y 40
-                      comp-icons-table (>> states :icons) timestamp
+                      comp-icons-table $ >> states :icons
                 comp-fade-in-out (>> states :fade-folding-fan) ({})
                   if (= tab :folding-fan)
                     translate
@@ -1240,7 +1241,8 @@
       :ns $ quote (ns quamolit.util.time)
       :defs $ {}
         |get-tick $ quote
-          defn get-tick () $ js/performance.now
+          defn get-tick () (; "\"return value in seconds")
+            * 0.001 $ js/performance.now
       :proc $ quote ()
     |quamolit.comp.finder $ {}
       :ns $ quote
@@ -1450,36 +1452,41 @@
           [] quamolit.comp.debug :refer $ [] comp-debug
       :defs $ {}
         |comp-ring $ quote
-          defcomp comp-ring (timestamp)
+          defcomp comp-ring (states)
             let
-                n 20
-                angle $ / 360 n
+                cursor $ :cursor states
+                state $ or (:data states) 0
+                n 32
+                unit $ * 2 (/ &PI n)
                 shift 10
-                rotation $ rem (/ timestamp 400) 360
-                r 100
-                rl 200
-                curve-points $ map (range n)
-                  fn (x)
+                rotation $ rem state 360
+                r 60
+                rl 360
+                curve-points $ -> (range n)
+                  map $ fn (x)
                     let
-                        this-angle $ * angle (inc x)
-                        angle-1 $ + (- this-angle rotation angle) shift
+                        this-angle $ * unit (inc x)
+                        angle-1 $ + (- this-angle rotation unit) shift
                         angle-2 $ - (+ this-angle rotation) shift
                       []
                         * rl $ sin angle-1
-                        - 0 $ * rl (cos angle-1)
+                        negate $ * rl (cos angle-1)
                         * rl $ sin angle-2
-                        - 0 $ * rl (cos angle-2)
+                        negate $ * rl (cos angle-2)
                         * r $ sin this-angle
-                        - 0 $ * r (cos this-angle)
-              group ({})
-                path $ {,} :style
-                  {}
-                    :points $ concat
-                      [] $ [] 0 (- 0 r)
-                      , curve-points
-                    :line-width 2
-                    :stroke-style $ hsl 300 80 60
-                comp-debug (js/Math.floor rotation) ({})
+                        negate $ * r (cos this-angle)
+              []
+                fn (elapsed d!)
+                  d! cursor $ + state (* elapsed 0.3)
+                group ({})
+                  path $ {,} :style
+                    {}
+                      :points $ concat
+                        [] $ [] 0 (- 0 r)
+                        , curve-points
+                      :line-width 1
+                      :stroke-style $ hsl 300 80 60
+                  comp-debug (js/Math.floor rotation) ({})
         |cos $ quote
           defn cos (x)
             js/Math.cos $ * js/Math.PI (/ x 180)
@@ -1723,7 +1730,7 @@
                 fn (elapsed d!)
                   d! cursor $ update state :dy
                     fn (dy)
-                      + dy $ * elapsed 0.10
+                      + dy $ * elapsed 100
                   if
                     >
                       + (:y position) (:dy state)
@@ -1806,7 +1813,7 @@
           [] quamolit.comp.icon-play :refer $ [] comp-icon-play
       :defs $ {}
         |comp-icons-table $ quote
-          defcomp comp-icons-table (states timestamp)
+          defcomp comp-icons-table (states)
             group ({})
               translate
                 {,} :style $ {,} :x -200
@@ -1952,28 +1959,35 @@
       :ns $ quote
         ns quamolit.comp.solar $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp group rect arc
+          [] quamolit.alias :refer $ [] defcomp group rect arc >>
           [] quamolit.render.element :refer $ [] rotate translate scale
       :defs $ {}
         |comp-solar $ quote
-          defcomp comp-solar (timestamp level)
-            ; .log js/console :tick $ / tick 10
-            rotate
-              {,} :style $ {,} :angle
-                rem (/ timestamp 8) 360
-              arc $ {,} :style style-large
-              translate
-                {,} :style $ {,} :x 100 :y -40
-                arc $ {,} :style style-small
-              if (> level 0)
-                scale
-                  {,} :style $ {,} :ratio 0.8
+          defcomp comp-solar (states level)
+            ; js/console.log :tick $ / tick 10
+            let
+                cursor $ :cursor states
+                state $ or (:data states) 0
+              []
+                fn (elapsed d!)
+                  d! cursor $ + state (* elapsed 100)
+                rotate
+                  {,} :style $ {,} :angle (rem state 360)
+                  arc $ {} (:style style-large)
                   translate
-                    {,} :style $ {,} :x 20 :y 180
-                    comp-solar timestamp $ - level 1
+                    {,} :style $ {,} :x 100 :y -40
+                    arc $ {} (:style style-small)
+                  if (> level 0)
+                    scale
+                      {,} :style $ {,} :ratio 0.6
+                      translate
+                        {,} :style $ {,} :x 260 :y 40
+                        comp-solar (>> states :next) (- level 1)
         |style-large $ quote
           def style-large $ {}
             :fill-style $ hsl 80 80 80
+            :stroke-style $ hsl 200 50 60 0.5
+            :line-width 1
             :r 60
         |style-small $ quote
           def style-small $ {}
@@ -1994,9 +2008,9 @@
                 op $ &get directive :name
                 style $ &get directive :style
                 event $ &get directive :event
-              ;  js/console :paint-one op style
+              ;  js/console.log :paint-one op style
               case-default op
-                do (.log js/console "|painting not implemented" directive) @eff-ref
+                do (js/console.log "|painting not implemented" directive) @eff-ref
                 :line $ paint-line ctx style
                 :path $ paint-path ctx style
                 :text $ paint-text ctx style
@@ -2040,14 +2054,14 @@
               (> o 1) 1
               true o
         |paint-restore $ quote
-          defn paint-restore (ctx style eff-ref) (.restore ctx) (swap! eff-ref update :alpha-stack rest)
+          defn paint-restore (ctx style eff-ref) (.!restore ctx) (swap! eff-ref update :alpha-stack rest)
         |paint-alpha $ quote
           defn paint-alpha (ctx style eff-ref)
             let
                 inherent-opacity $ first (:alpha-stack @eff-ref)
                 opacity $ * inherent-opacity
                   bound-opacity $ :opacity style
-              aset ctx "\"globalAlpha" opacity
+              set! (.-globalAlpha ctx) opacity
               swap! eff-ref update :alpha-stack $ fn (alpha-stack)
                 prepend (rest alpha-stack) opacity
         |paint-save $ quote
@@ -2063,47 +2077,43 @@
                 s-angle $ * pi-ratio
                   or (:s-angle style) 0
                 e-angle $ * pi-ratio
-                  or (:e-angle style) 60
+                  or (:e-angle style) 300
                 line-width $ or (:line-width style) 4
-                counterclockwise $ or (:counterclockwise style) true
+                counterclockwise $ or (:counterclockwise style) false
                 line-cap $ or (:line-cap style) |round
                 line-join $ or (:line-join style) |round
                 miter-limit $ or (:miter-limit style) 8
               .beginPath ctx
               .arc ctx x y r s-angle e-angle counterclockwise
               if (some? event)
-                let
-                    caller $ aget ctx |addHitRegion
-                    options $ js-object
-                      :id $ write-cirru-edn
-                        {}
-                          :id $ gen-id!
-                          :coord coord
-                  ; .log js/console "|hit region" coord $ some? caller
-                  if (some? caller) (.call caller ctx options)
+                if
+                  some? $ .-addHitRegion ctx
+                  .!addHitRegion ctx $ js-object
+                    :id $ write-cirru-edn coord
               if
                 some? $ :fill-style style
                 do
-                  aset ctx "\"fillStyle" $ :fill-style style
-                  .fill ctx
+                  set! (.-fillStyle ctx) (:fill-style style)
+                  .!fill ctx
               if
                 some? $ :stroke-style style
-                do (aset ctx "\"lineWidth" line-width)
-                  aset ctx "\"strokeStyle" $ :stroke-style style
-                  aset ctx "\"lineCap" line-cap
-                  aset ctx "\"miterLimit" miter-limit
-                  .stroke ctx
+                do
+                  set! (.-lineWidth ctx) line-width
+                  set! (.-strokeStyle ctx) (:stroke-style style)
+                  set! (.-lineCap ctx) line-cap
+                  set! (.-miterLimit ctx) miter-limit
+                  .!stroke ctx
         |paint-scale $ quote
           defn paint-scale (ctx style)
             let
                 ratio $ or (:ratio style) 1.2
-              .scale ctx ratio ratio
+              .!scale ctx ratio ratio
         |paint-translate $ quote
           defn paint-translate (ctx style)
             let
                 x $ or (:x style) 0
                 y $ or (:y style) 0
-              .translate ctx x y
+              .!translate ctx x y
         |paint $ quote
           defn paint (ctx tree eff-ref coord dispatch! elapsed) (; js/console.log "\"paint" tree)
             if (nil? tree) nil $ if
@@ -2150,22 +2160,26 @@
               &doseq
                 coords $ rest points
                 case (count coords) (raise "|not supported coords")
-                  2 $ .lineTo ctx (get coords 0) (get coords 1)
-                  4 $ .quadraticCurveTo ctx (get coords 0) (get coords 1) (get coords 2) (get coords 3)
-                  6 $ .bezierCurveTo ctx (get coords 0) (get coords 1) (get coords 2) (get coords 3) (get coords 4) (get coords 5)
+                  2 $ .!lineTo ctx (nth coords 0) (nth coords 1)
+                  4 $ .!quadraticCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3)
+                  6 $ .!bezierCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3) (nth coords 4) (nth coords 5)
               if (contains? style :stroke-style)
                 do
-                  aset ctx |lineWidth $ or (:line-width style) 4
-                  aset ctx |strokeStyle $ :stroke-style style
-                  aset ctx |lineCap $ or (:line-cap style) |round
-                  aset ctx |lineJoin $ or (:line-join style) |round
-                  aset ctx |milterLimit $ or (:milter-limit style) 8
-                  .stroke ctx
+                  set! (.-lineWidth ctx)
+                    or (:line-width style) 4
+                  set! (.-strokeStyle ctx) (:stroke-style style)
+                  set! (.-lineCap ctx)
+                    or (:line-cap style) |round
+                  set! (.-lineJoin ctx)
+                    or (:line-join style) |round
+                  set! (.-milterLimit ctx)
+                    or (:milter-limit style) 8
+                  .!stroke ctx
               if (contains? style :fill-style)
                 do
-                  aset ctx |fillStyle $ :fill-style style
-                  .closePath ctx
-                  .fill ctx
+                  set! (.-fillStyle ctx) (:fill-style style)
+                  .!closePath ctx
+                  .!fill ctx
         |paint-image $ quote
           defn paint-image (ctx style coord)
             let
@@ -2178,7 +2192,7 @@
                 dw $ or (:dw style) 40
                 dh $ or (:dh style) 40
                 image $ get-image (:src style)
-              .drawImage ctx image sx sy sw sh dx dy dw dh
+              .!drawImage ctx image sx sy sw sh dx dy dw dh
         |get-image $ quote
           defn get-image (src)
             if (contains? @*image-pool src) (get @*image-pool src)
@@ -2202,34 +2216,29 @@
                   or (:y style) 0
                   / h 2
                 line-width $ or (:line-width style) 2
-              .beginPath ctx
-              .rect ctx x y w h
+              .!beginPath ctx
+              .!rect ctx x y w h
               if (some? event)
-                let
-                    caller $ aget ctx |addHitRegion
-                    options $ js-object
-                      :id $ write-cirru-edn
-                        {}
-                          :id $ gen-id!
-                          :coord coord
-                  ; js/console.log "|hit region" coord $ some? caller
-                  if (some? caller) (.!addHitRegion ctx options)
+                if
+                  some? $ .-addHitRegion ctx
+                  .!addHitRegion ctx $ js-object
+                    :id $ write-cirru-edn coord
               if (contains? style :fill-style)
                 do
-                  aset ctx "\"fillStyle" $ :fill-style style
-                  .fill ctx
+                  set! (.-fillStyle ctx) (:fill-style style)
+                  .!fill ctx
               if (contains? style :stroke-style)
                 do
-                  aset ctx "\"strokeStyle" $ :stroke-style style
-                  aset ctx "\"lineWidth" line-width
-                  .stroke ctx
+                  set! (.-strokeStyle ctx) (:stroke-style style)
+                  set! (.-lineWidth ctx) line-width
+                  .!stroke ctx
         |paint-group! $ quote
           defn paint-group! $
         |paint-rotate $ quote
           defn paint-rotate (ctx style)
             let
                 angle $ or (:angle style) 30
-              .rotate ctx angle
+              .!rotate ctx angle
       :proc $ quote ()
     |quamolit.comp.task-toggler $ {}
       :ns $ quote
