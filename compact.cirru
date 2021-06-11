@@ -922,6 +922,7 @@
           [] quamolit.render.element :refer $ [] button translate rotate
           [] quamolit.util.string :refer $ [] hsl
           [] quamolit.util.iterate :refer $ [] iterate-instant tween
+          quamolit.math :refer $ bound-opacity
       :defs $ {}
         |on-tick $ quote
           defn on-tick (instant tick elapsed)
@@ -946,7 +947,7 @@
           defcomp comp-folding-fan (states)
             let
                 cursor $ :cursor states
-                state $ either (:data states)
+                state $ or (:data states)
                   {} (:folding-value 0) (:folded? false)
               let
                   n 24
@@ -956,33 +957,45 @@
                   dest-w 650
                   dest-h 432
                   dest-unit $ / dest-w n
-                group ({})
-                  translate
-                    {} $ :style ({,} :x 0 :y 160)
-                    -> (range n)
-                      map $ fn (i)
-                        [] i $ rotate
-                          {} $ :style
-                            {,} :angle $ *
-                              tween ([] 0 6) ([] 0 1000) (:folding-value state)
-                              + 0.5 $ - i (/ n 2)
-                          image $ {}
-                            :style $ {} (:src |assets/lotus.jpg)
-                              :sx $ * i image-unit
-                              :sy 0
-                              :sw image-unit
-                              :sh image-h
-                              :dx $ - 0 (/ image-unit 2)
-                              :dy $ - 10 dest-h
-                              :dw dest-unit
-                              :dh dest-h
-                  button $ {}
-                    :style $ {} (:text |Toggle) (:x 160) (:y 200)
-                      :surface-color $ hsl 30 80 60
-                      :text-color $ hsl 0 0 100
-                    :event $ {}
-                      :click $ fn (e d!)
-                        d! cursor $ update state :folded? not
+                  v 4
+                  fv $ wo-log (:folding-value state)
+                []
+                  fn (elapsed d!)
+                    if (:folded? state)
+                      if (< fv 1)
+                        d! cursor $ update state :folding-value
+                          fn (x)
+                            bound-opacity $ + x (* v elapsed)
+                      if (> fv 0)
+                        d! cursor $ update state :folding-value
+                          fn (x)
+                            bound-opacity $ - x (* v elapsed)
+                  group ({})
+                    translate
+                      {} $ :style ({,} :x 0 :y 160)
+                      -> (range n)
+                        map $ fn (i)
+                          [] i $ rotate
+                            {} $ :style
+                              {,} :angle $ * 6 (:folding-value state)
+                                + 0.5 $ - i (/ n 2)
+                            image $ {}
+                              :style $ {} (:src |assets/lotus.jpg)
+                                :sx $ * i image-unit
+                                :sy 0
+                                :sw image-unit
+                                :sh image-h
+                                :dx $ - 0 (/ image-unit 2)
+                                :dy $ - 10 dest-h
+                                :dw dest-unit
+                                :dh dest-h
+                    button $ {}
+                      :style $ {} (:text |Toggle) (:x 160) (:y 200)
+                        :surface-color $ hsl 30 80 60
+                        :text-color $ hsl 0 0 100
+                      :event $ {}
+                        :click $ fn (e d!)
+                          d! cursor $ update state :folded? not
       :proc $ quote ()
     |quamolit.comp.digits $ {}
       :ns $ quote
@@ -2287,14 +2300,15 @@
                 dy $ or (:dy style) 0
                 dw $ or (:dw style) 40
                 dh $ or (:dh style) 40
-                image $ get-image (:src style)
+                image $ get-image
+                  wo-log $ :src style
               .!drawImage ctx image sx sy sw sh dx dy dw dh
         |get-image $ quote
           defn get-image (src)
             if (contains? @*image-pool src) (get @*image-pool src)
               let
-                  image $ .createElement js/document |img
-                .setAttribute image |src src
+                  image $ w-js-log (.!createElement js/document |img)
+                .!setAttribute image |src src
                 , image
         |*image-pool $ quote
           defatom *image-pool $ {}
