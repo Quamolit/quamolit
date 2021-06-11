@@ -661,6 +661,8 @@
               :style $ :style props
               :event $ :event props
               :children $ arrange-children children
+        |list-> $ quote
+          defn list-> (props children) (create-list-shape :group props children)
         |text $ quote
           defn text (props & children) (create-shape :text props children)
         |create-list-shape $ quote
@@ -1699,7 +1701,7 @@
       :ns $ quote
         ns quamolit.comp.raining $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp rect group >>
+          [] quamolit.alias :refer $ [] defcomp rect group >> list->
           [] quamolit.comp.raindrop :refer $ [] comp-raindrop
       :defs $ {}
         |comp-raining $ quote
@@ -1723,12 +1725,13 @@
                           new-state $ concat state (random-rains 3)
                         d! cursor new-state
                         d! :gc-states $ [] cursor (.map new-state first)
-                group ({}) & $ -> state
-                  map $ fn (entry)
-                    let
-                        child-key $ first entry
-                        position $ last entry
-                      comp-raindrop (>> states child-key) child-key position on-earth
+                list-> ({})
+                  -> state $ map
+                    fn (entry)
+                      let
+                          child-key $ first entry
+                          position $ last entry
+                        [] child-key $ comp-raindrop (>> states child-key) child-key position on-earth
         |random-rains $ quote
           defn random-rains (n)
             -> (range n)
