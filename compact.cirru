@@ -245,38 +245,53 @@
           [] quamolit.alias :refer $ [] defcomp path group rect
           [] quamolit.util.iterate :refer $ [] iterate-instant tween
           [] quamolit.comp.debug :refer $ [] comp-debug
+          quamolit.math :refer $ bound-opacity
       :defs $ {}
         |comp-icon-play $ quote
           defcomp comp-icon-play (states)
             let
                 cursor $ :cursor states
                 state $ either (:data states)
-                  {} $ :play-value 0
+                  {} (:playing? false) (:play-value 0)
               let
+                  play? $ :playing? state
+                  pv $ :play-value state
                   tw $ fn (a0 a1)
-                    tween ([] a0 a1) ([] 0 1) (:play-value state)
-                rect
-                  {,} :style
-                    {} (:w 60) (:h 60)
-                      :fill-style $ hsl 40 80 90
-                    , :event $ {,} :click
-                      fn (e d!)
-                        d! cursor $ update state :play-value inc
-                  path $ {,} :style
-                    {}
-                      :points $ [] ([] -20 -20) ([] -20 20)
-                        [] (tw -5 0) (tw 20 10)
-                        [] (tw -5 0) (tw -20 -10)
-                      :fill-style $ hsl 120 50 60
-                  path $ {,} :style
-                    {}
-                      :points $ []
-                        [] (tw 5 0) (tw -20 -10)
-                        [] 20 $ tw -20 0
-                        [] 20 $ tw 20 0
-                        [] (tw 5 0) (tw 20 10)
-                      :fill-style $ hsl 120 50 60
-                  ; comp-debug state $ {}
+                    + a0 $ * (- a1 a0) pv
+                  v 6
+                []
+                  fn (elapsed d!)
+                    if play?
+                      if (< pv 1)
+                        d! cursor $ update state :play-value
+                          fn (pv)
+                            bound-opacity $ + pv (* elapsed v)
+                      if (> pv 0)
+                        d! cursor $ update state :play-value
+                          fn (pv)
+                            bound-opacity $ - pv (* elapsed v)
+                  rect
+                    {,} :style
+                      {} (:w 60) (:h 60)
+                        :fill-style $ hsl 40 80 90
+                      , :event $ {,} :click
+                        fn (e d!)
+                          d! cursor $ update state :playing? not
+                    path $ {,} :style
+                      {}
+                        :points $ [] ([] -20 -20) ([] -20 20)
+                          [] (tw -5 0) (tw 20 10)
+                          [] (tw -5 0) (tw -20 -10)
+                        :fill-style $ hsl 120 50 60
+                    path $ {,} :style
+                      {}
+                        :points $ []
+                          [] (tw 5 0) (tw -20 -10)
+                          [] 20 $ tw -20 0
+                          [] 20 $ tw 20 0
+                          [] (tw 5 0) (tw 20 10)
+                        :fill-style $ hsl 120 50 60
+                    ; comp-debug state $ {}
         |on-tick $ quote
           defn on-tick (instant tick elapsed)
             iterate-instant instant :play-value :play-v elapsed $ [] (:play-target instant) (:play-target instant)
@@ -2300,14 +2315,13 @@
                 dy $ or (:dy style) 0
                 dw $ or (:dw style) 40
                 dh $ or (:dh style) 40
-                image $ get-image
-                  wo-log $ :src style
+                image $ get-image (:src style)
               .!drawImage ctx image sx sy sw sh dx dy dw dh
         |get-image $ quote
           defn get-image (src)
             if (contains? @*image-pool src) (get @*image-pool src)
               let
-                  image $ w-js-log (.!createElement js/document |img)
+                  image $ .!createElement js/document |img
                 .!setAttribute image |src src
                 , image
         |*image-pool $ quote
