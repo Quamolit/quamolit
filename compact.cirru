@@ -182,12 +182,12 @@
                 state $ either (:data states) ([])
               translate
                 {,} :style $ {,} :x -160 :y -160
-                -> state $ map-indexed
-                  fn (i row)
+                , & $ -> state
+                  map-indexed $ fn (i row)
                     [] i $ group ({})
                       -> row $ map-indexed
                         fn (j content)
-                          [] j $ let
+                          let
                               move-x $ * i 100
                               move-y $ * j 60
                             translate
@@ -636,14 +636,10 @@
           defn image (props & children) (create-shape :image props children)
         |arrange-children $ quote
           defn arrange-children (children)
-            cond
-                list? $ first children
-                first children
-              (map? children) (raise "\"unknown")
-              true $ -> children
-                map-indexed $ fn (idx x) ([] idx x)
-                filter $ fn (entry)
-                  some? $ last entry
+            -> children
+              map-indexed $ fn (idx x) ([] idx x)
+              filter $ fn (entry)
+                some? $ last entry
         |path $ quote
           defn path (props & children) (create-shape :path props children)
         |native-transform $ quote
@@ -667,6 +663,15 @@
               :children $ arrange-children children
         |text $ quote
           defn text (props & children) (create-shape :text props children)
+        |create-list-shape $ quote
+          defn create-list-shape (shape-name props children)
+            if
+              not $ map? props
+              raise $ new js/Error "|Props expeced to be a map!"
+            %{} Shape (:name shape-name)
+              :style $ :style props
+              :event $ :event props
+              :children children
         |arc $ quote
           defn arc (props & children) (create-shape :arc props children)
         |line $ quote
@@ -999,9 +1004,9 @@
                   group ({})
                     translate
                       {} $ :style ({,} :x 0 :y 160)
-                      -> (range n)
+                      , & $ -> (range n)
                         map $ fn (i)
-                          [] i $ rotate
+                          rotate
                             {} $ :style
                               {,} :angle $ * 6 (:folding-value state)
                                 + 0.5 $ - i (/ n 2)
@@ -1371,33 +1376,30 @@
           defcomp comp-finder (states)
             let
                 cursor $ :cursor states
-                state $ either (:data states) ({})
+                state $ either (:data states)
+                  {} $ :selected nil
+                selected $ :selected state
               ; js/console.log state state
               rect
-                {,} :style
-                  {,} :w 1000 :h 600 :fill-style $ hsl 100 40 90
-                  , :event $ {,} :click
+                {}
+                  :style $ {,} :w 1000 :h 600 :fill-style (hsl 100 40 90)
+                  :event $ {,} :click
                     fn (e d!) (d! cursor nil)
-                group ({})
-                  ->
-                    [] $ [] "\"a" "\"c"
-                    map-indexed $ fn (index folder) (; js/console.log folder)
-                      let
-                          ix $ rem index 4
-                          iy $ js/Math.floor (/ index 4)
-                          position $ []
-                            - (* ix 200) 200
-                            - (* iy 200) 100
-                        [] index $ comp-folder (>> states index) folder position
-                          fn $
-                          , index
-                            = index $ last state
-                    filter $ fn (entry)
-                      let-sugar
-                            [] index tree
-                            , entry
-                          target $ last state
-                        if (some? target) (= index target) true
+                group ({}) & $ -> card-collection
+                  map-indexed $ fn (index folder) (; js/console.log folder)
+                    let
+                        ix $ rem index 4
+                        iy $ js/Math.floor (/ index 4)
+                        position $ []
+                          - (* ix 200) 200
+                          - (* iy 200) 100
+                      [] index $ comp-folder (>> states index) folder position
+                        fn (page d!)
+                          d! cursor $ assoc state :selected page
+                        , index (= index selected)
+                  filter $ fn (entry)
+                    let[] (index tree) entry $ if (some? selected) (= index selected) true
+                  map last
         |init-state $ quote
           defn init-state (& args) ([] card-collection nil)
         |update-state $ quote
@@ -1661,32 +1663,31 @@
                 scale
                   {,} :style $ {,} :ratio ratio
                   alpha
-                    {,} :style $ {,} :opacity
-                      * 0.6 $ / (:presence state) 1000
+                    {,} :style $ {,} :opacity (* 0.6 1)
                     rect $ {,} :style
                       {,} :w 600 :h 400 :fill-style $ hsl 0 80 bg-light
                       , :event
-                        {,} :click $ fn (e d!) (navigate index)
-                  group ({,})
-                    -> cards
-                      map-indexed $ fn (index card-name)
-                        [] index $ let
-                            jx $ rem index 4
-                            jy $ js/Math.floor (/ index 4)
-                            card-x $ * (- jx 1.5)
-                              * 200 $ + 0.1 (* 0.9 popup-ratio)
-                            card-y $ * (- jy 1.5)
-                              * 100 $ + 0.1 (* 0.9 popup-ratio)
-                          comp-file-card (>> states index) card-name ([] card-x card-y) cursor index ratio $ = state index
-                      filter $ fn (entry)
-                        let
-                            index $ first entry
-                          if (some? state) (= index state) true
+                        {,} :click $ fn (e d!) (navigate index d!)
+                  group ({,}) & $ -> cards
+                    map-indexed $ fn (index card-name)
+                      [] index $ let
+                          jx $ rem index 4
+                          jy $ js/Math.floor (/ index 4)
+                          card-x $ * (- jx 1.5)
+                            * 200 $ + 0.1 (* 0.9 popup-ratio)
+                          card-y $ * (- jy 1.5)
+                            * 100 $ + 0.1 (* 0.9 popup-ratio)
+                        comp-file-card (>> states index) card-name ([] card-x card-y) cursor index ratio $ = state index
+                    filter $ fn (entry)
+                      let
+                          index $ first entry
+                        if (some? state) (= index state) true
+                    map last
                   if (not popup?)
                     rect $ {,} :style
                       {,} :w 600 :h 400 :fill-style $ hsl 0 80 0 0
                       , :event
-                        {,} :click $ fn (e d!) (navigate index)
+                        {,} :click $ fn (e d!) (navigate index d!)
         |init-state $ quote
           defn init-state (cards position _ index popup?) nil
         |init-instant $ quote
@@ -1722,13 +1723,12 @@
                           new-state $ concat state (random-rains 3)
                         d! cursor new-state
                         d! :gc-states $ [] cursor (.map new-state first)
-                group ({})
-                  -> state $ map
-                    fn (entry)
-                      let
-                          child-key $ first entry
-                          position $ last entry
-                        [] child-key $ comp-raindrop (>> states child-key) child-key position on-earth
+                group ({}) & $ -> state
+                  map $ fn (entry)
+                    let
+                        child-key $ first entry
+                        position $ last entry
+                      comp-raindrop (>> states child-key) child-key position on-earth
         |random-rains $ quote
           defn random-rains (n)
             -> (range n)
@@ -2065,8 +2065,7 @@
               group ({})
                 native-save $ {}
                 native-rotate $ {,} :style ({,} :angle angle)
-                group ({}) (arrange-children children)
-                native-restore $ {}
+                , & children $ native-restore ({})
         |button $ quote
           defcomp button (props) (; js/console.log "\"button" props)
             let
