@@ -171,7 +171,7 @@
       :ns $ quote
         ns quamolit.comp.code-table $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp group rect
+          [] quamolit.alias :refer $ [] defcomp group rect >>
           [] quamolit.render.element :refer $ [] input translate textbox
           [] quamolit.util.keyboard :refer $ [] keycode->key
       :defs $ {}
@@ -182,17 +182,19 @@
                 state $ either (:data states) ([])
               translate
                 {,} :style $ {,} :x -160 :y -160
-                , & $ -> state
+                , & $ ->
+                  repeat (repeat "\"edit" 3) 3
                   map-indexed $ fn (i row)
-                    [] i $ group ({})
-                      -> row $ map-indexed
-                        fn (j content)
-                          let
-                              move-x $ * i 100
-                              move-y $ * j 60
-                            translate
-                              {,} :style $ {,} :x move-x :y move-y
-                              textbox $ {,} :style ({,} :w 80 :h 40 :text content)
+                    group ({}) & $ -> row
+                      map-indexed $ fn (j content)
+                        let
+                            move-x $ * i 100
+                            move-y $ * j 60
+                          translate
+                            {,} :style $ {,} :x move-x :y move-y
+                            textbox
+                              >> states $ str i "\":" j
+                              {,} :style $ {,} :w 80 :h 40 :text content
         |init-state $ quote
           defn init-state () $ repeat (repeat |edit 3) 3
       :proc $ quote ()
@@ -472,34 +474,34 @@
     |quamolit.controller.resolve $ {}
       :ns $ quote
         ns quamolit.controller.resolve $ :require
-          [] quamolit.types :refer $ [] Component
+          [] quamolit.types :refer $ [] Component Shape
       :defs $ {}
         |locate-target $ quote
           defn locate-target (tree coord) (; js/console.log |locating coord tree)
-            if
-              = 0 $ count coord
-              , tree $ let
-                  first-pos $ first coord
-                if (relevant-record? Component tree)
-                  if
-                    = first-pos $ :name tree
-                    recur (:tree tree) (slice coord 1)
+            if (.empty? coord) tree $ let
+                first-pos $ first coord
+              if (relevant-record? Component tree)
+                if
+                  = first-pos $ :name tree
+                  recur (:tree tree) (slice coord 1)
+                  , nil
+                let
+                    picked-pair $ -> (:children tree)
+                      find $ fn (child-pair)
+                        = (first child-pair) first-pos
+                    picked $ if (some? picked-pair) (last picked-pair) nil
+                  if (some? picked)
+                    recur picked $ slice coord 1
                     , nil
-                  let
-                      picked-pair $ -> (:children tree)
-                        find $ fn (child-pair)
-                          = (first child-pair) first-pos
-                      picked $ if (some? picked-pair) (last picked-pair) nil
-                    if (some? picked)
-                      recur picked $ slice coord 1
-                      , nil
         |resolve-target $ quote
           defn resolve-target (tree event-name coord)
             let
                 maybe-target $ locate-target tree coord
               ; .log js/console |target maybe-target event-name coord
               if (nil? maybe-target) nil $ let
-                  maybe-listener $ get-in maybe-target ([] :event event-name)
+                  maybe-listener $ if
+                    and (record? maybe-target) (.same-kind? maybe-target Shape)
+                    get-in maybe-target $ [] :event event-name
                 ; .log js/console |listener maybe-listener maybe-target
                 if (some? maybe-listener) maybe-listener $ if
                   = 0 $ count coord
@@ -764,11 +766,11 @@
                       reset! focus-ref coord
                       handle-event coord :click event dispatch
                     reset! focus-ref $ []
-              .!addEventListener root-element |keypress $ fn (event)
+              .!addEventListener js/window |keypress $ fn (event)
                 let
                     coord @focus-ref
                   handle-event coord :keypress event dispatch
-              .!addEventListener root-element |keydown $ fn (event)
+              .!addEventListener js/window |keydown $ fn (event)
                 let
                     coord @focus-ref
                   handle-event coord :keydown event dispatch
@@ -1250,8 +1252,8 @@
             if
               and (<= k 90) (>= k 65)
               if shift? (js/String.fromCharCode k)
-                -> k js/String.fromCharCode $ .toUpperCase
-              , nil
+                -> k js/String.fromCharCode $ .!toLowerCase
+              , "\""
       :proc $ quote ()
     |quamolit.comp.container $ {}
       :ns $ quote
@@ -2034,19 +2036,26 @@
                 translate ({,} :style style-place-text)
                   text $ {,} :style style-text
         |textbox $ quote
-          defcomp textbox (props)
+          defcomp textbox (states props)
             let
-                cursor $ []
-                state "\"TODO"
-              {} $ :render
-                fn (m)
-                  let
-                      style $ assoc (:style props) :text state
-                    input $ {,} :style style :event
-                      {,} :keydown $ fn (e d!)
-                        let
-                            event $ :event e
-                          d! cursor (.-keyCode event) (.-shiftKey event)
+                cursor $ :cursor states
+                state $ or (:data states)
+                  {} $ :text
+                    get-in props $ [] :style :text
+                text $ :text state
+              [] nil $ let
+                  style $ assoc (:style props) :text text
+                input $ {,} :style style :event
+                  {,} :keydown $ fn (event d!)
+                    let
+                        next-text $ case-default (.-keyCode event)
+                          str text $ keycode->key (.-keyCode event) (.-shiftKey event)
+                          32 $ str text "\" "
+                          8 $ if
+                            <= (count text) 1
+                            , "\""
+                              .substr text 0 $ dec (.count text)
+                      d! cursor $ assoc state :text next-text
         |alpha $ quote
           defcomp alpha (props & children)
             {} $ :tree
@@ -2155,7 +2164,7 @@
                 op $ .get directive :name
                 style $ .get directive :style
                 event $ .get directive :event
-              ;  js/console.log :paint-one op style
+              ; js/console.log :paint-one op style
               case-default op
                 do (js/console.log "|painting not implemented" directive) @eff-ref
                 :line $ paint-line ctx style
