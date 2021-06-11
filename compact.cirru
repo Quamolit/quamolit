@@ -342,6 +342,7 @@
           [] quamolit.render.element :refer $ [] translate rotate alpha
           [] quamolit.util.iterate :refer $ [] iterate-instant
           quamolit.types :refer $ Component
+          quamolit.math :refer $ bound-x
       :defs $ {}
         |on-tick $ quote
           defn on-tick (instant tick elapsed)
@@ -357,26 +358,33 @@
             let
                 cursor $ :cursor states
                 state $ either (:data states)
-                  {} (:v 0) (:n 0)
-                v $ :v state
-              let
-                  n1 $ :n state
+                  {} (:n-value 0) (:n 0)
+                n-value $ :n-value state
+                n $ :n state
+                v 4
+                frac $ - n n-value
+              []
+                fn (elapsed d!)
+                  if (< n-value n)
+                    d! cursor $ update state :n-value
+                      fn (x)
+                        bound-x 0 n $ + x (* elapsed v)
                 rect
                   {}
                     :style $ {} (:w 60) (:h 60)
-                      :fill-style $ hsl 0 0 90
+                      :fill-style $ hsl 300 80 95
                     :event $ {}
                       :click $ fn (e d!)
-                        d! cursor $ update state :v inc
+                        d! cursor $ update state :n inc
                   translate
                     {} $ :style
-                      {} $ :x -12
+                      {} $ :x -14
                     rotate
                       {} $ :style
-                        {} $ :angle (* 90 n1)
+                        {} $ :angle (* 90 n-value)
                       line $ {}
                         :style $ {}
-                          :stroke-style $ hsl 0 80 30
+                          :stroke-style $ hsl 200 60 60
                           :x0 -7
                           :y0 0
                           :x1 7
@@ -384,7 +392,7 @@
                           :line-width 2
                       line $ {}
                         :style $ {}
-                          :stroke-style $ hsl 0 80 30
+                          :stroke-style $ hsl 200 60 60
                           :x0 0
                           :y0 -7
                           :x1 0
@@ -395,28 +403,31 @@
                     translate
                       {} $ :style
                         {} $ :y
-                          * -20 $ - v n1
+                          -
+                            * 20 $ - 1 frac
+                            , 20
                       alpha
                         {} $ :style
-                          {} $ :opacity
-                            - (+ 1 n1) v
+                          {} $ :opacity (- 1 frac)
                         text $ {}
                           :style $ {}
-                            :text $ str (+ v 1)
-                            :fill-style $ hsl 0 80 30
-                            :font-family "|Wawati SC Regular"
+                            :text $ str (+ n 1)
+                            :fill-style $ hsl 200 60 60
+                            :font-family "|Helvetica Neue"
                     translate
                       {} $ :style
                         {} $ :y
-                          * 20 $ - n1 (- v 1)
+                          -
+                            * 20 $ - 1 frac
+                            , 0
                       alpha
                         {} $ :style
-                          {} $ :opacity (- v n1)
+                          {} $ :opacity frac
                         text $ {}
                           :style $ {}
-                            :text $ str v
-                            :fill-style $ hsl 0 80 30
-                            :font-family "|Wawati SC Regular"
+                            :text $ str n
+                            :fill-style $ hsl 200 60 60
+                            :font-family "|Helvetica Neue"
         |remove? $ quote
           defn remove? (instant) true
         |on-update $ quote
