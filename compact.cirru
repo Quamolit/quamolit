@@ -171,7 +171,7 @@
       :ns $ quote
         ns quamolit.comp.code-table $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp group rect
+          [] quamolit.alias :refer $ [] defcomp group rect >>
           [] quamolit.render.element :refer $ [] input translate textbox
           [] quamolit.util.keyboard :refer $ [] keycode->key
       :defs $ {}
@@ -182,17 +182,19 @@
                 state $ either (:data states) ([])
               translate
                 {,} :style $ {,} :x -160 :y -160
-                -> state $ map-indexed
-                  fn (i row)
-                    [] i $ group ({})
-                      -> row $ map-indexed
-                        fn (j content)
-                          [] j $ let
-                              move-x $ * i 100
-                              move-y $ * j 60
-                            translate
-                              {,} :style $ {,} :x move-x :y move-y
-                              textbox $ {,} :style ({,} :w 80 :h 40 :text content)
+                , & $ ->
+                  repeat (repeat "\"edit" 3) 3
+                  map-indexed $ fn (i row)
+                    group ({}) & $ -> row
+                      map-indexed $ fn (j content)
+                        let
+                            move-x $ * i 100
+                            move-y $ * j 60
+                          translate
+                            {,} :style $ {,} :x move-x :y move-y
+                            textbox
+                              >> states $ str i "\":" j
+                              {,} :style $ {,} :w 80 :h 40 :text content
         |init-state $ quote
           defn init-state () $ repeat (repeat |edit 3) 3
       :proc $ quote ()
@@ -245,38 +247,53 @@
           [] quamolit.alias :refer $ [] defcomp path group rect
           [] quamolit.util.iterate :refer $ [] iterate-instant tween
           [] quamolit.comp.debug :refer $ [] comp-debug
+          quamolit.math :refer $ bound-opacity
       :defs $ {}
         |comp-icon-play $ quote
           defcomp comp-icon-play (states)
             let
                 cursor $ :cursor states
                 state $ either (:data states)
-                  {} $ :play-value 0
+                  {} (:playing? false) (:play-value 0)
               let
+                  play? $ :playing? state
+                  pv $ :play-value state
                   tw $ fn (a0 a1)
-                    tween ([] a0 a1) ([] 0 1) (:play-value state)
-                rect
-                  {,} :style
-                    {} (:w 60) (:h 60)
-                      :fill-style $ hsl 40 80 90
-                    , :event $ {,} :click
-                      fn (e d!)
-                        d! cursor $ update state :play-value inc
-                  path $ {,} :style
-                    {}
-                      :points $ [] ([] -20 -20) ([] -20 20)
-                        [] (tw -5 0) (tw 20 10)
-                        [] (tw -5 0) (tw -20 -10)
-                      :fill-style $ hsl 120 50 60
-                  path $ {,} :style
-                    {}
-                      :points $ []
-                        [] (tw 5 0) (tw -20 -10)
-                        [] 20 $ tw -20 0
-                        [] 20 $ tw 20 0
-                        [] (tw 5 0) (tw 20 10)
-                      :fill-style $ hsl 120 50 60
-                  ; comp-debug state $ {}
+                    + a0 $ * (- a1 a0) pv
+                  v 6
+                []
+                  fn (elapsed d!)
+                    if play?
+                      if (< pv 1)
+                        d! cursor $ update state :play-value
+                          fn (pv)
+                            bound-opacity $ + pv (* elapsed v)
+                      if (> pv 0)
+                        d! cursor $ update state :play-value
+                          fn (pv)
+                            bound-opacity $ - pv (* elapsed v)
+                  rect
+                    {,} :style
+                      {} (:w 60) (:h 60)
+                        :fill-style $ hsl 40 80 90
+                      , :event $ {,} :click
+                        fn (e d!)
+                          d! cursor $ update state :playing? not
+                    path $ {,} :style
+                      {}
+                        :points $ [] ([] -20 -20) ([] -20 20)
+                          [] (tw -5 0) (tw 20 10)
+                          [] (tw -5 0) (tw -20 -10)
+                        :fill-style $ hsl 120 50 60
+                    path $ {,} :style
+                      {}
+                        :points $ []
+                          [] (tw 5 0) (tw -20 -10)
+                          [] 20 $ tw -20 0
+                          [] 20 $ tw 20 0
+                          [] (tw 5 0) (tw 20 10)
+                        :fill-style $ hsl 120 50 60
+                    ; comp-debug state $ {}
         |on-tick $ quote
           defn on-tick (instant tick elapsed)
             iterate-instant instant :play-value :play-v elapsed $ [] (:play-target instant) (:play-target instant)
@@ -327,6 +344,7 @@
           [] quamolit.render.element :refer $ [] translate rotate alpha
           [] quamolit.util.iterate :refer $ [] iterate-instant
           quamolit.types :refer $ Component
+          quamolit.math :refer $ bound-x
       :defs $ {}
         |on-tick $ quote
           defn on-tick (instant tick elapsed)
@@ -342,26 +360,33 @@
             let
                 cursor $ :cursor states
                 state $ either (:data states)
-                  {} (:v 0) (:n 0)
-                v $ :v state
-              let
-                  n1 $ :n state
+                  {} (:n-value 0) (:n 0)
+                n-value $ :n-value state
+                n $ :n state
+                v 4
+                frac $ - n n-value
+              []
+                fn (elapsed d!)
+                  if (< n-value n)
+                    d! cursor $ update state :n-value
+                      fn (x)
+                        bound-x 0 n $ + x (* elapsed v)
                 rect
                   {}
                     :style $ {} (:w 60) (:h 60)
-                      :fill-style $ hsl 0 0 90
+                      :fill-style $ hsl 300 80 95
                     :event $ {}
                       :click $ fn (e d!)
-                        d! cursor $ update state :v inc
+                        d! cursor $ update state :n inc
                   translate
                     {} $ :style
-                      {} $ :x -12
+                      {} $ :x -14
                     rotate
                       {} $ :style
-                        {} $ :angle (* 90 n1)
+                        {} $ :angle (* 90 n-value)
                       line $ {}
                         :style $ {}
-                          :stroke-style $ hsl 0 80 30
+                          :stroke-style $ hsl 200 60 60
                           :x0 -7
                           :y0 0
                           :x1 7
@@ -369,7 +394,7 @@
                           :line-width 2
                       line $ {}
                         :style $ {}
-                          :stroke-style $ hsl 0 80 30
+                          :stroke-style $ hsl 200 60 60
                           :x0 0
                           :y0 -7
                           :x1 0
@@ -380,28 +405,31 @@
                     translate
                       {} $ :style
                         {} $ :y
-                          * -20 $ - v n1
+                          -
+                            * 20 $ - 1 frac
+                            , 20
                       alpha
                         {} $ :style
-                          {} $ :opacity
-                            - (+ 1 n1) v
+                          {} $ :opacity (- 1 frac)
                         text $ {}
                           :style $ {}
-                            :text $ str (+ v 1)
-                            :fill-style $ hsl 0 80 30
-                            :font-family "|Wawati SC Regular"
+                            :text $ str (+ n 1)
+                            :fill-style $ hsl 200 60 60
+                            :font-family "|Helvetica Neue"
                     translate
                       {} $ :style
                         {} $ :y
-                          * 20 $ - n1 (- v 1)
+                          -
+                            * 20 $ - 1 frac
+                            , 0
                       alpha
                         {} $ :style
-                          {} $ :opacity (- v n1)
+                          {} $ :opacity frac
                         text $ {}
                           :style $ {}
-                            :text $ str v
-                            :fill-style $ hsl 0 80 30
-                            :font-family "|Wawati SC Regular"
+                            :text $ str n
+                            :fill-style $ hsl 200 60 60
+                            :font-family "|Helvetica Neue"
         |remove? $ quote
           defn remove? (instant) true
         |on-update $ quote
@@ -446,34 +474,34 @@
     |quamolit.controller.resolve $ {}
       :ns $ quote
         ns quamolit.controller.resolve $ :require
-          [] quamolit.types :refer $ [] Component
+          [] quamolit.types :refer $ [] Component Shape
       :defs $ {}
         |locate-target $ quote
           defn locate-target (tree coord) (; js/console.log |locating coord tree)
-            if
-              = 0 $ count coord
-              , tree $ let
-                  first-pos $ first coord
-                if (relevant-record? Component tree)
-                  if
-                    = first-pos $ :name tree
-                    recur (:tree tree) (slice coord 1)
+            if (.empty? coord) tree $ let
+                first-pos $ first coord
+              if (relevant-record? Component tree)
+                if
+                  = first-pos $ :name tree
+                  recur (:tree tree) (slice coord 1)
+                  , nil
+                let
+                    picked-pair $ -> (:children tree)
+                      find $ fn (child-pair)
+                        = (first child-pair) first-pos
+                    picked $ if (some? picked-pair) (last picked-pair) nil
+                  if (some? picked)
+                    recur picked $ slice coord 1
                     , nil
-                  let
-                      picked-pair $ -> (:children tree)
-                        find $ fn (child-pair)
-                          = (first child-pair) first-pos
-                      picked $ if (some? picked-pair) (last picked-pair) nil
-                    if (some? picked)
-                      recur picked $ slice coord 1
-                      , nil
         |resolve-target $ quote
           defn resolve-target (tree event-name coord)
             let
                 maybe-target $ locate-target tree coord
               ; .log js/console |target maybe-target event-name coord
               if (nil? maybe-target) nil $ let
-                  maybe-listener $ get-in maybe-target ([] :event event-name)
+                  maybe-listener $ if
+                    and (record? maybe-target) (.same-kind? maybe-target Shape)
+                    get-in maybe-target $ [] :event event-name
                 ; .log js/console |listener maybe-listener maybe-target
                 if (some? maybe-listener) maybe-listener $ if
                   = 0 $ count coord
@@ -610,14 +638,10 @@
           defn image (props & children) (create-shape :image props children)
         |arrange-children $ quote
           defn arrange-children (children)
-            cond
-                list? $ first children
-                first children
-              (map? children) (raise "\"unknown")
-              true $ -> children
-                map-indexed $ fn (idx x) ([] idx x)
-                filter $ fn (entry)
-                  some? $ last entry
+            -> children
+              map-indexed $ fn (idx x) ([] idx x)
+              filter $ fn (entry)
+                some? $ last entry
         |path $ quote
           defn path (props & children) (create-shape :path props children)
         |native-transform $ quote
@@ -639,8 +663,19 @@
               :style $ :style props
               :event $ :event props
               :children $ arrange-children children
+        |list-> $ quote
+          defn list-> (props children) (create-list-shape :group props children)
         |text $ quote
           defn text (props & children) (create-shape :text props children)
+        |create-list-shape $ quote
+          defn create-list-shape (shape-name props children)
+            if
+              not $ map? props
+              raise $ new js/Error "|Props expeced to be a map!"
+            %{} Shape (:name shape-name)
+              :style $ :style props
+              :event $ :event props
+              :children children
         |arc $ quote
           defn arc (props & children) (create-shape :arc props children)
         |line $ quote
@@ -731,11 +766,11 @@
                       reset! focus-ref coord
                       handle-event coord :click event dispatch
                     reset! focus-ref $ []
-              .!addEventListener root-element |keypress $ fn (event)
+              .!addEventListener js/window |keypress $ fn (event)
                 let
                     coord @focus-ref
                   handle-event coord :keypress event dispatch
-              .!addEventListener root-element |keydown $ fn (event)
+              .!addEventListener js/window |keydown $ fn (event)
                 let
                     coord @focus-ref
                   handle-event coord :keydown event dispatch
@@ -922,6 +957,7 @@
           [] quamolit.render.element :refer $ [] button translate rotate
           [] quamolit.util.string :refer $ [] hsl
           [] quamolit.util.iterate :refer $ [] iterate-instant tween
+          quamolit.math :refer $ bound-opacity
       :defs $ {}
         |on-tick $ quote
           defn on-tick (instant tick elapsed)
@@ -946,7 +982,7 @@
           defcomp comp-folding-fan (states)
             let
                 cursor $ :cursor states
-                state $ either (:data states)
+                state $ or (:data states)
                   {} (:folding-value 0) (:folded? false)
               let
                   n 24
@@ -956,33 +992,45 @@
                   dest-w 650
                   dest-h 432
                   dest-unit $ / dest-w n
-                group ({})
-                  translate
-                    {} $ :style ({,} :x 0 :y 160)
-                    -> (range n)
-                      map $ fn (i)
-                        [] i $ rotate
-                          {} $ :style
-                            {,} :angle $ *
-                              tween ([] 0 6) ([] 0 1000) (:folding-value state)
-                              + 0.5 $ - i (/ n 2)
-                          image $ {}
-                            :style $ {} (:src |assets/lotus.jpg)
-                              :sx $ * i image-unit
-                              :sy 0
-                              :sw image-unit
-                              :sh image-h
-                              :dx $ - 0 (/ image-unit 2)
-                              :dy $ - 10 dest-h
-                              :dw dest-unit
-                              :dh dest-h
-                  button $ {}
-                    :style $ {} (:text |Toggle) (:x 160) (:y 200)
-                      :surface-color $ hsl 30 80 60
-                      :text-color $ hsl 0 0 100
-                    :event $ {}
-                      :click $ fn (e d!)
-                        d! cursor $ update state :folded? not
+                  v 4
+                  fv $ wo-log (:folding-value state)
+                []
+                  fn (elapsed d!)
+                    if (:folded? state)
+                      if (< fv 1)
+                        d! cursor $ update state :folding-value
+                          fn (x)
+                            bound-opacity $ + x (* v elapsed)
+                      if (> fv 0)
+                        d! cursor $ update state :folding-value
+                          fn (x)
+                            bound-opacity $ - x (* v elapsed)
+                  group ({})
+                    translate
+                      {} $ :style ({,} :x 0 :y 160)
+                      , & $ -> (range n)
+                        map $ fn (i)
+                          rotate
+                            {} $ :style
+                              {,} :angle $ * 6 (:folding-value state)
+                                + 0.5 $ - i (/ n 2)
+                            image $ {}
+                              :style $ {} (:src |assets/lotus.jpg)
+                                :sx $ * i image-unit
+                                :sy 0
+                                :sw image-unit
+                                :sh image-h
+                                :dx $ - 0 (/ image-unit 2)
+                                :dy $ - 10 dest-h
+                                :dw dest-unit
+                                :dh dest-h
+                    button $ {}
+                      :style $ {} (:text |Toggle) (:x 160) (:y 200)
+                        :surface-color $ hsl 30 80 60
+                        :text-color $ hsl 0 0 100
+                      :event $ {}
+                        :click $ fn (e d!)
+                          d! cursor $ update state :folded? not
       :proc $ quote ()
     |quamolit.comp.digits $ {}
       :ns $ quote
@@ -1204,8 +1252,8 @@
             if
               and (<= k 90) (>= k 65)
               if shift? (js/String.fromCharCode k)
-                -> k js/String.fromCharCode $ .toUpperCase
-              , nil
+                -> k js/String.fromCharCode $ .!toLowerCase
+              , "\""
       :proc $ quote ()
     |quamolit.comp.container $ {}
       :ns $ quote
@@ -1332,33 +1380,30 @@
           defcomp comp-finder (states)
             let
                 cursor $ :cursor states
-                state $ either (:data states) ({})
+                state $ either (:data states)
+                  {} $ :selected nil
+                selected $ :selected state
               ; js/console.log state state
               rect
-                {,} :style
-                  {,} :w 1000 :h 600 :fill-style $ hsl 100 40 90
-                  , :event $ {,} :click
+                {}
+                  :style $ {,} :w 1000 :h 600 :fill-style (hsl 100 40 90)
+                  :event $ {,} :click
                     fn (e d!) (d! cursor nil)
-                group ({})
-                  ->
-                    [] $ [] "\"a" "\"c"
-                    map-indexed $ fn (index folder) (; js/console.log folder)
-                      let
-                          ix $ rem index 4
-                          iy $ js/Math.floor (/ index 4)
-                          position $ []
-                            - (* ix 200) 200
-                            - (* iy 200) 100
-                        [] index $ comp-folder (>> states index) folder position
-                          fn $
-                          , index
-                            = index $ last state
-                    filter $ fn (entry)
-                      let-sugar
-                            [] index tree
-                            , entry
-                          target $ last state
-                        if (some? target) (= index target) true
+                group ({}) & $ -> card-collection
+                  map-indexed $ fn (index folder) (; js/console.log folder)
+                    let
+                        ix $ rem index 4
+                        iy $ js/Math.floor (/ index 4)
+                        position $ []
+                          - (* ix 200) 200
+                          - (* iy 200) 100
+                      [] index $ comp-folder (>> states index) folder position
+                        fn (page d!)
+                          d! cursor $ assoc state :selected page
+                        , index (= index selected)
+                  filter $ fn (entry)
+                    let[] (index tree) entry $ if (some? selected) (= index selected) true
+                  map last
         |init-state $ quote
           defn init-state (& args) ([] card-collection nil)
         |update-state $ quote
@@ -1622,32 +1667,31 @@
                 scale
                   {,} :style $ {,} :ratio ratio
                   alpha
-                    {,} :style $ {,} :opacity
-                      * 0.6 $ / (:presence state) 1000
+                    {,} :style $ {,} :opacity (* 0.6 1)
                     rect $ {,} :style
                       {,} :w 600 :h 400 :fill-style $ hsl 0 80 bg-light
                       , :event
-                        {,} :click $ fn (e d!) (navigate index)
-                  group ({,})
-                    -> cards
-                      map-indexed $ fn (index card-name)
-                        [] index $ let
-                            jx $ rem index 4
-                            jy $ js/Math.floor (/ index 4)
-                            card-x $ * (- jx 1.5)
-                              * 200 $ + 0.1 (* 0.9 popup-ratio)
-                            card-y $ * (- jy 1.5)
-                              * 100 $ + 0.1 (* 0.9 popup-ratio)
-                          comp-file-card (>> states index) card-name ([] card-x card-y) cursor index ratio $ = state index
-                      filter $ fn (entry)
-                        let
-                            index $ first entry
-                          if (some? state) (= index state) true
+                        {,} :click $ fn (e d!) (navigate index d!)
+                  group ({,}) & $ -> cards
+                    map-indexed $ fn (index card-name)
+                      [] index $ let
+                          jx $ rem index 4
+                          jy $ js/Math.floor (/ index 4)
+                          card-x $ * (- jx 1.5)
+                            * 200 $ + 0.1 (* 0.9 popup-ratio)
+                          card-y $ * (- jy 1.5)
+                            * 100 $ + 0.1 (* 0.9 popup-ratio)
+                        comp-file-card (>> states index) card-name ([] card-x card-y) cursor index ratio $ = state index
+                    filter $ fn (entry)
+                      let
+                          index $ first entry
+                        if (some? state) (= index state) true
+                    map last
                   if (not popup?)
                     rect $ {,} :style
                       {,} :w 600 :h 400 :fill-style $ hsl 0 80 0 0
                       , :event
-                        {,} :click $ fn (e d!) (navigate index)
+                        {,} :click $ fn (e d!) (navigate index d!)
         |init-state $ quote
           defn init-state (cards position _ index popup?) nil
         |init-instant $ quote
@@ -1659,7 +1703,7 @@
       :ns $ quote
         ns quamolit.comp.raining $ :require
           [] quamolit.util.string :refer $ [] hsl
-          [] quamolit.alias :refer $ [] defcomp rect group >>
+          [] quamolit.alias :refer $ [] defcomp rect group >> list->
           [] quamolit.comp.raindrop :refer $ [] comp-raindrop
       :defs $ {}
         |comp-raining $ quote
@@ -1683,7 +1727,7 @@
                           new-state $ concat state (random-rains 3)
                         d! cursor new-state
                         d! :gc-states $ [] cursor (.map new-state first)
-                group ({})
+                list-> ({})
                   -> state $ map
                     fn (entry)
                       let
@@ -1992,19 +2036,26 @@
                 translate ({,} :style style-place-text)
                   text $ {,} :style style-text
         |textbox $ quote
-          defcomp textbox (props)
+          defcomp textbox (states props)
             let
-                cursor $ []
-                state "\"TODO"
-              {} $ :render
-                fn (m)
-                  let
-                      style $ assoc (:style props) :text state
-                    input $ {,} :style style :event
-                      {,} :keydown $ fn (e d!)
-                        let
-                            event $ :event e
-                          d! cursor (.-keyCode event) (.-shiftKey event)
+                cursor $ :cursor states
+                state $ or (:data states)
+                  {} $ :text
+                    get-in props $ [] :style :text
+                text $ :text state
+              [] nil $ let
+                  style $ assoc (:style props) :text text
+                input $ {,} :style style :event
+                  {,} :keydown $ fn (event d!)
+                    let
+                        next-text $ case-default (.-keyCode event)
+                          str text $ keycode->key (.-keyCode event) (.-shiftKey event)
+                          32 $ str text "\" "
+                          8 $ if
+                            <= (count text) 1
+                            , "\""
+                              .substr text 0 $ dec (.count text)
+                      d! cursor $ assoc state :text next-text
         |alpha $ quote
           defcomp alpha (props & children)
             {} $ :tree
@@ -2026,8 +2077,7 @@
               group ({})
                 native-save $ {}
                 native-rotate $ {,} :style ({,} :angle angle)
-                group ({}) (arrange-children children)
-                native-restore $ {}
+                , & children $ native-restore ({})
         |button $ quote
           defcomp button (props) (; js/console.log "\"button" props)
             let
@@ -2114,7 +2164,7 @@
                 op $ .get directive :name
                 style $ .get directive :style
                 event $ .get directive :event
-              ;  js/console.log :paint-one op style
+              ; js/console.log :paint-one op style
               case-default op
                 do (js/console.log "|painting not implemented" directive) @eff-ref
                 :line $ paint-line ctx style
@@ -2293,8 +2343,8 @@
           defn get-image (src)
             if (contains? @*image-pool src) (get @*image-pool src)
               let
-                  image $ .createElement js/document |img
-                .setAttribute image |src src
+                  image $ .!createElement js/document |img
+                .!setAttribute image |src src
                 , image
         |*image-pool $ quote
           defatom *image-pool $ {}
