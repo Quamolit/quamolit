@@ -435,7 +435,7 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp rect group >>
           quamolit.app.comp.folder :refer $ comp-folder
-          quamolit.comp.fade-in-out :refer $ comp-fade-in-out
+          quamolit.comp.fade-in-out :refer $ comp-fade-in-out comp-fade-fn
       :defs $ {}
         |card-collection $ quote
           def card-collection $ [] ([] "|喷雪花" "|檵木" "|石楠" "|文竹") ([] "|紫云英" "|绣球花" "|蔷薇") ([] "|金银花" "|栗树" "|婆婆纳" "|鸡爪槭") ([] "|卷柏" "|稻" "|马尾松" "|五角星花" "|苔藓") ([] "|芍药" "|木棉")
@@ -459,16 +459,14 @@
                         position $ []
                           - (* ix 200) 200
                           - (* iy 200) 100
-                      comp-fade-in-out (>> states index) ({})
+                      comp-fade-in-out
+                        >> states $ str "\"fade-" index
+                        {}
                         if
                           or (nil? selected) (= selected index)
                           comp-folder (>> states index) folder position (= index selected)
                             fn (d!)
                               d! cursor $ assoc state :selected index
-        |init-state $ quote
-          defn init-state (& args) ([] card-collection nil)
-        |update-state $ quote
-          defn update-state (state target) (; .log js/console state target) (assoc state 1 target)
       :proc $ quote ()
     |quamolit.alias $ {}
       :ns $ quote
@@ -1027,15 +1025,16 @@
           quamolit.alias :refer $ defcomp group rect text
           quamolit.render.element :refer $ translate alpha scale
           quamolit.util.iterate :refer $ iterate-instant
+          quamolit.math :refer $ bound-01
       :defs $ {}
         |comp-file-card $ quote
-          defcomp comp-file-card (states card-name position cursor index parent-ratio popup?)
+          defcomp comp-file-card (states card-name position index parent-ratio popup? on-select)
             let
                 cursor $ :cursor states
-                state $ either (:data states)
-                  {} (:popup 0) (:presence 0)
+                state $ or (:data states)
+                  {} $ :popup 0
               let
-                  popup-ratio $ / (:popup state) 1000
+                  popup-ratio $ :popup state
                   shift-x $ first position
                   shift-y $ last position
                   move-x $ * shift-x
@@ -1045,44 +1044,35 @@
                   scale-ratio $ /
                     + 0.2 $ * 0.8 popup-ratio
                     , parent-ratio
-                translate
-                  {,} :style $ {} (:x 10) (:y 10)
-                  alpha
-                    {,} :style $ {,} :opacity 0.5
-                    translate
-                      {,} :style $ {,} :x move-x :y move-y
-                      scale
-                        {,} :style $ {,} :ratio 0.6
-                        rect
-                          {,} :style
-                            {,} :w 520 :h 360 :fill-style $ hsl 200 80 80
-                            , :event $ {,} :click
-                              fn (e d!)
-                                d! cursor $ assoc state :selected (if popup? nil index)
-                          text $ {,} :style
-                            {,} :fill-style (hsl 0 0 100) :text card-name :size 60
-        |init-instant $ quote
-          defn init-instant (args state at?) ({,} :numb? false :popup 0 :popup-v 0 :presence 0 :presence-v 3)
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed)
-            let
-                new-instant $ -> instant
-                  iterate-instant :presence :presence-v elapsed $ [] 0 1000
-                  iterate-instant :popup :popup-v elapsed $ [] 0 1000
-              if
-                and
-                  < (:presence-v instant) 0
-                  = (:presence new-instant) 0
-                assoc new-instant :numb? true
-                , new-instant
-        |on-unmount $ quote
-          defn on-unmount (instant) (assoc instant :presence-v -3)
-        |on-update $ quote
-          defn on-update (instant old-args args old-state state)
-            let
-                old-popup? $ last old-args
-                popup? $ last args
-              if (= old-popup? popup?) instant $ assoc instant :popup-v (if popup? 3 -3)
+                  v 4
+                []
+                  fn (elapsed d!)
+                    if popup?
+                      if
+                        < (:popup state) 1
+                        d! cursor $ update state :popup
+                          fn (x)
+                            bound-01 $ + x (* v elapsed)
+                      if
+                        > (:popup state) 0
+                        d! cursor $ update state :popup
+                          fn (x)
+                            bound-01 $ - x (* v elapsed)
+                  translate
+                    {,} :style $ {} (:x 10) (:y 10)
+                    alpha
+                      {,} :style $ {,} :opacity 1
+                      translate
+                        {,} :style $ {,} :x move-x :y move-y
+                        scale
+                          {,} :style $ {,} :ratio scale-ratio
+                          rect
+                            {,} :style
+                              {,} :w 520 :h 360 :fill-style $ hsl 200 80 80
+                              , :event $ {,} :click
+                                fn (e d!) (on-select d!)
+                            text $ {,} :style
+                              {,} :fill-style (hsl 0 0 100) :text card-name :size 60
       :proc $ quote ()
     |quamolit.util.detect $ {}
       :ns $ quote (ns quamolit.util.detect)
@@ -2024,77 +2014,71 @@
           quamolit.util.iterate :refer $ iterate-instant tween
           quamolit.app.comp.file-card :refer $ comp-file-card
           quamolit.comp.fade-in-out :refer $ comp-fade-in-out
+          quamolit.math :refer $ bound-01
       :defs $ {}
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed)
-            let
-                new-instant $ -> instant
-                  iterate-instant :presence :presence-v elapsed $ [] 0 1000
-                  iterate-instant :popup :popup-v elapsed $ [] 0 1000
-              if
-                and
-                  < (:presence-v instant) 0
-                  = (:presence new-instant) 0
-                assoc new-instant :numb? true
-                , new-instant
-        |update-state $ quote
-          defn update-state (state target) target
-        |on-update $ quote
-          defn on-update (instant old-args args old-state state) (; .log js/console "|update folder..." args)
-            let
-                old-popup? $ last old-args
-                popup? $ last args
-              if (not= old-popup? popup?)
-                assoc instant :popup-v $ if popup? 3 -3
-                , instant
         |comp-folder $ quote
           defcomp comp-folder (states cards position popup? select-this) (; js/console.log state)
             let
                 cursor $ :cursor states
-                state $ either (:data states)
+                state $ or (:data states)
                   {} (:popup 0) (:selected nil)
-                selected $ :selected state
-                shift-x $ first position
-                shift-y $ last position
-                popup-ratio $ / (:popup state) 1000
-                place-x $ * shift-x (- 1 popup-ratio)
-                place-y $ * shift-y (- 1 popup-ratio)
-                ratio $ + 0.2 (* 0.8 popup-ratio)
-                bg-light $ tween ([] 60 82) ([] 0 1) popup-ratio
-              translate
-                {,} :style $ {,} :x place-x :y place-y
-                scale
-                  {,} :style $ {,} :ratio ratio
-                  alpha
-                    {,} :style $ {,} :opacity (* 0.6 1)
-                    rect $ {,} :style
-                      {,} :w 600 :h 400 :fill-style $ hsl 0 80 bg-light
-                      , :event
-                        {,} :click $ fn (e d!) (select-this d!)
-                  group ({,}) & $ -> cards
-                    map-indexed $ fn (index card-name)
-                      let
-                          jx $ rem index 4
-                          jy $ js/Math.floor (/ index 4)
-                          card-x $ * (- jx 1.5)
-                            * 200 $ + 0.1 (* 0.9 popup-ratio)
-                          card-y $ * (- jy 1.5)
-                            * 100 $ + 0.1 (* 0.9 popup-ratio)
-                        comp-fade-in-out (>> states index) ({})
-                          if
-                            or (nil? selected) (= index selected)
-                            comp-file-card (>> states index) card-name ([] card-x card-y) cursor index ratio $ = state index
-                  if (not popup?)
-                    rect $ {,} :style
-                      {,} :w 600 :h 400 :fill-style $ hsl 0 80 0 0
-                      , :event
-                        {,} :click $ fn (e d!) (select-this d!)
-        |init-state $ quote
-          defn init-state (cards position _ index popup?) nil
-        |init-instant $ quote
-          defn init-instant (args state at-place?) ({,} :presence 0 :presence-v 3 :popup 0 :popup-v 0)
-        |on-unmount $ quote
-          defn on-unmount (instant) (assoc instant :presence-v -3)
+              let
+                  selected $ :selected state
+                  shift-x $ first position
+                  shift-y $ last position
+                  popup-ratio $ :popup state
+                  place-x $ * shift-x (- 1 popup-ratio)
+                  place-y $ * shift-y (- 1 popup-ratio)
+                  ratio $ + 0.2 (* 0.8 popup-ratio)
+                  bg-light $ tween ([] 60 82) ([] 0 1) popup-ratio
+                  v 4
+                []
+                  fn (elapsed d!)
+                    if popup?
+                      if
+                        < (:popup state) 1
+                        d! cursor $ update state :popup
+                          fn (x)
+                            bound-01 $ + x (* v elapsed)
+                      if
+                        > (:popup state) 0
+                        d! cursor $ update state :popup
+                          fn (x)
+                            bound-01 $ - x (* v elapsed)
+                  translate
+                    {,} :style $ {,} :x place-x :y place-y
+                    scale
+                      {,} :style $ {,} :ratio ratio
+                      alpha
+                        {,} :style $ {,} :opacity (* 0.6 1)
+                        rect $ {,} :style
+                          {,} :w 600 :h 400 :fill-style $ hsl 0 80 bg-light
+                          , :event
+                            {,} :click $ fn (e d!) (select-this d!)
+                              d! cursor $ assoc state :selected nil
+                      group ({,}) & $ -> cards
+                        map-indexed $ fn (index card-name)
+                          let
+                              jx $ rem index 4
+                              jy $ js/Math.floor (/ index 4)
+                              card-x $ * (- jx 1.5)
+                                * 200 $ + 0.1 (* 0.9 popup-ratio)
+                              card-y $ * (- jy 1.5)
+                                * 100 $ + 0.1 (* 0.9 popup-ratio)
+                            comp-fade-in-out
+                              >> states $ str "\"fade-" index
+                              {}
+                              if
+                                or (nil? selected) (= index selected)
+                                comp-file-card (>> states index) card-name ([] card-x card-y) index ratio
+                                  and popup? $ = (:selected state) index
+                                  fn (d!)
+                                    d! cursor $ assoc state :selected index
+                      if (not popup?)
+                        rect $ {,} :style
+                          {,} :w 600 :h 400 :fill-style $ hsl 0 80 0 0
+                          , :event
+                            {,} :click $ fn (e d!) (select-this d!)
       :proc $ quote ()
     |quamolit.render.paint $ {}
       :ns $ quote
