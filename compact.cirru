@@ -151,39 +151,13 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp group rect >>
           quamolit.render.element :refer $ translate alpha input
-          quamolit.util.iterate :refer $ iterate-instant
           quamolit.app.comp.task-toggler :refer $ comp-toggler
           quamolit.comp.debug :refer $ comp-debug
           quamolit.math :refer $ bound-x bound-opacity
       :defs $ {}
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed) (; .log js/console "|on tick data:" instant tick elapsed)
-            let
-                v $ :presence-velocity instant
-                new-instant $ -> instant
-                  iterate-instant :presence :presence-velocity elapsed $ [] 0 1000
-                  iterate-instant :index :index-velocity elapsed $ repeat 2 (:index-target instant)
-                  iterate-instant :left :left-velocity elapsed $ [] -40 0
-              if
-                and (< v 0)
-                  = 0 $ :presence new-instant
-                assoc new-instant :numb? true
-                , new-instant
         |style-block $ quote
           def style-block $ {} (:w 300) (:h 40)
             :fill-style $ hsl 40 80 80
-        |on-update $ quote
-          defn on-update (instant old-args args old-state state) (; .log js/console "|on update:" instant old-args args)
-            let
-                old-index $ nth old-args 2
-                new-index $ nth args 2
-              if (not= old-index new-index)
-                -> instant
-                  assoc :index-velocity $ /
-                    - new-index $ :index instant
-                    , 300
-                  assoc :index-target new-index
-                , instant
         |handle-input $ quote
           defn handle-input (task-id task-text)
             fn (event dispatch)
@@ -249,21 +223,9 @@
                             add-orphin (:id task) d!
                             d! :rm $ :id task
                     ; comp-debug task $ {} (:y 20)
-        |init-instant $ quote
-          defn init-instant (args state at-place?)
-            let
-                index $ nth args 2
-              {} (:numb? false) (:presence 0) (:presence-velocity 3)
-                :left $ if at-place? -40 0
-                :left-velocity $ if at-place? 0.09 0
-                :index index
-                :index-velocity 0
         |style-remove $ quote
           def style-remove $ {} (:w 40) (:h 40)
             :fill-style $ hsl 0 80 40
-        |on-unmount $ quote
-          defn on-unmount (instant) (; .log js/console "|calling unmount" instant)
-            -> instant (assoc :presence-velocity -3) (assoc :left-velocity -0.09)
       :proc $ quote ()
     |quamolit.app.comp.solar $ {}
       :ns $ quote
@@ -679,6 +641,12 @@
                 negate $ / h 2
               ; .!restore ctx
       :proc $ quote ()
+    |quamolit.app.schema $ {}
+      :ns $ quote (ns quamolit.app.schema)
+      :defs $ {}
+        |task $ quote
+          def task $ {} (:text |) (:id nil) (:done? false)
+      :proc $ quote ()
     |quamolit.app.comp.clock $ {}
       :ns $ quote
         ns quamolit.app.comp.clock $ :require
@@ -807,8 +775,6 @@
                         :event $ {}
                           :click $ fn (e d!)
                             d! cursor $ assoc state :tab :portal
-        |init-state $ quote
-          defn init-state (& args) :portal
         |style-button $ quote
           defn style-button (guide-text)
             {} (:text guide-text)
@@ -817,8 +783,6 @@
               :font-size 16
               :w 80
               :h 32
-        |update-state $ quote
-          defn update-state (old-state new-page) new-page
       :proc $ quote ()
     |quamolit.app.main $ {}
       :ns $ quote
@@ -914,7 +878,6 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp rect
           quamolit.render.element :refer $ translate alpha
-          quamolit.util.iterate :refer $ iterate-instant
           quamolit.util.time :refer $ get-tick
       :defs $ {}
         |comp-raindrop $ quote
@@ -965,33 +928,16 @@
           quamolit.alias :refer $ defcomp group rect text >>
           quamolit.render.element :refer $ translate button input alpha
           quamolit.app.comp.task :refer $ comp-task
-          quamolit.util.iterate :refer $ iterate-instant tween
           quamolit.app.comp.debug :refer $ comp-debug
           quamolit.math :refer $ bound-x
           quamolit.comp.fade-in-out :refer $ comp-fade-fn
       :defs $ {}
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed)
-            let
-                new-instant $ iterate-instant instant :presence :presence-v elapsed ([] 0 1000)
-              if
-                and
-                  < (:presence-v instant) 0
-                  = (:presence new-instant) 0
-                assoc new-instant :numb? true
-                , new-instant
         |style-button $ quote
           def style-button $ {} (:w 80) (:h 40) (:text |add)
         |handle-click $ quote
           defn handle-click (simple-event dispatch set-state) (.log js/console simple-event)
         |position-header $ quote
           def position-header $ {} (:x 0) (:y -240)
-        |on-update $ quote
-          defn on-update (instant old-args args old-state state) instant
-        |init-state $ quote
-          defn init-state (store args) ({,} :draft |)
-        |init-instant $ quote
-          defn init-instant (args state at-place?) ({,} :presence 0 :presence-v 3 :numb? false)
         |comp-todolist $ quote
           defcomp comp-todolist (states tasks presence stage) (; js/console.info |todolist: states)
             let
@@ -1053,8 +999,6 @@
                       comp-fade-fn (>> states task-id) ({})
                         fn (opacity stage renderer-states) nil
                 ; comp-debug state $ {}
-        |on-unmount $ quote
-          defn on-unmount (instant) (assoc instant :presence-v -3)
         |position-body $ quote
           def position-body $ {} (:x 0) (:y 0)
       :proc $ quote ()
@@ -1240,28 +1184,8 @@
           quamolit.alias :refer $ text defcomp group image
           quamolit.render.element :refer $ button translate rotate
           quamolit.util.string :refer $ hsl
-          quamolit.util.iterate :refer $ iterate-instant tween
           quamolit.math :refer $ bound-opacity
       :defs $ {}
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed)
-            iterate-instant instant :folding-value :folding-v elapsed $ [] 0 1000
-        |update-state $ quote
-          defn update-state (state) (not state)
-        |remove? $ quote
-          defn remove? (instant) true
-        |on-update $ quote
-          defn on-update (instant old-args old-state args state)
-            if (not= old-state state)
-              assoc instant :folding-v $ if state 2 -2
-              , instant
-        |init-state $ quote
-          defn init-state () true
-        |init-instant $ quote
-          defn init-instant (args state at?)
-            {,} :folding-value (if state 1000 0) :folding-v 0
-        |on-unmount $ quote
-          defn on-unmount (instant) instant
         |comp-folding-fan $ quote
           defcomp comp-folding-fan (states)
             let
@@ -1321,7 +1245,6 @@
         ns quamolit.app.comp.icon-play $ :require
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp path group rect
-          quamolit.util.iterate :refer $ iterate-instant tween
           quamolit.comp.debug :refer $ comp-debug
           quamolit.math :refer $ bound-opacity
       :defs $ {}
@@ -1370,27 +1293,6 @@
                           [] (tw 5 0) (tw 20 10)
                         :fill-style $ hsl 120 50 60
                     ; comp-debug state $ {}
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed)
-            iterate-instant instant :play-value :play-v elapsed $ [] (:play-target instant) (:play-target instant)
-        |update-state $ quote (def update-state not)
-        |remove? $ quote
-          defn remove? (instant) true
-        |on-update $ quote
-          defn on-update (instant old-args args old-state state)
-            if (= old-state state) instant $ let
-                next-value $ if state 1 0
-                next-v $ if state 0.002 -0.002
-              -> instant (assoc :play-target next-value) (assoc :play-v next-v)
-        |init-state $ quote
-          defn init-state () true
-        |init-instant $ quote
-          defn init-instant (args state at?)
-            let
-                value $ if true 1 0
-              {,} :play-target value :play-v 0 :play-value value
-        |on-unmount $ quote
-          defn on-unmount (instant) instant
       :proc $ quote ()
     |quamolit.app.comp.digits $ {}
       :ns $ quote
@@ -1398,7 +1300,6 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp rect group line >>
           quamolit.render.element :refer $ alpha translate
-          quamolit.util.iterate :refer $ iterate-instant tween
           quamolit.comp.fade-in-out :refer $ comp-fade-in-out
       :defs $ {}
         |comp-3 $ quote
@@ -1640,7 +1541,6 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp group rect text
           quamolit.render.element :refer $ alpha translate button
-          quamolit.util.iterate :refer $ iterate-instant tween
       :defs $ {}
         |comp-portal $ quote
           defcomp comp-portal (cursor)
@@ -1698,27 +1598,9 @@
               :text page-name
               :text-color $ hsl 0 0 100
       :proc $ quote ()
-    |quamolit.util.order $ {}
-      :ns $ quote (ns quamolit.util.order)
-      :defs $ {}
-        |by-coord $ quote
-          defn by-coord (a b) (; js/console.log |comparing a b)
-            cond
-                = (count a) (count b) 0
-                , 0
-              (and (= (count a) 0) (> (count b) 0))
-                , -1
-              (and (> (count a) 0) (= (count b) 0))
-                , 1
-              true $ case
-                compare (first a) (first b)
-                -1 -1
-                1 1
-                recur (rest a) (rest b)
-      :proc $ quote ()
     |quamolit.app.updater $ {}
       :ns $ quote
-        ns quamolit.app.updater $ :require (quamolit.schema :as schema)
+        ns quamolit.app.updater $ :require (quamolit.app.schema :as schema)
           quamolit.cursor :refer $ update-states
       :defs $ {}
         |task-add $ quote
@@ -1777,19 +1659,9 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp line text group rect
           quamolit.render.element :refer $ translate rotate alpha
-          quamolit.util.iterate :refer $ iterate-instant
           quamolit.types :refer $ Component
           quamolit.math :refer $ bound-x
       :defs $ {}
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed)
-            let
-                target $ :n-target instant
-                new-instant $ -> instant
-                  iterate-instant :n :n-v elapsed $ [] target target
-              , new-instant
-        |update-state $ quote
-          defn update-state (x) (inc x)
         |comp-icon-increase $ quote
           defcomp comp-icon-increase (states)
             let
@@ -1865,19 +1737,6 @@
                             :text $ str n
                             :fill-style $ hsl 200 60 60
                             :font-family "|Helvetica Neue"
-        |remove? $ quote
-          defn remove? (instant) true
-        |on-update $ quote
-          defn on-update (instant old-args args old-state state)
-            if (not= old-state state)
-              -> instant (assoc :n-v 0.004) (assoc :n-target state)
-              , instant
-        |init-state $ quote
-          defn init-state () 0
-        |init-instant $ quote
-          defn init-instant (args state at?) ({,} :n state :n-v 0 :n-target state)
-        |on-unmount $ quote
-          defn on-unmount (instant) instant
       :proc $ quote ()
     |quamolit.render.element $ {}
       :ns $ quote
@@ -2016,7 +1875,6 @@
       :ns $ quote
         ns quamolit.app.comp.task-toggler $ :require
           quamolit.util.string :refer $ hsl
-          quamolit.util.iterate :refer $ iterate-instant tween
           quamolit.alias :refer $ defcomp group rect
           quamolit.math :refer $ bound-x bound-opacity
       :defs $ {}
@@ -2044,32 +1902,6 @@
                         , 80 60
                     , :event $ {}
                       :click $ fn (e d!) (d! :toggle task-id)
-        |init-instant $ quote
-          defn init-instant (args state at!)
-            let
-                done? $ first args
-              {} (:numb? true)
-                :done-value $ if done? 0 1000
-                :done-velocity 0
-        |on-tick $ quote
-          defn on-tick (instant tick elapsed)
-            iterate-instant instant :done-value :done-velocity elapsed $ [] 0 1000
-        |on-update $ quote
-          defn on-update (instant old-args args old-state state)
-            let
-                old-done? $ first old-args
-                done? $ first args
-              if (not= old-done? done?)
-                assoc instant :done-velocity $ if
-                  > (:done-value instant) 500
-                  , -3 3
-                , instant
-      :proc $ quote ()
-    |quamolit.schema $ {}
-      :ns $ quote (ns quamolit.schema)
-      :defs $ {}
-        |task $ quote
-          def task $ {} (:text |) (:id nil) (:done? false)
       :proc $ quote ()
     |quamolit.app.comp.ring $ {}
       :ns $ quote
