@@ -9,7 +9,6 @@
         ns quamolit.comp.fade-in-out $ :require
           quamolit.alias :refer $ defcomp >>
           quamolit.render.element :refer $ alpha
-          quamolit.util.iterate :refer $ iterate-instant
       :defs $ {}
         |comp-fade-in-out $ quote
           defcomp comp-fade-in-out (states props p1) (; js/console.log instant)
@@ -129,37 +128,6 @@
         |*counter $ quote (defatom *counter 0)
       :proc $ quote ()
       :configs $ {}
-    |quamolit.util.iterate $ {}
-      :ns $ quote (ns quamolit.util.iterate)
-      :defs $ {}
-        |iterate-instant $ quote
-          defn iterate-instant (instant data-key velocity-key tick bound)
-            let
-                current-data $ get instant data-key
-                velocity $ get instant velocity-key
-                next-data $ + current-data (* tick velocity)
-                lower-bound $ first bound
-                upper-bound $ last bound
-              cond
-                  < velocity 0
-                  if (< next-data lower-bound)
-                    -> instant (assoc data-key lower-bound) (assoc velocity-key 0)
-                    assoc instant data-key next-data
-                (> velocity 0)
-                  if (> next-data upper-bound)
-                    -> instant (assoc data-key upper-bound) (assoc velocity-key 0)
-                    assoc instant data-key next-data
-                true instant
-        |tween $ quote
-          defn tween (range-data range-bound x)
-            let-sugar
-                  [] a b
-                  , range-data
-                ([] c d) range-bound
-              + a $ /
-                * (- b a) (- x c)
-                - d c
-      :proc $ quote ()
     |quamolit.app.comp.task $ {}
       :ns $ quote
         ns quamolit.app.comp.task $ :require
@@ -320,33 +288,6 @@
                 {,} :style $ {,} :x 0
                 comp-icon-play $ >> states :play
       :proc $ quote ()
-    |quamolit.render.expand $ {}
-      :ns $ quote
-        ns quamolit.render.expand $ :require
-          quamolit.types :refer $ Component Shape
-          quamolit.util.detect :refer $ =seq compare-more
-      :defs $ {}
-        |contain-markups? $ quote
-          defn contain-markups? (items)
-            let
-                result $ some
-                  fn (item)
-                    if
-                      and (record? item)
-                        or (relevant-record? Component item) (relevant-record? Shape item)
-                      , true $ if
-                        and (map? item)
-                          > (count item) 0
-                        some
-                          fn (child)
-                            or (relevant-record? Component child) (relevant-record? Shape child)
-                          vals item
-                        , false
-                  , items
-              ; if (not result) (js/console.log result items)
-              , result
-      :proc $ quote
-          declare expand-component
     |quamolit.app.comp.raining $ {}
       :ns $ quote
         ns quamolit.app.comp.raining $ :require
@@ -483,12 +424,8 @@
                 , :cursor $ append parent-cursor k
         |native-rotate $ quote
           defn native-rotate (props & children) (create-shape :native-rotate props children)
-        |default-init-state $ quote
-          defn default-init-state (& args) ({})
         |native-translate $ quote
           defn native-translate (props & children) (create-shape :native-translate props children)
-        |default-on-unmount $ quote
-          defn default-on-unmount (instant) (assoc instant :numb? true)
         |native-clip $ quote
           defn native-clip (props & children) (create-shape :native-clip props children)
         |group $ quote
@@ -509,8 +446,6 @@
           defn native-alpha (props & children) (create-shape :native-alpha props children)
         |native-save $ quote
           defn native-save (props & children) (create-shape :native-save props children)
-        |default-on-update $ quote
-          defn default-on-update (instant old-args args old-state state) instant
         |bezier $ quote
           defn bezier (props & children) (create-shape :bezier props children)
         |create-shape $ quote
@@ -539,10 +474,6 @@
           defn arc (props & children) (create-shape :arc props children)
         |line $ quote
           defn line (props & children) (create-shape :line props children)
-        |default-remove? $ quote
-          defn default-remove? (instant) (:numb? instant)
-        |default-init-instant $ quote
-          defn default-init-instant (args state at?) ({,} :numb? false)
         |native-scale $ quote
           defn native-scale (props & children) (create-shape :native-scale props children)
         |native-restore $ quote
@@ -578,7 +509,6 @@
       :ns $ quote
         ns quamolit.core $ :require
           quamolit.types :refer $ Component
-          quamolit.render.expand :refer $ expand-app
           quamolit.util.time :refer $ get-tick
           quamolit.render.paint :refer $ paint
           quamolit.controller.resolve :refer $ resolve-target locate-target
@@ -1024,7 +954,6 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp group rect text
           quamolit.render.element :refer $ translate alpha scale
-          quamolit.util.iterate :refer $ iterate-instant
           quamolit.math :refer $ bound-01
       :defs $ {}
         |comp-file-card $ quote
@@ -1563,6 +1492,16 @@
               assoc-in store
                 concat ([] :states) cursor $ [] :data
                 , data
+        |gc-states $ quote
+          defn gc-states (store op-data)
+            let
+                cursor $ first op-data
+                fields $ last op-data
+              update-in store
+                concat ([] :states) cursor
+                fn (dict)
+                  ; println $ count dict
+                  select-keys dict $ conj fields :data
       :proc $ quote ()
       :configs $ {}
     |quamolit.math $ {}
@@ -1585,6 +1524,8 @@
               (< x 0) 0
               (> x 1) 1
               true x
+        |pi-ratio $ quote
+          def pi-ratio $ / js/Math.PI 180
       :proc $ quote ()
       :configs $ {}
     |quamolit.app.comp.portal $ {}
@@ -1653,7 +1594,7 @@
     |quamolit.app.updater $ {}
       :ns $ quote
         ns quamolit.app.updater $ :require (quamolit.app.schema :as schema)
-          quamolit.cursor :refer $ update-states
+          quamolit.cursor :refer $ update-states gc-states
       :defs $ {}
         |task-add $ quote
           defn task-add (store op-data tick)
@@ -1694,16 +1635,6 @@
               :rm $ task-rm store op-data tick
               :update $ task-update store op-data tick
               :toggle $ task-toggle store op-data tick
-        |gc-states $ quote
-          defn gc-states (store op-data)
-            let
-                cursor $ first op-data
-                fields $ last op-data
-              update-in store
-                concat ([] :states) cursor
-                fn (dict)
-                  ; println $ count dict
-                  select-keys dict $ conj fields :data
       :proc $ quote ()
     |quamolit.app.comp.icon-increase $ {}
       :ns $ quote
@@ -1796,6 +1727,7 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp native-translate native-alpha native-save native-restore native-rotate native-scale group rect text arrange-children
           quamolit.util.keyboard :refer $ keycode->key
+          quamolit.math :refer $ pi-ratio
       :defs $ {}
         |init-textbox $ quote
           defn init-textbox (props)
@@ -1884,8 +1816,6 @@
                   native-save $ {}
                   native-alpha $ assoc props :style style
                   , & children $ native-restore ({})
-        |pi-ratio $ quote
-          def pi-ratio $ / js/Math.PI 180
         |rotate $ quote
           defcomp rotate (props & children)
             let
@@ -2011,7 +1941,6 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp rect text group >>
           quamolit.render.element :refer $ translate scale alpha
-          quamolit.util.iterate :refer $ iterate-instant tween
           quamolit.app.comp.file-card :refer $ comp-file-card
           quamolit.comp.fade-in-out :refer $ comp-fade-in-out
           quamolit.math :refer $ bound-01
@@ -2030,7 +1959,7 @@
                   place-x $ * shift-x (- 1 popup-ratio)
                   place-y $ * shift-y (- 1 popup-ratio)
                   ratio $ + 0.2 (* 0.8 popup-ratio)
-                  bg-light $ tween ([] 60 82) ([] 0 1) popup-ratio
+                  bg-light $ + 60 (* 22 popup-ratio)
                   v 4
                 []
                   fn (elapsed d!)
