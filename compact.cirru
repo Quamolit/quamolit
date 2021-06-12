@@ -17,7 +17,7 @@
                 cursor $ :cursor states
                 v 4
                 state $ either (:data states)
-                  {} (:stage :hidden) (:opacity 0) (:p1 nil)
+                  {} (:stage :hidden) (:opacity 0)
               []
                 fn (elapsed d!)
                   case-default (:stage state)
@@ -26,21 +26,25 @@
                       d! cursor $ merge state
                         {} (:stage :showing)
                           :opacity $ + (* elapsed v) 0
-                          :p1 p1
+                      write-node-cache! cursor p1
                     :showing $ if
                       >= (:opacity state) 1
-                      d! cursor $ {} (:stage :show) (:opacity 1) (:p1 p1)
+                      do
+                        d! cursor $ {} (:stage :show) (:opacity 1)
+                        write-node-cache! cursor p1
                       d! cursor $ update state :opacity
                         fn (x)
                           + x $ * elapsed v
                     :show $ if (nil? p1)
-                      d! cursor $ {} (:stage :hiding)
-                        :opacity $ - 1 (* elapsed v)
-                        :p1 $ :p1 state
-                      d! cursor $ assoc state :p1 p1
+                      do $ d! cursor
+                        {} (:stage :hiding)
+                          :opacity $ - 1 (* elapsed v)
+                      write-node-cache! cursor p1
                     :hiding $ if
                       <= (:opacity state) 0
-                      d! cursor $ {} (:stage :hidden) (:opacity 0.01) (:p1 nil)
+                      do
+                        d! cursor $ {} (:stage :hidden) (:opacity 0.01)
+                        delete-node-cache! cursor
                       d! cursor $ update state :opacity
                         fn (x)
                           - x $ * elapsed v
@@ -48,7 +52,7 @@
                   {} $ :style
                     {} $ :opacity (:opacity state)
                   case-default (:stage state)
-                    either p1 $ :p1 state
+                    either p1 $ get-node! cursor
                     :hidden nil
         |comp-fade-fn $ quote
           defcomp comp-fade-fn (states props f1) (; js/console.log instant)
@@ -56,7 +60,7 @@
                 cursor $ :cursor states
                 v 4
                 state $ either (:data states)
-                  {} (:stage :hidden) (:opacity 0) (:f1 nil)
+                  {} (:stage :hidden) (:opacity 0)
                 p1 $ f1 (>> states :renderer) (:opacity state) (:stage state)
               []
                 fn (elapsed d!)
@@ -66,22 +70,25 @@
                       d! cursor $ merge state
                         {} (:stage :showing)
                           :opacity $ + (* elapsed v) 0
-                          :f1 f1
-                    :showing $ if
-                      >= (:opacity state) 1
-                      d! cursor $ {} (:stage :show) (:opacity 1) (:f1 f1)
-                      d! cursor $ -> state
-                        update :opacity $ fn (x)
-                          + x $ * elapsed v
-                        assoc :f1 f1
-                    :show $ if (nil? p1)
-                      d! cursor $ {} (:stage :hiding)
-                        :opacity $ - 1 (* elapsed v)
-                        :f1 $ .get state :f1
-                      d! cursor $ assoc state :f1 f1
+                      write-node-cache! cursor f1
+                    :showing $ do
+                      if
+                        >= (:opacity state) 1
+                        d! cursor $ {} (:stage :show) (:opacity 1)
+                        d! cursor $ -> state
+                          update :opacity $ fn (x)
+                            + x $ * elapsed v
+                      write-node-cache! cursor f1
+                    :show $ do
+                      if (nil? p1)
+                        d! cursor $ {} (:stage :hiding)
+                          :opacity $ - 1 (* elapsed v)
+                      write-node-cache! cursor f1
                     :hiding $ if
                       <= (:opacity state) 0
-                      d! cursor $ {} (:stage :hidden) (:opacity 0.01) (:f1 nil)
+                      do
+                        d! cursor $ {} (:stage :hidden) (:opacity 0.01)
+                        delete-node-cache! cursor
                       d! cursor $ update state :opacity
                         fn (x)
                           - x $ * elapsed v
@@ -90,11 +97,21 @@
                     {} $ :opacity (:opacity state)
                   case-default (:stage state)
                     either p1 $ 
-                      :f1 state
+                      get-node! cursor
                       >> states :renderer
                       :opacity state
                       :stage state
                     :hidden nil
+        |*nodes-cache $ quote
+          defatom *nodes-cache $ {}
+        |get-node! $ quote
+          defn get-node! (path) (get @*nodes-cache path)
+        |write-node-cache! $ quote
+          defn write-node-cache! (path node)
+            swap! *nodes-cache $ fn (nodes) (assoc nodes path node)
+        |delete-node-cache! $ quote
+          defn delete-node-cache! (path)
+            swap! *nodes-cache $ fn (nodes) (dissoc nodes path)
       :proc $ quote ()
     |quamolit.types $ {}
       :ns $ quote (ns quamolit.types)
@@ -420,6 +437,7 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp rect group >>
           quamolit.app.comp.folder :refer $ comp-folder
+          quamolit.comp.fade-in-out :refer $ comp-fade-in-out
       :defs $ {}
         |card-collection $ quote
           def card-collection $ [] ([] "|喷雪花" "|檵木" "|石楠" "|文竹") ([] "|紫云英" "|绣球花" "|蔷薇") ([] "|金银花" "|栗树" "|婆婆纳" "|鸡爪槭") ([] "|卷柏" "|稻" "|马尾松" "|五角星花" "|苔藓") ([] "|芍药" "|木棉")
@@ -430,7 +448,6 @@
                 state $ either (:data states)
                   {} $ :selected nil
                 selected $ :selected state
-              ; js/console.log state state
               rect
                 {}
                   :style $ {,} :w 1000 :h 600 :fill-style (hsl 100 40 90)
@@ -444,13 +461,12 @@
                         position $ []
                           - (* ix 200) 200
                           - (* iy 200) 100
-                      [] index $ comp-folder (>> states index) folder position
-                        fn (page d!)
-                          d! cursor $ assoc state :selected page
-                        , index (= index selected)
-                  filter $ fn (entry)
-                    let[] (index tree) entry $ if (some? selected) (= index selected) true
-                  map last
+                      comp-fade-in-out (>> states index) ({})
+                        if
+                          or (nil? selected) (= selected index)
+                          comp-folder (>> states index) folder position (= index selected)
+                            fn (d!)
+                              d! cursor $ assoc state :selected index
         |init-state $ quote
           defn init-state (& args) ([] card-collection nil)
         |update-state $ quote
@@ -621,9 +637,10 @@
                 let
                     coord @focus-ref
                   handle-event coord :keydown event dispatch
+              .!addEventListener js/window |resize $ fn (event) (configure-canvas root-element)
               if
                 nil? $ aget ctx |addHitRegion
-                js/alert "|You need to enable experimental canvas features to view this app"
+                do (js/alert "|You need to enable experimental canvas features to interact with this demo") (js/window.open "\"https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/addHitRegion")
         |call-paint $ quote
           defn call-paint (tree target dispatch! elapsed) (; .log js/console tree)
             let
@@ -796,7 +813,7 @@
           defn dispatch! (op op-data)
             if (list? op)
               recur :states $ [] op op-data
-              do (; println "\"dispatch" op op-data)
+              do (; println "\"dispatch" op op-data) (; js/console.log @store-ref)
                 let
                     new-tick $ get-tick
                     new-store $ updater-fn @store-ref op op-data new-tick
@@ -824,10 +841,6 @@
               configure-canvas target
               setup-events target dispatch!
               render-loop!
-            set! js/window.onresize $ fn (event)
-              let
-                  target $ .!querySelector js/document |#app
-                configure-canvas target
         |*raq $ quote (defatom *raq nil)
       :proc $ quote ()
     |quamolit.util.keyboard $ {}
@@ -1023,38 +1036,33 @@
                 cursor $ :cursor states
                 state $ either (:data states)
                   {} (:popup 0) (:presence 0)
-              {} $ :render
-                fn (m)
-                  let
-                      popup-ratio $ / (:popup state) 1000
-                      shift-x $ first position
-                      shift-y $ last position
-                      move-x $ * shift-x
-                        + 0.1 $ * 0.9 (- 1 popup-ratio)
-                      move-y $ * shift-y
-                        + 0.1 $ * 0.9 (- 1 popup-ratio)
-                      scale-ratio $ /
-                        + 0.2 $ * 0.8 popup-ratio
-                        , parent-ratio
+              let
+                  popup-ratio $ / (:popup state) 1000
+                  shift-x $ first position
+                  shift-y $ last position
+                  move-x $ * shift-x
+                    + 0.1 $ * 0.9 (- 1 popup-ratio)
+                  move-y $ * shift-y
+                    + 0.1 $ * 0.9 (- 1 popup-ratio)
+                  scale-ratio $ /
+                    + 0.2 $ * 0.8 popup-ratio
+                    , parent-ratio
+                translate
+                  {,} :style $ {} (:x 10) (:y 10)
+                  alpha
+                    {,} :style $ {,} :opacity 0.5
                     translate
-                      {,} :style $ {,}
-                      alpha
-                        {,} :style $ {,} :opacity
-                          / (:presence state) 1000
-                        translate
-                          {,} :style $ {,} :x move-x :y move-y
-                          scale
-                            {,} :style $ {,} :ratio scale-ratio
-                            rect
-                              {,} :style
-                                {,} :w 520 :h 360 :fill-style $ hsl 200 80 80
-                                , :event $ {,} :click (handle-click cursor index popup?)
-                              text $ {,} :style
-                                {,} :fill-style (hsl 0 0 100) :text card-name :size 60
-        |handle-click $ quote
-          defn handle-click (cursor index popup?)
-            fn (e d!)
-              d! cursor $ if popup? nil index
+                      {,} :style $ {,} :x move-x :y move-y
+                      scale
+                        {,} :style $ {,} :ratio 0.6
+                        rect
+                          {,} :style
+                            {,} :w 520 :h 360 :fill-style $ hsl 200 80 80
+                            , :event $ {,} :click
+                              fn (e d!)
+                                d! cursor $ assoc state :selected (if popup? nil index)
+                          text $ {,} :style
+                            {,} :fill-style (hsl 0 0 100) :text card-name :size 60
         |init-instant $ quote
           defn init-instant (args state at?) ({,} :numb? false :popup 0 :popup-v 0 :presence 0 :presence-v 3)
         |on-tick $ quote
@@ -1521,18 +1529,20 @@
       :ns $ quote (ns quamolit.math)
       :defs $ {}
         |bound-opacity $ quote
-          defn bound-opacity (o)
-            cond
-                nil? o
-                , 1
-              (not (number? 0))
-                do (js/console.warn "\"invalid opacity" 0) 1
-              (< o 0) 0
-              (> o 1) 1
-              true o
+          defn bound-opacity (x) (bound-01 x)
         |bound-x $ quote
           defn bound-x (left right x)
             js/Math.min (js/Math.max left x) right
+        |bound-01 $ quote
+          defn bound-01 (x)
+            cond
+                nil? x
+                , 1
+              (not (number? x))
+                do $ js/console.warn "\"invalid value to bound:" x
+              (< x 0) 0
+              (> x 1) 1
+              true x
       :proc $ quote ()
       :configs $ {}
     |quamolit.app.comp.portal $ {}
@@ -1961,6 +1971,7 @@
           quamolit.render.element :refer $ translate scale alpha
           quamolit.util.iterate :refer $ iterate-instant tween
           quamolit.app.comp.file-card :refer $ comp-file-card
+          quamolit.comp.fade-in-out :refer $ comp-fade-in-out
       :defs $ {}
         |on-tick $ quote
           defn on-tick (instant tick elapsed)
@@ -1985,11 +1996,12 @@
                 assoc instant :popup-v $ if popup? 3 -3
                 , instant
         |comp-folder $ quote
-          defcomp comp-folder (states cards position navigate index popup?) (; js/console.log state)
+          defcomp comp-folder (states cards position popup? select-this) (; js/console.log state)
             let
                 cursor $ :cursor states
                 state $ either (:data states)
-                  {} (:popup 0) (:presence 0)
+                  {} (:popup 0) (:selected nil)
+                selected $ :selected state
                 shift-x $ first position
                 shift-y $ last position
                 popup-ratio $ / (:popup state) 1000
@@ -2006,27 +2018,25 @@
                     rect $ {,} :style
                       {,} :w 600 :h 400 :fill-style $ hsl 0 80 bg-light
                       , :event
-                        {,} :click $ fn (e d!) (navigate index d!)
+                        {,} :click $ fn (e d!) (select-this d!)
                   group ({,}) & $ -> cards
                     map-indexed $ fn (index card-name)
-                      [] index $ let
+                      let
                           jx $ rem index 4
                           jy $ js/Math.floor (/ index 4)
                           card-x $ * (- jx 1.5)
                             * 200 $ + 0.1 (* 0.9 popup-ratio)
                           card-y $ * (- jy 1.5)
                             * 100 $ + 0.1 (* 0.9 popup-ratio)
-                        comp-file-card (>> states index) card-name ([] card-x card-y) cursor index ratio $ = state index
-                    filter $ fn (entry)
-                      let
-                          index $ first entry
-                        if (some? state) (= index state) true
-                    map last
+                        comp-fade-in-out (>> states index) ({})
+                          if
+                            or (nil? selected) (= index selected)
+                            comp-file-card (>> states index) card-name ([] card-x card-y) cursor index ratio $ = state index
                   if (not popup?)
                     rect $ {,} :style
                       {,} :w 600 :h 400 :fill-style $ hsl 0 80 0 0
                       , :event
-                        {,} :click $ fn (e d!) (navigate index d!)
+                        {,} :click $ fn (e d!) (select-this d!)
         |init-state $ quote
           defn init-state (cards position _ index popup?) nil
         |init-instant $ quote
