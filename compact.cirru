@@ -36,9 +36,8 @@
                         fn (x)
                           + x $ * elapsed v
                     :show $ if (nil? p1)
-                      do $ d! cursor
-                        {} (:stage :hiding)
-                          :opacity $ - 1 (* elapsed v)
+                      d! cursor $ {} (:stage :hiding)
+                        :opacity $ - 1 (* elapsed v)
                       write-node-cache! cursor p1
                     :hiding $ if
                       <= (:opacity state) 0
@@ -55,13 +54,14 @@
                     either p1 $ get-node! cursor
                     :hidden nil
         |comp-fade-fn $ quote
-          defcomp comp-fade-fn (states props f1) (; js/console.log instant)
+          defcomp comp-fade-fn (states props f1)
             let
                 cursor $ :cursor states
                 v 4
                 state $ either (:data states)
                   {} (:stage :hidden) (:opacity 0)
-                p1 $ f1 (>> states :renderer) (:opacity state) (:stage state)
+                p1 $ f1 (>> states :renderer) (:opacity state)
+                  wo-log $ :stage state
               []
                 fn (elapsed d!)
                   case-default (:stage state)
@@ -79,10 +79,9 @@
                           update :opacity $ fn (x)
                             + x $ * elapsed v
                       write-node-cache! cursor f1
-                    :show $ do
-                      if (nil? p1)
-                        d! cursor $ {} (:stage :hiding)
-                          :opacity $ - 1 (* elapsed v)
+                    :show $ if (nil? p1)
+                      d! cursor $ {} (:stage :hiding)
+                        :opacity $ - 1 (* elapsed v)
                       write-node-cache! cursor f1
                     :hiding $ if
                       <= (:opacity state) 0
@@ -96,11 +95,10 @@
                   {} $ :style
                     {} $ :opacity (:opacity state)
                   case-default (:stage state)
-                    either p1 $ 
-                      get-node! cursor
-                      >> states :renderer
-                      :opacity state
-                      :stage state
+                    either p1 $ &let
+                      old-f $ get-node! cursor
+                      if (some? old-f)
+                        old-f (>> states :renderer) (:opacity state) (:stage state)
                     :hidden nil
         |*nodes-cache $ quote
           defatom *nodes-cache $ {}
@@ -1308,32 +1306,39 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp rect group line >>
           quamolit.render.element :refer $ alpha translate
-          quamolit.comp.fade-in-out :refer $ comp-fade-in-out
+          quamolit.comp.fade-in-out :refer $ comp-fade-in-out comp-fade-fn
+          quamolit.math :refer $ bound-01 bound-x
       :defs $ {}
         |comp-3 $ quote
           defcomp comp-3 (states props)
             translate props
-              comp-fade-in-out (>> states 0) ({})
-                comp-stroke (>> states :stroke-0) 0 1 1 1
-              comp-fade-in-out (>> states 1) ({})
-                comp-stroke (>> states :stroke-1) 1 1 1 0
-              comp-fade-in-out (>> states 2) ({})
-                comp-stroke (>> states :stroke-3) 1 0 0 0
-              comp-fade-in-out (>> states 3) ({}) nil
-              comp-fade-in-out (>> states 4) ({}) nil
-              comp-fade-in-out (>> states 5) ({})
-                comp-stroke (>> states :stroke-5) 0 2 1 2
-              comp-fade-in-out (>> states 6) ({})
-                comp-stroke (>> states :stroke-6) 1 2 1 1
+              comp-fade-fn (>> states 0) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 1 1 1)
+              comp-fade-fn (>> states 1) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 1 1 0)
+              comp-fade-fn (>> states 2) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 0 0 0)
+              comp-fade-fn (>> states 3) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 4) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 5) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 2 1 2)
+              comp-fade-fn (>> states 6) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 2 1 1)
         |comp-stroke $ quote
-          defcomp comp-stroke (states x0 y0 x1 y1)
-            ; js/console.log |watching $ :presence instant
+          defcomp comp-stroke (states opacity x0 y0 x1 y1)
             let
                 cursor $ :cursor states
                 state $ either (:data states)
                   {} (:x0 0) (:y0 0) (:x1 0) (:y1 0)
+                    :dx0 $ .rand-shift 0 120
+                    :dy0 $ .rand-shift 0 160
+                    :dx1 $ .rand-shift 0 120
+                    :dy1 $ .rand-shift 0 160
                 h 100
                 w 60
+                tranparency $ - 1 opacity
               []
                 fn (elapsed d!)
                   when-not
@@ -1343,81 +1348,107 @@
                       = x1 $ :x1 state
                       = y1 $ :y1 state
                     let
-                        v $ * elapsed 6
+                        v $ * elapsed 4
                       d! cursor $ -> state
                         update :x0 $ fn (n)
-                          + n $ * v (- x0 n)
+                          bound-x n x0 $ + n
+                            * v $ - x0 n
                         update :y0 $ fn (n)
-                          + n $ * v (- y0 n)
+                          bound-x n y0 $ + n
+                            * v $ - y0 n
                         update :x1 $ fn (n)
-                          + n $ * v (- x1 n)
+                          bound-x n x1 $ + n
+                            * v $ - x1 n
                         update :y1 $ fn (n)
-                          + n $ * v (- y1 n)
+                          bound-x n y1 $ + n
+                            * v $ - y1 n
                 group ({})
                   alpha
                     {,} :style $ {,} :opacity 1
                     line $ {,} :style
                       {}
-                        :x0 $ * w (:x0 state)
-                        :y0 $ * h (:y0 state)
-                        :x1 $ * w (:x1 state)
-                        :y1 $ * h (:y1 state)
-                        :line-width 2
-                        :stroke-style $ hsl 240 90 80
+                        :x0 $ +
+                          * w $ :x0 state
+                          * tranparency $ :dx0 state
+                        :y0 $ +
+                          * h $ :y0 state
+                          * tranparency $ :dy0 state
+                        :x1 $ +
+                          * w $ :x1 state
+                          * tranparency $ :dx1 state
+                        :y1 $ +
+                          * h $ :y1 state
+                          * tranparency $ :dy1 state
+                        :line-width 3
+                        :stroke-style $ if (> tranparency 0) (hsl 190 90 80) (hsl 240 90 70)
         |comp-7 $ quote
           defcomp comp-7 (states props)
             translate props
-              comp-fade-in-out (>> states 0) ({}) nil
-              comp-fade-in-out (>> states 1) ({})
-                comp-stroke (>> states :stroke-1) 1 1 1 0
-              comp-fade-in-out (>> states 2) ({})
-                comp-stroke (>> states :stroke-3) 1 0 0 0
-              comp-fade-in-out (>> states 3) ({}) nil
-              comp-fade-in-out (>> states 4) ({}) nil
-              comp-fade-in-out (>> states 5) ({}) nil
-              comp-fade-in-out (>> states 6) ({})
-                comp-stroke (>> states :stroke-6) 1 2 1 1
+              comp-fade-fn (>> states 0) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 1) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 1 1 0)
+              comp-fade-fn (>> states 2) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 0 0 0)
+              comp-fade-fn (>> states 3) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 4) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 5) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 6) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 2 1 1)
         |comp-2 $ quote
           defcomp comp-2 (states props)
             translate props
-              comp-fade-in-out (>> states 0) ({})
-                comp-stroke (>> states :stroke-0) 0 1 1 1
-              comp-fade-in-out (>> states 1) ({})
-                comp-stroke (>> states :stroke-6) 1 1 1 0
-              comp-fade-in-out (>> states 2) ({})
-                comp-stroke (>> states :stroke-2) 1 0 0 0
-              comp-fade-in-out (>> states 3) ({}) nil
-              comp-fade-in-out (>> states 4) ({})
-                comp-stroke (>> states :stroke-4) 0 1 0 2
-              comp-fade-in-out (>> states 5) ({})
-                comp-stroke (>> states :stroke-5) 0 2 1 2
-              comp-fade-in-out (>> states 6) ({}) nil
+              comp-fade-fn (>> states 0) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 1 1 1)
+              comp-fade-fn (>> states 1) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 1 1 0)
+              comp-fade-fn (>> states 2) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 0 0 0)
+              comp-fade-fn (>> states 3) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 4) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 1 0 2)
+              comp-fade-fn (>> states 5) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 2 1 2)
+              comp-fade-fn (>> states 6) ({})
+                fn (states opacity stage) nil
         |comp-4 $ quote
           defcomp comp-4 (states props)
             translate props
-              comp-fade-in-out (>> states 0) ({})
-                comp-stroke (>> states :stroke-0) 0 1 1 1
-              comp-fade-in-out (>> states 1) ({})
-                comp-stroke (>> states :stroke-1) 1 1 1 0
-              comp-fade-in-out (>> states 2) ({}) nil
-              comp-fade-in-out (>> states 3) ({})
-                comp-stroke (>> states :stroke-3) 0 0 0 1
-              comp-fade-in-out (>> states 4) ({}) nil
-              comp-fade-in-out (>> states 5) ({}) nil
-              comp-fade-in-out (>> states 6) ({})
-                comp-stroke (>> states :stroke-6) 1 2 1 1
+              comp-fade-fn (>> states 0) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 1 1 1)
+              comp-fade-fn (>> states 1) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 1 1 0)
+              comp-fade-fn (>> states 2) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 3) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 0 0 1)
+              comp-fade-fn (>> states 4) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 5) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 6) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 2 1 1)
         |comp-1 $ quote
           defcomp comp-1 (states props)
             translate props
-              comp-fade-in-out (>> states 0) ({}) nil
-              comp-fade-in-out (>> states 1) ({})
-                comp-stroke (>> states :stroke-2) 1 1 1 0
-              comp-fade-in-out (>> states 2) ({}) nil
-              comp-fade-in-out (>> states 3) ({}) nil
-              comp-fade-in-out (>> states 4) ({}) nil
-              comp-fade-in-out (>> states 5) ({}) nil
-              comp-fade-in-out (>> states 6) ({})
-                comp-stroke (>> states :stroke-6) 1 2 1 1
+              comp-fade-fn (>> states 0) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 1) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 1 1 0)
+              comp-fade-fn (>> states 2) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 3) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 4) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 5) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 6) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 2 1 1)
         |comp-digit $ quote
           defcomp comp-digit (states n props)
             case-default n (comp-0 states props)
@@ -1434,83 +1465,102 @@
         |comp-6 $ quote
           defcomp comp-6 (states props)
             translate props
-              comp-fade-in-out (>> states 0) ({})
-                comp-stroke (>> states :stroke-0) 1 1 0 1
-              comp-fade-in-out (>> states 1) ({}) nil
-              comp-fade-in-out (>> states 2) ({})
-                comp-stroke (>> states :stroke-2) 1 0 0 0
-              comp-fade-in-out (>> states 3) ({})
-                comp-stroke (>> states :stroke-3) 0 0 0 1
-              comp-fade-in-out (>> states 4) ({})
-                comp-stroke (>> states :stroke-4) 0 1 0 2
-              comp-fade-in-out (>> states 5) ({})
-                comp-stroke (>> states :stroke-5) 0 2 1 2
-              comp-fade-in-out (>> states 6) ({})
-                comp-stroke (>> states :stroke-6) 1 2 1 1
+              comp-fade-fn (>> states 0) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 1 1 1)
+              comp-fade-fn (>> states 1) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 2) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 0 0 0)
+              comp-fade-fn (>> states 3) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 0 0 1)
+              comp-fade-fn (>> states 4) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 1 0 2)
+              comp-fade-fn (>> states 5) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 2 1 2)
+              comp-fade-fn (>> states 6) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 2 1 1)
+        |v-place? $ quote
+          defn v-place? (x)
+            cond
+                < x 0
+                , false
+              (> x 2) false
+              true true
         |comp-0 $ quote
           defcomp comp-0 (states props)
             translate props
-              comp-fade-in-out (>> states 0) ({}) nil
-              comp-fade-in-out (>> states 1) ({})
-                comp-stroke (>> states :stroke-1) 1 1 1 0
-              comp-fade-in-out (>> states 2) ({})
-                comp-stroke (>> states :stroke-2) 1 0 0 0
-              comp-fade-in-out (>> states 3) ({})
-                comp-stroke (>> states :stroke-4) 0 0 0 1
-              comp-fade-in-out (>> states 4) ({})
-                comp-stroke (>> states :stroke-3) 0 1 0 2
-              comp-fade-in-out (>> states 5) ({})
-                comp-stroke (>> states :stroke-5) 0 2 1 2
-              comp-fade-in-out (>> states 6) ({})
-                comp-stroke (>> states :stroke-6) 1 2 1 1
+              comp-fade-fn (>> states 0) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 1) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 1 1 0)
+              comp-fade-fn (>> states 2) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 0 0 0)
+              comp-fade-fn (>> states 3) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 0 0 1)
+              comp-fade-fn (>> states 4) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 1 0 2)
+              comp-fade-fn (>> states 5) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 2 1 2)
+              comp-fade-fn (>> states 6) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 2 1 1)
         |comp-5 $ quote
           defcomp comp-5 (states props)
             translate props
-              comp-fade-in-out (>> states 0) ({})
-                comp-stroke (>> states :stroke-4) 1 1 0 1
-              comp-fade-in-out (>> states 1) ({}) nil
-              comp-fade-in-out (>> states 2) ({})
-                comp-stroke (>> states :stroke-1) 1 0 0 0
-              comp-fade-in-out (>> states 3) ({})
-                comp-stroke (>> states :stroke-0) 0 0 0 1
-              comp-fade-in-out (>> states 4) ({}) nil
-              comp-fade-in-out (>> states 5) ({})
-                comp-stroke (>> states :stroke-5) 0 2 1 2
-              comp-fade-in-out (>> states 6) ({})
-                comp-stroke (>> states :stroke-6) 1 2 1 1
+              comp-fade-fn (>> states 0) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 1 1 1)
+              comp-fade-fn (>> states 1) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 2) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 0 0 0)
+              comp-fade-fn (>> states 3) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 0 0 1)
+              comp-fade-fn (>> states 4) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 5) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 2 1 2)
+              comp-fade-fn (>> states 6) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 2 1 1)
+        |h-place? $ quote
+          defn h-place? (x)
+            cond
+                < x 0
+                , false
+              (> x 1) false
+              true true
         |comp-8 $ quote
           defcomp comp-8 (states props)
             translate props
-              comp-fade-in-out (>> states 0) ({})
-                comp-stroke (>> states :stroke-0) 0 1 1 1
-              comp-fade-in-out (>> states 1) ({})
-                comp-stroke (>> states :stroke-1) 1 1 1 0
-              comp-fade-in-out (>> states 2) ({})
-                comp-stroke (>> states :stroke-2) 1 0 0 0
-              comp-fade-in-out (>> states 3) ({})
-                comp-stroke (>> states :stroke-3) 0 0 0 1
-              comp-fade-in-out (>> states 4) ({})
-                comp-stroke (>> states :stroke-4) 0 1 0 2
-              comp-fade-in-out (>> states 5) ({})
-                comp-stroke (>> states :stroke-5) 0 2 1 2
-              comp-fade-in-out (>> states 6) ({})
-                comp-stroke (>> states :stroke-6) 1 2 1 1
+              comp-fade-fn (>> states 0) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 1 1 1)
+              comp-fade-fn (>> states 1) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 1 1 0)
+              comp-fade-fn (>> states 2) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 0 0 0)
+              comp-fade-fn (>> states 3) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 0 0 1)
+              comp-fade-fn (>> states 4) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 1 0 2)
+              comp-fade-fn (>> states 5) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 2 1 2)
+              comp-fade-fn (>> states 6) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 2 1 1)
         |comp-9 $ quote
           defcomp comp-9 (states props)
             translate props
-              comp-fade-in-out (>> states 0) ({})
-                comp-stroke (>> states :stroke-0) 0 1 1 1
-              comp-fade-in-out (>> states 1) ({})
-                comp-stroke (>> states :stroke-2) 1 0 1 1
-              comp-fade-in-out (>> states 2) ({})
-                comp-stroke (>> states :stroke-1) 1 0 0 0
-              comp-fade-in-out (>> states 3) ({})
-                comp-stroke (>> states :stroke-3) 0 0 0 1
-              comp-fade-in-out (>> states 4) ({}) nil
-              comp-fade-in-out (>> states 5) ({})
-                comp-stroke (>> states :stroke-5) 0 2 1 2
-              comp-fade-in-out (>> states 6) ({})
-                comp-stroke (>> states :stroke-6) 1 2 1 1
+              comp-fade-fn (>> states 0) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 1 1 1)
+              comp-fade-fn (>> states 1) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 1 1 0)
+              comp-fade-fn (>> states 2) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 0 0 0)
+              comp-fade-fn (>> states 3) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 0 0 1)
+              comp-fade-fn (>> states 4) ({})
+                fn (states opacity stage) nil
+              comp-fade-fn (>> states 5) ({})
+                fn (states opacity stage) (comp-stroke states opacity 0 2 1 2)
+              comp-fade-fn (>> states 6) ({})
+                fn (states opacity stage) (comp-stroke states opacity 1 2 1 1)
       :proc $ quote ()
     |quamolit.cursor $ {}
       :ns $ quote (ns quamolit.cursor)
@@ -1532,7 +1582,9 @@
           defn bound-opacity (x) (bound-01 x)
         |bound-x $ quote
           defn bound-x (left right x)
-            js/Math.min (js/Math.max left x) right
+            if (> left right)
+              js/Math.min (js/Math.max right x) x
+              js/Math.min (js/Math.max left x) right
         |bound-01 $ quote
           defn bound-01 (x)
             cond
