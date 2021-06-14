@@ -2,7 +2,7 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ []
-    :version nil
+    :version |0.0.1
   :files $ {}
     |quamolit.comp.fade-in-out $ {}
       :ns $ quote
@@ -517,27 +517,25 @@
           defn render-page (tree target dispatch!)
             let
                 new-tick $ get-tick
-                elapsed $ - new-tick @tick-ref
+                elapsed $ - new-tick @*last-tick
               ; js/console.info "|render page:" tree
-              reset! tree-ref tree
-              reset! tick-ref new-tick
+              reset! *element-tree tree
+              reset! *last-tick new-tick
               call-paint tree target dispatch! elapsed
               ; js/console.log |tree tree
-        |focus-ref $ quote
-          defatom focus-ref $ []
-        |tree-ref $ quote (defatom tree-ref nil)
+        |*element-tree $ quote (defatom *element-tree nil)
         |*paint-eff $ quote
           defatom *paint-eff $ {}
             :alpha-stack $ [] 1
-        |tick-ref $ quote
-          defatom tick-ref $ get-tick
+        |*clicked-focus $ quote
+          defatom *clicked-focus $ []
         |configure-canvas $ quote
           defn configure-canvas (app-container) (.!setAttribute app-container |width js/window.innerWidth) (.!setAttribute app-container |height js/window.innerHeight)
         |handle-event $ quote
           defn handle-event (coord event-name event dispatch)
             let
-                maybe-listener $ resolve-target @tree-ref event-name coord
-              ; js/console.log "|handle event" maybe-listener coord event-name @tree-ref
+                maybe-listener $ resolve-target @*element-tree event-name coord
+              ; js/console.log "|handle event" maybe-listener coord event-name @*element-tree
               if (some? maybe-listener)
                 do (.preventDefault event) (maybe-listener event dispatch)
                 ; js/console.log "|no target"
@@ -552,16 +550,16 @@
                     let
                         coord $ parse-cirru-edn hit-region
                       ; js/console.log |hit: event coord
-                      reset! focus-ref coord
+                      reset! *clicked-focus coord
                       handle-event coord :click event dispatch
-                    reset! focus-ref $ []
+                    reset! *clicked-focus $ []
               .!addEventListener js/window |keypress $ fn (event)
                 let
-                    coord @focus-ref
+                    coord @*clicked-focus
                   handle-event coord :keypress event dispatch
               .!addEventListener js/window |keydown $ fn (event)
                 let
-                    coord @focus-ref
+                    coord @*clicked-focus
                   handle-event coord :keydown event dispatch
               .!addEventListener js/window |resize $ fn (event) (configure-canvas root-element)
               if
@@ -583,6 +581,8 @@
                 negate $ / w 2
                 negate $ / h 2
               ; .!restore ctx
+        |*last-tick $ quote
+          defatom *last-tick $ get-tick
       :proc $ quote ()
     |quamolit.app.schema $ {}
       :ns $ quote (ns quamolit.app.schema)
@@ -739,27 +739,22 @@
           defn dispatch! (op op-data)
             if (list? op)
               recur :states $ [] op op-data
-              do (; println "\"dispatch" op op-data) (; js/console.log @store-ref)
+              do (; println "\"dispatch" op op-data) (; js/console.log @*store)
                 let
                     new-tick $ get-tick
-                    new-store $ updater-fn @store-ref op op-data new-tick
-                  reset! store-ref new-store
-        |loop-ref $ quote (defatom loop-ref nil)
+                    new-store $ updater-fn @*store op op-data new-tick
+                  reset! *store new-store
         |render-loop! $ quote
           defn render-loop! (? t)
             let
                 target $ js/document.querySelector |#app
-              ; js/console.log "\"store" @store-ref
-              render-page (comp-container @store-ref) target dispatch!
-              reset! loop-ref $ js/setTimeout
-                fn () $ reset! *raq (js/requestAnimationFrame render-loop!)
+              ; js/console.log "\"store" @*store
+              render-page (comp-container @*store) target dispatch!
+              reset! *render-loop $ js/setTimeout
+                fn () $ reset! *raq-loop (js/requestAnimationFrame render-loop!)
                 , 20
-        |store-ref $ quote
-          defatom store-ref $ {}
-            :states $ {}
-            :tasks $ []
         |reload! $ quote
-          defn reload! () (js/clearTimeout @loop-ref) (js/cancelAnimationFrame @*raq) (render-loop!) (js/console.log "|code updated...")
+          defn reload! () (js/clearTimeout @*render-loop) (js/cancelAnimationFrame @*raq-loop) (render-loop!) (js/console.log "|code updated...")
         |main! $ quote
           defn main! () (load-console-formatter!)
             let
@@ -767,7 +762,12 @@
               configure-canvas target
               setup-events target dispatch!
               render-loop!
-        |*raq $ quote (defatom *raq nil)
+        |*render-loop $ quote (defatom *render-loop nil)
+        |*raq-loop $ quote (defatom *raq-loop nil)
+        |*store $ quote
+          defatom *store $ {}
+            :states $ {}
+            :tasks $ []
       :proc $ quote ()
     |quamolit.util.keyboard $ {}
       :ns $ quote (ns quamolit.util.keyboard)
@@ -1262,10 +1262,10 @@
                 fn (elapsed d!)
                   when-not
                     and
-                      = x0 $ :x0 state
-                      = y0 $ :y0 state
-                      = x1 $ :x1 state
-                      = y1 $ :y1 state
+                      = x0 $ &map:get state :x0
+                      = y0 $ &map:get state :y0
+                      = x1 $ &map:get state :x1
+                      = y1 $ &map:get state :y1
                     let
                         v $ * elapsed 4
                       d! cursor $ -> state
@@ -1287,17 +1287,17 @@
                     line $ {,} :style
                       {}
                         :x0 $ +
-                          * w $ :x0 state
-                          * tranparency $ :dx0 state
+                          * w $ &map:get state :x0
+                          * tranparency $ &map:get state :dx0
                         :y0 $ +
-                          * h $ :y0 state
-                          * tranparency $ :dy0 state
+                          * h $ &map:get state :y0
+                          * tranparency $ &map:get state :dy0
                         :x1 $ +
-                          * w $ :x1 state
-                          * tranparency $ :dx1 state
+                          * w $ &map:get state :x1
+                          * tranparency $ &map:get state :dx1
                         :y1 $ +
-                          * h $ :y1 state
-                          * tranparency $ :dy1 state
+                          * h $ &map:get state :y1
+                          * tranparency $ &map:get state :dy1
                         :line-width 3
                         :stroke-style $ if (> tranparency 0) (hsl 190 90 80) (hsl 240 90 70)
         |comp-7 $ quote
@@ -2020,25 +2020,26 @@
         |paint-one $ quote
           defn paint-one (ctx directive eff-ref coord)
             let
-                op $ .get directive :name
-                style $ .get directive :style
-                event $ .get directive :event
+                op $ &record:get directive :name
+                style $ &record:get directive :style
+                event $ &record:get directive :event
               ; js/console.log :paint-one op style
-              case-default op
-                do (js/console.log "|painting not implemented" directive) @eff-ref
-                :line $ paint-line ctx style
-                :path $ paint-path ctx style
-                :text $ paint-text ctx style
-                :rect $ paint-rect ctx style coord event
-                :native-save $ paint-save ctx style eff-ref
-                :native-restore $ paint-restore ctx style eff-ref
-                :native-translate $ paint-translate ctx style
-                :native-alpha $ paint-alpha ctx style eff-ref
-                :native-rotate $ paint-rotate ctx style
-                :native-scale $ paint-scale ctx style
-                :arc $ paint-arc ctx style coord event
-                :image $ paint-image ctx style coord
-                :group $ paint-group!
+              cond
+                  identical? op :line
+                  paint-line ctx style
+                (identical? op :path) (paint-path ctx style)
+                (identical? op :text) (paint-text ctx style)
+                (identical? op :rect) (paint-rect ctx style coord event)
+                (identical? op :native-save) (paint-save ctx style eff-ref)
+                (identical? op :native-restore) (paint-restore ctx style eff-ref)
+                (identical? op :native-translate) (paint-translate ctx style)
+                (identical? op :native-alpha) (paint-alpha ctx style eff-ref)
+                (identical? op :native-rotate) (paint-rotate ctx style)
+                (identical? op :native-scale) (paint-scale ctx style)
+                (identical? op :arc) (paint-arc ctx style coord event)
+                (identical? op :image) (paint-image ctx style coord)
+                (identical? op :group) (paint-group!)
+                true $ do (js/console.log "|painting not implemented" directive @eff-ref)
         |paint-text $ quote
           defn paint-text (ctx style)
             aset ctx "\"fillStyle" $ or (:fill-style style) (hsl 0 0 0)
@@ -2124,29 +2125,29 @@
             if (nil? tree) nil $ if
               and (record? tree) (relevant-record? Component tree)
               let
-                  on-tick $ :on-tick tree
+                  on-tick $ &record:get tree :on-tick
                 if (fn? on-tick) (on-tick elapsed dispatch!)
-                recur ctx (:tree tree) eff-ref
-                  conj coord $ :name tree
+                recur ctx (&record:get tree :tree) eff-ref
+                  conj coord $ &record:get tree :name
                   , dispatch! elapsed
               do (paint-one ctx tree eff-ref coord)
                 &doseq
-                  cursor $ :children tree
+                  cursor $ &record:get tree :children
                   paint ctx (last cursor) eff-ref
                     conj coord $ first cursor
                     , dispatch! elapsed
         |paint-line $ quote
           defn paint-line (ctx style)
             let
-                x0 $ either (.get style :x0) 0
-                y0 $ either (.get style :y0) 0
-                x1 $ either (.get style :x1) 40
-                y1 $ either (.get style :y1) 40
-                line-width $ or (.get style :line-width) 4
-                stroke-style $ or (.get style :stroke-style) (hsl 200 70 50)
-                line-cap $ or (.get style :line-cap) |round
-                line-join $ or (.get style :line-join) |round
-                miter-limit $ or (.get style :miter-limit) 8
+                x0 $ either (&map:get style :x0) 0
+                y0 $ either (&map:get style :y0) 0
+                x1 $ either (&map:get style :x1) 40
+                y1 $ either (&map:get style :y1) 40
+                line-width $ or (&map:get style :line-width) 4
+                stroke-style $ or (&map:get style :stroke-style) (hsl 200 70 50)
+                line-cap $ or (&map:get style :line-cap) |round
+                line-join $ or (&map:get style :line-join) |round
+                miter-limit $ or (&map:get style :miter-limit) 8
               .!beginPath ctx
               .!moveTo ctx x0 y0
               .!lineTo ctx x1 y1
@@ -2212,15 +2213,15 @@
         |paint-rect $ quote
           defn paint-rect (ctx style coord event)
             let
-                w $ or (:w style) 100
-                h $ or (:h style) 40
+                w $ or (&map:get style :w) 100
+                h $ or (&map:get style :h) 40
                 x $ -
-                  or (:x style) 0
+                  or (&map:get style :x) 0
                   / w 2
                 y $ -
-                  or (:y style) 0
+                  or (&map:get style :y) 0
                   / h 2
-                line-width $ or (:line-width style) 2
+                line-width $ or (&map:get style :line-width) 2
               .!beginPath ctx
               .!rect ctx x y w h
               if (some? event)
@@ -2230,11 +2231,11 @@
                     :id $ write-cirru-edn coord
               if (contains? style :fill-style)
                 do
-                  set! (.-fillStyle ctx) (:fill-style style)
+                  set! (.-fillStyle ctx) (&map:get style :fill-style)
                   .!fill ctx
               if (contains? style :stroke-style)
                 do
-                  set! (.-strokeStyle ctx) (:stroke-style style)
+                  set! (.-strokeStyle ctx) (&map:get style :stroke-style)
                   set! (.-lineWidth ctx) line-width
                   .!stroke ctx
         |paint-group! $ quote

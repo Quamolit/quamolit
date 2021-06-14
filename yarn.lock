@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@calcit/procs@^0.3.36":
-  version "0.3.36"
-  resolved "https://registry.npmjs.org/@calcit/procs/-/procs-0.3.36.tgz#1c7d7a712ed5cc118b5df2d1aaa2fde2fc86c635"
-  integrity sha512-c+ACKjKue0Prhiixim3IcWp0c2JKTOXLc9uWVjBL59pZ2nFoKJGdz6j7HtZxLs98B9ehiig5HAZqeK9GcfKmWw==
+"@calcit/procs@^0.3.39":
+  version "0.3.39"
+  resolved "https://registry.npmjs.org/@calcit/procs/-/procs-0.3.39.tgz#d3057163a660003ddd1236719809256dbcbfae30"
+  integrity sha512-RGwvtbOw/8AOsjd3nB+NZCoQ0PzYnpwsjfmxScTUBfe4ZaoaPYgYw0Rm3+XbW+WLlxEq1qVSF8auSxWxfF0HMg==
   dependencies:
     "@calcit/ternary-tree" "0.0.13"
     "@cirru/parser.ts" "^0.0.3"
@@ -71,9 +71,9 @@ path-parse@^1.0.6:
   integrity sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw==
 
 postcss@^8.3.0:
-  version "8.3.2"
-  resolved "https://registry.npmjs.org/postcss/-/postcss-8.3.2.tgz#ed3ec489f5428af5740cd6effcc216b4d455ee64"
-  integrity sha512-y1FK/AWdZlBF5lusS5j5l4/vF67+vQZt1SXPVJ32y1kRGDQyrs1zk32hG1cInRTu14P0V+orPz+ifwW/7rR4bg==
+  version "8.3.3"
+  resolved "https://registry.npmjs.org/postcss/-/postcss-8.3.3.tgz#ef412a7a67e85c5b2c9f0ab3c4d9e8a3814d55cc"
+  integrity sha512-gnXd9C4bGKevvlNFd80I8WfxHX+g6MR+W2h19PlDNHUuT9248rHTvCIDeZI3Hvs5mB3gzXiNDwVK3S153WJbZA==
   dependencies:
     colorette "^1.2.2"
     nanoid "^3.1.23"
