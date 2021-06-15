@@ -2,7 +2,7 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ []
-    :version |0.0.1
+    :version |0.0.2
   :files $ {}
     |quamolit.comp.fade-in-out $ {}
       :ns $ quote
@@ -227,7 +227,7 @@
                 fn (elapsed d!)
                   d! cursor $ + state (* elapsed 100)
                 rotate
-                  {,} :style $ {,} :angle (rem state 360)
+                  {,} :style $ {,} :angle (.rem state 360)
                   arc $ {} (:style style-large)
                   translate
                     {,} :style $ {,} :x 100 :y -40
@@ -341,7 +341,7 @@
           defn locate-target (tree coord) (; js/console.log |locating coord tree)
             if (.empty? coord) tree $ let
                 first-pos $ first coord
-              if (relevant-record? Component tree)
+              if (.matches? Component tree)
                 if
                   = first-pos $ :name tree
                   recur (:tree tree) (slice coord 1)
@@ -361,7 +361,7 @@
               ; .log js/console |target maybe-target event-name coord
               if (nil? maybe-target) nil $ let
                   maybe-listener $ if
-                    and (record? maybe-target) (.same-kind? maybe-target Shape)
+                    and (record? maybe-target) (.matches? maybe-target Shape)
                     get-in maybe-target $ [] :event event-name
                 ; .log js/console |listener maybe-listener maybe-target
                 if (some? maybe-listener) maybe-listener $ if
@@ -395,7 +395,7 @@
                 group ({}) & $ -> card-collection
                   map-indexed $ fn (index folder) (; js/console.log folder)
                     let
-                        ix $ rem index 4
+                        ix $ .rem index 4
                         iy $ js/Math.floor (/ index 4)
                         position $ []
                           - (* ix 200) 200
@@ -607,7 +607,7 @@
                 secs $ .getSeconds now
                 get-ten $ fn (x)
                   js/Math.floor $ / x 10
-                get-one $ fn (x) (rem x 10)
+                get-one $ fn (x) (.rem x 10)
               ; js/console.log secs
               []
                 fn $ elapsed d!
@@ -914,7 +914,7 @@
                           d! cursor $ -> state (assoc :draft |)
                 translate
                   {} $ :style position-body
-                  group ({}) & $ -> tasks (reverse)
+                  group ({}) & $ -> tasks (.reverse)
                     map-indexed $ fn (idx task)
                       let
                           shift-x $ case-default stage 0 (:hidden -40) (:show 0)
@@ -1900,7 +1900,7 @@
                 n 32
                 unit $ * 2 (/ &PI n)
                 shift 10
-                rotation $ rem state 360
+                rotation $ .rem state 360
                 r 60
                 rl 360
                 curve-points $ -> (range n)
@@ -1988,7 +1988,7 @@
                       group ({,}) & $ -> cards
                         map-indexed $ fn (index card-name)
                           let
-                              jx $ rem index 4
+                              jx $ .rem index 4
                               jy $ js/Math.floor (/ index 4)
                               card-x $ * (- jx 1.5)
                                 * 200 $ + 0.1 (* 0.9 popup-ratio)
@@ -2095,7 +2095,7 @@
                 if
                   some? $ .-addHitRegion ctx
                   .!addHitRegion ctx $ js-object
-                    :id $ write-cirru-edn coord
+                    :id $ format-cirru-edn coord
               if
                 some? $ :fill-style style
                 do
@@ -2123,7 +2123,7 @@
         |paint $ quote
           defn paint (ctx tree eff-ref coord dispatch! elapsed) (; js/console.log "\"paint" tree)
             if (nil? tree) nil $ if
-              and (record? tree) (relevant-record? Component tree)
+              and (record? tree) (.matches? Component tree)
               let
                   on-tick $ &record:get tree :on-tick
                 if (fn? on-tick) (on-tick elapsed dispatch!)
@@ -2228,7 +2228,7 @@
                 if
                   some? $ .-addHitRegion ctx
                   .!addHitRegion ctx $ js-object
-                    :id $ write-cirru-edn coord
+                    :id $ format-cirru-edn coord
               if (contains? style :fill-style)
                 do
                   set! (.-fillStyle ctx) (&map:get style :fill-style)
