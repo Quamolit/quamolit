@@ -2,7 +2,7 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ [] |pointed-prompt/
-    :version |0.0.3
+    :version |0.0.4
   :files $ {}
     |quamolit.comp.fade-in-out $ {}
       :ns $ quote
@@ -515,6 +515,8 @@
           quamolit.util.time :refer $ get-tick
           quamolit.render.paint :refer $ paint
           quamolit.controller.resolve :refer $ resolve-target locate-target
+          quamolit.hud-logs :refer $ clear-hud-logs! *hud-logs
+          pointed-prompt.core :refer $ clear-prompt!
       :defs $ {}
         |render-page $ quote
           defn render-page (tree target dispatch!)
@@ -530,6 +532,18 @@
         |*paint-eff $ quote
           defatom *paint-eff $ {}
             :alpha-stack $ [] 1
+        |paint-logs! $ quote
+          defn paint-logs! (ctx logs) (aset ctx "\"fillStyle" "\"hsla(0,0%,0%,0.5)") (aset ctx "\"textAlign" |left) (aset ctx "\"textBaseline" |middle) (aset ctx "\"font" "|12px Monlo, monospace")
+            if
+              > (count logs) 80
+              .!fillText ctx
+                str (count logs) "\" logs, showing 80 of them"
+                , 10 10 1000
+            -> logs (take 80)
+              map-indexed $ fn (idx log)
+                .!fillText ctx log 10
+                  + 24 $ * 10 idx
+                  , 1000
         |*clicked-focus $ quote
           defatom *clicked-focus $ []
         |configure-canvas $ quote
@@ -564,6 +578,7 @@
                 let
                     coord @*clicked-focus
                   handle-event coord :keydown event dispatch
+              .!addEventListener js/window |click $ fn (event) (clear-prompt!)
               .!addEventListener js/window |resize $ fn (event) (configure-canvas root-element)
               if
                 nil? $ aget ctx |addHitRegion
@@ -584,6 +599,8 @@
                 negate $ / w 2
                 negate $ / h 2
               ; .!restore ctx
+              paint-logs! ctx @*hud-logs
+              clear-hud-logs!
         |*last-tick $ quote
           defatom *last-tick $ get-tick
       :proc $ quote ()
@@ -600,6 +617,7 @@
           quamolit.render.element :refer $ translate
           quamolit.app.comp.digits :refer $ comp-digit
           quamolit.comp.debug :refer $ comp-debug
+          quamolit.hud-logs :refer $ hud-log
       :defs $ {}
         |comp-clock $ quote
           defcomp comp-clock (states)
@@ -612,6 +630,7 @@
                   js/Math.floor $ / x 10
                 get-one $ fn (x) (.rem x 10)
               ; js/console.log secs
+              ; hud-log hrs mins secs
               []
                 fn $ elapsed d!
                 group ({,})
@@ -649,6 +668,7 @@
           quamolit.app.comp.ring :refer $ comp-ring
           quamolit.app.comp.folding-fan :refer $ comp-folding-fan
           quamolit.app.comp.debug :refer $ comp-debug
+          quamolit.hud-logs :refer $ hud-log
       :defs $ {}
         |comp-container $ quote
           defcomp comp-container (store)
@@ -1051,6 +1071,7 @@
           quamolit.alias :refer $ defcomp line group path
           quamolit.render.element :refer $ rotate scale translate
           quamolit.comp.debug :refer $ comp-debug
+          quamolit.hud-logs :refer $ hud-log
       :defs $ {}
         |comp-binary-tree $ quote
           defcomp comp-binary-tree (timestamp level)
@@ -1073,6 +1094,7 @@
                   + 0.031 $ * 0.001 r3
                   js/Math.sin $ / timestamp
                     + 13 $ * 6 r4
+              ; hud-log timestamp level
               group ({})
                 path $ {,} :style
                   {}
@@ -1597,6 +1619,18 @@
               :text page-name
               :text-color $ hsl 0 0 100
       :proc $ quote ()
+    |quamolit.hud-logs $ {}
+      :ns $ quote (ns quamolit.hud-logs)
+      :defs $ {}
+        |*hud-logs $ quote
+          defatom *hud-logs $ []
+        |hud-log $ quote
+          defn hud-log (& xs)
+            swap! *hud-logs conj $ join-str xs "\", "
+        |clear-hud-logs! $ quote
+          defn clear-hud-logs! () $ reset! *hud-logs ([])
+      :proc $ quote ()
+      :configs $ {}
     |quamolit.app.updater $ {}
       :ns $ quote
         ns quamolit.app.updater $ :require (quamolit.app.schema :as schema)
@@ -1897,6 +1931,7 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp group path
           quamolit.comp.debug :refer $ comp-debug
+          quamolit.hud-logs :refer $ hud-log
       :defs $ {}
         |comp-ring $ quote
           defcomp comp-ring (states)
@@ -1922,6 +1957,7 @@
                         negate $ * rl (cos angle-2)
                         * r $ sin this-angle
                         negate $ * r (cos this-angle)
+              ; hud-log state
               []
                 fn (elapsed d!)
                   d! cursor $ + state (* elapsed 0.3)
@@ -2056,12 +2092,12 @@
               , "|px "
                 or (:font-family style) |Optima
             if (contains? style :fill-style)
-              do $ .fillText ctx (:text style)
+              do $ .!fillText ctx (:text style)
                 or (:x style) 0
                 or (:y style) 0
                 or (:max-width style) 400
             if (contains? style :stroke-style)
-              do $ .strokeText ctx (:text style)
+              do $ .!strokeText ctx (:text style)
                 or (:x style) 0
                 or (:y style) 0
                 or (:max-width style) 400
