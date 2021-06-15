@@ -1,8 +1,8 @@
 
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
-    :modules $ []
-    :version |0.0.2
+    :modules $ [] |pointed-prompt/
+    :version |0.0.3
   :files $ {}
     |quamolit.comp.fade-in-out $ {}
       :ns $ quote
@@ -137,16 +137,19 @@
           quamolit.app.comp.task-toggler :refer $ comp-toggler
           quamolit.comp.debug :refer $ comp-debug
           quamolit.math :refer $ bound-x bound-opacity
+          pointed-prompt.core :refer $ prompt-at!
       :defs $ {}
         |style-block $ quote
           def style-block $ {} (:w 300) (:h 40)
             :fill-style $ hsl 40 80 80
         |handle-input $ quote
           defn handle-input (task-id task-text)
-            fn (event dispatch)
-              let
-                  new-text $ js/prompt "|new content:" task-text
-                dispatch :update $ [] task-id new-text
+            fn (e dispatch)
+              prompt-at!
+                [] (.-pageX e) (.-pageY e)
+                {} $ :initial task-text
+                fn (new-text)
+                  dispatch :update $ [] task-id new-text
         |style-input $ quote
           defn style-input (text)
             {} (:w 400) (:h 40) (:x 40) (:y 0)
@@ -870,6 +873,7 @@
           quamolit.app.comp.debug :refer $ comp-debug
           quamolit.math :refer $ bound-x
           quamolit.comp.fade-in-out :refer $ comp-fade-fn
+          pointed-prompt.core :refer $ prompt-at!
       :defs $ {}
         |style-button $ quote
           def style-button $ {} (:w 80) (:h 40) (:text |add)
@@ -902,9 +906,11 @@
                       , :event
                         {} $ :click
                           fn (e d!)
-                            let
-                                user-text $ js/prompt "|input to canvas:" (:draft state)
-                              d! cursor $ assoc state :draft user-text
+                            prompt-at!
+                              [] (.-pageX e) (.-pageY e)
+                              {} $ :initial (:draft state)
+                              fn (user-text)
+                                d! cursor $ assoc state :draft user-text
                   translate
                     {,} :style $ {,} :x 240 :y 40
                     button $ {} (:style style-button)
