@@ -297,6 +297,7 @@
           quamolit.util.string :refer $ hsl
           quamolit.alias :refer $ defcomp rect group >> list->
           quamolit.app.comp.raindrop :refer $ comp-raindrop
+          quamolit.hud-logs :refer $ hud-log
       :defs $ {}
         |comp-raining $ quote
           defcomp comp-raining (states)

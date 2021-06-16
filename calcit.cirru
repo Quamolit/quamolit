@@ -1991,6 +1991,13 @@
                     |v $ {} (:type :expr) (:id |By7HdsRyVt_Z) (:time 1503375314228)
                       :data $ {}
                         |j $ {} (:type :leaf) (:id |rJBrdiRy4Kd-) (:author |root) (:time 1503375314228) (:text |comp-raindrop)
+                |x $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1623860480218)
+                  :data $ {}
+                    |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623860487133) (:text |quamolit.hud-logs)
+                    |j $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623860488528) (:text |:refer)
+                    |r $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1623860489071)
+                      :data $ {}
+                        |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623860524072) (:text |hud-log)
         :defs $ {}
           |comp-raining $ {} (:type :expr) (:id |SJBddo0JEYOb) (:time 1503375314228)
             :data $ {}
@@ -2066,13 +2073,13 @@
                           |r $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1623134770700)
                             :data $ {}
                               |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623134772693) (:text |if)
-                              |j $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1623134772971)
+                              |j $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1623869883738)
                                 :data $ {}
-                                  |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623134773703) (:text |nil?)
-                                  |j $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1623134774744)
+                                  |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623869883738) (:text |nil?)
+                                  |j $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1623869883738)
                                     :data $ {}
-                                      |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623134775594) (:text |:data)
-                                      |j $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623134776493) (:text |states)
+                                      |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623869883738) (:text |:data)
+                                      |j $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623869883738) (:text |states)
                               |r $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1623134777847)
                                 :data $ {}
                                   |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623134778549) (:text |d!)
@@ -2185,12 +2192,12 @@
                                                   |r $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623135963364) (:text |key)
                   |P $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1622788646245)
                     :data $ {}
-                      |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1622788646245) (:text |;)
                       |r $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1622788648397) (:text |js/console.log)
                       |v $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1622788646245)
                         :data $ {}
                           |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1622788646245) (:text |pr-str)
                           |j $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1622788650487) (:text |state)
+                      |P $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623861783102) (:text |;)
           |random-rains $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1623134293577)
             :data $ {}
               |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623134293577) (:text |defn)
@@ -5223,7 +5230,7 @@
                           |j $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1622883675982) (:text "|\"dispatch")
                           |r $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1622883675982) (:text |op)
                           |v $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1622883675982) (:text |op-data)
-                          |D $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623503143182) (:text |;)
+                          |D $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623862051741) (:text |;)
                       |P $ {} (:type :expr) (:by |_yzgLY-K2) (:at 1623503143610)
                         :data $ {}
                           |T $ {} (:type :leaf) (:by |_yzgLY-K2) (:at 1623503146085) (:text |js/console.log)
