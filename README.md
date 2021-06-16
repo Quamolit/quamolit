@@ -164,6 +164,15 @@ input $ {}
 comp-debug data $ {}
 ```
 
+### HUD logs
+
+```
+:require
+  quamolit.hud-logs :refer $ hud-log
+
+hug-log :data "|more data"
+```
+
 ### Develop
 
 To run this project, with [calcit_runner](https://github.com/calcit-lang/calcit_runner.rs) and [Vite](https://vitejs.dev/):
