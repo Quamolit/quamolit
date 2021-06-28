@@ -27,7 +27,7 @@ jobs:
     - name: "prepare modules"
       run: >
         mkdir -p ~/.config/calcit/modules/ && cd ~/.config/calcit/modules/
-        && git clone https://github.com/mvc-works/pointed-prompt.git --branch 0.0.2
+        && git clone https://github.com/mvc-works/pointed-prompt.git
 
     - name: "compiles to js"
       run: >
