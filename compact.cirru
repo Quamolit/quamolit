@@ -534,7 +534,11 @@
           defatom *paint-eff $ {}
             :alpha-stack $ [] 1
         |paint-logs! $ quote
-          defn paint-logs! (ctx logs) (aset ctx "\"fillStyle" "\"hsla(0,0%,0%,0.5)") (aset ctx "\"textAlign" |left) (aset ctx "\"textBaseline" |middle) (aset ctx "\"font" "|12px Monlo, monospace")
+          defn paint-logs! (ctx logs)
+            set! (.-fillStyle ctx) "\"hsla(0,0%,0%,0.5)"
+            set! (.-textAlign ctx) |left
+            set! (.-textBaseline ctx) |middle
+            set! (.-font ctx) "|12px Monlo, monospace"
             if
               > (count logs) 80
               .!fillText ctx
@@ -545,6 +549,9 @@
                 .!fillText ctx log 10
                   + 24 $ * 10 idx
                   , 1000
+        |base-paint-stack $ quote
+          def base-paint-stack $ {}
+            :alpha-stack $ [] 1
         |*clicked-focus $ quote
           defatom *clicked-focus $ []
         |configure-canvas $ quote
@@ -585,23 +592,22 @@
                 nil? $ aget ctx |addHitRegion
                 do (js/alert "|You need to enable experimental canvas features to interact with this demo") (js/window.open "\"https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/addHitRegion")
         |call-paint $ quote
-          defn call-paint (tree target dispatch! elapsed) (; .log js/console tree)
+          defn call-paint (tree target dispatch! elapsed) (; js/console.log tree)
             let
                 ctx $ .!getContext target |2d
                 w js/window.innerWidth
                 h js/window.innerHeight
-              reset! *paint-eff $ {}
-                :alpha-stack $ [] 1
+              reset! *paint-eff base-paint-stack
               .!clearRect ctx 0 0 w h
               ; .!save ctx
-              .!translate ctx (/ w 2) (/ h 2)
+              .!translate ctx (* 0.5 w) (* 0.5 h)
               paint ctx tree *paint-eff ([]) dispatch! elapsed
-              .!translate ctx
-                negate $ / w 2
-                negate $ / h 2
+              .!translate ctx (* -0.5 w) (* -0.5 h)
               ; .!restore ctx
-              paint-logs! ctx @*hud-logs
-              clear-hud-logs!
+              when
+                not $ empty? @*hud-logs
+                paint-logs! ctx @*hud-logs
+                clear-hud-logs!
         |*last-tick $ quote
           defatom *last-tick $ get-tick
       :proc $ quote ()
@@ -769,14 +775,11 @@
                     new-store $ updater-fn @*store op op-data new-tick
                   reset! *store new-store
         |render-loop! $ quote
-          defn render-loop! (? t)
-            let
-                target $ js/document.querySelector |#app
-              ; js/console.log "\"store" @*store
-              render-page (comp-container @*store) target dispatch!
-              reset! *render-loop $ js/setTimeout
-                fn () $ reset! *raq-loop (js/requestAnimationFrame render-loop!)
-                , 20
+          defn render-loop! (? t) (; js/console.log "\"store" @*store)
+            render-page (comp-container @*store) mount-target dispatch!
+            reset! *render-loop $ js/setTimeout
+              fn () $ reset! *raq-loop (js/requestAnimationFrame render-loop!)
+              , 9
         |reload! $ quote
           defn reload! () (js/clearTimeout @*render-loop) (js/cancelAnimationFrame @*raq-loop) (render-loop!) (js/console.log "|code updated...")
         |main! $ quote
@@ -792,6 +795,8 @@
           defatom *store $ {}
             :states $ {}
             :tasks $ []
+        |mount-target $ quote
+          def mount-target $ js/document.querySelector |#app
       :proc $ quote ()
     |quamolit.util.keyboard $ {}
       :ns $ quote (ns quamolit.util.keyboard)
@@ -2204,11 +2209,11 @@
             let
                 points $ :points style
                 first-point $ first points
-              .beginPath ctx
-              .moveTo ctx (first first-point) (last first-point)
+              .!beginPath ctx
+              .!moveTo ctx (first first-point) (last first-point)
               &doseq
                 coords $ rest points
-                case (count coords) (raise "|not supported coords")
+                case-default (count coords) (raise "|not supported coords")
                   2 $ .!lineTo ctx (nth coords 0) (nth coords 1)
                   4 $ .!quadraticCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3)
                   6 $ .!bezierCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3) (nth coords 4) (nth coords 5)
