@@ -2,7 +2,7 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ [] |pointed-prompt/
-    :version |0.0.4
+    :version |0.0.5
   :files $ {}
     |quamolit.app.comp.portal $ {}
       :ns $ quote
@@ -687,7 +687,7 @@
                           8 $ if
                             <= (count text) 1
                             , "\""
-                              .substr text 0 $ dec (.count text)
+                              .slice text 0 $ dec (.count text)
                       d! cursor $ assoc state :text next-text
         |init-textbox $ quote
           defn init-textbox (props)
@@ -768,6 +768,18 @@
               assoc-in store
                 concat ([] :states) cursor $ [] :data
                 , data
+    |quamolit.global $ {}
+      :ns $ quote (ns quamolit.global)
+      :defs $ {}
+        |*tracked-transform $ quote
+          defatom *tracked-transform $ {}
+            :offset $ [] 0 0
+            :transform $ [] 1 0
+            :alpha 1
+        |*transforms-memory $ quote
+          defatom *transforms-memory $ []
+        |*touch-event-areas $ quote
+          defatom *touch-event-areas $ []
     |quamolit.core $ {}
       :ns $ quote
         ns quamolit.core $ :require
@@ -777,18 +789,24 @@
           quamolit.controller.resolve :refer $ resolve-target locate-target
           quamolit.hud-logs :refer $ clear-hud-logs! *hud-logs
           pointed-prompt.core :refer $ clear-prompt!
+          quamolit.global :refer $ *touch-event-areas
+          quamolit.math :refer $ point-minus point-divide point-add point-times
       :defs $ {}
         |setup-events $ quote
           defn setup-events (root-element dispatch)
             let
                 ctx $ .getContext root-element |2d
               .!addEventListener root-element |click $ fn (event)
-                let
-                    hit-region $ aget event |region
-                  if (some? hit-region)
+                do $ let
+                    target $ find-hit-area
+                      []
+                        &- (.-offsetX event) (&* js/window.innerWidth 0.5)
+                        &- (.-offsetY event) (&* js/window.innerHeight 0.5)
+                      , @*touch-event-areas
+                  ; js/console.log "\"target" target
+                  if (some? target)
                     let
-                        coord $ parse-cirru-edn hit-region
-                      ; js/console.log |hit: event coord
+                        coord $ :coord target
                       reset! *clicked-focus coord
                       handle-event coord :click event dispatch
                     reset! *clicked-focus $ []
@@ -802,9 +820,6 @@
                   handle-event coord :keydown event dispatch
               .!addEventListener js/window |click $ fn (event) (clear-prompt!)
               .!addEventListener js/window |resize $ fn (event) (configure-canvas root-element)
-              if
-                nil? $ aget ctx |addHitRegion
-                do (js/alert "|You need to enable experimental canvas features to interact with this demo") (js/window.open "\"https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/addHitRegion")
         |render-page $ quote
           defn render-page (tree target dispatch!)
             let
@@ -822,6 +837,7 @@
                 w js/window.innerWidth
                 h js/window.innerHeight
               reset! *paint-eff base-paint-stack
+              reset! *touch-event-areas $ []
               .!clearRect ctx 0 0 w h
               ; .!save ctx
               .!translate ctx (* 0.5 w) (* 0.5 h)
@@ -869,16 +885,81 @@
         |base-paint-stack $ quote
           def base-paint-stack $ {}
             :alpha-stack $ [] 1
+        |find-hit-area $ quote
+          defn find-hit-area (point areas)
+            if (empty? areas) nil $ let
+                x $ last areas
+                transform $ :transform x
+                p $ point-minus point
+                  point-add (:offset x)
+                    point-times (:position x) transform
+                delta $ point-divide p transform
+              ; println "\"looking" (:offset x) delta
+              if
+                case-default (:kind x)
+                  do (js/console "\"invalid area data" x)
+                    recur point $ butlast areas
+                  :rect $ and
+                    &<=
+                      js/Math.abs $ nth delta 0
+                      :half-w x
+                    &<=
+                      js/Math.abs $ nth delta 1
+                      :half-h x
+                  :arc $ &<=
+                    &+
+                      js/Math.pow (nth delta 0) 2
+                      js/Math.pow (nth delta 1) 2
+                    js/Math.pow (:r x) 2
+                , x $ recur point (butlast areas)
     |quamolit.math $ {}
       :ns $ quote (ns quamolit.math)
       :defs $ {}
         |bound-opacity $ quote
           defn bound-opacity (x) (bound-01 x)
+        |point-minus $ quote
+          defn point-minus (a b)
+            []
+              &- (nth a 0) (nth b 0)
+              &- (nth a 1) (nth b 1)
+        |point-times $ quote
+          defn point-times (a b)
+            []
+              &-
+                &* (nth a 0) (nth b 0)
+                &* (nth a 1) (nth b 1)
+              &+
+                &* (nth a 0) (nth b 1)
+                &* (nth a 1) (nth b 0)
         |bound-x $ quote
           defn bound-x (left right x)
             if (> left right)
               js/Math.min (js/Math.max right x) x
               js/Math.min (js/Math.max left x) right
+        |point-divide $ quote
+          defn point-divide (x y)
+            let-sugar
+                  [] a b
+                  , x
+                ([] c d) y
+                length2 $ &+ (js/Math.pow c 2) (js/Math.pow d 2)
+              []
+                &/
+                  &+ (&* a c) (&* b d)
+                  , length2
+                &/
+                  &- (&* b c) (&* a d)
+                  , length2
+        |point-add $ quote
+          defn point-add (a b)
+            []
+              &+ (nth a 0) (nth b 0)
+              &+ (nth a 1) (nth b 1)
+        |point-negate $ quote
+          defn point-negate (a)
+            []
+              netate $ nth a 0
+              negate $ nth a 1
         |pi-ratio $ quote
           def pi-ratio $ / js/Math.PI 180
         |bound-01 $ quote
@@ -898,6 +979,8 @@
           quamolit.core :refer $ render-page configure-canvas setup-events
           quamolit.util.time :refer $ get-tick
           quamolit.app.updater :refer $ updater-fn
+          "\"./calcit.build-errors" :default build-errors
+          "\"bottom-tip" :default hud!
       :defs $ {}
         |mount-target $ quote
           def mount-target $ js/document.querySelector |#app
@@ -930,7 +1013,9 @@
               , 9
         |*raq-loop $ quote (defatom *raq-loop nil)
         |reload! $ quote
-          defn reload! () (js/clearTimeout @*render-loop) (js/cancelAnimationFrame @*raq-loop) (render-loop!) (js/console.log "|code updated...")
+          defn reload! () $ if (nil? build-errors)
+            do (js/clearTimeout @*render-loop) (js/cancelAnimationFrame @*raq-loop) (render-loop!) (js/console.log "|code updated...") (hud! "\"ok~" "\"Ok")
+            hud! "\"error" build-errors
     |quamolit.app.comp.ring $ {}
       :ns $ quote
         ns quamolit.app.comp.ring $ :require
@@ -1072,7 +1157,8 @@
           quamolit.util.string :refer $ hsl
           quamolit.types :refer $ Component
           quamolit.util.string :refer $ gen-id!
-          quamolit.math :refer $ bound-opacity
+          quamolit.math :refer $ bound-opacity point-times point-add
+          quamolit.global :refer $ *transforms-memory *tracked-transform *touch-event-areas
       :defs $ {}
         |paint-line $ quote
           defn paint-line (ctx style)
@@ -1138,11 +1224,16 @@
                 line-width $ or (&map:get style :line-width) 2
               .!beginPath ctx
               .!rect ctx x y w h
-              if (some? event)
-                if
-                  some? $ .-addHitRegion ctx
-                  .!addHitRegion ctx $ js-object
-                    :id $ format-cirru-edn coord
+              when (some? event)
+                swap! *touch-event-areas conj $ {} (:kind :rect)
+                  :half-w $ &* 0.5 w
+                  :half-h $ &* 0.5 h
+                  :transform $ :transform @*tracked-transform
+                  :offset $ :offset @*tracked-transform
+                  :coord coord
+                  :position $ []
+                    &+ x $ &* 0.5 w
+                    &+ y $ &* 0.5 h
               if (contains? style :fill-style)
                 do
                   set! (.-fillStyle ctx) (&map:get style :fill-style)
@@ -1156,6 +1247,7 @@
           defn paint-save (ctx style eff-ref) (.save ctx)
             swap! eff-ref update :alpha-stack $ fn (alpha-stack)
               prepend alpha-stack $ .-globalAlpha ctx
+            swap! *transforms-memory conj @*tracked-transform
         |paint-text $ quote
           defn paint-text (ctx style)
             aset ctx "\"fillStyle" $ or (:fill-style style) (hsl 0 0 0)
@@ -1192,11 +1284,12 @@
                 miter-limit $ or (:miter-limit style) 8
               .beginPath ctx
               .arc ctx x y r s-angle e-angle counterclockwise
-              if (some? event)
-                if
-                  some? $ .-addHitRegion ctx
-                  .!addHitRegion ctx $ js-object
-                    :id $ format-cirru-edn coord
+              when (some? event)
+                swap! *touch-event-areas conj $ {} (:kind :circle) (:r r)
+                  :transform $ :transform @*tracked-transform
+                  :offset $ :offset @*tracked-transform
+                  :coord coord
+                  :position $ [] x y
               if
                 some? $ :fill-style style
                 do
@@ -1260,19 +1353,30 @@
           defatom *image-pool $ {}
         |paint-restore $ quote
           defn paint-restore (ctx style eff-ref) (.!restore ctx) (swap! eff-ref update :alpha-stack rest)
+            if (empty? @*transforms-memory) (js/console.warn "\"no thing to restore")
+              do
+                reset! *tracked-transform $ last @*transforms-memory
+                swap! *transforms-memory butlast
         |paint-group! $ quote
           defn paint-group! $
         |paint-rotate $ quote
           defn paint-rotate (ctx style)
             let
                 angle $ or (:angle style) 30
+                radius $ / (* angle js/Math 2) 180
               .!rotate ctx angle
+              swap! *tracked-transform update :transform $ fn (point)
+                point-times point $ [] (js/Math.cos radius)
+                  negate $ js/Math.cos radius
         |paint-translate $ quote
           defn paint-translate (ctx style)
             let
                 x $ or (:x style) 0
                 y $ or (:y style) 0
+                transform $ :transform @*tracked-transform
+                delta $ point-times transform ([] x y)
               .!translate ctx x y
+              swap! *tracked-transform update :offset $ fn (point) (point-add point delta)
         |paint-alpha $ quote
           defn paint-alpha (ctx style eff-ref)
             let
@@ -1300,6 +1404,8 @@
             let
                 ratio $ or (:ratio style) 1.2
               .!scale ctx ratio ratio
+              swap! *tracked-transform update :transform $ fn (point)
+                point-times point $ [] ratio 0
         |pi-ratio $ quote
           def pi-ratio $ / js/Math.PI 180
     |quamolit.app.comp.folding-fan $ {}
