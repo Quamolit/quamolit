@@ -4,9 +4,9 @@
 
 > what if we make animations in React's way?
 
-Demo(check [browser compatibility](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/addHitRegion#Browser_compatibility) first) http://r.Quamolit.org/quamolit.calcit/
+Demo http://r.Quamolit.org/quamolit.calcit/
 
-> Still prototype... Quamolit requires `ctx.addHitRegion(opts)`, which is an experimental technology.
+> Still prototype...
 
 Features:
 
