@@ -2,7 +2,7 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ [] |pointed-prompt/
-    :version |0.0.5
+    :version |0.0.6
   :files $ {}
     |quamolit.app.comp.portal $ {}
       :ns $ quote
@@ -352,7 +352,7 @@
       :defs $ {}
         |get-tick $ quote
           defn get-tick () (; "\"return value in seconds")
-            * 0.001 $ js/performance.now
+            &* 0.001 $ js/performance.now
     |quamolit.app.comp.icons-table $ {}
       :ns $ quote
         ns quamolit.app.comp.icons-table $ :require
@@ -666,8 +666,7 @@
               group ({})
                 native-save $ {}
                 native-scale $ assoc props :style style
-                group ({}) & children
-                native-restore $ {}
+                , & children $ native-restore ({})
         |textbox $ quote
           defcomp textbox (states props)
             let
@@ -699,8 +698,7 @@
               group ({})
                 native-save $ {}
                 native-translate $ assoc props :style style
-                group ({}) & children
-                native-restore $ {}
+                , & children $ native-restore ({})
         |button $ quote
           defcomp button (props) (; js/console.log "\"button" props)
             let
@@ -824,7 +822,7 @@
           defn render-page (tree target dispatch!)
             let
                 new-tick $ get-tick
-                elapsed $ - new-tick @*last-tick
+                elapsed $ &- new-tick @*last-tick
               ; js/console.info "|render page:" tree
               reset! *element-tree tree
               reset! *last-tick new-tick
@@ -880,18 +878,16 @@
                   , 1000
         |find-hit-area $ quote
           defn find-hit-area (point areas)
-            if (empty? areas) nil $ let
-                x $ last areas
-                transform $ :transform x
-                p $ point-minus point
-                  point-add (:offset x)
-                    point-times (:position x) transform
-                delta $ point-divide p transform
-              ; println "\"looking" (:offset x) delta
-              if
+            &list:find-last areas $ fn (x)
+              let
+                  transform $ :transform x
+                  p $ point-minus point
+                    point-add (:offset x)
+                      point-times (:position x) transform
+                  delta $ point-divide p transform
+                ; println "\"looking" (:offset x) delta
                 case-default (:kind x)
-                  do (js/console "\"invalid area data" x)
-                    recur point $ butlast areas
+                  do (js/console "\"invalid area data" x) false
                   :rect $ and
                     &<=
                       js/Math.abs $ nth delta 0
@@ -904,7 +900,6 @@
                       js/Math.pow (nth delta 0) 2
                       js/Math.pow (nth delta 1) 2
                     js/Math.pow (:r x) 2
-                , x $ recur point (butlast areas)
     |quamolit.math $ {}
       :ns $ quote (ns quamolit.math)
       :defs $ {}
@@ -1186,7 +1181,7 @@
                   2 $ .!lineTo ctx (nth coords 0) (nth coords 1)
                   4 $ .!quadraticCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3)
                   6 $ .!bezierCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3) (nth coords 4) (nth coords 5)
-              if (contains? style :stroke-style)
+              if (&map:contains? style :stroke-style)
                 do
                   set! (.-lineWidth ctx)
                     or (:line-width style) 4
@@ -1198,7 +1193,7 @@
                   set! (.-milterLimit ctx)
                     or (:milter-limit style) 8
                   .!stroke ctx
-              if (contains? style :fill-style)
+              if (&map:contains? style :fill-style)
                 do
                   set! (.-fillStyle ctx) (:fill-style style)
                   .!closePath ctx
@@ -1227,17 +1222,17 @@
                   :position $ []
                     &+ x $ &* 0.5 w
                     &+ y $ &* 0.5 h
-              if (contains? style :fill-style)
+              if (&map:contains? style :fill-style)
                 do
                   set! (.-fillStyle ctx) (&map:get style :fill-style)
                   .!fill ctx
-              if (contains? style :stroke-style)
+              if (&map:contains? style :stroke-style)
                 do
                   set! (.-strokeStyle ctx) (&map:get style :stroke-style)
                   set! (.-lineWidth ctx) line-width
                   .!stroke ctx
         |paint-save $ quote
-          defn paint-save (ctx style) (.save ctx) (swap! *transforms-memory conj @*tracked-transform)
+          defn paint-save (ctx style) (.!save ctx) (swap! *transforms-memory conj @*tracked-transform)
         |paint-text $ quote
           defn paint-text (ctx style)
             aset ctx "\"fillStyle" $ or (:fill-style style) (hsl 0 0 0)
@@ -1272,8 +1267,8 @@
                 line-cap $ or (:line-cap style) |round
                 line-join $ or (:line-join style) |round
                 miter-limit $ or (:miter-limit style) 8
-              .beginPath ctx
-              .arc ctx x y r s-angle e-angle counterclockwise
+              .!beginPath ctx
+              .!arc ctx x y r s-angle e-angle counterclockwise
               when (some? event)
                 swap! *touch-event-areas conj $ {} (:kind :circle) (:r r)
                   :transform $ :transform @*tracked-transform
@@ -1303,7 +1298,6 @@
               cond
                   identical? op :line
                   paint-line ctx style
-                (identical? op :path) (paint-path ctx style)
                 (identical? op :text) (paint-text ctx style)
                 (identical? op :rect) (paint-rect ctx style coord event)
                 (identical? op :native-save) (paint-save ctx style)
@@ -1312,14 +1306,15 @@
                 (identical? op :native-alpha) (paint-alpha ctx style)
                 (identical? op :native-rotate) (paint-rotate ctx style)
                 (identical? op :native-scale) (paint-scale ctx style)
+                (identical? op :path) (paint-path ctx style)
                 (identical? op :arc) (paint-arc ctx style coord event)
                 (identical? op :image) (paint-image ctx style coord)
-                (identical? op :group) (paint-group!)
+                (identical? op :group) nil
                 true $ do (js/console.log "|painting not implemented" directive)
         |paint $ quote
           defn paint (ctx tree coord dispatch! elapsed) (; js/console.log "\"paint" tree)
             if (nil? tree) nil $ if
-              and (record? tree) (.matches? Component tree)
+              and (record? tree) (&record:matches? Component tree)
               let
                   on-tick $ &record:get tree :on-tick
                 if (fn? on-tick) (on-tick elapsed dispatch!)
@@ -1330,7 +1325,7 @@
                 &doseq
                   cursor $ &record:get tree :children
                   paint ctx (last cursor)
-                    conj coord $ first cursor
+                    append coord $ first cursor
                     , dispatch! elapsed
         |get-image $ quote
           defn get-image (src)
@@ -1347,8 +1342,6 @@
               do
                 reset! *tracked-transform $ last @*transforms-memory
                 swap! *transforms-memory butlast
-        |paint-group! $ quote
-          defn paint-group! $
         |paint-rotate $ quote
           defn paint-rotate (ctx style)
             let
@@ -1370,7 +1363,7 @@
         |paint-alpha $ quote
           defn paint-alpha (ctx style)
             let
-                base-alpha $ :alpha @*tracked-transform
+                base-alpha $ &map:get @*tracked-transform :alpha
                 opacity $ * base-alpha
                   bound-opacity $ :opacity style
               set! (.-globalAlpha ctx) opacity
@@ -1478,8 +1471,8 @@
               not $ map? props
               raise $ new js/Error "|Props expeced to be a map!"
             %{} Shape (:name shape-name)
-              :style $ :style props
-              :event $ :event props
+              :style $ &map:get props :style
+              :event $ &map:get props :event
               :children $ arrange-children children
         |defcomp $ quote
           defmacro defcomp (comp-name args & body)
@@ -1528,17 +1521,20 @@
         |>> $ quote
           defn >> (states k)
             let
-                parent-cursor $ either (:cursor states) ([])
-                branch $ get states k
-              assoc
+                parent-cursor $ either (&map:get states :cursor) ([])
+                branch $ &map:get states k
+              &map:assoc
                 either branch $ {}
                 , :cursor $ append parent-cursor k
         |arrange-children $ quote
           defn arrange-children (children)
-            -> children
-              map-indexed $ fn (idx x) ([] idx x)
-              filter $ fn (entry)
-                some? $ last entry
+            if (every? children some?)
+              -> children $ map-indexed
+                fn (idx x) ([] idx x)
+              -> children
+                map-indexed $ fn (idx x) ([] idx x)
+                filter $ fn (entry)
+                  some? $ last entry
         |native-restore $ quote
           defn native-restore (props & children) (create-shape :native-restore props children)
         |native-transform $ quote
