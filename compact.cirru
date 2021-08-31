@@ -836,12 +836,11 @@
                 ctx $ .!getContext target |2d
                 w js/window.innerWidth
                 h js/window.innerHeight
-              reset! *paint-eff base-paint-stack
               reset! *touch-event-areas $ []
               .!clearRect ctx 0 0 w h
               ; .!save ctx
               .!translate ctx (* 0.5 w) (* 0.5 h)
-              paint ctx tree *paint-eff ([]) dispatch! elapsed
+              paint ctx tree ([]) dispatch! elapsed
               .!translate ctx (* -0.5 w) (* -0.5 h)
               ; .!restore ctx
               when
@@ -863,9 +862,6 @@
         |*last-tick $ quote
           defatom *last-tick $ get-tick
         |*element-tree $ quote (defatom *element-tree nil)
-        |*paint-eff $ quote
-          defatom *paint-eff $ {}
-            :alpha-stack $ [] 1
         |paint-logs! $ quote
           defn paint-logs! (ctx logs)
             set! (.-fillStyle ctx) "\"hsla(0,0%,0%,0.5)"
@@ -882,9 +878,6 @@
                 .!fillText ctx log 10
                   + 24 $ * 10 idx
                   , 1000
-        |base-paint-stack $ quote
-          def base-paint-stack $ {}
-            :alpha-stack $ [] 1
         |find-hit-area $ quote
           defn find-hit-area (point areas)
             if (empty? areas) nil $ let
@@ -1244,10 +1237,7 @@
                   set! (.-lineWidth ctx) line-width
                   .!stroke ctx
         |paint-save $ quote
-          defn paint-save (ctx style eff-ref) (.save ctx)
-            swap! eff-ref update :alpha-stack $ fn (alpha-stack)
-              prepend alpha-stack $ .-globalAlpha ctx
-            swap! *transforms-memory conj @*tracked-transform
+          defn paint-save (ctx style) (.save ctx) (swap! *transforms-memory conj @*tracked-transform)
         |paint-text $ quote
           defn paint-text (ctx style)
             aset ctx "\"fillStyle" $ or (:fill-style style) (hsl 0 0 0)
@@ -1304,7 +1294,7 @@
                   set! (.-miterLimit ctx) miter-limit
                   .!stroke ctx
         |paint-one $ quote
-          defn paint-one (ctx directive eff-ref coord)
+          defn paint-one (ctx directive coord)
             let
                 op $ &record:get directive :name
                 style $ &record:get directive :style
@@ -1316,30 +1306,30 @@
                 (identical? op :path) (paint-path ctx style)
                 (identical? op :text) (paint-text ctx style)
                 (identical? op :rect) (paint-rect ctx style coord event)
-                (identical? op :native-save) (paint-save ctx style eff-ref)
-                (identical? op :native-restore) (paint-restore ctx style eff-ref)
+                (identical? op :native-save) (paint-save ctx style)
+                (identical? op :native-restore) (paint-restore ctx style)
                 (identical? op :native-translate) (paint-translate ctx style)
-                (identical? op :native-alpha) (paint-alpha ctx style eff-ref)
+                (identical? op :native-alpha) (paint-alpha ctx style)
                 (identical? op :native-rotate) (paint-rotate ctx style)
                 (identical? op :native-scale) (paint-scale ctx style)
                 (identical? op :arc) (paint-arc ctx style coord event)
                 (identical? op :image) (paint-image ctx style coord)
                 (identical? op :group) (paint-group!)
-                true $ do (js/console.log "|painting not implemented" directive @eff-ref)
+                true $ do (js/console.log "|painting not implemented" directive)
         |paint $ quote
-          defn paint (ctx tree eff-ref coord dispatch! elapsed) (; js/console.log "\"paint" tree)
+          defn paint (ctx tree coord dispatch! elapsed) (; js/console.log "\"paint" tree)
             if (nil? tree) nil $ if
               and (record? tree) (.matches? Component tree)
               let
                   on-tick $ &record:get tree :on-tick
                 if (fn? on-tick) (on-tick elapsed dispatch!)
-                recur ctx (&record:get tree :tree) eff-ref
+                recur ctx (&record:get tree :tree)
                   conj coord $ &record:get tree :name
                   , dispatch! elapsed
-              do (paint-one ctx tree eff-ref coord)
+              do (paint-one ctx tree coord)
                 &doseq
                   cursor $ &record:get tree :children
-                  paint ctx (last cursor) eff-ref
+                  paint ctx (last cursor)
                     conj coord $ first cursor
                     , dispatch! elapsed
         |get-image $ quote
@@ -1352,7 +1342,7 @@
         |*image-pool $ quote
           defatom *image-pool $ {}
         |paint-restore $ quote
-          defn paint-restore (ctx style eff-ref) (.!restore ctx) (swap! eff-ref update :alpha-stack rest)
+          defn paint-restore (ctx style) (.!restore ctx)
             if (empty? @*transforms-memory) (js/console.warn "\"no thing to restore")
               do
                 reset! *tracked-transform $ last @*transforms-memory
@@ -1378,14 +1368,13 @@
               .!translate ctx x y
               swap! *tracked-transform update :offset $ fn (point) (point-add point delta)
         |paint-alpha $ quote
-          defn paint-alpha (ctx style eff-ref)
+          defn paint-alpha (ctx style)
             let
-                inherent-opacity $ first (:alpha-stack @eff-ref)
-                opacity $ * inherent-opacity
+                base-alpha $ :alpha @*tracked-transform
+                opacity $ * base-alpha
                   bound-opacity $ :opacity style
               set! (.-globalAlpha ctx) opacity
-              swap! eff-ref update :alpha-stack $ fn (alpha-stack)
-                prepend (rest alpha-stack) opacity
+              swap! *tracked-transform assoc :alpha opacity
         |paint-image $ quote
           defn paint-image (ctx style coord)
             let
@@ -1747,7 +1736,7 @@
                       -> xs $ filter
                         fn (x) (not= x task-id)
               [] nil $ alpha
-                {,} :style $ {,} :opacity 0.5
+                {,} :style $ {,} :opacity 0.8
                 translate ({,} :style position-header)
                   translate
                     {,} :style $ {,} :x -20 :y 40
