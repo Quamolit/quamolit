@@ -18,46 +18,46 @@
         |comp-portal $ quote
           defcomp comp-portal (cursor)
             group ({})
-              button $ {,} :style
+              button $ &{} :style
                 style-button 0 0 |Todolist $ hsl 0 120 60
                 , :event
-                  {,} :click $ handle-navigate cursor :todolist
-              button $ {,} :style
+                  &{} :click $ handle-navigate cursor :todolist
+              button $ &{} :style
                 style-button 1 0 |Clock $ hsl 300 80 80
                 , :event
-                  {,} :click $ handle-navigate cursor :clock
-              button $ {,} :style
+                  &{} :click $ handle-navigate cursor :clock
+              button $ &{} :style
                 style-button 2 0 |Solar $ hsl 140 80 80
                 , :event
-                  {,} :click $ handle-navigate cursor :solar
-              button $ {,} :style
+                  &{} :click $ handle-navigate cursor :solar
+              button $ &{} :style
                 style-button 3 0 "|Binary Tree" $ hsl 140 20 30
                 , :event
-                  {,} :click $ handle-navigate cursor :binary-tree
-              button $ {,} :style
+                  &{} :click $ handle-navigate cursor :binary-tree
+              button $ &{} :style
                 style-button 0 1 |Table $ hsl 340 80 80
                 , :event
-                  {,} :click $ handle-navigate cursor :code-table
-              button $ {,} :style
+                  &{} :click $ handle-navigate cursor :code-table
+              button $ &{} :style
                 style-button 1 1 |Finder $ hsl 60 80 45
                 , :event
-                  {,} :click $ handle-navigate cursor :finder
-              button $ {,} :style
+                  &{} :click $ handle-navigate cursor :finder
+              button $ &{} :style
                 style-button 2 1 |Raining $ hsl 260 80 80
                 , :event
-                  {,} :click $ handle-navigate cursor :raining
-              button $ {,} :style
+                  &{} :click $ handle-navigate cursor :raining
+              button $ &{} :style
                 style-button 3 1 |Icons $ hsl 30 80 80
                 , :event
-                  {,} :click $ handle-navigate cursor :icons
-              button $ {,} :style
+                  &{} :click $ handle-navigate cursor :icons
+              button $ &{} :style
                 style-button 0 2 |Curve $ hsl 100 80 80
                 , :event
-                  {,} :click $ handle-navigate cursor :curve
-              button $ {,} :style
+                  &{} :click $ handle-navigate cursor :curve
+              button $ &{} :style
                 style-button 1 2 "|Folding fan" $ hsl 200 80 80
                 , :event
-                  {,} :click $ handle-navigate cursor :folding-fan
+                  &{} :click $ handle-navigate cursor :folding-fan
         |style-button $ quote
           defn style-button (x y page-name bg-color)
             {} (:w 180) (:h 60)
@@ -89,20 +89,20 @@
               ; hud-log hrs mins secs
               []
                 fn $ elapsed d!
-                group ({,})
+                group (&{})
                   comp-digit (>> states :h1) (get-ten hrs)
-                    {,} :style $ {,} :x -280
+                    &{} :style $ &{} :x -280
                   comp-digit (>> states :h) (get-one hrs)
-                    {,} :style $ {,} :x -200
+                    &{} :style $ &{} :x -200
                   comp-digit (>> states :m1) (get-ten mins)
-                    {,} :style $ {,} :x -80
+                    &{} :style $ &{} :x -80
                   comp-digit (>> states :m) (get-one mins)
-                    {,} :style $ {,} :x 0
+                    &{} :style $ &{} :x 0
                   comp-digit (>> states :s1) (get-ten secs)
-                    {,} :style $ {,} :x 120
+                    &{} :style $ &{} :x 120
                   comp-digit (>> states :s) (get-one secs)
-                    {,} :style $ {,} :x 200
-                  ; comp-debug now $ {,} :y -60
+                    &{} :style $ &{} :x 200
+                  ; comp-debug now $ &{} :y -60
     |quamolit.app.comp.solar $ {}
       :ns $ quote
         ns quamolit.app.comp.solar $ :require
@@ -130,16 +130,16 @@
                 fn (elapsed d!)
                   d! cursor $ + state (* elapsed 100)
                 rotate
-                  {,} :style $ {,} :angle (.rem state 360)
+                  &{} :style $ &{} :angle (.rem state 360)
                   arc $ {} (:style style-large)
                   translate
-                    {,} :style $ {,} :x 100 :y -40
+                    &{} :style $ &{} :x 100 :y -40
                     arc $ {} (:style style-small)
                   if (> level 0)
                     scale
-                      {,} :style $ {,} :ratio 0.6
+                      &{} :style $ &{} :ratio 0.6
                       translate
-                        {,} :style $ {,} :x 260 :y 40
+                        &{} :style $ &{} :x 260 :y 40
                         comp-solar (>> states :next) (- level 1)
     |quamolit.app.comp.icon-increase $ {}
       :ns $ quote
@@ -196,7 +196,7 @@
                           :y1 7
                           :line-width 2
                   translate
-                    {,} :style $ {} (:x 10)
+                    &{} :style $ {} (:x 10)
                     translate
                       {} $ :style
                         {} $ :y
@@ -266,7 +266,7 @@
                             / (- earth y) 80
                           (< dy 100) (/ dy 100)
                           true 1
-                    rect $ {,} :style
+                    rect $ &{} :style
                       {}
                         :fill-style $ hsl 200 80 80
                         :w $ if dropped? (rand 200) 3
@@ -287,7 +287,7 @@
                 cursor $ :cursor states
                 state $ either (:data states) ([])
               translate
-                {,} :style $ {,} :x -160 :y -160
+                &{} :style $ &{} :x -160 :y -160
                 , & $ ->
                   repeat (repeat "\"edit" 3) 3
                   map-indexed $ fn (i row)
@@ -297,10 +297,10 @@
                             move-x $ * i 100
                             move-y $ * j 60
                           translate
-                            {,} :style $ {,} :x move-x :y move-y
+                            &{} :style $ &{} :x move-x :y move-y
                             textbox
                               >> states $ str i "\":" j
-                              {,} :style $ {,} :w 80 :h 40 :text content
+                              &{} :style $ &{} :w 80 :h 40 :text content
         |init-state $ quote
           defn init-state () $ repeat (repeat |edit 3) 3
     |quamolit.app.comp.raining $ {}
@@ -365,10 +365,10 @@
           defcomp comp-icons-table (states)
             group ({})
               translate
-                {,} :style $ {,} :x -200
+                &{} :style $ &{} :x -200
                 comp-icon-increase $ >> states :increase
               translate
-                {,} :style $ {,} :x 0
+                &{} :style $ &{} :x 0
                 comp-icon-play $ >> states :play
     |quamolit.controller.resolve $ {}
       :ns $ quote
@@ -419,7 +419,7 @@
             let
                 style $ -> default-style (merge more-style)
                   assoc :text $ if (instance? js/Date data) (js/JSON.stringify data) (pr-str data)
-              text $ {,} :style style
+              text $ &{} :style style
         |default-style $ quote
           def default-style $ {} (:x 0) (:y 0)
             :fill-style $ hsl 0 0 0 0.5
@@ -582,28 +582,28 @@
                     + 13 $ * 6 r4
               ; hud-log timestamp level
               group ({})
-                path $ {,} :style
+                path $ &{} :style
                   {}
                     :points $ [] ([] x1 y1) ([] 0 0) ([] x2 y2)
                     :stroke-style $ hsl 200 80 50
                 if (> level 0)
                   translate
-                    {,} :style $ {,} :x x1 :y y1
+                    &{} :style $ &{} :x x1 :y y1
                     scale
-                      {,} :style $ {,} :ratio
+                      &{} :style $ &{} :ratio
                         + 0.6 $ * 1.3 shift-a
                       rotate
-                        {,} :style $ {,} :angle
+                        &{} :style $ &{} :angle
                           + (* 30 shift-a) 10
                         comp-binary-tree timestamp $ dec level
                 if (> level 0)
                   translate
-                    {,} :style $ {,} :x x2 :y y2
+                    &{} :style $ &{} :x x2 :y y2
                     scale
-                      {,} :style $ {,} :ratio
+                      &{} :style $ &{} :ratio
                         + 0.73 $ * 2 shift-b
                       rotate
-                        {,} :style $ {,} :angle
+                        &{} :style $ &{} :angle
                           + (* 20 shift-b) 10
                         comp-binary-tree timestamp $ dec level
     |quamolit.render.element $ {}
@@ -626,7 +626,7 @@
           defcomp alpha (props & children)
             {} $ :tree
               let
-                  style $ merge ({,} :opacity 0.01) (:style props)
+                  style $ merge (&{} :opacity 0.01) (:style props)
                 group ({})
                   native-save $ {}
                   native-alpha $ assoc props :style style
@@ -656,13 +656,13 @@
                   :y 0
                   :max-width w
               group ({})
-                rect $ {,} :style style-bg :event event-collection
-                translate ({,} :style style-place-text)
-                  text $ {,} :style style-text
+                rect $ &{} :style style-bg :event event-collection
+                translate (&{} :style style-place-text)
+                  text $ &{} :style style-text
         |scale $ quote
           defcomp scale (props & children)
             let
-                style $ merge ({,} :x 0 :y 0) (:style props)
+                style $ merge (&{} :x 0 :y 0) (:style props)
               group ({})
                 native-save $ {}
                 native-scale $ assoc props :style style
@@ -678,8 +678,8 @@
                 text $ :text state
               [] nil $ let
                   style $ assoc (:style props) :text text
-                input $ {,} :style style :event
-                  {,} :keydown $ fn (event d!)
+                input $ &{} :style style :event
+                  &{} :keydown $ fn (event d!)
                     let
                         next-text $ case-default (.-keyCode event)
                           str text $ keycode->key (.-keyCode event) (.-shiftKey event)
@@ -695,7 +695,7 @@
         |translate $ quote
           defcomp translate (props & children)
             let
-                style $ merge ({,} :x 0 :y 0) (:style props)
+                style $ merge (&{} :x 0 :y 0) (:style props)
               group ({})
                 native-save $ {}
                 native-translate $ assoc props :style style
@@ -724,8 +724,8 @@
                   :x x
                   :y y
               group ({})
-                rect $ {,} :style style-bg :event event-button
-                text $ {,} :style style-text
+                rect $ &{} :style style-bg :event event-button
+                text $ &{} :style style-text
         |rotate $ quote
           defcomp rotate (props & children)
             let
@@ -735,7 +735,7 @@
               ; .log js/console "|actual degree:" angle
               group ({})
                 native-save $ {}
-                native-rotate $ {,} :style ({,} :angle angle)
+                native-rotate $ &{} :style (&{} :angle angle)
                 , & children $ native-restore ({})
     |quamolit.util.keyboard $ {}
       :ns $ quote (ns quamolit.util.keyboard)
@@ -1052,7 +1052,7 @@
                 fn (elapsed d!)
                   d! cursor $ + state (* elapsed 0.3)
                 group ({})
-                  path $ {,} :style
+                  path $ &{} :style
                     {}
                       :points $ concat
                         [] $ [] 0 (- 0 r)
@@ -1110,24 +1110,24 @@
                       do (; println "\"removed")
                         rm-orphin (:id task) d!
                 translate
-                  {,} :style $ {,} :x
+                  &{} :style $ &{} :x
                     + shift-x $ :left state
                     , :y
                       -
                         * 60 $ :idx state
                         , 140
                   alpha
-                    {,} :style $ {,} :opacity 1
+                    &{} :style $ &{} :opacity 1
                     translate
-                      {,} :style $ {,} :x -200
+                      &{} :style $ &{} :x -200
                       comp-toggler (>> states :toggler) (:done? task) (:id task)
-                    input $ {,} :style
+                    input $ &{} :style
                       style-input $ :text task
                       , :event
-                        {,} :click $ handle-input (:id task) (:text task)
+                        &{} :click $ handle-input (:id task) (:text task)
                     translate
-                      {,} :style $ {,} :x 280
-                      rect $ {,} :style style-remove :event
+                      &{} :style $ &{} :x 280
+                      rect $ &{} :style style-remove :event
                         {} $ :click
                           fn (e d!)
                             add-orphin (:id task) d!
@@ -1434,12 +1434,12 @@
                             bound-opacity $ - x (* v elapsed)
                   group ({})
                     translate
-                      {} $ :style ({,} :x 0 :y 160)
+                      {} $ :style (&{} :x 0 :y 160)
                       , & $ -> (range n)
                         map $ fn (i)
                           rotate
                             {} $ :style
-                              {,} :angle $ * 6 (:folding-value state)
+                              &{} :angle $ * 6 (:folding-value state)
                                 + 0.5 $ - i (/ n 2)
                             image $ {}
                               :style $ {} (:src |assets/lotus.jpg)
@@ -1590,19 +1590,19 @@
                           fn (pv)
                             bound-opacity $ - pv (* elapsed v)
                   rect
-                    {,} :style
+                    &{} :style
                       {} (:w 60) (:h 60)
                         :fill-style $ hsl 40 80 90
-                      , :event $ {,} :click
+                      , :event $ &{} :click
                         fn (e d!)
                           d! cursor $ update state :playing? not
-                    path $ {,} :style
+                    path $ &{} :style
                       {}
                         :points $ [] ([] -20 -20) ([] -20 20)
                           [] (tw -5 0) (tw 20 10)
                           [] (tw -5 0) (tw -20 -10)
                         :fill-style $ hsl 120 50 60
-                    path $ {,} :style
+                    path $ &{} :style
                       {}
                         :points $ []
                           [] (tw 5 0) (tw -20 -10)
@@ -1651,20 +1651,20 @@
                           fn (x)
                             bound-01 $ - x (* v elapsed)
                   translate
-                    {,} :style $ {} (:x 10) (:y 10)
+                    &{} :style $ {} (:x 10) (:y 10)
                     alpha
-                      {,} :style $ {,} :opacity 1
+                      &{} :style $ &{} :opacity 1
                       translate
-                        {,} :style $ {,} :x move-x :y move-y
+                        &{} :style $ &{} :x move-x :y move-y
                         scale
-                          {,} :style $ {,} :ratio scale-ratio
+                          &{} :style $ &{} :ratio scale-ratio
                           rect
-                            {,} :style
-                              {,} :w 520 :h 360 :fill-style $ hsl 200 80 80
-                              , :event $ {,} :click
+                            &{} :style
+                              &{} :w 520 :h 360 :fill-style $ hsl 200 80 80
+                              , :event $ &{} :click
                                 fn (e d!) (on-select d!)
-                            text $ {,} :style
-                              {,} :fill-style (hsl 0 0 100) :text card-name :size 60
+                            text $ &{} :style
+                              &{} :fill-style (hsl 0 0 100) :text card-name :size 60
     |quamolit.util.detect $ {}
       :ns $ quote (ns quamolit.util.detect)
       :defs $ {}
@@ -1736,12 +1736,12 @@
                       -> xs $ filter
                         fn (x) (not= x task-id)
               [] nil $ alpha
-                {,} :style $ {,} :opacity 0.8
-                translate ({,} :style position-header)
+                &{} :style $ &{} :opacity 0.8
+                translate (&{} :style position-header)
                   translate
-                    {,} :style $ {,} :x -20 :y 40
-                    input $ {,} :style
-                      {,} :w 400 :h 40 :text $ :draft state
+                    &{} :style $ &{} :x -20 :y 40
+                    input $ &{} :style
+                      &{} :w 400 :h 40 :text $ :draft state
                       , :event
                         {} $ :click
                           fn (e d!)
@@ -1751,7 +1751,7 @@
                               fn (user-text)
                                 d! cursor $ assoc state :draft user-text
                   translate
-                    {,} :style $ {,} :x 240 :y 40
+                    &{} :style $ &{} :x 240 :y 40
                     button $ {} (:style style-button)
                       :event $ {}
                         :click $ fn (e d!)
@@ -1832,42 +1832,42 @@
                 comp-fade-in-out (>> states :fade-clock) ({})
                   if (= tab :clock)
                     translate
-                      {,} :style $ {,} :x 0 :y -100
+                      &{} :style $ &{} :x 0 :y -100
                       comp-clock $ >> states :clock
                 comp-fade-in-out (>> states :fade-solar) ({})
                   if (= tab :solar)
                     translate
-                      {,} :style $ {,} :x 0 :y 0
+                      &{} :style $ &{} :x 0 :y 0
                       comp-solar (>> states :solar) 4
                 comp-fade-in-out (>> states :fade-binary-tree) ({})
                   if (= tab :binary-tree)
                     translate
-                      {,} :style $ {,} :x 0 :y 240
+                      &{} :style $ &{} :x 0 :y 240
                       comp-tree-waving $ >> states :binary-tree
                 comp-fade-in-out (>> states :fade-code-table) ({})
                   if (= tab :code-table)
                     translate
-                      {,} :style $ {,} :x 0 :y 40
+                      &{} :style $ &{} :x 0 :y 40
                       comp-code-table $ >> states :code-table
                 comp-fade-in-out (>> states :fade-finder) ({})
                   if (= tab :finder)
                     translate
-                      {,} :style $ {,} :x 0 :y 40
+                      &{} :style $ &{} :x 0 :y 40
                       comp-finder $ >> states :finder
                 comp-fade-in-out (>> states :fade-raining) ({})
                   if (= tab :raining)
                     translate
-                      {,} :style $ {,} :x 0 :y 40
+                      &{} :style $ &{} :x 0 :y 40
                       comp-raining $ >> states :raining
                 comp-fade-in-out (>> states :fade-curve) ({})
                   if (= tab :curve)
                     translate
-                      {,} :style $ {,} :x 0 :y 40
+                      &{} :style $ &{} :x 0 :y 40
                       comp-ring $ >> states :ring
                 comp-fade-in-out (>> states :fade-icons) ({})
                   if (= tab :icons)
                     translate
-                      {,} :style $ {,} :x 0 :y 40
+                      &{} :style $ &{} :x 0 :y 40
                       comp-icons-table $ >> states :icons
                 comp-fade-in-out (>> states :fade-folding-fan) ({})
                   if (= tab :folding-fan)
@@ -1878,7 +1878,7 @@
                 comp-fade-in-out (>> states :fade-back) ({})
                   if (not= tab :portal)
                     translate
-                      {} $ :style ({,} :x -400 :y -140)
+                      {} $ :style (&{} :x -400 :y -140)
                       button $ {}
                         :style $ style-button |Back
                         :event $ {}
@@ -2003,8 +2003,8 @@
                             * v $ - y1 n
                 group ({})
                   alpha
-                    {,} :style $ {,} :opacity 1
-                    line $ {,} :style
+                    &{} :style $ &{} :opacity 1
+                    line $ &{} :style
                       {}
                         :x0 $ +
                           * w $ &map:get state :x0
@@ -2221,8 +2221,8 @@
                 selected $ :selected state
               rect
                 {}
-                  :style $ {,} :w 1000 :h 600 :fill-style (hsl 100 40 90)
-                  :event $ {,} :click
+                  :style $ &{} :w 1000 :h 600 :fill-style (hsl 100 40 90)
+                  :event $ &{} :click
                     fn (e d!) (d! cursor nil)
                 group ({}) & $ -> card-collection
                   map-indexed $ fn (index folder) (; js/console.log folder)
@@ -2280,17 +2280,17 @@
                           fn (x)
                             bound-01 $ - x (* v elapsed)
                   translate
-                    {,} :style $ {,} :x place-x :y place-y
+                    &{} :style $ &{} :x place-x :y place-y
                     scale
-                      {,} :style $ {,} :ratio ratio
+                      &{} :style $ &{} :ratio ratio
                       alpha
-                        {,} :style $ {,} :opacity (* 0.6 1)
-                        rect $ {,} :style
-                          {,} :w 600 :h 400 :fill-style $ hsl 0 80 bg-light
+                        &{} :style $ &{} :opacity (* 0.6 1)
+                        rect $ &{} :style
+                          &{} :w 600 :h 400 :fill-style $ hsl 0 80 bg-light
                           , :event
-                            {,} :click $ fn (e d!) (select-this d!)
+                            &{} :click $ fn (e d!) (select-this d!)
                               d! cursor $ assoc state :selected nil
-                      group ({,}) & $ -> cards
+                      group (&{}) & $ -> cards
                         map-indexed $ fn (index card-name)
                           let
                               jx $ .rem index 4
@@ -2309,10 +2309,10 @@
                                   fn (d!)
                                     d! cursor $ assoc state :selected index
                       if (not popup?)
-                        rect $ {,} :style
-                          {,} :w 600 :h 400 :fill-style $ hsl 0 80 0 0
+                        rect $ &{} :style
+                          &{} :w 600 :h 400 :fill-style $ hsl 0 80 0 0
                           , :event
-                            {,} :click $ fn (e d!) (select-this d!)
+                            &{} :click $ fn (e d!) (select-this d!)
     |quamolit.app.comp.task-toggler $ {}
       :ns $ quote
         ns quamolit.app.comp.task-toggler $ :require
