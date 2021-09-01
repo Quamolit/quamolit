@@ -51,9 +51,8 @@ Shape records:
 
 * `name` keyword
 * `props` a hashmap of:
-* * `style` a hashmap of styles used in Canvas API
+* * `...` styles used in Canvas API
 * * `event` a hashmap of events, mainly `:click` events
-* * `attrs` a hashmap
 * `children` sorted hashmap with values of child nodes
 
 Component record:
@@ -66,107 +65,96 @@ Component record:
 
 ```cirru
 line $ {}
-  :style $ {}
-    :x0 0
-    :y0 0
-    :x1 40
-    :y1 40
-    :line-width 4
-    :stroke-style (hsl 200 870 50)
-    :line-cap :round
-    :line-join :round
-    :milter-limit 8
+  :x0 0
+  :y0 0
+  :x1 40
+  :y1 40
+  :line-width 4
+  :stroke-style (hsl 200 870 50)
+  :line-cap :round
+  :line-join :round
+  :milter-limit 8
 
 arc $ {}
-  :style $ {}
-    :x 0 :y 0:r 40
-    :s-angle 0
-    :e-angle 60
-    :line-width 4
-    :counterclockwise true
-    :line-cap :round
-    :line-join :round
-    :miter-limit 8
-    :fill-style nil
-    :stroke-style nil
+  :x 0 :y 0:r 40
+  :s-angle 0
+  :e-angle 60
+  :line-width 4
+  :counterclockwise true
+  :line-cap :round
+  :line-join :round
+  :miter-limit 8
+  :fill-style nil
+  :stroke-style nil
 
 rect $ {}
-  :style $ {}
-    :w 100
-    :h 40
-    :x $ - (/ w 2)
-    :y $ - (/ h 2)
-    :line-width 2
+  :w 100
+  :h 40
+  :x $ - (/ w 2)
+  :y $ - (/ h 2)
+  :line-width 2
 
 text $ {}
-  :style $ {}
-    :x 0
-    :y 0
-    :fill-style (hsl 0 0 0)
-    :text-align :center
-    :base-linee :middle
-    :size 20
-    :font-family |Optima
-    :max-width 400
-    :text |todo
+  :x 0
+  :y 0
+  :fill-style (hsl 0 0 0)
+  :text-align :center
+  :base-linee :middle
+  :size 20
+  :font-family |Optima
+  :max-width 400
+  :text |todo
 
 image $ {}
-  :style $ {}
-    :src "|lotus.jpg"
-    :sx 0
-    :sy 0
-    :sw 40
-    :sh 40
-    :dx 0
-    :dy 0
-    :dw 40
-    :dh 40
+  :src "|lotus.jpg"
+  :sx 0
+  :sy 0
+  :sw 40
+  :sh 40
+  :dx 0
+  :dy 0
+  :dw 40
+  :dh 40
 ```
 
 ### Paint Components
 
 ```cirru
 translate $ {}
-  :style $ {}
-    :x 0
-    :y 0
+  :x 0
+  :y 0
 
 scale $ {}
-  :style $ {}
-    :ratio 1.2
+  :ratio 1.2
 
 alpha $ {}
-  :style $ {}
-    :opacity 0.5
+  :opacity 0.5
 
 rotate $ {}
-  :style $ {}
-    :angle 30
+  :angle 30
 
 button $ {}
-  :style $ {}
-    :x 0
-    :y 0
-    :w 100
-    :h 40
-    :text "|button"
-    :surface-color (hsl 0 80 80)
-    :text-color (hsl 0 0 10)
-    :font-family "|Optima"
-    :font-size 20
+  :x 0
+  :y 0
+  :w 100
+  :h 40
+  :text "|button"
+  :surface-color (hsl 0 80 80)
+  :text-color (hsl 0 0 10)
+  :font-family "|Optima"
+  :font-size 20
 
 input $ {}
-  :style $ {}
-    :w 0
-    :h 0
-    :text "|TODO"
+  :w 0
+  :h 0
+  :text "|TODO"
 
 comp-debug data $ {}
 ```
 
 ### HUD logs
 
-```
+```cirru
 :require
   quamolit.hud-logs :refer $ hud-log
 
