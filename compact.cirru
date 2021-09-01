@@ -2,7 +2,7 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ [] |pointed-prompt/
-    :version |0.0.6
+    :version |0.0.7
   :files $ {}
     |quamolit.app.comp.portal $ {}
       :ns $ quote
@@ -887,7 +887,7 @@
                   delta $ point-divide p transform
                 ; println "\"looking" (:offset x) delta
                 case-default (:kind x)
-                  do (js/console "\"invalid area data" x) false
+                  do (js/console.warn "\"invalid area data" x) false
                   :rect $ and
                     &<=
                       js/Math.abs $ nth delta 0
@@ -1270,7 +1270,7 @@
               .!beginPath ctx
               .!arc ctx x y r s-angle e-angle counterclockwise
               when (some? event)
-                swap! *touch-event-areas conj $ {} (:kind :circle) (:r r)
+                swap! *touch-event-areas conj $ {} (:kind :arc) (:r r)
                   :transform $ :transform @*tracked-transform
                   :offset $ :offset @*tracked-transform
                   :coord coord
