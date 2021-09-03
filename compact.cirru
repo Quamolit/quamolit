@@ -2,7 +2,7 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ [] |pointed-prompt/
-    :version |0.0.9
+    :version |0.0.10
   :files $ {}
     |quamolit.app.comp.portal $ {}
       :ns $ quote
@@ -683,8 +683,7 @@
             :alpha 1
         |*transforms-memory $ quote
           defatom *transforms-memory $ []
-        |*touch-event-areas $ quote
-          defatom *touch-event-areas $ []
+        |*touch-event-areas $ quote (defatom *touch-event-areas nil)
     |quamolit.core $ {}
       :ns $ quote
         ns quamolit.core $ :require
@@ -741,7 +740,7 @@
                 ctx $ .!getContext target |2d
                 w js/window.innerWidth
                 h js/window.innerHeight
-              reset! *touch-event-areas $ []
+              reset! *touch-event-areas nil
               .!clearRect ctx 0 0 w h
               ; .!save ctx
               .!translate ctx (* 0.5 w) (* 0.5 h)
@@ -794,14 +793,15 @@
                   , 1000
         |find-hit-area $ quote
           defn find-hit-area (point areas)
-            &list:find-last areas $ fn (x)
-              let
-                  transform $ :transform x
-                  p $ point-minus point
-                    point-add (:offset x)
-                      point-times (:position x) transform
-                  delta $ point-divide p transform
-                ; println "\"looking" (:offset x) delta
+            if (nil? areas) nil $ let
+                x $ nth areas 0
+                transform $ :transform x
+                p $ point-minus point
+                  point-add (:offset x)
+                    point-times (:position x) transform
+                delta $ point-divide p transform
+              ; println "\"looking" (:offset x) delta
+              if
                 case-default (:kind x)
                   do (js/console.warn "\"invalid area data" x) false
                   :rect $ and
@@ -816,6 +816,7 @@
                       js/Math.pow (nth delta 0) 2
                       js/Math.pow (nth delta 1) 2
                     js/Math.pow (:r x) 2
+                , x $ recur point (nth areas 1)
     |quamolit.math $ {}
       :ns $ quote (ns quamolit.math)
       :defs $ {}
@@ -1124,15 +1125,17 @@
               .!beginPath ctx
               .!rect ctx x y w h
               when (some? event)
-                swap! *touch-event-areas conj $ {} (:kind :rect)
-                  :half-w $ &* 0.5 w
-                  :half-h $ &* 0.5 h
-                  :transform $ :transform @*tracked-transform
-                  :offset $ :offset @*tracked-transform
-                  :coord coord
-                  :position $ []
-                    &+ x $ &* 0.5 w
-                    &+ y $ &* 0.5 h
+                reset! *touch-event-areas $ ::
+                  {} (:kind :rect)
+                    :half-w $ &* 0.5 w
+                    :half-h $ &* 0.5 h
+                    :transform $ :transform @*tracked-transform
+                    :offset $ :offset @*tracked-transform
+                    :coord coord
+                    :position $ []
+                      &+ x $ &* 0.5 w
+                      &+ y $ &* 0.5 h
+                  , @*touch-event-areas
               if (&map:contains? style :fill-style)
                 do
                   set! (.-fillStyle ctx) (&map:get style :fill-style)
@@ -1181,11 +1184,13 @@
               .!beginPath ctx
               .!arc ctx x y r s-angle e-angle counterclockwise
               when (some? event)
-                swap! *touch-event-areas conj $ {} (:kind :arc) (:r r)
-                  :transform $ :transform @*tracked-transform
-                  :offset $ :offset @*tracked-transform
-                  :coord coord
-                  :position $ [] x y
+                reset! *touch-event-areas $ ::
+                  {} (:kind :arc) (:r r)
+                    :transform $ :transform @*tracked-transform
+                    :offset $ :offset @*tracked-transform
+                    :coord coord
+                    :position $ [] x y
+                  , @*touch-event-areas
               if
                 some? $ :fill-style style
                 do
