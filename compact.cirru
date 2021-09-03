@@ -753,7 +753,16 @@
                 paint-logs! ctx @*hud-logs
                 clear-hud-logs!
         |configure-canvas $ quote
-          defn configure-canvas (app-container) (.!setAttribute app-container |width js/window.innerWidth) (.!setAttribute app-container |height js/window.innerHeight)
+          defn configure-canvas (app-container)
+            let
+                dpr $ w-log (or js/window.devicePixelRatio 1)
+              set! (.-width app-container)
+                w-log $ * dpr (w-log js/window.innerWidth)
+              set! (.-height app-container)
+                w-log $ * dpr (w-log js/window.innerHeight)
+              -> app-container .-style .-width $ set! (str js/window.innerWidth "\"px")
+              -> app-container .-style .-height $ set! (str js/window.innerHeight "\"px")
+              -> app-container (.!getContext "\"2d") (.!scale dpr dpr)
         |*clicked-focus $ quote
           defatom *clicked-focus $ []
         |handle-event $ quote
