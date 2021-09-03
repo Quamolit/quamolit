@@ -1,6 +1,6 @@
 
 {}
-  :configs $ {} (:reload-fn |quamolit.app.main/reload!) (:port 6001) (:output |src) (:compact-output? true) (:storage-key |calcit.cirru) (:version |0.0.8)
+  :configs $ {} (:reload-fn |quamolit.app.main/reload!) (:port 6001) (:output |src) (:compact-output? true) (:storage-key |calcit.cirru) (:version |0.0.9)
     :modules $ [] |pointed-prompt/
     :init-fn |quamolit.app.main/main!
     :extension |.cljs

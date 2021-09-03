@@ -2,7 +2,7 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ [] |pointed-prompt/
-    :version |0.0.8
+    :version |0.0.9
   :files $ {}
     |quamolit.app.comp.portal $ {}
       :ns $ quote
