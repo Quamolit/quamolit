@@ -754,11 +754,11 @@
         |configure-canvas $ quote
           defn configure-canvas (app-container)
             let
-                dpr $ w-log (or js/window.devicePixelRatio 1)
+                dpr $ or js/window.devicePixelRatio 1
               set! (.-width app-container)
-                w-log $ * dpr (w-log js/window.innerWidth)
+                * dpr $ w-log js/window.innerWidth
               set! (.-height app-container)
-                w-log $ * dpr (w-log js/window.innerHeight)
+                * dpr $ w-log js/window.innerHeight
               -> app-container .-style .-width $ set! (str js/window.innerWidth "\"px")
               -> app-container .-style .-height $ set! (str js/window.innerHeight "\"px")
               -> app-container (.!getContext "\"2d") (.!scale dpr dpr)
