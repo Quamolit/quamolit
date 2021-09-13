@@ -1,12 +1,10 @@
 
-[Refactoring] Quamolit in calcit-js
+Quamolit in calcit-js
 ----
 
-> what if we make animations in React's way?
+> what if we describe UI transitions in React's way? Previously written in [ClojureScript](https://github.com/Quamolit/quamolit.cljs).
 
 Demo http://r.Quamolit.org/quamolit.calcit/
-
-> Still prototype...
 
 Features:
 
