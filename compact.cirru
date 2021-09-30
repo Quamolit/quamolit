@@ -2,7 +2,7 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ [] |pointed-prompt/
-    :version |0.0.11
+    :version |0.0.12
   :files $ {}
     |quamolit.app.comp.portal $ {}
       :ns $ quote
@@ -755,10 +755,8 @@
           defn configure-canvas (app-container)
             let
                 dpr $ or js/window.devicePixelRatio 1
-              set! (.-width app-container)
-                * dpr $ w-log js/window.innerWidth
-              set! (.-height app-container)
-                * dpr $ w-log js/window.innerHeight
+              set! (.-width app-container) (* dpr js/window.innerWidth)
+              set! (.-height app-container) (* dpr js/window.innerHeight)
               -> app-container .-style .-width $ set! (str js/window.innerWidth "\"px")
               -> app-container .-style .-height $ set! (str js/window.innerHeight "\"px")
               -> app-container (.!getContext "\"2d") (.!scale dpr dpr)
@@ -1249,6 +1247,7 @@
               let
                   image $ .!createElement js/document |img
                 .!setAttribute image |src src
+                swap! *image-pool assoc src image
                 , image
         |*image-pool $ quote
           defatom *image-pool $ {}

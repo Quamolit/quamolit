@@ -1,6 +1,6 @@
 
 {}
-  :configs $ {} (:reload-fn |quamolit.app.main/reload!) (:port 6001) (:output |src) (:compact-output? true) (:storage-key |calcit.cirru) (:version |0.0.11)
+  :configs $ {} (:reload-fn |quamolit.app.main/reload!) (:port 6001) (:output |src) (:compact-output? true) (:storage-key |calcit.cirru) (:version |0.0.12)
     :modules $ [] |pointed-prompt/
     :init-fn |quamolit.app.main/main!
     :extension |.cljs
@@ -9095,13 +9095,7 @@
                         :data $ {}
                           |D $ {} (:text |*) (:type :leaf) (:at 1630681162868) (:by |_yzgLY-K2)
                           |L $ {} (:text |dpr) (:type :leaf) (:at 1630681409399) (:by |_yzgLY-K2)
-                          |T $ {}
-                            :data $ {}
-                              |D $ {} (:text |w-log) (:type :leaf) (:at 1630682366235) (:by |_yzgLY-K2)
-                              |T $ {} (:author |root) (:text |js/window.innerWidth) (:time 1503375314228) (:type :leaf) (:at 1630682362288) (:by |_yzgLY-K2) (:id |S1aqmWsC1NK_Z)
-                            :type :expr
-                            :at 1630682360605
-                            :by |_yzgLY-K2
+                          |T $ {} (:author |root) (:text |js/window.innerWidth) (:time 1503375314228) (:type :leaf) (:at 1630682362288) (:by |_yzgLY-K2) (:id |S1aqmWsC1NK_Z)
                         :type :expr
                         :at 1630681161644
                         :by |_yzgLY-K2
@@ -9122,13 +9116,7 @@
                         :data $ {}
                           |D $ {} (:text |*) (:type :leaf) (:at 1630681167688) (:by |_yzgLY-K2)
                           |L $ {} (:text |dpr) (:type :leaf) (:at 1630681407015) (:by |_yzgLY-K2)
-                          |T $ {}
-                            :data $ {}
-                              |D $ {} (:text |w-log) (:type :leaf) (:at 1630682368985) (:by |_yzgLY-K2)
-                              |T $ {} (:text |js/window.innerHeight) (:type :leaf) (:at 1630680860960) (:by |_yzgLY-K2)
-                            :type :expr
-                            :at 1630682367839
-                            :by |_yzgLY-K2
+                          |T $ {} (:text |js/window.innerHeight) (:type :leaf) (:at 1630680860960) (:by |_yzgLY-K2)
                         :type :expr
                         :at 1630681166121
                         :by |_yzgLY-K2
@@ -15431,6 +15419,16 @@
                         :time 1503375314228
                         :type :expr
                         :id |Sk9iOejR1VFOZ
+                      |t $ {}
+                        :data $ {}
+                          |T $ {} (:text |swap!) (:type :leaf) (:at 1632899926902) (:by |_yzgLY-K2)
+                          |j $ {} (:text |*image-pool) (:type :leaf) (:at 1632899859251) (:by |_yzgLY-K2)
+                          |n $ {} (:text |assoc) (:type :leaf) (:at 1632899895000) (:by |_yzgLY-K2)
+                          |r $ {} (:text |src) (:type :leaf) (:at 1632899861463) (:by |_yzgLY-K2)
+                          |v $ {} (:text |image) (:type :leaf) (:at 1632899864372) (:by |_yzgLY-K2)
+                        :type :expr
+                        :at 1632899855488
+                        :by |_yzgLY-K2
                       |v $ {} (:author |root) (:text |image) (:time 1503375314228) (:type :leaf) (:id |Syy2OeoRkEtd-)
                     :time 1503375314228
                     :type :expr
