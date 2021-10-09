@@ -2,7 +2,7 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ [] |pointed-prompt/
-    :version |0.0.12
+    :version |0.0.13
   :files $ {}
     |quamolit.app.comp.portal $ {}
       :ns $ quote
@@ -182,6 +182,7 @@
           quamolit.alias :refer $ defcomp rect
           quamolit.render.element :refer $ translate alpha
           quamolit.util.time :refer $ get-tick
+          "\"@calcit/std" :refer $ rand
       :defs $ {}
         |comp-raindrop $ quote
           defcomp comp-raindrop (states key position on-earth)
@@ -253,6 +254,7 @@
           quamolit.alias :refer $ defcomp rect group >> list->
           quamolit.app.comp.raindrop :refer $ comp-raindrop
           quamolit.hud-logs :refer $ hud-log
+          "\"@calcit/std" :refer $ rand
       :defs $ {}
         |random-rains $ quote
           defn random-rains (n)
@@ -914,6 +916,7 @@
             reset! *render-loop $ js/setTimeout
               fn () $ reset! *raq-loop (js/requestAnimationFrame render-loop!)
               , 9
+            ; reset! *raq-loop $ js/requestAnimationFrame render-loop!
         |*raq-loop $ quote (defatom *raq-loop nil)
         |reload! $ quote
           defn reload! () $ if (nil? build-errors)
@@ -1821,6 +1824,7 @@
           quamolit.render.element :refer $ alpha translate
           quamolit.comp.fade-in-out :refer $ comp-fade-in-out comp-fade-fn
           quamolit.math :refer $ bound-01 bound-x
+          "\"@calcit/std" :refer $ rand
       :defs $ {}
         |comp-digit $ quote
           defcomp comp-digit (states n props)
@@ -1842,16 +1846,20 @@
                 , false
               (> x 2) false
               true true
+        |rand-shift $ quote
+          defn rand-shift (x y)
+            &+ (&- x y)
+              rand $ &* 2 y
         |comp-stroke $ quote
           defcomp comp-stroke (states opacity x0 y0 x1 y1)
             let
                 cursor $ :cursor states
                 state $ either (:data states)
                   {} (:x0 0) (:y0 0) (:x1 0) (:y1 0)
-                    :dx0 $ .rand-shift 0 120
-                    :dy0 $ .rand-shift 0 160
-                    :dx1 $ .rand-shift 0 120
-                    :dy1 $ .rand-shift 0 160
+                    :dx0 $ rand-shift 0 120
+                    :dy0 $ rand-shift 0 160
+                    :dx1 $ rand-shift 0 120
+                    :dy1 $ rand-shift 0 160
                 h 100
                 w 60
                 tranparency $ - 1 opacity
