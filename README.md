@@ -33,12 +33,12 @@ defcomp comp-demo-tick (states)
   let
       cursor $ :cursor states
       state $ or (:data states) {} (:demo :demo)
-  []
-    fn (elapsed d!)
-      ; "this is there you handle animation states"
-      d! cursor (merge state state-changes)
-    group ({})
+    []
+      fn (elapsed d!)
+        ; "this is there you handle animation states"
+        d! cursor (merge state state-changes)
       group ({})
+        group ({})
 ```
 
 It requires some boilerplate code to start a Quamolit project. I would suggest starting by forking my [workflow](https://github.com/Quamolit/quamolit-workflow).
