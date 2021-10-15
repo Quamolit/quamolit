@@ -28,6 +28,7 @@
               button $ style-button 3 1 |Icons (hsl 30 80 80) (handle-navigate cursor :icons)
               button $ style-button 0 2 |Curve (hsl 100 80 80) (handle-navigate cursor :curve)
               button $ style-button 1 2 "|Folding fan" (hsl 200 80 80) (handle-navigate cursor :folding-fan)
+              button $ style-button 2 2 "|Drag demo" (hsl 340 80 70) (handle-navigate cursor :drag-demo)
         |style-button $ quote
           defn style-button (x y page-name bg-color handler)
             {} (:w 180) (:h 60)
@@ -654,6 +655,11 @@
               if shift? (js/String.fromCharCode k)
                 -> k js/String.fromCharCode $ .!toLowerCase
               , "\""
+    |quamolit.config $ {}
+      :ns $ quote (ns quamolit.config)
+      :defs $ {}
+        |dev? $ quote
+          def dev? $ = "\"dev" (get-env "\"mode")
     |quamolit.cursor $ {}
       :ns $ quote (ns quamolit.cursor)
       :defs $ {}
@@ -701,9 +707,9 @@
         |setup-events $ quote
           defn setup-events (root-element dispatch)
             let
-                ctx $ .getContext root-element |2d
-              .!addEventListener root-element |click $ fn (event)
-                do $ let
+                ctx $ .!getContext root-element |2d
+              .!addEventListener root-element "\"mousedown" $ fn (event)
+                let
                     target $ find-hit-area
                       []
                         &- (.-offsetX event) (&* js/window.innerWidth 0.5)
@@ -714,8 +720,29 @@
                     let
                         coord $ :coord target
                       reset! *clicked-focus coord
-                      handle-event coord :click event dispatch
-                    reset! *clicked-focus $ []
+                      handle-event coord :mousedown event dispatch
+              .!addEventListener root-element "\"mousemove" $ fn (event)
+                let
+                    coord @*clicked-focus
+                  when (some? coord) (handle-event coord :mousemove event dispatch)
+              .!addEventListener root-element "\"mouseup" $ fn (event)
+                let
+                    coord @*clicked-focus
+                  when (some? coord) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
+                    let
+                        target $ find-hit-area
+                          []
+                            &- (.-offsetX event) (&* js/window.innerWidth 0.5)
+                            &- (.-offsetY event) (&* js/window.innerHeight 0.5)
+                          , @*touch-event-areas
+                      if (some? target)
+                        if
+                          = coord $ :coord target
+                          handle-event coord :click event dispatch
+              .!addEventListener root-element "\"mouseleave" $ fn (event)
+                let
+                    coord @*clicked-focus
+                  when (some? coord) (handle-event coord :click event dispatch) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
               .!addEventListener js/window |keypress $ fn (event)
                 let
                     coord @*clicked-focus
@@ -767,10 +794,11 @@
         |handle-event $ quote
           defn handle-event (coord event-name event dispatch)
             let
-                maybe-listener $ resolve-target @*element-tree event-name coord
+                maybe-listener $ resolve-target @*element-tree event-name
+                  either coord $ []
               ; js/console.log "|handle event" maybe-listener coord event-name @*element-tree
               if (some? maybe-listener)
-                do (.preventDefault event) (maybe-listener event dispatch)
+                do (.!preventDefault event) (maybe-listener event dispatch)
                 ; js/console.log "|no target"
         |*last-tick $ quote
           defatom *last-tick $ get-tick
@@ -886,6 +914,7 @@
           quamolit.app.updater :refer $ updater
           "\"./calcit.build-errors" :default build-errors
           "\"bottom-tip" :default hud!
+          quamolit.config :as config
       :defs $ {}
         |mount-target $ quote
           def mount-target $ js/document.querySelector |#app
@@ -913,9 +942,11 @@
         |render-loop! $ quote
           defn render-loop! (? t) (; js/console.log "\"store" @*store)
             render-page (comp-container @*store) mount-target dispatch!
-            reset! *render-loop $ js/setTimeout
-              fn () $ reset! *raq-loop (js/requestAnimationFrame render-loop!)
-              , 9
+            if config/dev?
+              reset! *render-loop $ js/setTimeout
+                fn () $ reset! *raq-loop (js/requestAnimationFrame render-loop!)
+                , 9
+              reset! *raq-loop $ js/requestAnimationFrame render-loop!
             ; reset! *raq-loop $ js/requestAnimationFrame render-loop!
         |*raq-loop $ quote (defatom *raq-loop nil)
         |reload! $ quote
@@ -1702,6 +1733,7 @@
           quamolit.app.comp.icons-table :refer $ comp-icons-table
           quamolit.app.comp.ring :refer $ comp-ring
           quamolit.app.comp.folding-fan :refer $ comp-folding-fan
+          quamolit.app.comp.drag-demo :refer $ comp-drag-demo
           quamolit.app.comp.debug :refer $ comp-debug
           quamolit.hud-logs :refer $ hud-log
       :defs $ {}
@@ -1757,6 +1789,11 @@
                     translate
                       {} (:x 0) (:y 40)
                       comp-folding-fan $ >> states :folding-fan
+                comp-fade-in-out (>> states :fade-drag-demo) ({})
+                  if (= tab :drag-demo)
+                    translate
+                      {} (:x 0) (:y 40)
+                      comp-drag-demo $ >> states :drag-demo
                 comp-fade-in-out (>> states :fade-back) ({})
                   if (not= tab :portal)
                     translate (&{} :x -400 :y -140)
@@ -1772,6 +1809,54 @@
               :font-size 16
               :w 80
               :h 32
+    |quamolit.app.comp.drag-demo $ {}
+      :ns $ quote
+        ns quamolit.app.comp.drag-demo $ :require
+          quamolit.util.string :refer $ hsl
+          quamolit.alias :refer $ defcomp rect group line >>
+          quamolit.render.element :refer $ alpha translate
+          quamolit.comp.fade-in-out :refer $ comp-fade-in-out comp-fade-fn
+          quamolit.math :refer $ bound-01 bound-x
+          "\"@calcit/std" :refer $ rand
+      :defs $ {}
+        |comp-drag-demo $ quote
+          defcomp comp-drag-demo (states)
+            let
+                cursor $ :cursor states
+                state $ either (:data states)
+                  {} (:x 0) (:y 0)
+                    :local $ local-state!
+                      {} (:x 0) (:y 0)
+              group ({})
+                rect $ {} (:w 100) (:h 60)
+                  :x $ :x state
+                  :y $ :y state
+                  :fill-style $ hsl 200 80 80
+                  :event $ {}
+                    :mousedown $ fn (e d!) (; js/console.log "\"down" e)
+                      set-local! (:local state)
+                        {}
+                          :x $ - (.-clientX e) (:x state)
+                          :y $ - (.-clientY e) (:y state)
+                    :mouseup $ fn (e d!) (; js/console.log "\"up" e)
+                      ; d! cursor $ -> state (assoc :x0 0) (assoc :y0 0)
+                    :mousemove $ fn (e d!) (; js/console.log "\"move" e)
+                      let
+                          local $ get-local! (:local state)
+                          dx $ - (.-clientX e) (:x local)
+                          dy $ - (.-clientY e) (:y local)
+                        d! cursor $ -> state (assoc :x dx) (assoc :y dy)
+        |set-local! $ quote
+          defn set-local! (o v)
+            set! (.-value o) v
+        |local-state! $ quote
+          defn local-state! (x) (; "\"better make a unified abstraction for such tmp states")
+            let
+                o js/{}
+              set! (.-value o) x
+              , o
+        |get-local! $ quote
+          defn get-local! (o) (.-value o)
     |quamolit.app.updater $ {}
       :ns $ quote
         ns quamolit.app.updater $ :require (quamolit.app.schema :as schema)
