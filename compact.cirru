@@ -645,6 +645,16 @@
                 native-save $ {}
                 native-rotate $ &{} :angle angle
                 , & children $ native-restore ({})
+    |quamolit.util.ref $ {}
+      :ns $ quote (ns quamolit.util.ref)
+      :defs $ {}
+        |new-ref $ quote
+          defn new-ref (x) (js-array x)
+        |ref-get $ quote
+          defn ref-get (o) (.-0 o)
+        |ref-set! $ quote
+          defn ref-set! (o v)
+            set! (.-0 o) v
     |quamolit.util.keyboard $ {}
       :ns $ quote (ns quamolit.util.keyboard)
       :defs $ {}
@@ -1818,6 +1828,7 @@
           quamolit.comp.fade-in-out :refer $ comp-fade-in-out comp-fade-fn
           quamolit.math :refer $ bound-01 bound-x
           "\"@calcit/std" :refer $ rand
+          quamolit.util.ref :refer $ new-ref ref-get ref-set!
       :defs $ {}
         |comp-drag-demo $ quote
           defcomp comp-drag-demo (states)
@@ -1825,7 +1836,7 @@
                 cursor $ :cursor states
                 state $ either (:data states)
                   {} (:x 0) (:y 0)
-                    :local $ local-state!
+                    :local $ new-ref
                       {} (:x 0) (:y 0)
               group ({})
                 rect $ {} (:w 100) (:h 60)
@@ -1834,7 +1845,7 @@
                   :fill-style $ hsl 200 80 80
                   :event $ {}
                     :mousedown $ fn (e d!) (; js/console.log "\"down" e)
-                      set-local! (:local state)
+                      ref-set! (:local state)
                         {}
                           :x $ - (.-clientX e) (:x state)
                           :y $ - (.-clientY e) (:y state)
@@ -1842,21 +1853,10 @@
                       ; d! cursor $ -> state (assoc :x0 0) (assoc :y0 0)
                     :mousemove $ fn (e d!) (; js/console.log "\"move" e)
                       let
-                          local $ get-local! (:local state)
+                          local $ ref-get (:local state)
                           dx $ - (.-clientX e) (:x local)
                           dy $ - (.-clientY e) (:y local)
                         d! cursor $ -> state (assoc :x dx) (assoc :y dy)
-        |set-local! $ quote
-          defn set-local! (o v)
-            set! (.-value o) v
-        |local-state! $ quote
-          defn local-state! (x) (; "\"better make a unified abstraction for such tmp states")
-            let
-                o js/{}
-              set! (.-value o) x
-              , o
-        |get-local! $ quote
-          defn get-local! (o) (.-value o)
     |quamolit.app.updater $ {}
       :ns $ quote
         ns quamolit.app.updater $ :require (quamolit.app.schema :as schema)
