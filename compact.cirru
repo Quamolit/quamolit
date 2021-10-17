@@ -2,7 +2,7 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ [] |pointed-prompt/
-    :version |0.0.13
+    :version |0.0.14
   :files $ {}
     |quamolit.app.comp.portal $ {}
       :ns $ quote
@@ -645,6 +645,16 @@
                 native-save $ {}
                 native-rotate $ &{} :angle angle
                 , & children $ native-restore ({})
+    |quamolit.util.ref $ {}
+      :ns $ quote (ns quamolit.util.ref)
+      :defs $ {}
+        |new-ref $ quote
+          defn new-ref (x) (js-array x)
+        |ref-get $ quote
+          defn ref-get (o) (.-0 o)
+        |ref-set! $ quote
+          defn ref-set! (o v)
+            set! (.-0 o) v
     |quamolit.util.keyboard $ {}
       :ns $ quote (ns quamolit.util.keyboard)
       :defs $ {}
@@ -692,6 +702,68 @@
         |*transforms-memory $ quote
           defatom *transforms-memory $ []
         |*touch-event-areas $ quote (defatom *touch-event-areas nil)
+    |quamolit.comp.slider $ {}
+      :ns $ quote
+        ns quamolit.comp.slider $ :require
+          quamolit.util.string :refer $ hsl
+          quamolit.alias :refer $ defcomp rect group line >> text
+          quamolit.render.element :refer $ alpha translate
+          quamolit.comp.fade-in-out :refer $ comp-fade-in-out comp-fade-fn
+          quamolit.math :refer $ bound-01 bound-x
+          "\"@calcit/std" :refer $ rand
+          quamolit.util.ref :refer $ new-ref ref-get ref-set!
+          quamolit.math :refer $ bound-x
+      :defs $ {}
+        |comp-slider $ quote
+          defcomp comp-slider (states options)
+            let
+                cursor $ :cursor states
+                unit $ :unit options
+                position $ or (:position options) ([] 0 0)
+                state $ :data states
+                v-max $ either (:max options) 1000
+                v-min $ either (:min options) 1000
+              []
+                fn (elapsed d!)
+                  if
+                    nil? $ :data states
+                    d! cursor $ {}
+                      :local $ new-ref
+                        {}
+                          :v0 $ :value options
+                          :x0 0
+                translate
+                  {}
+                    :x $ nth position 0
+                    :y $ nth position 1
+                  rect $ {} (:w 72) (:h 20)
+                    :fill-style $ hsl 200 70 80
+                    :event $ {}
+                      :mousedown $ fn (e d!)
+                        ref-set! (:local state)
+                          {}
+                            :v0 $ :value options
+                            :x0 $ .-clientX e
+                      :mousemove $ fn (e d!)
+                        let
+                            local $ ref-get (:local state)
+                            dx $ - (.-clientX e) (:x0 local)
+                            on-change $ :on-change options
+                          if (fn? on-change)
+                            let
+                                next-v $ bound-x v-min v-max
+                                  + (:v0 local) (* dx unit)
+                              if
+                                not= next-v $ :v options
+                                on-change next-v d!
+                  text $ {} (:x -36) (:y -20) (:text-align :left) (:size 14)
+                    :fill-style $ hsl 330 90 70
+                    :text $ str
+                      or (:title options) "\"Val"
+                      , "\": "
+                        .!toFixed
+                          either (:value options) 0
+                          , 2
     |quamolit.core $ {}
       :ns $ quote
         ns quamolit.core $ :require
@@ -1818,6 +1890,8 @@
           quamolit.comp.fade-in-out :refer $ comp-fade-in-out comp-fade-fn
           quamolit.math :refer $ bound-01 bound-x
           "\"@calcit/std" :refer $ rand
+          quamolit.util.ref :refer $ new-ref ref-get ref-set!
+          quamolit.comp.slider :refer $ comp-slider
       :defs $ {}
         |comp-drag-demo $ quote
           defcomp comp-drag-demo (states)
@@ -1825,8 +1899,9 @@
                 cursor $ :cursor states
                 state $ either (:data states)
                   {} (:x 0) (:y 0)
-                    :local $ local-state!
+                    :local $ new-ref
                       {} (:x 0) (:y 0)
+                    :v 10
               group ({})
                 rect $ {} (:w 100) (:h 60)
                   :x $ :x state
@@ -1834,7 +1909,7 @@
                   :fill-style $ hsl 200 80 80
                   :event $ {}
                     :mousedown $ fn (e d!) (; js/console.log "\"down" e)
-                      set-local! (:local state)
+                      ref-set! (:local state)
                         {}
                           :x $ - (.-clientX e) (:x state)
                           :y $ - (.-clientY e) (:y state)
@@ -1842,21 +1917,20 @@
                       ; d! cursor $ -> state (assoc :x0 0) (assoc :y0 0)
                     :mousemove $ fn (e d!) (; js/console.log "\"move" e)
                       let
-                          local $ get-local! (:local state)
+                          local $ ref-get (:local state)
                           dx $ - (.-clientX e) (:x local)
                           dy $ - (.-clientY e) (:y local)
                         d! cursor $ -> state (assoc :x dx) (assoc :y dy)
-        |set-local! $ quote
-          defn set-local! (o v)
-            set! (.-value o) v
-        |local-state! $ quote
-          defn local-state! (x) (; "\"better make a unified abstraction for such tmp states")
-            let
-                o js/{}
-              set! (.-value o) x
-              , o
-        |get-local! $ quote
-          defn get-local! (o) (.-value o)
+                comp-slider (>> states :v)
+                  {}
+                    :value $ :v state
+                    :unit 0.2
+                    :on-change $ fn (v d!)
+                      d! cursor $ assoc state :v v
+                    :position $ [] 100 40
+                    :min -4
+                    :max 40
+                    :title "\"long long title"
     |quamolit.app.updater $ {}
       :ns $ quote
         ns quamolit.app.updater $ :require (quamolit.app.schema :as schema)
