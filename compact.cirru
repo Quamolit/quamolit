@@ -1008,9 +1008,8 @@
           defn render-loop! (? t) (; js/console.log "\"store" @*store)
             render-page (comp-container @*store) mount-target dispatch!
             if config/dev?
-              reset! *render-loop $ js/setTimeout
-                fn () $ reset! *raq-loop (js/requestAnimationFrame render-loop!)
-                , 9
+              reset! *render-loop $ flipped js/setTimeout 9
+                fn () reset! *raq-loop $ js/requestAnimationFrame render-loop!
               reset! *raq-loop $ js/requestAnimationFrame render-loop!
             ; reset! *raq-loop $ js/requestAnimationFrame render-loop!
         |*raq-loop $ quote (defatom *raq-loop nil)
@@ -1690,7 +1689,7 @@
             let
                 tx $ type-as-int x
                 ty $ type-as-int y
-              if (= tx ty) (compare-number x y) (compare-number tx ty)
+              if (identical? tx ty) (compare-number x y) (compare-number tx ty)
     |quamolit.util.string $ {}
       :ns $ quote (ns quamolit.util.string)
       :defs $ {}
