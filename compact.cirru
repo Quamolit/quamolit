@@ -2,7 +2,8 @@
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
     :modules $ [] |pointed-prompt/
-    :version |0.0.14
+    :version |0.0.15
+  :entries $ {}
   :files $ {}
     |quamolit.app.comp.portal $ {}
       :ns $ quote
@@ -781,40 +782,34 @@
             let
                 ctx $ .!getContext root-element |2d
               .!addEventListener root-element "\"mousedown" $ fn (event)
-                let
-                    target $ find-hit-area
-                      []
-                        &- (.-offsetX event) (&* js/window.innerWidth 0.5)
-                        &- (.-offsetY event) (&* js/window.innerHeight 0.5)
-                      , @*touch-event-areas
+                when-let
+                  target $ find-hit-area
+                    []
+                      &- (.-offsetX event) (&* js/window.innerWidth 0.5)
+                      &- (.-offsetY event) (&* js/window.innerHeight 0.5)
+                    , @*touch-event-areas
                   ; js/console.log "\"target" target
-                  if (some? target)
-                    let
-                        coord $ :coord target
-                      reset! *clicked-focus coord
-                      handle-event coord :mousedown event dispatch
+                  let
+                      coord $ :coord target
+                    reset! *clicked-focus coord
+                    handle-event coord :mousedown event dispatch
               .!addEventListener root-element "\"mousemove" $ fn (event)
-                let
-                    coord @*clicked-focus
-                  when (some? coord) (handle-event coord :mousemove event dispatch)
+                if-let (coord @*clicked-focus) (handle-event coord :mousemove event dispatch)
               .!addEventListener root-element "\"mouseup" $ fn (event)
                 let
                     coord @*clicked-focus
                   when (some? coord) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
-                    let
-                        target $ find-hit-area
-                          []
-                            &- (.-offsetX event) (&* js/window.innerWidth 0.5)
-                            &- (.-offsetY event) (&* js/window.innerHeight 0.5)
-                          , @*touch-event-areas
-                      if (some? target)
-                        if
-                          = coord $ :coord target
-                          handle-event coord :click event dispatch
+                    when-let
+                      target $ find-hit-area
+                        []
+                          &- (.-offsetX event) (&* js/window.innerWidth 0.5)
+                          &- (.-offsetY event) (&* js/window.innerHeight 0.5)
+                        , @*touch-event-areas
+                      if
+                        = coord $ :coord target
+                        handle-event coord :click event dispatch
               .!addEventListener root-element "\"mouseleave" $ fn (event)
-                let
-                    coord @*clicked-focus
-                  when (some? coord) (handle-event coord :click event dispatch) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
+                when-let (coord @*clicked-focus) (handle-event coord :click event dispatch) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
               .!addEventListener js/window |keypress $ fn (event)
                 let
                     coord @*clicked-focus
@@ -864,14 +859,12 @@
         |*clicked-focus $ quote
           defatom *clicked-focus $ []
         |handle-event $ quote
-          defn handle-event (coord event-name event dispatch)
-            let
-                maybe-listener $ resolve-target @*element-tree event-name
-                  either coord $ []
-              ; js/console.log "|handle event" maybe-listener coord event-name @*element-tree
-              if (some? maybe-listener)
-                do (.!preventDefault event) (maybe-listener event dispatch)
-                ; js/console.log "|no target"
+          defn handle-event (coord event-name event dispatch) (; js/console.log "|handle event" maybe-listener coord event-name @*element-tree)
+            if-let
+              maybe-listener $ resolve-target @*element-tree event-name
+                either coord $ []
+              do (.!preventDefault event) (maybe-listener event dispatch)
+              ; js/console.log "|no target"
         |*last-tick $ quote
           defatom *last-tick $ get-tick
         |*element-tree $ quote (defatom *element-tree nil)
@@ -1015,9 +1008,8 @@
           defn render-loop! (? t) (; js/console.log "\"store" @*store)
             render-page (comp-container @*store) mount-target dispatch!
             if config/dev?
-              reset! *render-loop $ js/setTimeout
-                fn () $ reset! *raq-loop (js/requestAnimationFrame render-loop!)
-                , 9
+              reset! *render-loop $ flipped js/setTimeout 9
+                fn () reset! *raq-loop $ js/requestAnimationFrame render-loop!
               reset! *raq-loop $ js/requestAnimationFrame render-loop!
             ; reset! *raq-loop $ js/requestAnimationFrame render-loop!
         |*raq-loop $ quote (defatom *raq-loop nil)
@@ -1197,23 +1189,21 @@
                   2 $ .!lineTo ctx (nth coords 0) (nth coords 1)
                   4 $ .!quadraticCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3)
                   6 $ .!bezierCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3) (nth coords 4) (nth coords 5)
-              if (&map:contains? style :stroke-style)
-                do
-                  set! (.-lineWidth ctx)
-                    or (:line-width style) 4
-                  set! (.-strokeStyle ctx) (:stroke-style style)
-                  set! (.-lineCap ctx)
-                    or (:line-cap style) |round
-                  set! (.-lineJoin ctx)
-                    or (:line-join style) |round
-                  set! (.-milterLimit ctx)
-                    or (:milter-limit style) 8
-                  .!stroke ctx
-              if (&map:contains? style :fill-style)
-                do
-                  set! (.-fillStyle ctx) (:fill-style style)
-                  .!closePath ctx
-                  .!fill ctx
+              when (&map:contains? style :stroke-style)
+                set! (.-lineWidth ctx)
+                  or (:line-width style) 4
+                set! (.-strokeStyle ctx) (:stroke-style style)
+                set! (.-lineCap ctx)
+                  or (:line-cap style) |round
+                set! (.-lineJoin ctx)
+                  or (:line-join style) |round
+                set! (.-milterLimit ctx)
+                  or (:milter-limit style) 8
+                .!stroke ctx
+              when (&map:contains? style :fill-style)
+                set! (.-fillStyle ctx) (:fill-style style)
+                .!closePath ctx
+                .!fill ctx
         |paint-rect $ quote
           defn paint-rect (ctx style coord event)
             let
@@ -1240,33 +1230,34 @@
                       &+ x $ &* 0.5 w
                       &+ y $ &* 0.5 h
                   , @*touch-event-areas
-              if (&map:contains? style :fill-style)
-                do
-                  set! (.-fillStyle ctx) (&map:get style :fill-style)
-                  .!fill ctx
-              if (&map:contains? style :stroke-style)
-                do
-                  set! (.-strokeStyle ctx) (&map:get style :stroke-style)
-                  set! (.-lineWidth ctx) line-width
-                  .!stroke ctx
+              when (&map:contains? style :fill-style)
+                set! (.-fillStyle ctx) (&map:get style :fill-style)
+                .!fill ctx
+              when (&map:contains? style :stroke-style)
+                set! (.-strokeStyle ctx) (&map:get style :stroke-style)
+                set! (.-lineWidth ctx) line-width
+                .!stroke ctx
         |paint-save $ quote
           defn paint-save (ctx style) (.!save ctx) (swap! *transforms-memory conj @*tracked-transform)
         |paint-text $ quote
           defn paint-text (ctx style)
-            aset ctx "\"fillStyle" $ or (:fill-style style) (hsl 0 0 0)
-            aset ctx "\"textAlign" $ or (:text-align style) |center
-            aset ctx "\"textBaseline" $ or (:base-line style) |middle
-            aset ctx "\"font" $ str
-              or (:size style) 20
-              , "|px "
-                or (:font-family style) |Optima
-            if (contains? style :fill-style)
-              do $ .!fillText ctx (:text style)
+            set! (.-fillStyle ctx)
+              or (:fill-style style) (hsl 0 0 0)
+            set! (.-textAlign ctx)
+              or (:text-align style) |center
+            set! (.-textBaseline ctx)
+              or (:base-line style) |middle
+            set! (.-font ctx)
+              str
+                or (:size style) 20
+                , "|px " $ or (:font-family style) |Optima
+            when (contains? style :fill-style)
+              .!fillText ctx (:text style)
                 or (:x style) 0
                 or (:y style) 0
                 or (:max-width style) 400
-            if (contains? style :stroke-style)
-              do $ .!strokeText ctx (:text style)
+            when (contains? style :stroke-style)
+              .!strokeText ctx (:text style)
                 or (:x style) 0
                 or (:y style) 0
                 or (:max-width style) 400
@@ -1295,19 +1286,17 @@
                     :coord coord
                     :position $ [] x y
                   , @*touch-event-areas
-              if
+              when
                 some? $ :fill-style style
-                do
-                  set! (.-fillStyle ctx) (:fill-style style)
-                  .!fill ctx
-              if
+                set! (.-fillStyle ctx) (:fill-style style)
+                .!fill ctx
+              when
                 some? $ :stroke-style style
-                do
-                  set! (.-lineWidth ctx) line-width
-                  set! (.-strokeStyle ctx) (:stroke-style style)
-                  set! (.-lineCap ctx) line-cap
-                  set! (.-miterLimit ctx) miter-limit
-                  .!stroke ctx
+                set! (.-lineWidth ctx) line-width
+                set! (.-strokeStyle ctx) (:stroke-style style)
+                set! (.-lineCap ctx) line-cap
+                set! (.-miterLimit ctx) miter-limit
+                .!stroke ctx
         |paint-one $ quote
           defn paint-one (ctx directive coord)
             let
@@ -1700,7 +1689,7 @@
             let
                 tx $ type-as-int x
                 ty $ type-as-int y
-              if (= tx ty) (compare-number x y) (compare-number tx ty)
+              if (identical? tx ty) (compare-number x y) (compare-number tx ty)
     |quamolit.util.string $ {}
       :ns $ quote (ns quamolit.util.string)
       :defs $ {}
