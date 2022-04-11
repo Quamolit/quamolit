@@ -1,8 +1,8 @@
 
 {} (:package |quamolit)
   :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!)
-    :modules $ [] |pointed-prompt/
-    :version |0.0.15
+    :modules $ [] |pointed-prompt/ |touch-control/
+    :version |0.0.16
   :entries $ {}
   :files $ {}
     |quamolit.app.comp.portal $ {}
@@ -703,6 +703,10 @@
         |*transforms-memory $ quote
           defatom *transforms-memory $ []
         |*touch-event-areas $ quote (defatom *touch-event-areas nil)
+        |*viewer-config $ quote
+          defatom *viewer-config $ {}
+            :move $ [] 0 0
+            :scale 1
     |quamolit.comp.slider $ {}
       :ns $ quote
         ns quamolit.comp.slider $ :require
@@ -774,7 +778,7 @@
           quamolit.controller.resolve :refer $ resolve-target locate-target
           quamolit.hud-logs :refer $ clear-hud-logs! *hud-logs
           pointed-prompt.core :refer $ clear-prompt!
-          quamolit.global :refer $ *touch-event-areas
+          quamolit.global :refer $ *touch-event-areas *tracked-transform *viewer-config
           quamolit.math :refer $ point-minus point-divide point-add point-times
       :defs $ {}
         |setup-events $ quote
@@ -836,12 +840,28 @@
                 ctx $ .!getContext target |2d
                 w js/window.innerWidth
                 h js/window.innerHeight
+                viewer-shift $ :move @*viewer-config
+                viewer-scale $ :scale @*viewer-config
               reset! *touch-event-areas nil
               .!clearRect ctx 0 0 w h
               ; .!save ctx
-              .!translate ctx (* 0.5 w) (* 0.5 h)
+              .!translate ctx
+                &+ (* 0.5 w) (first viewer-shift)
+                &+ (* 0.5 h) (nth viewer-shift 1)
+              .!scale ctx viewer-scale viewer-scale
+              swap! *tracked-transform update :offset $ fn (point) (point-add point viewer-shift)
+              swap! *tracked-transform update :transform $ fn (point)
+                point-times point $ [] viewer-scale 0
               paint ctx tree ([]) dispatch! elapsed
-              .!translate ctx (* -0.5 w) (* -0.5 h)
+              let
+                  scale-back $ &/ 1 viewer-scale
+                .!scale ctx scale-back scale-back
+              swap! *tracked-transform update :transform $ fn (point)
+                point-times point $ [] (&/ 1 viewer-scale) 0
+              swap! *tracked-transform update :offset $ fn (point) (point-minus point viewer-shift)
+              .!translate ctx
+                &- (* -0.5 w) (first viewer-shift)
+                &- (* -0.5 h) (nth viewer-shift 1)
               ; .!restore ctx
               when
                 not $ empty? @*hud-logs
@@ -858,6 +878,17 @@
               -> app-container (.!getContext "\"2d") (.!scale dpr dpr)
         |*clicked-focus $ quote
           defatom *clicked-focus $ []
+        |on-control-event $ quote
+          defn on-control-event (elapsed states delta)
+            let
+                move $ :left-move states
+                scales $ :right-move delta
+              update-viewer!
+                map move $ fn (x)
+                  &/
+                    * x (js/Math.abs x) 0.02
+                    :scale @*viewer-config
+                nth scales 1
         |handle-event $ quote
           defn handle-event (coord event-name event dispatch) (; js/console.log "|handle event" maybe-listener coord event-name @*element-tree)
             if-let
@@ -868,6 +899,22 @@
         |*last-tick $ quote
           defatom *last-tick $ get-tick
         |*element-tree $ quote (defatom *element-tree nil)
+        |update-viewer! $ quote
+          defn update-viewer! (move scale-change)
+            when
+              or
+                not= ([] 0 0) move
+                not= 0 scale-change
+              swap! *viewer-config update :move $ fn (prev)
+                point-add prev $ point-times
+                  []
+                    negate $ first move
+                    nth move 1
+                  [] 0.05 0
+              swap! *viewer-config update :scale $ fn (prev)
+                let
+                    next $ &+ prev (* 0.01 scale-change)
+                  &max 0.2 $ &min next 8
         |paint-logs! $ quote
           defn paint-logs! (ctx logs)
             set! (.-fillStyle ctx) "\"hsla(0,0%,0%,0.5)"
@@ -974,12 +1021,13 @@
       :ns $ quote
         ns quamolit.app.main $ :require
           quamolit.app.comp.container :refer $ comp-container
-          quamolit.core :refer $ render-page configure-canvas setup-events
+          quamolit.core :refer $ render-page configure-canvas setup-events on-control-event
           quamolit.util.time :refer $ get-tick
           quamolit.app.updater :refer $ updater
           "\"./calcit.build-errors" :default build-errors
           "\"bottom-tip" :default hud!
           quamolit.config :as config
+          touch-control.core :refer $ render-control! start-control-loop! replace-control-loop!
       :defs $ {}
         |mount-target $ quote
           def mount-target $ js/document.querySelector |#app
@@ -990,6 +1038,8 @@
               configure-canvas target
               setup-events target dispatch!
               render-loop!
+              render-control!
+              start-control-loop! 8 on-control-event
         |*store $ quote
           defatom *store $ {}
             :states $ {}
@@ -1015,7 +1065,7 @@
         |*raq-loop $ quote (defatom *raq-loop nil)
         |reload! $ quote
           defn reload! () $ if (nil? build-errors)
-            do (js/clearTimeout @*render-loop) (js/cancelAnimationFrame @*raq-loop) (render-loop!) (js/console.log "|code updated...") (hud! "\"ok~" "\"Ok")
+            do (js/clearTimeout @*render-loop) (js/cancelAnimationFrame @*raq-loop) (render-loop!) (replace-control-loop! 8 on-control-event) (js/console.log "|code updated.") (hud! "\"ok~" "\"Ok")
             hud! "\"error" build-errors
     |quamolit.app.comp.ring $ {}
       :ns $ quote

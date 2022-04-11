@@ -1,0 +1,9 @@
+@import url("@quamolit/touch-control/style/touch-control.css");
+
+body {
+  margin: 0;
+  overscroll-behavior-y: none;
+  overscroll-behavior-x: none;
+
+  font-size: 0;
+}
