@@ -1,6 +1,6 @@
 
 {} (:package |quamolit)
-  :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!) (:version |0.0.16)
+  :configs $ {} (:init-fn |quamolit.app.main/main!) (:reload-fn |quamolit.app.main/reload!) (:version |0.0.17)
     :modules $ [] |pointed-prompt/ |touch-control/
   :entries $ {}
   :files $ {}
@@ -1693,6 +1693,8 @@
       :defs $ {}
         |*clicked-focus $ quote
           defatom *clicked-focus $ []
+        |*drag-moving-cache $ quote
+          defatom *drag-moving-cache $ [] 0 0
         |*element-tree $ quote (defatom *element-tree nil)
         |*last-tick $ quote
           defatom *last-tick $ get-tick
@@ -1702,8 +1704,8 @@
                 ctx $ .!getContext target |2d
                 w js/window.innerWidth
                 h js/window.innerHeight
-                viewer-shift $ :move @*viewer-config
-                viewer-scale $ :scale @*viewer-config
+                viewer-shift $ :move @*stage-config
+                viewer-scale $ :scale @*stage-config
               reset! *touch-event-areas nil
               .!clearRect ctx 0 0 w h
               ; .!save ctx
@@ -1773,15 +1775,16 @@
               ; js/console.log "|no target"
         |on-control-event $ quote
           defn on-control-event (elapsed states delta)
-            let
-                move $ :left-move states
-                scales $ :right-move delta
-              update-viewer!
-                map move $ fn (x)
-                  &/
+            if
+              and $ :left-b? states
+              reset-stage-config!
+              let
+                  move $ :left-move states
+                  scales $ :right-move delta
+                update-stage-config!
+                  map move $ fn (x)
                     * x (js/Math.abs x) 0.02
-                    :scale @*viewer-config
-                nth scales 1
+                  nth scales 1
         |paint-logs! $ quote
           defn paint-logs! (ctx logs)
             set! (.-fillStyle ctx) "\"hsla(0,0%,0%,0.5)"
@@ -1808,11 +1811,38 @@
               reset! *last-tick new-tick
               call-paint tree target dispatch! elapsed
               ; js/console.log |tree tree
+        |reset-stage-config! $ quote
+          defn reset-stage-config! () $ let
+              move0 $ :move @*stage-config
+              scale0 $ :scale @*stage-config
+            when
+              or
+                not= ([] 0 0) move0
+                not= 1 scale0
+              if
+                not= ([] 0 0) move0
+                swap! *stage-config update :move $ fn (prev)
+                  &let
+                    l $ vec-length prev
+                    if (< l 4) ([] 0 0)
+                      &let
+                        move-back $ point-times prev
+                          [] (&/ -4 l) 0
+                        point-add prev move-back
+              if (not= scale0 1)
+                swap! *stage-config update :scale $ fn (prev)
+                  let
+                      delta $ - scale0 1
+                    if
+                      > 0.01 $ js/Math.abs delta
+                      , 1 $ + prev
+                        if (> delta 0) -0.01 0.01
         |setup-events $ quote
           defn setup-events (root-element dispatch)
             let
                 ctx $ .!getContext root-element |2d
               .!addEventListener root-element "\"mousedown" $ fn (event)
+                reset! *drag-moving-cache $ [] (.-clientX event) (.-clientY event)
                 when-let
                   target $ find-hit-area
                     []
@@ -1825,8 +1855,18 @@
                     reset! *clicked-focus coord
                     handle-event coord :mousedown event dispatch
               .!addEventListener root-element "\"mousemove" $ fn (event)
-                if-let (coord @*clicked-focus) (handle-event coord :mousemove event dispatch)
-              .!addEventListener root-element "\"mouseup" $ fn (event)
+                if
+                  and
+                    or (.-metaKey event) (.-ctrlKey event) (.-shiftKey event)
+                    some? @*drag-moving-cache
+                  let
+                      prev @*drag-moving-cache
+                      current $ [] (.-clientX event) (.-clientY event)
+                      delta $ point-minus current prev
+                    reset! *drag-moving-cache current
+                    swap! *stage-config update :move $ fn (prev) (point-add prev delta)
+                  if-let (coord @*clicked-focus) (handle-event coord :mousemove event dispatch)
+              .!addEventListener root-element "\"mouseup" $ fn (event) (reset! *drag-moving-cache nil)
                 let
                     coord @*clicked-focus
                   when (some? coord) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
@@ -1851,6 +1891,48 @@
                   handle-event coord :keydown event dispatch
               .!addEventListener js/window |click $ fn (event) (clear-prompt!)
               .!addEventListener js/window |resize $ fn (event) (configure-canvas root-element)
+              .!addEventListener js/window "\"wheel" $ fn (event)
+                if
+                  or (.-metaKey event) (.-ctrlKey event) (.-shiftKey event)
+                  let
+                      dy $ * 0.001 (.-deltaY event)
+                      scale $ :scale @*stage-config
+                      pointer $ point-minus
+                        [] (.-clientX event) (.-clientY event)
+                        [] (* 0.5 js/window.innerWidth) (* 0.5 js/window.innerHeight)
+                    when
+                      not
+                        and (<= scale 0.1)
+                          < (.-deltaY event) 0
+                        and (>= scale 4)
+                          > (.-deltaY event) 0
+                      swap! *stage-config update :move $ fn (pos)
+                        let
+                            shift $ point-minus pointer pos
+                          point-minus pos $ point-times shift
+                            [] (/ dy scale) 0
+                      swap! *stage-config update :scale $ fn (x) (+ x dy)
+        |update-stage-config! $ quote
+          defn update-stage-config! (move scale-change)
+            let
+                scale0 $ :scale @*stage-config
+              when
+                and
+                  or
+                    not= ([] 0 0) move
+                    not= 0 scale-change
+                  not $ and (> scale-change 0) (>= scale0 8)
+                swap! *stage-config update :move $ fn (prev)
+                  point-add
+                    point-minus prev $ point-scale
+                      [] (nth move 0)
+                        negate $ nth move 1
+                      , 0.05
+                    point-scale prev $ / (* 0.01 scale-change) scale0
+                swap! *stage-config update :scale $ fn (prev)
+                  let
+                      next $ &+ prev (* 0.01 scale-change)
+                    &max 0.2 $ &min next 8
         |update-viewer! $ quote
           defn update-viewer! (move scale-change)
             when
@@ -1875,8 +1957,8 @@
           quamolit.controller.resolve :refer $ resolve-target locate-target
           quamolit.hud-logs :refer $ clear-hud-logs! *hud-logs
           pointed-prompt.core :refer $ clear-prompt!
-          quamolit.global :refer $ *touch-event-areas *tracked-transform *viewer-config
-          quamolit.math :refer $ point-minus point-divide point-add point-times
+          quamolit.global :refer $ *touch-event-areas *tracked-transform *stage-config
+          quamolit.math :refer $ point-minus point-divide point-add point-times vec-length point-scale
     |quamolit.cursor $ {}
       :defs $ {}
         |gc-states $ quote
@@ -1900,6 +1982,10 @@
       :ns $ quote (ns quamolit.cursor)
     |quamolit.global $ {}
       :defs $ {}
+        |*stage-config $ quote
+          defatom *stage-config $ {}
+            :move $ [] 0 0
+            :scale 1
         |*touch-event-areas $ quote (defatom *touch-event-areas nil)
         |*tracked-transform $ quote
           defatom *tracked-transform $ {}
@@ -1908,10 +1994,6 @@
             :alpha 1
         |*transforms-memory $ quote
           defatom *transforms-memory $ []
-        |*viewer-config $ quote
-          defatom *viewer-config $ {}
-            :move $ [] 0 0
-            :scale 1
       :ns $ quote (ns quamolit.global)
     |quamolit.hud-logs $ {}
       :defs $ {}
@@ -1973,6 +2055,9 @@
             []
               netate $ nth a 0
               negate $ nth a 1
+        |point-scale $ quote
+          defn point-scale (pair v)
+            map pair $ fn (x) (* v x)
         |point-times $ quote
           defn point-times (a b)
             []
@@ -1982,6 +2067,10 @@
               &+
                 &* (nth a 0) (nth b 1)
                 &* (nth a 1) (nth b 0)
+        |vec-length $ quote
+          defn vec-length (point)
+            let[] (x y) point $ js/Math.sqrt
+              &+ (&* x x) (&* y y)
       :ns $ quote (ns quamolit.math)
     |quamolit.render.element $ {}
       :defs $ {}
