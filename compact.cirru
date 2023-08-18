@@ -53,19 +53,19 @@
                 cond
                     record? ret
                     %{} Component
-                      :name $ ~ (turn-keyword comp-name)
+                      :name $ ~ (turn-tag comp-name)
                       :on-tick nil
                       :tree ret
                   (list? ret)
                     do
                       assert "\"expected on-tick and tree" $ = 2 (count ret)
                       %{} Component
-                        :name $ ~ (turn-keyword comp-name)
+                        :name $ ~ (turn-tag comp-name)
                         :on-tick $ first ret
                         :tree $ last ret
                   (map? ret)
                     %{} Component
-                      :name $ ~ (turn-keyword comp-name)
+                      :name $ ~ (turn-tag comp-name)
                       :on-tick $ :on-tick ret
                       :tree $ :tree ret
                   true $ raise "\"unknown component"
