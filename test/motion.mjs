@@ -2,13 +2,18 @@ import {
   sample_at as sampleAt,
   sample_vec2_x_at as sampleVec2XAt,
   sample_vec2_y_at as sampleVec2YAt,
+  gpu_vec2_plan as gpuVec2Plan,
 } from "../js-out/quamolit.test.motion-fixture.mjs";
+import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
 
 const canvas = document.querySelector("#frame");
 const context = canvas.getContext("2d", { willReadFrequently: true });
 const status = document.querySelector("#status");
 const slider = document.querySelector("#time");
 const samples = [0, 0.25, 0.5, 0.75, 1];
+const gpuPlan = toJsData(gpuVec2Plan());
+assert(gpuPlan[0] === "supported" && gpuPlan[1].kernel[0] === "tween", "Vec2 GPU 候选计划缺失");
+assert(gpuPlan[1].id === "moving-rect", "Vec2 计划与画面夹具不一致");
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -28,7 +33,7 @@ function renderAt(seconds) {
   assert(actual === "236,72,153,255", `中间帧像素错误：${actual}`);
   slider.value = String(seconds);
   status.dataset.result = "pass";
-  status.textContent = `PASS · t=${seconds}s · value=${value} · center=(${centerX},${centerY})`;
+  status.textContent = `PASS · t=${seconds}s · value=${value} · center=(${centerX},${centerY}) · GPU 候选: Vec2 tween`;
   return { value, centerX, centerY };
 }
 

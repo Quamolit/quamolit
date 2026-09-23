@@ -4230,7 +4230,7 @@
           :examples $ []
           :schema $ :: 'StructDef
         'GpuScalarKernel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum GpuScalarKernel (:constant 'Number) (:time 'Number 'Number) (:tween 'quamolit.motion/ScalarTween)
+          :code $ quote $ defenum GpuScalarKernel (:constant 'Number) (:time 'Number 'Number) (:tween 'quamolit.motion/ScalarTween) (:keyframes 'quamolit.motion/ScalarTrack)
           :examples $ []
           :schema $ :: 'EnumDef
         'GpuScalarLowering $ %{} 'CodeEntry (:doc |)
@@ -4241,6 +4241,23 @@
           :code $ quote $ defstruct GpuScalarPlan (:id 'String) (:version 'Number) (:kernel 'quamolit.motion-gpu/GpuScalarKernel)
           :examples $ []
           :schema $ :: 'EnumDef
+        'GpuVec2Kernel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum GpuVec2Kernel (:constant 'quamolit.motion/Vec2) (:tween 'quamolit.motion/Vec2Tween)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'GpuVec2Lowering $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum GpuVec2Lowering (:supported 'quamolit.motion-gpu/GpuVec2Plan) (:unsupported 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'GpuVec2Plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct GpuVec2Plan (:id 'String) (:version 'Number) (:kernel 'quamolit.motion-gpu/GpuVec2Kernel)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'gpu-keyframe-capacity $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-keyframe-capacity () 16
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ []
         'lower-composition $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn lower-composition (composition)
             do (motion/sample-scalar-composition composition 0)
@@ -4275,13 +4292,15 @@
             %{} 'TestEntry (:name |unsupported-leaf-and-invalid-mix)
               :code $ quote $ let
                   track $ motion/ScalarTrack :frames
-                    [] $ motion/ScalarKeyframe :at 0 :value 10 :easing $ motion/Easing :linear
+                    map (range 0 17)
+                      fn (i)
+                        motion/ScalarKeyframe :at i :value i :easing $ motion/Easing :linear
                     , :loop $ motion/TrackLoop :clamp
                   left $ motion/ScalarDescriptor :id |left :version 1 :motion $ motion/ScalarMotion :keyframes track
                   right $ motion/ScalarDescriptor :id |right :version 1 :motion $ motion/ScalarMotion :constant 20
                   composition $ motion/ScalarComposition :id |sum :version 1 :left left :right right :operation $ motion/ScalarComposeOp :add
                   invalid $ motion/ScalarComposition :id |bad :version 1 :left right :right right :operation $ motion/ScalarComposeOp :mix 2
-                is= (GpuCompositionLowering :unsupported |keyframes-require-a-bounded-gpu-table) (lower-composition composition)
+                is= (GpuCompositionLowering :unsupported |keyframe-capacity-exceeded) (lower-composition composition)
                 is-throws $ lower-composition invalid
               :tags $ #{} :motion-gpu :unit
         'lower-cpu-scalar $ %{} 'CodeEntry (:doc |)
@@ -4306,8 +4325,7 @@
             :tags $ #{} :motion-gpu :unit
         'lower-scalar $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn lower-scalar (descriptor)
-            let
-                value $ motion/sample-scalar descriptor 0
+            do (motion/sample-scalar descriptor 0)
               match (:motion descriptor)
                 (:constant amount)
                   GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :constant amount
@@ -4317,7 +4335,13 @@
                   do
                     motion/sample-tween tween $ :start tween
                     GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :tween tween
-                (:keyframes track) (GpuScalarLowering :unsupported |keyframes-require-a-bounded-gpu-table)
+                (:keyframes track)
+                  if
+                    <=
+                      count $ :frames track
+                      gpu-keyframe-capacity
+                    GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :keyframes track
+                    GpuScalarLowering :unsupported |keyframe-capacity-exceeded
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuScalarLowering)
             :args $ [] 'quamolit.motion/ScalarDescriptor
@@ -4345,12 +4369,93 @@
             %{} 'TestEntry (:name |unsupported-and-invalid)
               :code $ quote $ let
                   track $ motion/ScalarTrack :frames
-                    [] $ motion/ScalarKeyframe :at 0 :value 10 :easing $ motion/Easing :linear
+                    map (range 0 17)
+                      fn (i)
+                        motion/ScalarKeyframe :at i :value i :easing $ motion/Easing :linear
                     , :loop $ motion/TrackLoop :clamp
                   keyframes $ motion/ScalarDescriptor :id |track :version 1 :motion $ motion/ScalarMotion :keyframes track
                   bad $ motion/ScalarDescriptor :id |bad :version -1 :motion $ motion/ScalarMotion :constant 7
-                is= (GpuScalarLowering :unsupported |keyframes-require-a-bounded-gpu-table) (lower-scalar keyframes)
+                is= (GpuScalarLowering :unsupported |keyframe-capacity-exceeded) (lower-scalar keyframes)
                 is-throws $ lower-scalar bad
+              :tags $ #{} :motion-gpu :unit
+            %{} 'TestEntry (:name |bounded-keyframes-and-endpoints)
+              :code $ quote $ let
+                  track $ motion/ScalarTrack :frames
+                    []
+                      motion/ScalarKeyframe :at 0 :value 10 :easing $ motion/Easing :linear
+                      motion/ScalarKeyframe :at 1 :value 20 :easing $ motion/Easing :linear
+                    , :loop $ motion/TrackLoop :mirror
+                  descriptor $ motion/ScalarDescriptor :id |track :version 3 :motion $ motion/ScalarMotion :keyframes track
+                is= 16 $ gpu-keyframe-capacity
+                is=
+                  GpuScalarLowering :supported $ GpuScalarPlan :id |track :version 3 :kernel $ GpuScalarKernel :keyframes track
+                  lower-scalar descriptor
+                is= 10 $ motion/sample-scalar descriptor 0
+                is= 12.5 $ motion/sample-scalar descriptor 0.25
+                is= 15 $ motion/sample-scalar descriptor 0.5
+                is= 20 $ motion/sample-scalar descriptor 1
+                is= 19.99999 $ motion/sample-scalar descriptor 1.000001
+              :tags $ #{} :motion-gpu :unit
+            %{} 'TestEntry (:name |capacity-boundary)
+              :code $ quote $ let
+                  frames16 $ map (range 0 16)
+                    fn (i)
+                      motion/ScalarKeyframe :at i :value i :easing $ motion/Easing :linear
+                  frames17 $ map (range 0 17)
+                    fn (i)
+                      motion/ScalarKeyframe :at i :value i :easing $ motion/Easing :linear
+                  track16 $ motion/ScalarTrack :frames frames16 :loop $ motion/TrackLoop :clamp
+                  track17 $ motion/ScalarTrack :frames frames17 :loop $ motion/TrackLoop :clamp
+                  descriptor16 $ motion/ScalarDescriptor :id |exact :version 1 :motion $ motion/ScalarMotion :keyframes track16
+                  descriptor17 $ motion/ScalarDescriptor :id |over :version 1 :motion $ motion/ScalarMotion :keyframes track17
+                is= 16 $ count frames16
+                is= 17 $ count frames17
+                is=
+                  GpuScalarLowering :supported $ GpuScalarPlan :id |exact :version 1 :kernel $ GpuScalarKernel :keyframes track16
+                  lower-scalar descriptor16
+                is= (GpuScalarLowering :unsupported |keyframe-capacity-exceeded) (lower-scalar descriptor17)
+              :tags $ #{} :motion-gpu :unit
+        'lower-vec2 $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn lower-vec2 (descriptor)
+            do (motion/sample-vec2 descriptor 0)
+              match (:motion descriptor)
+                (:constant value)
+                  GpuVec2Lowering :supported $ GpuVec2Plan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuVec2Kernel :constant value
+                (:tween tween)
+                  do
+                    motion/sample-vec2 descriptor $ :start tween
+                    GpuVec2Lowering :supported $ GpuVec2Plan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuVec2Kernel :tween tween
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuVec2Lowering)
+            :args $ [] 'quamolit.motion/Vec2Descriptor
+          :tests $ []
+            %{} 'TestEntry (:name |vector-kernels)
+              :code $ quote $ let
+                  from $ motion/Vec2 :x 10 :y 20
+                  to $ motion/Vec2 :x 30 :y 40
+                  tween $ motion/Vec2Tween :start 0 :duration 1 :from from :to to :easing $ motion/Easing :smoothstep
+                  descriptor $ motion/Vec2Descriptor :id |move :version 2 :motion $ motion/Vec2Motion :tween tween
+                  constant $ motion/Vec2Descriptor :id |origin :version 1 :motion $ motion/Vec2Motion :constant from
+                is=
+                  GpuVec2Lowering :supported $ GpuVec2Plan :id |move :version 2 :kernel $ GpuVec2Kernel :tween tween
+                  lower-vec2 descriptor
+                is=
+                  GpuVec2Lowering :supported $ GpuVec2Plan :id |origin :version 1 :kernel $ GpuVec2Kernel :constant from
+                  lower-vec2 constant
+                is= from $ motion/sample-vec2 descriptor 0
+                is= (motion/Vec2 :x 13.125 :y 23.125) (motion/sample-vec2 descriptor 0.25)
+                is= (motion/Vec2 :x 20 :y 30) (motion/sample-vec2 descriptor 0.5)
+                is= to $ motion/sample-vec2 descriptor 1
+              :tags $ #{} :motion-gpu :unit
+            %{} 'TestEntry (:name |invalid-vector-input)
+              :code $ quote $ let
+                  from $ motion/Vec2 :x 10 :y 20
+                  to $ motion/Vec2 :x 30 :y 40
+                  bad-tween $ motion/Vec2Tween :start 0 :duration -1 :from from :to to :easing $ motion/Easing :linear
+                  bad $ motion/Vec2Descriptor :id |bad :version 1 :motion $ motion/Vec2Motion :tween bad-tween
+                  bad-version $ motion/Vec2Descriptor :id |bad :version -1 :motion $ motion/Vec2Motion :constant from
+                is-throws $ lower-vec2 bad
+                is-throws $ lower-vec2 bad-version
               :tags $ #{} :motion-gpu :unit
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.motion-gpu
@@ -6420,6 +6525,36 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuScalarLowering)
             :args $ []
+        'gpu-keyframes-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-keyframes-plan (mode)
+            motion-gpu/lower-scalar $ keyframes-descriptor mode
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuScalarLowering)
+            :args $ [] 'quamolit.motion/TrackLoop
+        'gpu-keyframes-repeat-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-keyframes-repeat-plan ()
+            gpu-keyframes-plan $ TrackLoop :repeat
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuScalarLowering)
+            :args $ []
+        'gpu-vec2-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-vec2-plan ()
+            motion-gpu/lower-vec2 $ vec2-descriptor
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuVec2Lowering)
+            :args $ []
+        'keyframes-descriptor $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn keyframes-descriptor (mode)
+            let
+                f0 $ ScalarKeyframe :at 0 :value 48 :easing $ Easing :linear
+                f1 $ ScalarKeyframe :at 0.5 :value 128 :easing $ Easing :linear
+                f2 $ ScalarKeyframe :at 0.5 :value 144 :easing $ Easing :linear
+                f3 $ ScalarKeyframe :at 1 :value 208 :easing $ Easing :linear
+                track $ ScalarTrack :frames ([] f0 f1 f2 f3) :loop mode
+              ScalarDescriptor :id |keyframe-track :version 1 :motion $ ScalarMotion :keyframes track
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'quamolit.motion/TrackLoop
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
             let
@@ -6585,14 +6720,7 @@
             :args $ [] 'Number 'Number 'Number 'Bool 'Number 'Number 'Number 'Number 'Number
         'sample-keyframes-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sample-keyframes-at (time mode)
-            let
-                f0 $ ScalarKeyframe :at 0 :value 48 :easing $ Easing :linear
-                f1 $ ScalarKeyframe :at 0.5 :value 128 :easing $ Easing :linear
-                f2 $ ScalarKeyframe :at 0.5 :value 144 :easing $ Easing :linear
-                f3 $ ScalarKeyframe :at 1 :value 208 :easing $ Easing :linear
-                track $ ScalarTrack :frames ([] f0 f1 f2 f3) :loop mode
-                descriptor $ ScalarDescriptor :id |keyframe-track :version 1 :motion $ ScalarMotion :keyframes track
-              sample-scalar descriptor time
+            sample-scalar (keyframes-descriptor mode) time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number 'quamolit.motion/TrackLoop
@@ -6648,12 +6776,7 @@
             :args $ [] 'Number
         'sample-vec2-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sample-vec2-at (time)
-            let
-                from $ Vec2 :x 48 :y 80
-                to $ Vec2 :x 208 :y 120
-                tween $ Vec2Tween :start 0 :duration 1 :from from :to to :easing $ Easing :linear
-                descriptor $ Vec2Descriptor :id |moving-rect :version 1 :motion $ Vec2Motion :tween tween
-              sample-vec2 descriptor time
+            sample-vec2 (vec2-descriptor) time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
             :args $ [] 'Number
@@ -6724,6 +6847,16 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'vec2-descriptor $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn vec2-descriptor ()
+            let
+                from $ Vec2 :x 48 :y 80
+                to $ Vec2 :x 208 :y 120
+                tween $ Vec2Tween :start 0 :duration 1 :from from :to to :easing $ Easing :linear
+              Vec2Descriptor :id |moving-rect :version 1 :motion $ Vec2Motion :tween tween
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2Descriptor)
+            :args $ []
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.motion-fixture
           :require

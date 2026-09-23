@@ -6,6 +6,7 @@ test("Calcit Motion 标量与二维向量中间帧可乱序、倒退和重复采
   await page.goto("/test/motion.html?time=0.5");
   const status = page.locator("#status");
   await expect(status).toContainText("t=0.5s · value=15 · center=(128,100)");
+  await expect(status).toContainText("GPU 候选: Vec2 tween");
   for (const [button, result] of [
     ["0.75s", "t=0.75s · value=17.5 · center=(168,110)"],
     ["0.25s", "t=0.25s · value=12.5 · center=(88,90)"],
