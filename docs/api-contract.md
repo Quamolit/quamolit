@@ -9,7 +9,8 @@
 | `initial-frame` / `evaluate-at` 和泛型 `EvaluatedFrame<M,S>` | 已实现；顺序帧求值 | [显式帧求值](frame-evaluation.md)、`yarn test:clock`、`yarn compile:visual` |
 | `tick-tree` / `paint-tree-only-with` | 已实现；旧树迁移桥梁 | [确定性帧测试](../test/README.md) |
 | `defcomp` / `on-tick` / `fade` 缓存 | 兼容旧组件写法；不承诺新架构语义 | 旧入口未恢复，不应据 bootstrap 编译推断可用 |
-| `sample-at(motion, time, parameters)` | 拟议公共入口；直接采样 | #31；Motion 描述由 #48 定义 |
+| `quamolit.direct-frame/sample-at`、`resample-at` | 已实现的实验性泛型 CPU 直接采样切片；非组件公共入口 | [直接采样](direct-frame-sampling.md)；显式请求与依赖版本；#31 尚未完成 |
+| 组件公共 `sample-at(motion, time, parameters)` | 拟议；尚未实现 | #31；Motion 描述由 #48 定义 |
 | `quamolit.motion/sample-scalar`、`sample-vec2`、`sample-track`、`sample-color`、`sample-scalar-composition` | 已实现的实验性内部 CPU 参考切片；非公共组件入口 | [Motion 数值与浏览器验证](motion-scalar.md)、#48 的局部进展 |
 | `CpuScalarDescriptor`、`CpuScalarRegistry`、`register-cpu-scalar`、`sample-cpu-scalar` | 已实现的实验性 CPU-only 标量扩展切片；非组件公共入口 | 描述符仅保存回调 ID，注册表不参与序列化，GPU 明确为 `unsupported`；[Motion 数值与浏览器验证](motion-scalar.md) |
 | `step-simulation(state, tick, inputs)` | 拟议独立入口；固定步长历史模拟 | #31；不与 `sample-at` 混用 |
@@ -17,7 +18,7 @@
 | Scene IR / 完整 Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；现有 Motion 切片不持有 DOM/GPU 句柄 |
 | WebGPU/Canvas2D 双后端、资源表、命中索引 | 拟议、尚未实现 | #40/#33/#51/#34 |
 
-`evaluate-at` 不是 `sample-at`：前者从上一帧按非倒退时间更新模型，相同时间直接复用旧场景；它既不能任意乱序求值，也不会在相同时间但资源/模型改变时自动刷新。M0 的 JavaScript 参考夹具可以乱序求值，但不是 Calcit 公共 API。应用不得用“先把历史跑一遍”的隐藏全局状态伪装成直接采样。
+`evaluate-at` 不是新的 `quamolit.direct-frame/sample-at`：前者从上一帧按非倒退时间更新模型，相同时间直接复用旧场景；它既不能任意乱序求值，也不会在相同时间但资源/模型改变时自动刷新。新的 Calcit CPU 切片可以直接乱序求值，并通过显式版本使相同时间的依赖变更失效，但还不是组件公共入口。应用不得用“先把历史跑一遍”的隐藏全局状态伪装成直接采样。
 
 ## 输入、输出与所有权
 
@@ -70,7 +71,7 @@ let
   :scene half
 ```
 
-这里用 `let` 展示调用关系；可编译源入口以 `calcit.cirru` 内的函数 schema、namespace import、`reset-fixture!` 和 `step-fixture!` 为准，详见 [显式帧求值](frame-evaluation.md)。上述 `half` 的模型为 `0.5`、矩形中心 `x=128`；在 `t=0.5` 但资源版本变化时，必须显式重建 `initial-frame`，当前 `evaluate-at` 不会自动失效。未来 #31 的 `sample-at` 才应支持 `t=[1,0,0.5,0.25,1]` 的乱序直接求值；#48 完成的标准 Motion 描述示例和 #49 的 fade 生命周期示例将另行按各自 issue 验收。
+这里用 `let` 展示调用关系；可编译源入口以 `calcit.cirru` 内的函数 schema、namespace import、`reset-fixture!` 和 `step-fixture!` 为准，详见 [显式帧求值](frame-evaluation.md)。上述 `half` 的模型为 `0.5`、矩形中心 `x=128`；在 `t=0.5` 但资源版本变化时，必须显式重建 `initial-frame`，当前 `evaluate-at` 不会自动失效。新的 [直接采样切片](direct-frame-sampling.md) 已支持 `t=[1,0,0.5,0.25,1]` 和同时间版本失效；#48 的完整 Motion IR 和 #49 的 fade 生命周期仍另行按各自 issue 验收。
 
 ## 设计选择与不选方案
 

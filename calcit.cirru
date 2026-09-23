@@ -2518,6 +2518,183 @@
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.cursor
+    'quamolit.direct-frame $ %{} 'FileEntry
+      :defs $ {}
+        'DirectFrame $ %{} 'CodeEntry
+          :doc "|A sampled value plus the exact identity, time and revisions used to produce it."
+          :code $ quote $ defstruct DirectFrame ([] 'S) (:id 'String) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:scene 'S)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'DirectRequest $ %{} 'CodeEntry
+          :doc "|Typed, complete logical input for one arbitrary-time direct sample."
+          :code $ quote $ defstruct DirectRequest ([] 'D 'M 'I 'R 'V) (:id 'String) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:motion 'D) (:model 'M) (:input 'I) (:resources 'R) (:viewport 'V)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'FrameVersions $ %{} 'CodeEntry
+          :doc "|Explicit nonnegative integer revisions for every declared direct-sampling dependency."
+          :code $ quote $ defstruct FrameVersions (:component 'Number) (:motion 'Number) (:model 'Number) (:input 'Number) (:resources 'Number) (:viewport 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'resample-at $ %{} 'CodeEntry
+          :doc "|Reuse a previous frame only when id, time and all declared dependency revisions match."
+          :code $ quote $ defn resample-at (previous request evaluate)
+            assert |invalid-direct-request $ valid-direct-request? request
+            if
+              and
+                = (:id previous) (:id request)
+                = (:time previous) (:time request)
+                = (:versions previous) (:versions request)
+              , previous $ sample-at request evaluate
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.direct-frame/DirectFrame 'S) (:: 'quamolit.direct-frame/DirectRequest 'D 'M 'I 'R 'V)
+              :: 'Fn $ {} (:return 'S)
+                :args $ [] 'D 'M 'I 'R 'V 'Number
+            :generics $ [] 'D 'M 'I 'R 'V 'S
+            :return $ :: 'quamolit.direct-frame/DirectFrame 'S
+          :tests $ []
+            %{} 'TestEntry (:name |absolute-time-and-dependency-revisions)
+              :code $ quote $ let
+                  descriptor $ ScalarDescriptor :id |fade :version 1 :motion $ ScalarMotion :tween
+                    ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                  next-descriptor $ ScalarDescriptor :id |fade :version 2 :motion $ ScalarMotion :tween
+                    ScalarTween :start 0 :duration 1 :from 20 :to 30 :easing $ Easing :linear
+                  versions $ FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources 0 :viewport 0
+                  make-versions $ fn (component motion model input resources viewport)
+                    hint-fn $ {}
+                      :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number
+                      :return 'quamolit.direct-frame/FrameVersions
+                    FrameVersions :component component :motion motion :model model :input input :resources resources :viewport viewport
+                  make-request $ fn (id time revisions motion model input resources viewport)
+                    hint-fn $ {}
+                      :args $ [] 'String 'Number 'quamolit.direct-frame/FrameVersions 'quamolit.motion/ScalarDescriptor 'Number 'Number 'Bool 'Number
+                      :return $ :: 'quamolit.direct-frame/DirectRequest 'quamolit.motion/ScalarDescriptor 'Number 'Number 'Bool 'Number
+                    DirectRequest :id id :time time :versions revisions :motion motion :model model :input input :resources resources :viewport viewport
+                  request $ make-request |badge 0.5 versions descriptor 0 0 false 100
+                  evaluate $ fn (motion model input resources viewport time)
+                    hint-fn $ {}
+                      :args $ [] 'quamolit.motion/ScalarDescriptor 'Number 'Number 'Bool 'Number 'Number
+                      :return 'Number
+                    +
+                      +
+                        +
+                          + (sample-scalar motion time) model
+                          , input
+                        if resources 20 0
+                      / viewport 10
+                  baseline $ sample-at request evaluate
+                  reused $ resample-at baseline request $ fn (motion model input resources viewport time)
+                    hint-fn $ {}
+                      :args $ [] 'quamolit.motion/ScalarDescriptor 'Number 'Number 'Bool 'Number 'Number
+                      :return 'Number
+                    raise |unexpected-re-evaluation
+                  model-request $ make-request |badge 0.5 (make-versions 0 0 1 0 0 0) descriptor 5 0 false 100
+                  resource-request $ make-request |badge 0.5 (make-versions 0 0 0 0 1 0) descriptor 0 0 true 100
+                  viewport-request $ make-request |badge 0.5 (make-versions 0 0 0 0 0 1) descriptor 0 0 false 150
+                  input-request $ make-request |badge 0.5 (make-versions 0 0 0 1 0 0) descriptor 0 2 false 100
+                  motion-request $ make-request |badge 0.5 (make-versions 0 1 0 0 0 0) next-descriptor 0 0 false 100
+                  component-request $ make-request |badge 0.5 (make-versions 1 0 0 0 0 0) descriptor 0 0 false 100
+                  other-request $ make-request |other-badge 0.5 versions descriptor 0 0 false 100
+                is= ([] 30 20 25 22.5 30)
+                  map ([] 1 0 0.5 0.25 1)
+                    fn (time)
+                      :scene $ sample-at
+                        make-request |badge time versions descriptor 0 0 false 100
+                        , evaluate
+                is= 25 $ :scene baseline
+                is= baseline reused
+                is= 30 $ :scene $ resample-at baseline model-request evaluate
+                is= 45 $ :scene $ resample-at baseline resource-request evaluate
+                is= 30 $ :scene $ resample-at baseline viewport-request evaluate
+                is= 27 $ :scene $ resample-at baseline input-request evaluate
+                is= 35 $ :scene $ resample-at baseline motion-request evaluate
+                is= 25 $ :scene $ resample-at baseline component-request evaluate
+                is= 25 $ :scene $ resample-at baseline other-request evaluate
+                is= 30 $ :scene $ sample-at
+                  make-request |badge 0.5 versions descriptor 5 0 false 100
+                  , evaluate
+              :tags $ #{} :direct-frame :unit
+            %{} 'TestEntry (:name |reject-invalid-request)
+              :code $ quote $ let
+                  descriptor $ ScalarDescriptor :id |fade :version 1 :motion $ ScalarMotion :constant 10
+                  versions $ FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources 0 :viewport 0
+                  make-request $ fn (id time revisions)
+                    hint-fn $ {}
+                      :args $ [] 'String 'Number 'quamolit.direct-frame/FrameVersions
+                      :return $ :: 'quamolit.direct-frame/DirectRequest 'quamolit.motion/ScalarDescriptor 'Number 'Number 'Bool 'Number
+                    DirectRequest :id id :time time :versions revisions :motion descriptor :model 0 :input 0 :resources false :viewport 100
+                  evaluate $ fn (motion model input resources viewport time)
+                    hint-fn $ {}
+                      :args $ [] 'quamolit.motion/ScalarDescriptor 'Number 'Number 'Bool 'Number 'Number
+                      :return 'Number
+                    sample-scalar motion time
+                  baseline $ sample-at (make-request |badge 0 versions) evaluate
+                is-throws $ sample-at (make-request | 0 versions) evaluate
+                is-throws $ sample-at
+                  make-request |badge (sqrt -1) versions
+                  , evaluate
+                is-throws $ sample-at
+                  make-request |badge (/ 1 0) versions
+                  , evaluate
+                is-throws $ sample-at
+                  make-request |badge 0 $ FrameVersions :component 0 :motion 0 :model -1 :input 0 :resources 0 :viewport 0
+                  , evaluate
+                is-throws $ sample-at
+                  make-request |badge 0 $ FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources 0.5 :viewport 0
+                  , evaluate
+                is-throws $ resample-at baseline
+                  make-request |badge 0 $ FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources 0 :viewport $ / 1 0
+                  , evaluate
+              :tags $ #{} :direct-frame :unit
+        'sample-at $ %{} 'CodeEntry
+          :doc "|Evaluate from explicit snapshots at arbitrary finite time without reading an earlier frame."
+          :code $ quote $ defn sample-at (request evaluate)
+            assert |invalid-direct-request $ valid-direct-request? request
+            DirectFrame :id (:id request) :time (:time request) :versions (:versions request) :scene $ evaluate (:motion request) (:model request) (:input request) (:resources request) (:viewport request) (:time request)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.direct-frame/DirectRequest 'D 'M 'I 'R 'V)
+              :: 'Fn $ {} (:return 'S)
+                :args $ [] 'D 'M 'I 'R 'V 'Number
+            :generics $ [] 'D 'M 'I 'R 'V 'S
+            :return $ :: 'quamolit.direct-frame/DirectFrame 'S
+        'valid-direct-request? $ %{} 'CodeEntry
+          :doc "|Validate request identity, finite absolute seconds and every revision."
+          :code $ quote $ defn valid-direct-request? (request)
+            and
+              not $ empty? $ :id request
+              finite-number? $ :time request
+              valid-frame-versions? $ :versions request
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] $ :: 'quamolit.direct-frame/DirectRequest 'D 'M 'I 'R 'V
+            :generics $ [] 'D 'M 'I 'R 'V
+        'valid-frame-versions? $ %{} 'CodeEntry
+          :doc "|Reject negative, fractional or non-finite dependency revisions."
+          :code $ quote $ defn valid-frame-versions? (versions)
+            and
+              valid-version? $ :component versions
+              valid-version? $ :motion versions
+              valid-version? $ :model versions
+              valid-version? $ :input versions
+              valid-version? $ :resources versions
+              valid-version? $ :viewport versions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.direct-frame/FrameVersions
+        'valid-version? $ %{} 'CodeEntry
+          :doc "|A single dependency revision must be finite, nonnegative and integral."
+          :code $ quote $ defn valid-version? (value)
+            and (finite-number? value) (>= value 0)
+              = value $ floor value
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.direct-frame
+          :require
+            quamolit.motion :refer $ finite-number? Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar
+            calcit.test :refer $ is= is-throws
     'quamolit.fixed-step $ %{} 'FileEntry
       :defs $ {}
         'SimulationState $ %{} 'CodeEntry
@@ -4555,6 +4732,29 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'sample-direct-x $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-direct-x
+            time model input ready viewport model-version input-version resource-version viewport-version
+            let
+                descriptor $ ScalarDescriptor :id |direct-fade :version 1 :motion $ ScalarMotion :tween
+                  ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                versions $ direct-frame/FrameVersions :component 0 :motion 0 :model model-version :input input-version :resources resource-version :viewport viewport-version
+                request $ direct-frame/DirectRequest :id |badge :time time :versions versions :motion descriptor :model model :input input :resources ready :viewport viewport
+                evaluate $ fn (motion model input resources viewport time)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.motion/ScalarDescriptor 'Number 'Number 'Bool 'Number 'Number
+                    :return 'Number
+                  +
+                    +
+                      +
+                        + (sample-scalar motion time) model
+                        , input
+                      if resources 20 0
+                    / viewport 10
+              :scene $ direct-frame/sample-at request evaluate
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number 'Number 'Number 'Number 'Number
         'sample-keyframes-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sample-keyframes-at (time mode)
             let
@@ -4646,6 +4846,7 @@
           :require
             quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color ScalarComposeOp ScalarComposition sample-scalar-composition CpuScalarDescriptor CpuGpuStatus CpuScalarRegistry register-cpu-scalar sample-cpu-scalar
             quamolit.fixed-step :refer $ start-simulation advance-simulation
+            quamolit.direct-frame :as direct-frame
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)
