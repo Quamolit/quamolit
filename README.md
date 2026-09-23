@@ -197,9 +197,11 @@ also checks the generated core against the installed `@calcit/procs` runtime.
 ### Deterministic frame tests
 
 Quamolit now exposes an absolute frame clock (`reset-frame-clock!`,
-`advance-frame-clock!`) and a tree walker with an injectable leaf painter
-(`paint-tree-with`). Advancing a frame calls component `on-tick` once with the
-elapsed seconds; a redraw can paint the same state without advancing time.
+`advance-frame-clock!`), a separate `tick-tree` pass for component `on-tick`
+callbacks, and `paint-tree-only-with` for drawing without advancing animation
+state. The compatibility `paint-tree-with` entry combines these passes.
+Advancing a frame calls component `on-tick` once with the elapsed seconds; a
+redraw can paint the same state without advancing time.
 The browser fixture exercises this with a real Canvas rectangle at fixed
 timestamps, including intermediate frames. See [test/README.md](test/README.md)
 for the screenshot workflow and current coverage limits.

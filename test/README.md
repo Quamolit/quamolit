@@ -24,8 +24,9 @@ animation-frame scheduling, and click order. The 280×160 canvas has a white
 background; at time `t` the pink rectangle is centered at `x = 48 + 160t`,
 `y = 80`.
 
-The fixture uses the framework's component tree walker and the actual
-rectangle painter. Other painter branches are not included yet because their
+The fixture first calls `tick-tree` with the sampled elapsed time, then calls
+`paint-tree-only-with` using the actual rectangle painter. A redraw runs only
+the paint pass. Other painter branches are not included yet because their
 legacy strict-type diagnostics currently block the visual entry from compiling.
 When those branches migrate, add focused fixtures for text, transforms, paths,
 images, transparency, and event regions, then add image baselines in a pinned

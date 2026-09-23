@@ -21,9 +21,12 @@ input + absolute time → update model → pure view → Scene IR → renderer
 ```
 
 The current `defcomp`/`Shape` tree is the migration source, not yet the new IR.
-Today `on-tick` is invoked during `paint`, and hit areas are accumulated during
-painting. Issues #33 and #34 separate these effects; until then, screenshot
-tests must use the explicit clock helpers and redraw without ticking.
+The legacy `paint` entry now runs a separate `tick-tree` pass before painting;
+`paint-tree-only-with` traverses and paints without invoking `on-tick`. This
+separates the effects but does not yet provide a pure frame evaluator: tick
+callbacks still dispatch application updates. Hit areas are still accumulated
+during painting. Issues #33 and #34 continue that separation toward a pure
+scene evaluator and paint-independent interaction index.
 
 ## Time contract
 
@@ -41,6 +44,12 @@ the required samples, and render the requested scene. Calling render twice on
 the same result must neither tick again nor change its pixels. If an animation
 uses randomness, the seed or generator state belongs in the model. Asynchronous
 resources need a declared ready/failure state before a screenshot is asserted.
+
+For the legacy tree, `tick-tree(tree, dispatch!, elapsed)` runs callbacks in
+parent-before-child order, without touching Canvas. `paint-tree-only-with`
+then draws that tree without ticking. The compatibility `paint-tree-with` and
+`paint` entries call these passes in sequence when ticking is requested. This
+is a migration boundary, not the final model-pure evaluator.
 
 ## Proposed public API boundaries
 
