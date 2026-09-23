@@ -4721,6 +4721,344 @@
             js-ffi.browser :refer $ image-create image-src!
             calcit.test :refer $ is=
             quamolit.frame-eval :refer $ tick-tree
+    'quamolit.scene-ir $ %{} 'FileEntry
+      :defs $ {}
+        'ClipRect $ %{} 'CodeEntry (:doc "|Group-local rectangular clip in CSS pixels.")
+          :code $ quote $ defstruct ClipRect (:x 'Number) (:y 'Number) (:width 'Number) (:height 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ClipSpec $ %{} 'CodeEntry
+          :doc "|Closed clip declaration; no Canvas path or host resource handle."
+          :code $ quote $ defenum ClipSpec (:none) (:rect 'quamolit.scene-ir/ClipRect)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'GroupNode $ %{} 'CodeEntry
+          :doc "|Group transform, clip and isolated opacity declaration."
+          :code $ quote $ defstruct GroupNode (:transform 'quamolit.scene-ir/Matrix2D) (:clip 'quamolit.scene-ir/ClipSpec) (:opacity 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'InstanceNode $ %{} 'CodeEntry
+          :doc "|One logical instance layer referencing external positions and shared geometry/color."
+          :code $ quote $ defstruct InstanceNode (:source 'quamolit.scene-ir/InstanceSource) (:width 'Number) (:height 'Number) (:fill 'quamolit.motion/ColorRgba)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'InstanceSource $ %{} 'CodeEntry
+          :doc "|Versioned external typed-array source; count does not create child nodes."
+          :code $ quote $ defstruct InstanceSource (:id 'String) (:version 'Number) (:count 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'Matrix2D $ %{} 'CodeEntry (:doc "|CSS-pixel affine matrix [a c e; b d f; 0 0 1].")
+          :code $ quote $ defstruct Matrix2D (:a 'Number) (:b 'Number) (:c 'Number) (:d 'Number) (:e 'Number) (:f 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RectNode $ %{} 'CodeEntry
+          :doc "|Solid rectangle geometry and straight-alpha sRGB color."
+          :code $ quote $ defstruct RectNode (:x 'Number) (:y 'Number) (:width 'Number) (:height 'Number) (:fill 'quamolit.motion/ColorRgba)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ScalarBinding $ %{} 'CodeEntry
+          :doc "|Versioned reference to a Motion descriptor, never an executable closure."
+          :code $ quote $ defstruct ScalarBinding (:target 'quamolit.scene-ir/ScalarTarget) (:motion-id 'String) (:version 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ScalarTarget $ %{} 'CodeEntry
+          :doc "|Scalar animation binding target; supported per content kind by validator."
+          :code $ quote $ defenum ScalarTarget (:x) (:y) (:width) (:height) (:opacity)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'SceneContent $ %{} 'CodeEntry
+          :doc "|Closed primitive/group/instance-layer union, independent from execution plans."
+          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'SceneDocument $ %{} 'CodeEntry
+          :doc "|Preorder node list; order is paint order, parent appears before child."
+          :code $ quote $ defstruct SceneDocument
+            :nodes $ :: 'List 'quamolit.scene-ir/SceneNode
+          :examples $ []
+          :schema $ :: 'StructDef
+        'SceneInteraction $ %{} 'CodeEntry
+          :doc "|Logical event target reference; hit testing is not performed during paint."
+          :code $ quote $ defenum SceneInteraction (:none) (:target 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'SceneNode $ %{} 'CodeEntry
+          :doc "|Flat node: stable unique id, parent id, sibling key, typed content and metadata."
+          :code $ quote $ defstruct SceneNode (:id 'String) (:parent 'String) (:key 'String) (:content 'quamolit.scene-ir/SceneContent)
+            :bindings $ :: 'List 'quamolit.scene-ir/ScalarBinding
+            :interaction 'quamolit.scene-ir/SceneInteraction
+          :examples $ []
+          :schema $ :: 'StructDef
+        'conflicts-with-earlier? $ %{} 'CodeEntry
+          :doc "|Reject duplicate ID or sibling key in a preorder prefix."
+          :code $ quote $ defn conflicts-with-earlier? (node earlier)
+            if (empty? earlier) false $ let
+                previous $ first-node earlier
+              if
+                or
+                  = (:id node) (:id previous)
+                  and
+                    = (:parent node) (:parent previous)
+                    = (:key node) (:key previous)
+                , true $ recur node $ rest earlier
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneNode $ :: 'List 'quamolit.scene-ir/SceneNode
+        'content-kind $ %{} 'CodeEntry
+          :doc "|Stable content kind for identity and diagnostics."
+          :code $ quote $ defn content-kind (content)
+            match content
+              (:group group) |group
+              (:rect rect) |rect
+              (:instances instances) |instances
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.scene-ir/SceneContent
+        'empty-scene-nodes $ %{} 'CodeEntry (:doc "|Typed empty node prefix.")
+          :code $ quote $ defn empty-scene-nodes () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'first-binding $ %{} 'CodeEntry
+          :doc "|Typed first element helper for a nonempty binding list."
+          :code $ quote $ defn first-binding (bindings)
+            -> (first bindings) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/ScalarBinding)
+            :args $ [] $ :: 'List 'quamolit.scene-ir/ScalarBinding
+        'first-node $ %{} 'CodeEntry
+          :doc "|Typed first element helper for a nonempty node list."
+          :code $ quote $ defn first-node (nodes)
+            -> (first nodes) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] $ :: 'List 'quamolit.scene-ir/SceneNode
+        'parent-group? $ %{} 'CodeEntry
+          :doc "|A non-root parent must already exist in the prefix and be a group."
+          :code $ quote $ defn parent-group? (parent-id earlier)
+            if (empty? earlier) false $ let
+                previous $ first-node earlier
+              if
+                = parent-id $ :id previous
+                =
+                  content-kind $ :content previous
+                  , |group
+                recur parent-id $ rest earlier
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'String $ :: 'List 'quamolit.scene-ir/SceneNode
+        'target-in? $ %{} 'CodeEntry (:doc "|Check for another binding of the same target.")
+          :code $ quote $ defn target-in? (target bindings)
+            if (empty? bindings) false $ if
+              = target $ :target $ first-binding bindings
+              , true $ recur target (rest bindings)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/ScalarTarget $ :: 'List 'quamolit.scene-ir/ScalarBinding
+        'valid-binding? $ %{} 'CodeEntry
+          :doc "|Validate one versioned scalar motion binding and its legal target."
+          :code $ quote $ defn valid-binding? (binding content)
+            and
+              not $ empty? $ :motion-id binding
+              finite-number? $ :version binding
+              >= (:version binding) 0
+              = (:version binding)
+                floor $ :version binding
+              match (:target binding)
+                (:opacity)
+                  = (content-kind content) |group
+                (:x)
+                  = (content-kind content) |rect
+                (:y)
+                  = (content-kind content) |rect
+                (:width)
+                  = (content-kind content) |rect
+                (:height)
+                  = (content-kind content) |rect
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/ScalarBinding 'quamolit.scene-ir/SceneContent
+        'valid-bindings? $ %{} 'CodeEntry (:doc "|Reject duplicate or unsupported scalar targets.")
+          :code $ quote $ defn valid-bindings? (bindings content)
+            if (empty? bindings) true $ let
+                binding $ first-binding bindings
+                later $ rest bindings
+              and (valid-binding? binding content)
+                not $ target-in? (:target binding) later
+                recur later content
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.scene-ir/ScalarBinding) 'quamolit.scene-ir/SceneContent
+        'valid-color? $ %{} 'CodeEntry (:doc "|Validate straight-alpha sRGB channels.")
+          :code $ quote $ defn valid-color? (color)
+            and
+              valid-unit? $ :r color
+              valid-unit? $ :g color
+              valid-unit? $ :b color
+              valid-unit? $ :a color
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/ColorRgba
+        'valid-content? $ %{} 'CodeEntry
+          :doc "|Validate the numeric and resource payload of one content variant."
+          :code $ quote $ defn valid-content? (content)
+            match content
+              (:group group)
+                let
+                    transform $ :transform group
+                    clip-valid $ match (:clip group)
+                      (:none) true
+                      (:rect clip)
+                        and
+                          finite-number? $ :x clip
+                          finite-number? $ :y clip
+                          finite-number? $ :width clip
+                          finite-number? $ :height clip
+                          >= (:width clip) 0
+                          >= (:height clip) 0
+                  and
+                    finite-number? $ :a transform
+                    finite-number? $ :b transform
+                    finite-number? $ :c transform
+                    finite-number? $ :d transform
+                    finite-number? $ :e transform
+                    finite-number? $ :f transform
+                    valid-unit? $ :opacity group
+                    , clip-valid
+              (:rect rect)
+                and
+                  finite-number? $ :x rect
+                  finite-number? $ :y rect
+                  finite-number? $ :width rect
+                  finite-number? $ :height rect
+                  >= (:width rect) 0
+                  >= (:height rect) 0
+                  valid-color? $ :fill rect
+              (:instances instances)
+                let
+                    source $ :source instances
+                  and
+                    not $ empty? $ :id source
+                    finite-number? $ :version source
+                    >= (:version source) 0
+                    = (:version source)
+                      floor $ :version source
+                    finite-number? $ :count source
+                    >= (:count source) 0
+                    = (:count source)
+                      floor $ :count source
+                    finite-number? $ :width instances
+                    finite-number? $ :height instances
+                    >= (:width instances) 0
+                    >= (:height instances) 0
+                    valid-color? $ :fill instances
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneContent
+        'valid-node? $ %{} 'CodeEntry
+          :doc "|Check local numeric, resource, binding and interaction invariants."
+          :code $ quote $ defn valid-node? (node)
+            and
+              not $ empty? $ :id node
+              not $ empty? $ :key node
+              not= (:id node) (:parent node)
+              valid-content? $ :content node
+              valid-bindings? (:bindings node) (:content node)
+              match (:interaction node)
+                (:none) true
+                (:target target)
+                  not $ empty? target
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneNode
+        'valid-prefix? $ %{} 'CodeEntry
+          :doc "|Walk preorder nodes and reject invalid topology or duplicate identities."
+          :code $ quote $ defn valid-prefix? (remaining earlier)
+            if (empty? remaining) true $ let
+                node $ first-node remaining
+              assert |invalid-scene-node $ valid-node? node
+              assert |duplicate-scene-id-or-sibling-key $ not $ conflicts-with-earlier? node earlier
+              assert |missing-or-non-group-parent $ or
+                empty? $ :parent node
+                parent-group? (:parent node) earlier
+              recur (rest remaining) (append earlier node)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) (:: 'List 'quamolit.scene-ir/SceneNode)
+        'valid-unit? $ %{} 'CodeEntry (:doc "|Validate a finite normalized channel.")
+          :code $ quote $ defn valid-unit? (value)
+            and (finite-number? value) (>= value 0) (<= value 1)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number
+        'validate-scene $ %{} 'CodeEntry
+          :doc "|Validate the serializable preorder Scene IR before any drawing."
+          :code $ quote $ defn validate-scene (document)
+            valid-prefix? (:nodes document) (empty-scene-nodes)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneDocument
+          :tests $ []
+            %{} 'TestEntry (:name |flat-valid-document)
+              :code $ quote $ let
+                  matrix $ Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                  group-content $ SceneContent :group $ GroupNode :transform matrix :clip (ClipSpec :none) :opacity 1
+                  color $ ColorRgba :r 1 :g 0 :b 0 :a 1
+                  rect-content $ SceneContent :rect $ RectNode :x 10 :y 20 :width 16 :height 16 :fill color
+                  instance-content $ SceneContent :instances $ InstanceNode :source (InstanceSource :id |crowd-positions :version 3 :count 10000) :width 2 :height 2 :fill color
+                  binding $ ScalarBinding :target (ScalarTarget :x) :motion-id |badge-x :version 1
+                  group $ SceneNode :id |root :parent | :key |root :content group-content :bindings ([]) :interaction $ SceneInteraction :none
+                  badge $ SceneNode :id |badge :parent |root :key |badge :content rect-content :bindings ([] binding) :interaction $ SceneInteraction :target |badge-click
+                  crowd $ SceneNode :id |crowd :parent |root :key |crowd :content instance-content :bindings ([]) :interaction $ SceneInteraction :none
+                  document $ SceneDocument :nodes $ [] group badge crowd
+                is= true $ validate-scene document
+                is= true $ validate-scene $ SceneDocument :nodes ([] group crowd badge)
+                is= 3 $ count $ :nodes document
+                is= |instances $ content-kind $ :content crowd
+              :tags $ #{} :scene :unit
+            %{} 'TestEntry (:name |rejects-invalid-scene)
+              :code $ quote $ let
+                  matrix $ Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                  color $ ColorRgba :r 1 :g 0 :b 0 :a 1
+                  group-content $ SceneContent :group $ GroupNode :transform matrix :clip (ClipSpec :none) :opacity 1
+                  rect-content $ SceneContent :rect $ RectNode :x 10 :y 20 :width 16 :height 16 :fill color
+                  group $ SceneNode :id |root :parent | :key |root :content group-content :bindings ([]) :interaction $ SceneInteraction :none
+                  badge $ SceneNode :id |badge :parent |root :key |badge :content rect-content :bindings ([]) :interaction $ SceneInteraction :none
+                  duplicate-key $ SceneNode :id |other :parent |root :key |badge :content rect-content :bindings ([]) :interaction $ SceneInteraction :none
+                  duplicate-id $ SceneNode :id |badge :parent |root :key |other :content rect-content :bindings ([]) :interaction $ SceneInteraction :none
+                  missing-parent $ SceneNode :id |orphan :parent |missing :key |orphan :content rect-content :bindings ([]) :interaction $ SceneInteraction :none
+                  rect-child $ SceneNode :id |child :parent |badge :key |child :content rect-content :bindings ([]) :interaction $ SceneInteraction :none
+                  bad-rect $ SceneNode :id |bad :parent |root :key |bad :content
+                    SceneContent :rect $ RectNode :x 0 :y 0 :width -1 :height 2 :fill color
+                    , :bindings ([]) :interaction $ SceneInteraction :none
+                  bad-group $ SceneNode :id |bad :parent | :key |bad :content
+                    SceneContent :group $ GroupNode :transform matrix :clip (ClipSpec :none) :opacity 1.5
+                    , :bindings ([]) :interaction $ SceneInteraction :none
+                  bad-instances $ SceneNode :id |bad :parent |root :key |bad :content
+                    SceneContent :instances $ InstanceNode :source (InstanceSource :id |points :version 1 :count 1.5) :width 2 :height 2 :fill color
+                    , :bindings ([]) :interaction $ SceneInteraction :none
+                  x-binding $ ScalarBinding :target (ScalarTarget :x) :motion-id |move :version 1
+                  duplicate-binding $ SceneNode :id |bad :parent |root :key |bad :content rect-content :bindings ([] x-binding x-binding) :interaction $ SceneInteraction :none
+                  invalid-target $ SceneNode :id |bad :parent | :key |bad :content group-content :bindings ([] x-binding) :interaction $ SceneInteraction :none
+                  bad-event $ SceneNode :id |bad :parent |root :key |bad :content rect-content :bindings ([]) :interaction $ SceneInteraction :target |
+                is-throws $ validate-scene $ SceneDocument :nodes ([] group badge duplicate-key)
+                is-throws $ validate-scene $ SceneDocument :nodes ([] group badge duplicate-id)
+                is-throws $ validate-scene $ SceneDocument :nodes ([] group missing-parent)
+                is-throws $ validate-scene $ SceneDocument :nodes ([] badge group)
+                is-throws $ validate-scene $ SceneDocument :nodes ([] group badge rect-child)
+                is-throws $ validate-scene $ SceneDocument :nodes ([] group bad-rect)
+                is-throws $ validate-scene $ SceneDocument :nodes ([] bad-group)
+                is-throws $ validate-scene $ SceneDocument :nodes ([] group bad-instances)
+                is-throws $ validate-scene $ SceneDocument :nodes ([] group duplicate-binding)
+                is-throws $ validate-scene $ SceneDocument :nodes ([] invalid-target)
+                is-throws $ validate-scene $ SceneDocument :nodes ([] group bad-event)
+              :tags $ #{} :scene :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.scene-ir
+          :require
+            quamolit.motion :refer $ finite-number? ColorRgba
+            calcit.test :refer $ is= is-throws
     'quamolit.test.frame-fixture $ %{} 'FileEntry
       :defs $ {}
         '*frame $ %{} 'CodeEntry (:doc |)
@@ -4994,6 +5332,24 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'scene-document-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-document-at (time)
+            let
+                matrix $ scene-ir/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                color $ ColorRgba :r 0.9176470588235294 :g 0.34509803921568627 :b 0.047058823529411764 :a 1
+                group-content $ scene-ir/SceneContent :group $ scene-ir/GroupNode :transform matrix :clip (scene-ir/ClipSpec :none) :opacity 1
+                x $ * 4 $ sample-direct-x time 0 0 false 100 0 0 0 0
+                rect-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x x :y 42 :width 16 :height 16 :fill color
+                instance-content $ scene-ir/SceneContent :instances $ scene-ir/InstanceNode :source (scene-ir/InstanceSource :id |particles :version 1 :count 10000) :width 2 :height 2 :fill color
+                group $ scene-ir/SceneNode :id |root :parent | :key |root :content group-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                badge $ scene-ir/SceneNode :id |badge :parent |root :key |badge :content rect-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :target |badge-click
+                instances $ scene-ir/SceneNode :id |particles :parent |root :key |particles :content instance-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                document $ scene-ir/SceneDocument :nodes $ [] group badge instances
+              scene-ir/validate-scene document
+              , document
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.motion-fixture
           :require
@@ -5001,6 +5357,7 @@
             quamolit.fixed-step :refer $ start-simulation advance-simulation
             quamolit.direct-frame :as direct-frame
             quamolit.host-clock :as host-clock
+            quamolit.scene-ir :as scene-ir
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)

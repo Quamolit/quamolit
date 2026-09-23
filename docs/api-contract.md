@@ -16,7 +16,8 @@
 | `step-simulation(state, tick, inputs)` | 拟议独立入口；固定步长历史模拟 | #31；不与 `sample-at` 混用 |
 | `quamolit.fixed-step/start-simulation`、`step-simulation`、`advance-simulation` | 已实现的实验性泛型 CPU 状态推进切片；显式 tick/输入日志/追帧预算 | [固定步长模拟](fixed-step-simulation.md)；时间映射由独立时钟提供，尚无组件公共入口 |
 | `quamolit.host-clock/start-clock`、`sample-clock`、暂停/变速/seek 与 `simulation-tick-at` | 已实现的实验性纯函数时间映射切片；非宿主循环 | [宿主时间映射](host-clock.md)；调用方提供单调宿主秒数，模拟倒退仍需检查点 |
-| Scene IR / 完整 Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；现有 Motion 切片不持有 DOM/GPU 句柄 |
+| `quamolit.scene-ir/SceneDocument`、`SceneNode`、`validate-scene` | 已实现的实验性可序列化核心切片；非生产绘制入口 | [Scene IR 核心](scene-ir-core.md)；group/rect/实例源、校验和 JSON 夹具；#32 变更集未完成 |
+| 完整 Scene IR / 完整 Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；现有切片不持有 DOM/GPU 句柄 |
 | WebGPU/Canvas2D 双后端、资源表、命中索引 | 拟议、尚未实现 | #40/#33/#51/#34 |
 
 `evaluate-at` 不是新的 `quamolit.direct-frame/sample-at`：前者从上一帧按非倒退时间更新模型，相同时间直接复用旧场景；它既不能任意乱序求值，也不会在相同时间但资源/模型改变时自动刷新。新的 Calcit CPU 切片可以直接乱序求值，并通过显式版本使相同时间的依赖变更失效，但还不是组件公共入口。应用不得用“先把历史跑一遍”的隐藏全局状态伪装成直接采样。
