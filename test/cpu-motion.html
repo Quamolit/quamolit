@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit CPU Vec2 扩展验证</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { display: block; border: 1px solid #94a3b8; margin: 16px 0; }
+      button { margin-right: 8px; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>CPU Vec2 自定义运动</h1>
+    <p>固定绝对时间、显式输入与完整版本；Canvas 仅作测试画布。</p>
+    <div id="controls"></div>
+    <canvas id="frame" width="240" height="140"></canvas>
+    <output id="status">加载中…</output>
+    <script type="module" src="./cpu-motion.mjs"></script>
+  </body>
+</html>

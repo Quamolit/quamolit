@@ -18,6 +18,8 @@
 
 CPU 自定义标量切片新增 `CpuScalarDescriptor { id, version, callback-id, gpu-status }` 和运行时 `CpuScalarRegistry`。描述符只含可序列化数据；回调函数只存于不可序列化的注册表，通过唯一 `callback-id` 解析。`register-cpu-scalar` 返回新注册表，拒绝空 ID 与重复 ID；`sample-cpu-scalar descriptor time registry` 可乱序、倒退或重复采样，拒绝缺失回调、非法版本/时间、非有限输出。`gpu-status` 当前只能为 `:unsupported reason`，原因不能为空；它是明确的 CPU-only 诊断，不会自动转换为 WGSL。调用方负责确保回调无副作用，并把所有影响结果的外部输入显式纳入自己的版本/失效规则；框架无法证明任意闭包纯净，也不会缓存其未知捕获。当前已有[受限 GPU 降低契约](motion-gpu-contract.md)，但依赖声明、输出类型扩展和真实 WGSL 执行仍待后续实现。架构 scaffold 见 `docs/architectures/motion-cpu-registry.cirru`，浏览器夹具见 [CPU 采样页面](../test/custom.html)。
 
-运行 `yarn test:motion`，再运行 `yarn test:motion-browser`。后者需安装锁定的 Chromium；CI 使用 Node 24。浏览器测试检查二维位置、关键帧轨迹、颜色渐变、两输入组合和 CPU 自定义标量的乱序、倒退、重复采样及页面重载，失败时非零退出。手工检查可打开 `/test/motion.html?time=0.5`、[关键帧页面](../test/keyframes.html)、[颜色页面](../test/color.html)、[组合页面](../test/composition.html)与[CPU 采样页面](../test/custom.html)；即使时间倒退也不依赖累积状态。
+新[泛型 CPU Motion 扩展边界](cpu-motion-extension.md)进一步提供显式输入 `I`、输出 `O` 与校验函数、六类依赖版本及 Vec2 夹具。旧标量注册表仍保持兼容；新入口也不自动生成 WGSL。
+
+运行 `yarn test:motion`、`yarn test:cpu-motion`，再运行 `yarn test:motion-browser`。后者需安装锁定的 Chromium；CI 使用 Node 24。浏览器测试检查二维位置、关键帧轨迹、颜色渐变、两输入组合和 CPU 自定义标量的乱序、倒退、重复采样及页面重载，失败时非零退出。手工检查可打开 `/test/motion.html?time=0.5`、[关键帧页面](../test/keyframes.html)、[颜色页面](../test/color.html)、[组合页面](../test/composition.html)、[CPU 标量页面](../test/custom.html)与[CPU Vec2 页面](../test/cpu-motion.html)；即使时间倒退也不依赖累积状态。
 
 尚未实现：通用曲线/向量/颜色扩展、CPU 回调依赖声明、组件绑定、目标切换和打断、固定步长模拟、资源生命周期、GPU lowering。此切片的 Canvas 画面与 CPU 数值通过，不可据此关闭 #48 或声称生产场景性能达标。
