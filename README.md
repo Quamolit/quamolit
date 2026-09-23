@@ -173,13 +173,21 @@ hug-log :data "|more data"
 
 ### Develop
 
-To run this project, with [calcit_runner](https://github.com/calcit-lang/calcit_runner.rs) and [Vite](https://vitejs.dev/):
+To run this project, install Calcit 0.18.1 and Node.js 24 first:
 
 ```bash
-yarn
-cr --emit-js --once
+corepack enable
+yarn install --immutable
+caps --ci
+calcit calcit.cirru js
 yarn vite
 ```
+
+The 0.18.1 migration currently uses `quamolit.bootstrap` as a compile-only
+entry. The original canvas application remains in `quamolit.app.main`, but is
+not wired into the Vite entry yet: its strict type check still reports legacy
+warnings. `yarn compile` and `yarn release` validate the migration baseline;
+they do not validate the original application's behavior.
 
 ### History
 
