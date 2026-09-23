@@ -9,6 +9,7 @@ js-out/
 js-out-playback/
 js-out-component/
 js-out-fade/
+js-out-cpu/
 node_modules/
 dist/
 test-results/

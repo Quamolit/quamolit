@@ -4383,6 +4383,167 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.motion
           :require $ calcit.test :refer $ is= is-throws
+    'quamolit.motion-cpu $ %{} 'FileEntry
+      :defs $ {}
+        'CpuFunctionDescriptor $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct CpuFunctionDescriptor (:id 'String) (:version 'Number) (:callback-id 'String) (:gpu-status 'quamolit.motion/CpuGpuStatus)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'CpuFunctionFrame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct CpuFunctionFrame ([] 'O) (:descriptor-id 'String) (:descriptor-version 'Number) (:callback-id 'String) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:value 'O)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'CpuFunctionRegistry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct CpuFunctionRegistry ([] 'I 'O)
+            :samplers $ :: 'Map 'String $ :: 'Fn
+              {} (:return 'O)
+                :args $ [] 'I 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'CpuFunctionRequest $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct CpuFunctionRequest ([] 'I) (:descriptor 'quamolit.motion-cpu/CpuFunctionDescriptor) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:input 'I)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'gpu-reason $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-reason (descriptor)
+            assert |invalid-cpu-function-id $ not $ empty? (:id descriptor)
+            assert |invalid-cpu-function-version $ motion/valid-motion-version? $ :version descriptor
+            assert |empty-cpu-function-callback $ not $ empty? (:callback-id descriptor)
+            match (:gpu-status descriptor)
+              (:unsupported reason)
+                do
+                  assert |empty-cpu-function-gpu-reason $ not $ empty? reason
+                  , reason
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.motion-cpu/CpuFunctionDescriptor
+        'register-function $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn register-function (registry callback-id sampler)
+            assert |empty-cpu-function-id $ not $ empty? callback-id
+            assert |duplicate-cpu-function-id $ not $ contains? (:samplers registry) callback-id
+            CpuFunctionRegistry :samplers $ assoc (:samplers registry) callback-id sampler
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.motion-cpu/CpuFunctionRegistry 'I 'O) 'String $ :: 'Fn
+              {} (:return 'O)
+                :args $ [] 'I 'Number
+            :generics $ [] 'I 'O
+            :return $ :: 'quamolit.motion-cpu/CpuFunctionRegistry 'I 'O
+        'resample-function $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resample-function (previous request registry valid-output)
+            assert |invalid-cpu-function-request $ valid-request? request
+            let
+                descriptor $ :descriptor request
+              if
+                and
+                  = (:descriptor-id previous) (:id descriptor)
+                  = (:descriptor-version previous) (:version descriptor)
+                  = (:callback-id previous) (:callback-id descriptor)
+                  = (:time previous) (:time request)
+                  = (:versions previous) (:versions request)
+                , previous $ sample-function request registry valid-output
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.motion-cpu/CpuFunctionFrame 'O) (:: 'quamolit.motion-cpu/CpuFunctionRequest 'I) (:: 'quamolit.motion-cpu/CpuFunctionRegistry 'I 'O)
+              :: 'Fn $ {} (:return 'Bool)
+                :args $ [] 'O
+            :generics $ [] 'I 'O
+            :return $ :: 'quamolit.motion-cpu/CpuFunctionFrame 'O
+          :tests $ [] $ %{} 'TestEntry (:name |complete-dependencies)
+            :code $ quote $ let
+                initial-frame $ quamolit.test.cpu-motion-fixture/frame-at 0.5 0 false 100
+                same $ quamolit.test.cpu-motion-fixture/resample-at initial-frame 0.5 0 false 100
+                ready $ quamolit.test.cpu-motion-fixture/resample-at initial-frame 0.5 0 true 100
+                viewport $ quamolit.test.cpu-motion-fixture/resample-at initial-frame 0.5 0 false 110
+                model $ quamolit.test.cpu-motion-fixture/resample-at initial-frame 0.5 1 false 100
+              is= initial-frame same
+              is= 100 $ :x $ :value initial-frame
+              is= 120 $ :x $ :value ready
+              is= 71 $ :y $ :value viewport
+              is= 101 $ :x $ :value model
+              is= |runtime-callback-vec2 $ quamolit.test.cpu-motion-fixture/unsupported-reason
+            :tags $ #{} :motion-cpu :unit
+        'sample-function $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-function (request registry valid-output)
+            assert |invalid-cpu-function-request $ valid-request? request
+            let
+                descriptor $ :descriptor request
+                callback-id $ :callback-id descriptor
+              assert |missing-cpu-function-callback $ contains? (:samplers registry) callback-id
+              let
+                  sampler $ .unwrap $ get (:samplers registry) callback-id
+                  value $ sampler (:input request) (:time request)
+                assert |invalid-cpu-function-output $ valid-output value
+                CpuFunctionFrame :descriptor-id (:id descriptor) :descriptor-version (:version descriptor) :callback-id callback-id :time (:time request) :versions (:versions request) :value value
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.motion-cpu/CpuFunctionRequest 'I) (:: 'quamolit.motion-cpu/CpuFunctionRegistry 'I 'O)
+              :: 'Fn $ {} (:return 'Bool)
+                :args $ [] 'O
+            :generics $ [] 'I 'O
+            :return $ :: 'quamolit.motion-cpu/CpuFunctionFrame 'O
+          :tests $ []
+            %{} 'TestEntry (:name |ordered-vec2)
+              :code $ quote $ do
+                is= 120 $ :x $ :value (quamolit.test.cpu-motion-fixture/frame-at 1 0 false 100)
+                is= 80 $ :x $ :value (quamolit.test.cpu-motion-fixture/frame-at 0 0 false 100)
+                is= 100 $ :x $ :value (quamolit.test.cpu-motion-fixture/frame-at 0.5 0 false 100)
+                is= 90 $ :x $ :value (quamolit.test.cpu-motion-fixture/frame-at 0.25 0 false 100)
+                is= 120 $ :x $ :value (quamolit.test.cpu-motion-fixture/frame-at 1 0 false 100)
+                is= 70 $ :y $ :value (quamolit.test.cpu-motion-fixture/frame-at 0.5 0 false 100)
+              :tags $ #{} :motion-cpu :unit
+            %{} 'TestEntry (:name |reject-output-and-missing-callback)
+              :code $ quote $ let
+                  request $ quamolit.test.cpu-motion-fixture/make-request 0.5 0 false 100
+                  registry $ quamolit.test.cpu-motion-fixture/make-registry
+                  reject-output $ fn (value)
+                    hint-fn $ {}
+                      :args $ [] 'quamolit.motion/Vec2
+                      :return 'Bool
+                    , false
+                  empty-registry $ assert-type
+                    CpuFunctionRegistry :samplers $ {}
+                    :: 'quamolit.motion-cpu/CpuFunctionRegistry 'quamolit.test.cpu-motion-fixture/CustomInput 'quamolit.motion/Vec2
+                is-throws $ sample-function request registry reject-output
+                is-throws $ sample-function request empty-registry quamolit.test.cpu-motion-fixture/valid-output?
+              :tags $ #{} :motion-cpu :unit
+        'valid-request? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-request? (request)
+            let
+                descriptor $ :descriptor request
+              and
+                not $ empty? $ :id descriptor
+                motion/valid-motion-version? $ :version descriptor
+                not $ empty? $ :callback-id descriptor
+                match (:gpu-status descriptor)
+                  (:unsupported reason)
+                    not $ empty? reason
+                motion/finite-number? $ :time request
+                direct/valid-frame-versions? $ :versions request
+                = (:version descriptor)
+                  :motion $ :versions request
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] $ :: 'quamolit.motion-cpu/CpuFunctionRequest 'I
+            :generics $ [] 'I
+          :tests $ [] $ %{} 'TestEntry (:name |reject-invalid)
+            :code $ quote $ let
+                request $ quamolit.test.cpu-motion-fixture/make-request 0.5 0 false 100
+                descriptor $ :descriptor request
+              is= true $ valid-request? request
+              is= false $ valid-request? $ assoc request :time (sqrt -1)
+              is= false $ valid-request? $ assoc request :descriptor (assoc descriptor :version 1.5)
+              is= false $ valid-request? $ assoc request :descriptor (assoc descriptor :id |)
+              is= false $ valid-request? $ assoc request :descriptor (assoc descriptor :callback-id |)
+              is= false $ valid-request? $ assoc request :versions
+                assoc (:versions request) :motion 2
+              is= false $ valid-request? $ assoc request :versions
+                assoc (:versions request) :resources -1
+            :tags $ #{} :motion-cpu :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.motion-cpu
+          :require (quamolit.motion :as motion) (quamolit.direct-frame :as direct)
+            calcit.test :refer $ is= is-throws
     'quamolit.motion-gpu $ %{} 'FileEntry
       :defs $ {}
         'GpuCompositionLowering $ %{} 'CodeEntry (:doc |)
@@ -6815,6 +6976,103 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.component-fixture
           :require (quamolit.component-sample :as component) (quamolit.scene-ir :as scene-ir) (quamolit.motion :as motion) (quamolit.direct-frame :as direct) (quamolit.host-clock :as clock)
+            calcit.test :refer $ is= is-throws
+    'quamolit.test.cpu-motion-fixture $ %{} 'FileEntry
+      :defs $ {}
+        'CustomInput $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct CustomInput (:base 'quamolit.motion/Vec2) (:ready 'Bool) (:viewport 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'frame-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn frame-at (time model ready viewport)
+            cpu/sample-function (make-request time model ready viewport) (make-registry) valid-output?
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Bool 'Number
+            :return $ :: 'quamolit.motion-cpu/CpuFunctionFrame 'quamolit.motion/Vec2
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! ()
+            [] (sample-x-at 0.5 0 false 100) (sample-y-at 0.5 0 false 100)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'Number
+        'make-registry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-registry ()
+            let
+                base-registry $ assert-type
+                  cpu/CpuFunctionRegistry :samplers $ {}
+                  :: 'quamolit.motion-cpu/CpuFunctionRegistry 'quamolit.test.cpu-motion-fixture/CustomInput 'quamolit.motion/Vec2
+              cpu/register-function base-registry |move sample-custom
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'quamolit.motion-cpu/CpuFunctionRegistry 'quamolit.test.cpu-motion-fixture/CustomInput 'quamolit.motion/Vec2
+        'make-request $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-request (time model ready viewport)
+            let
+                descriptor $ cpu/CpuFunctionDescriptor :id |custom-vec2 :version 1 :callback-id |move :gpu-status $ motion/CpuGpuStatus :unsupported |runtime-callback-vec2
+                versions $ direct/FrameVersions :component 0 :motion 1 :model model :input 0 :resources (if ready 1 0) :viewport viewport
+                input $ CustomInput :base
+                  motion/Vec2 :x (+ 80 model) :y 60
+                  , :ready ready :viewport viewport
+              cpu/CpuFunctionRequest :descriptor descriptor :time time :versions versions :input input
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Bool 'Number
+            :return $ :: 'quamolit.motion-cpu/CpuFunctionRequest 'quamolit.test.cpu-motion-fixture/CustomInput
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () (main!)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'Number
+        'resample-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resample-at (previous time model ready viewport)
+            cpu/resample-function previous (make-request time model ready viewport) (make-registry) valid-output?
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.motion-cpu/CpuFunctionFrame 'quamolit.motion/Vec2) 'Number 'Number 'Bool 'Number
+            :return $ :: 'quamolit.motion-cpu/CpuFunctionFrame 'quamolit.motion/Vec2
+        'sample-custom $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-custom (input time)
+            motion/Vec2 :x
+              +
+                :x $ :base input
+                * time 40
+                if (:ready input) 20 0
+              , :y $ +
+                :y $ :base input
+                / (:viewport input) 10
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.test.cpu-motion-fixture/CustomInput 'Number
+        'sample-x-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-x-at (time model ready viewport)
+            :x $ :value $ frame-at time model ready viewport
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Bool 'Number
+        'sample-y-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-y-at (time model ready viewport)
+            :y $ :value $ frame-at time model ready viewport
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Bool 'Number
+        'unsupported-reason $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn unsupported-reason ()
+            cpu/gpu-reason $ :descriptor $ make-request 0 0 false 100
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ []
+        'valid-output? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-output? (value) (motion/finite-vec2? value)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/Vec2
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.test.cpu-motion-fixture
+          :require (quamolit.motion-cpu :as cpu) (quamolit.motion :as motion) (quamolit.direct-frame :as direct)
             calcit.test :refer $ is= is-throws
     'quamolit.test.fade-migration-fixture $ %{} 'FileEntry
       :defs $ {}
