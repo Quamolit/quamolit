@@ -4,6 +4,8 @@ Quamolit in calcit-js / Calcit 版 Quamolit
 
 Quamolit 是用 Calcit 编写的声明式 Canvas 动画库。组件描述画面，应用模型保存动画状态；框架提供绘制与帧更新能力。
 
+后续开发以 [技术路线与 milestones](docs/roadmap.md)、[工作项规格](docs/work-items.md) 和 [检验规则](docs/verification.md) 为准。计划分为 M0 基线、M1 动画函数、M2 增量执行与 WebGPU、M3 完整应用、M4 性能发布；性能目标均需实测，不能把编译成功当作功能或性能验收。接手编码前请阅读 [AGENTS.md](AGENTS.md)。
+
 当前 vNext 迁移仍在进行中：[设计草案](docs/vnext-design.md) 说明目标 API 与渲染边界，[确定性帧测试](test/README.md) 说明固定时间截图的使用方式。要在本地编译和运行，需要 Calcit 0.19.1 与 Node.js 24：
 
 ```sh
@@ -32,6 +34,12 @@ Features:
 * animation abstractions
 
 ### Design
+
+The current implementation plan is [roadmap v2](docs/roadmap.md), with
+[issue specifications](docs/work-items.md) and [verification rules](docs/verification.md)
+in Chinese. It separates direct time sampling from stateful simulation and
+brings batching, benchmarks, and WebGPU into the early architecture work.
+Performance figures are validation targets, not measured claims.
 
 The staged vNext API and rendering contract is documented in
 [docs/vnext-design.md](docs/vnext-design.md). It is a draft; the API described

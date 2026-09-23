@@ -1,5 +1,7 @@
 # Quamolit vNext：核心约定（草案）
 
+> 本文保留早期设计背景与迁移记录。2026-09-23 的[技术路线 v2](roadmap.md)、[工作项规格](work-items.md)和[检验规则](verification.md)已替代原三阶段计划；有差异时以 v2 为准。默认动画需要任意时间直接采样，顺序更新模型仅覆盖历史相关动画的一部分。
+
 本文记录 M1 阶段关于 [API 设计](https://github.com/Quamolit/quamolit/issues/30)、[确定性时间](https://github.com/Quamolit/quamolit/issues/31) 和 [Scene IR](https://github.com/Quamolit/quamolit/issues/32) 的方向。它是设计草案；下文提出的 API 并非都已实现。
 
 ## 保留原有理念
@@ -36,8 +38,6 @@ Scene IR 需要明确坐标与角度单位、颜色、透明度合成、裁剪�
 
 ## 迁移顺序与兼容性
 
-1. 定义并测试时间、状态、身份标识和 Scene IR 的约定（M1）。
-2. 用 Canvas2D 渲染 IR，独立生成命中区域，并恢复真实应用入口，替换当前仅用于编译的 bootstrap（M2）。
-3. 增加数据驱动的批量绘制路径，测量完整帧性能，并构建 WebGPU 图层原型。根据测量结果选择首选后端；WebGPU 不适用时保留 Canvas2D。仅在实测收益足以覆盖运行时与维护成本时采用 Use.GPU 内部方案（M3）。
+迁移顺序已调整为 M0 基线、M1 动画函数与组件契约、M2 增量执行与 WebGPU 主路径、M3 完整 2D 功能与应用迁移、M4 GPU 模拟与性能发布。具体依赖和退出条件见 [roadmap.md](roadmap.md)，不再把性能基准与批处理推迟到末期。
 
 M1 期间，旧版 `on-tick` 回调和 `defcomp` 形状语法仍作为迁移输入。其替代方案与弃用窗口留待 #30 决定。现有 `yarn compile` 只验证 bootstrap 入口，不能证明原应用功能正常。
