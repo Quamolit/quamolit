@@ -94,6 +94,43 @@ function instances(ctx, model) {
   }
 }
 
+function mixedUi(ctx, manifest, model) {
+  for (let group = 0; group < 20; group += 1) {
+    ctx.save();
+    ctx.translate((group % 5) * 128, Math.floor(group / 5) * 90);
+    ctx.beginPath();
+    ctx.rect(2, 2, 124, 86);
+    ctx.clip();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(2, 2, 124, 86);
+    for (let index = group * 50; index < (group + 1) * 50; index += 1) {
+      const node = manifest.mixedNodes[index];
+      const x = node.x + (node.animated ? Math.sin(model.motionPhase + node.phase) * 4 : 0);
+      ctx.globalAlpha = node.opacity;
+      ctx.fillStyle = COLORS[node.palette];
+      ctx.strokeStyle = COLORS[node.palette];
+      switch (node.kind) {
+        case "rect": ctx.fillRect(x, node.y, node.size, node.size); break;
+        case "circle":
+          ctx.beginPath();
+          ctx.arc(x, node.y, node.size * 0.55, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+        case "line":
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x, node.y);
+          ctx.lineTo(x + node.size, node.y + node.size * 0.5);
+          ctx.stroke();
+          break;
+        case "glyph": glyphText(ctx, node.label, x, node.y, 1); break;
+        default: throw new Error(`Unknown mixed node kind: ${node.kind}`);
+      }
+    }
+    ctx.restore();
+  }
+}
+
 function textPath(ctx, model) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(28, 34, 584, 292);
@@ -142,6 +179,7 @@ export function renderCanvas(ctx, manifest, model) {
   switch (manifest.fixture) {
     case "ui-transition": uiTransition(ctx, model); break;
     case "instances": instances(ctx, model); break;
+    case "mixed-ui": mixedUi(ctx, manifest, model); break;
     case "text-path": textPath(ctx, model); break;
     default: throw new RangeError(`Unknown fixture: ${manifest.fixture}`);
   }

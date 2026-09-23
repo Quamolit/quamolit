@@ -28,6 +28,7 @@ export function summarizeRun(run) {
   return {
     frames: samples.length,
     elapsedMs: run.measure.elapsedMs,
+    setupMs: run.setupMs,
     firstDrawMs: run.firstDrawMs,
     sampleMs: summarize("sampleMs"),
     canvasCallMs: summarize("canvasCallMs"),
@@ -40,6 +41,7 @@ export function summarizeRun(run) {
 }
 
 export function compareBaseline(current, baseline) {
+  if (current.runs.length < 3 || baseline.runs.length < 3) throw new Error("Regression comparison requires at least 3 independent runs on each side");
   const a = current.runs.map((run) => run.cpuFrameMs.p95);
   const b = baseline.runs.map((run) => run.cpuFrameMs.p95);
   const currentMedian = median(a);
@@ -47,4 +49,9 @@ export function compareBaseline(current, baseline) {
   const deltaMs = currentMedian - baselineMedian;
   const deltaFraction = deltaMs / baselineMedian;
   return { currentMedian, baselineMedian, deltaMs, deltaFraction, regression: deltaMs > 0.5 && deltaFraction > 0.1 };
+}
+
+export function environmentMismatches(a, b) {
+  const keys = ["fixture", "count", "backend", "seed", "dpr", "browserVersion", "platform", "osRelease", "arch", "cpu", "power", "gpu", "alpha", "blend", "antialias", "resourceState", "warmupSeconds", "durationSeconds", "viewport", "pixelSize", "sceneComposition"];
+  return keys.filter((key) => JSON.stringify(a[key] ?? null) !== JSON.stringify(b[key] ?? null));
 }

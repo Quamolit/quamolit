@@ -10,6 +10,7 @@ yarn playwright install chromium
 yarn test:fixtures
 yarn test:bench
 yarn bench --fixture ui-transition --warmup 5 --duration 30 --runs 3 --out test-results/bench-ui
+yarn bench --fixture mixed-ui --count 1000 --warmup 5 --duration 30 --runs 3 --out test-results/bench-mixed-1k
 yarn bench --fixture instances --count 10000 --warmup 5 --duration 30 --runs 3 --out test-results/bench-10k
 yarn bench --fixture instances --count 100000 --warmup 5 --duration 30 --runs 3 --out test-results/bench-100k
 yarn bench --fixture text-path --warmup 5 --duration 30 --runs 3 --out test-results/bench-text-path
@@ -29,9 +30,17 @@ yarn bench --fixture text-path --warmup 5 --duration 30 --runs 3 --out test-resu
 | 100k 压力档 | 32.07 ms（31.90–32.10） | 33.40 ms | 99.4% | 886–890 |
 | 固定字形/路径 | 0.30 ms（0.30–0.40） | 16.70 ms | 0% | 1801 |
 
-100k 档在此环境明显低于约 60 Hz 的回调节奏，不能称为达到 60 FPS；其他行的 rAF 结果也不等于真实呈现或跨设备验收。1k 夹具是简单同类实例，**不是**路线所述“1k 混合 UI 节点”；后者需要后续 Scene IR/组件实现再测。目标来自 [路线](roadmap.md)：1k 混合 UI 和 10k 简单实例 60 FPS，100k 为压力档；120 FPS 为扩展目标。M0 不声称已达到最终产品目标。后续换后端、改 DPR/覆盖率、浏览器或设备必须新建基线，不沿用本页数值比较。
+100k 档在此环境明显低于约 60 Hz 的回调节奏，不能称为达到 60 FPS；其他行的 rAF 结果也不等于真实呈现或跨设备验收。上表的 1k 夹具是简单同类实例，**不是**下节补充的 1k 混合 UI 参考节点，更不是尚未实现的 Calcit 组件树。目标来自 [路线](roadmap.md)：1k 混合 UI 和 10k 简单实例 60 FPS，100k 为压力档；120 FPS 为扩展目标。M0 不声称已达到最终产品目标。后续换后端、改 DPR/覆盖率、浏览器或设备必须新建基线，不沿用本页数值比较。
 
-本机完整原始样本位于忽略的 `test-results/bench-{ui,1k,10k,100k,text}-calibrated/`，每个目录有 `report.json` 和三份 `run-N.json`；CI `Benchmark format` 工作流支持手动选择 `full` 生成同样五档的可下载 artifact。CI 机器的数值只供结构与噪声观察，不能替代上述本机数据或外推到用户设备。
+本机初始五档完整原始样本位于忽略的 `test-results/bench-{ui,1k,10k,100k,text}-calibrated/`，每个目录有 `report.json` 和三份 `run-N.json`；CI `Benchmark format` 工作流支持手动选择 `full` 生成包含下节混合 UI 在内的六档可下载 artifact。CI 机器的数值只供结构与噪声观察，不能替代上述本机数据或外推到用户设备。
+
+## 追加：1k 混合 UI 参考负载
+
+在干净提交 `5b3bfd32d4fa1e4643ae0bcf47c6d18ef880255c` 上补充 `mixed-ui`：一次建立 20 个裁剪组、每组 50 个可序列化节点，共 250 个矩形、250 个圆、250 条线和 250 个固定字形，其中 250 个节点随绝对时间移动且分布在四种图元。它是 Canvas2D 参考绘制负载，**不是**已有的 Calcit 组件树或 Scene IR 执行计划，不能把下面的耗时外推成新架构的组件求值性能。
+
+同一 Apple M1 Pro / macOS Darwin 25.6.0 / arm64 上，以 Node 24.19.0、Playwright Chromium 153.0.8010.12、640×360 实际像素、DPR 1、seed 7 运行；供电与实际 GPU/驱动仍为 `unknown`/`unavailable`。三次独立 context 均预热 5 秒、采样 30 秒，各记录 1801 帧。CPU p95 分别为 1.2、1.0、1.1 ms，中位数 1.1 ms、区间 1.0–1.2 ms；rAF 间隔 p95 中位数 16.8 ms，超过空闲周期 1.5 倍的比例中位数为 0%。manifest 建立约 1.0–1.1 ms，首次绘制约 1.8–1.9 ms。三次在固定 `t=0.5` 读取完整画布得到相同 FNV-1a 校验和 `3860001321`。
+
+原始逐帧数据位于忽略的 `test-results/bench-mixed-1k-committed/`（`report.json`、`run-1.json`、`run-2.json`、`run-3.json`）；短时预跑和未提交源码上的预跑另存，不用于正式结论。该结果仅说明本机参考场景的测量，不证明实际显示帧率、WebGPU 性能或跨设备目标。它与上表的简单 1k 实例不同负载，不能直接用两个 p95 声称改进或回归。
 
 ## 回归规则
 

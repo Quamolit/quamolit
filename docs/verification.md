@@ -23,7 +23,7 @@ yarn bench
 
 `compile:visual`、`compile:motion` 改变忽略的 `js-out/` 入口产物；普通打包前重新 `yarn compile`。当前普通入口仍是 bootstrap，以上成功不证明旧主应用可用。新增公共命名空间还需运行实际范围的 `calcit analyze check-public --ns <namespace>`；所有新代码严格检查通过，不通过兼容模式掩盖错误。
 
-`yarn bench --help` 列出 #39 的 Canvas2D 参考基准参数；正式运行默认每次预热 5 秒、采样 30 秒、独立运行 3 次。短时 CI 仅检查浏览器运行、报告格式和原始文件产出，不是硬件吞吐门禁。首份基线见 [M0 性能基线](performance-m0.md)。
+`yarn bench --help` 列出 #39 的 Canvas2D 参考基准参数；正式运行默认每次预热 5 秒、采样 30 秒、独立运行 3 次。六档包含 1k 混合 UI 参考节点、1k/10k/100k 简单实例、UI 过渡与固定文字路径；混合节点不等于 Calcit 组件树。报告记录干净/脏 Git 状态，三次固定时间画布校验和不一致时失败。短时 CI 仅检查浏览器运行、报告格式和原始文件产出，不是硬件吞吐门禁。首份基线见 [M0 性能基线](performance-m0.md)。
 
 `yarn compile:visual` 只编译；`yarn test:visual` 先编译该入口，再启动固定 Chromium 执行浏览器断言和截图比较。浏览器需先通过 `yarn playwright install chromium` 安装，Linux CI 使用 `--with-deps`。固定版本见 `package.json`/`yarn.lock`，快照与逐场景容差见 `test/m0/`。PR #45 已合并；`evaluate-at` 仍是顺序帧求值基础。
 
