@@ -145,6 +145,8 @@
 
 声明式定义组件，通过函数/动画描述产生中间帧；应用拥有逻辑动画 Model，框架优化求值与执行。
 
+本项的具体语义、能力状态和迁移对照见 [M1 API 契约](api-contract.md)；实现进度仍以 issue/PR 为准。
+
 依赖：[#46](https://github.com/Quamolit/quamolit/issues/46)。
 
 实现范围：

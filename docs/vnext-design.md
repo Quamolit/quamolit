@@ -4,6 +4,8 @@
 
 本文记录 M1 阶段关于 [API 设计](https://github.com/Quamolit/quamolit/issues/30)、[确定性时间](https://github.com/Quamolit/quamolit/issues/31) 和 [Scene IR](https://github.com/Quamolit/quamolit/issues/32) 的方向。它是设计草案；下文提出的 API 并非都已实现。
 
+[#30 的具体语义、能力状态与迁移表](api-contract.md)现已单列；本页仍用于理解早期讨论，不再作为 API 合同。
+
 ## 保留原有理念
 
 Quamolit 仍是声明式 Canvas 动画库。应用状态和动画状态应是显式的应用数据，而不是渲染器内部的私有状态。组件根据状态描述场景；更新函数接收事件或帧采样，产生下一份状态。最终的渲染过程不应推进时钟、派发更新，也不应在绘制时创建事件处理器。
