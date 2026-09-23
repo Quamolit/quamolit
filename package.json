@@ -1,5 +1,5 @@
 {
-  "version": "0.0.17",
+  "version": "0.0.18-alpha.1",
   "dependencies": {
     "@calcit/procs": "0.18.1",
     "@quamolit/touch-control": "^0.0.13"
