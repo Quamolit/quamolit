@@ -19,6 +19,7 @@ yarn test:playback
 yarn test:component-sample
 yarn test:fade-migration
 yarn test:scene-core
+yarn test:instance-sources
 yarn test:scene-diff
 yarn test:scene-binding
 yarn test:transition
@@ -62,6 +63,8 @@ yarn bench
 `yarn test:fade-migration` 验证[旧 fade 的可编译迁移](fade-migration.md)：显式 Model 中的 0.25 秒进入/退出意图、打断时透明度连续、版本化 Scene opacity 绑定及受限 GPU 候选分类；`yarn test:motion-browser` 在 Chromium 检查单子节点中间帧像素。一般组隔离、真实 GPU 执行与退出资源释放不在此命令覆盖范围。
 
 `yarn test:scene-core` 验证 [Scene IR 核心切片](scene-ir-core.md) 的类型、构造/校验、重复 ID/兄弟 key、错误父级、非法数值/资源/绑定以及 JSON 往返；`yarn test:motion-browser` 额外验证 Scene IR 驱动的 Canvas 中间帧。该命令不等于下方拟议的完整 `yarn test:scene`，目前尚无保留执行计划或双后端验收。
+
+`yarn test:instance-sources` 验证 [实例数据源边界](instance-sources.md) 的 10k 位置、拷贝隔离、严格版本与错误输入；`yarn test:motion-browser` 还核对同一时间切换资源版本的像素。其 Canvas 循环仅是验证夹具，不是生产渲染性能结果。
 
 `yarn test:scene-diff` 验证 [逻辑身份与参考差分](scene-diff.md) 的严格类型、变更分类、重排/重挂载、仅时间变化和 JS 序列化；`yarn test:motion-browser` 也会在 Chromium 校验 Scene diff 与 Canvas 中间帧一致。仍未实现 #50 保留执行计划和双后端验收。
 
