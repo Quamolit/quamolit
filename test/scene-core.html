@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit Scene IR 中间帧验证</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { display: block; border: 1px solid #94a3b8; margin: 16px 0; }
+      button { margin: 0 8px 8px 0; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>可序列化 Scene IR</h1>
+    <p>Calcit 从绝对时间构造并校验 group、矩形和一个逻辑实例图层；本页 Canvas 仅作参考绘制，不是生产后端。</p>
+    <div id="times"></div>
+    <canvas id="scene" width="320" height="100"></canvas>
+    <output id="status">加载中…</output>
+    <script type="module" src="./scene-core.mjs"></script>
+  </body>
+</html>
