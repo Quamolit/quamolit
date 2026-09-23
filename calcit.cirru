@@ -2973,6 +2973,16 @@
           :code $ quote $ defenum Easing (:linear) (:smoothstep)
           :examples $ []
           :schema $ :: 'EnumDef
+        'ScalarComposeOp $ %{} 'CodeEntry
+          :doc "|Unitless scalar operations; mix has a normalized right-hand weight."
+          :code $ quote $ defenum ScalarComposeOp (:add) (:multiply) (:mix 'Number)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ScalarComposition $ %{} 'CodeEntry
+          :doc "|Versioned, non-recursive composition of exactly two scalar descriptors."
+          :code $ quote $ defstruct ScalarComposition (:id 'String) (:version 'Number) (:left 'quamolit.motion/ScalarDescriptor) (:right 'quamolit.motion/ScalarDescriptor) (:operation 'quamolit.motion/ScalarComposeOp)
+          :examples $ []
+          :schema $ :: 'StructDef
         'ScalarDescriptor $ %{} 'CodeEntry
           :doc "|Versioned identity for a serializable scalar motion."
           :code $ quote $ defstruct ScalarDescriptor (:id 'String) (:version 'Number) (:motion 'quamolit.motion/ScalarMotion)
@@ -3263,6 +3273,57 @@
                 is= 12.5 $ sample-scalar descriptor 0.25
                 is= 17.5 $ sample-scalar descriptor 1.25
                 is= 12.5 $ sample-scalar descriptor -0.25
+              :tags $ #{} :motion :unit
+        'sample-scalar-composition $ %{} 'CodeEntry
+          :doc "|Sample a fixed two-input composition at arbitrary finite seconds."
+          :code $ quote $ defn sample-scalar-composition (composition time)
+            assert |invalid-composition-time $ finite-number? time
+            assert |invalid-composition-version $ finite-number? $ :version composition
+            assert |negative-composition-version $ >= (:version composition) 0
+            let
+                left $ sample-scalar (:left composition) time
+                right $ sample-scalar (:right composition) time
+                result $ match (:operation composition)
+                  (:add) (+ left right)
+                  (:multiply) (* left right)
+                  (:mix weight)
+                    do
+                      assert |invalid-composition-weight $ unit-channel? weight
+                      +
+                        * left $ - 1 weight
+                        * right weight
+              assert |invalid-composition-result $ finite-number? result
+              , result
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.motion/ScalarComposition 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |bounded-values)
+              :code $ quote $ let
+                  left $ ScalarDescriptor :id |fade :version 1 :motion $ ScalarMotion :tween
+                    ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                  right $ ScalarDescriptor :id |clock :version 1 :motion $ ScalarMotion :time 2 1
+                  add $ ScalarComposition :id |add :version 1 :left left :right right :operation $ ScalarComposeOp :add
+                  multiply $ ScalarComposition :id |multiply :version 1 :left left :right right :operation $ ScalarComposeOp :multiply
+                  mix $ ScalarComposition :id |mix :version 1 :left left :right right :operation $ ScalarComposeOp :mix 0.25
+                is= (sample-scalar-composition add 1) 23
+                is= (sample-scalar-composition add 0) 11
+                is= (sample-scalar-composition add 0.25) 14
+                is= (sample-scalar-composition add 0.5) 17
+                is= (sample-scalar-composition add 0.25) 14
+                is= (sample-scalar-composition multiply 0.25) 18.75
+                is= (sample-scalar-composition mix 0.25) 9.75
+                is= (sample-scalar-composition mix 0.5) 11.75
+                is= (sample-scalar-composition mix 1) 15.75
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |invalid-input)
+              :code $ quote $ let
+                  left $ ScalarDescriptor :id |left :version 1 :motion $ ScalarMotion :constant 1
+                  right $ ScalarDescriptor :id |right :version 1 :motion $ ScalarMotion :constant 2
+                  invalid-weight $ ScalarComposition :id |invalid-weight :version 1 :left left :right right :operation $ ScalarComposeOp :mix 1.1
+                  invalid-version $ ScalarComposition :id |invalid-version :version -1 :left left :right right :operation $ ScalarComposeOp :add
+                is-throws $ sample-scalar-composition invalid-weight 0.5
+                is-throws $ sample-scalar-composition invalid-version 0.5
               :tags $ #{} :motion :unit
         'sample-track $ %{} 'CodeEntry
           :doc "|Reference scalar keyframe sampler at arbitrary finite seconds."
@@ -4203,6 +4264,17 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'sample-composition-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-composition-at (time)
+            let
+                left $ ScalarDescriptor :id |fade :version 1 :motion $ ScalarMotion :tween
+                  ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                right $ ScalarDescriptor :id |clock :version 1 :motion $ ScalarMotion :time 2 1
+                composition $ ScalarComposition :id |fade-plus-clock :version 1 :left left :right right :operation $ ScalarComposeOp :add
+              sample-scalar-composition composition time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
         'sample-keyframes-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sample-keyframes-at (time mode)
             let
@@ -4259,7 +4331,7 @@
             :args $ [] 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.motion-fixture
-          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color
+          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color ScalarComposeOp ScalarComposition sample-scalar-composition
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)
