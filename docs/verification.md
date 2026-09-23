@@ -12,6 +12,7 @@ yarn compile
 yarn release
 yarn test:clock
 yarn test:simulation
+yarn test:replay-archive
 yarn test:direct
 yarn test:host-clock
 yarn test:playback
@@ -47,6 +48,8 @@ yarn bench
 `yarn test:motion-gpu` 验证[受限 GPU 候选计划](motion-gpu-contract.md)的类型、容量边界、显式回退和 JS 数据序列化；浏览器 Motion 页面也显示与 CPU 绘图共用描述符的候选分类。此处的“候选”不代表已在 GPU 执行，真实 WGSL 数值等价与硬件测量仍待 #52。
 
 `yarn test:simulation` 验证 [固定步长 CPU 状态推进](fixed-step-simulation.md) 的类型、手算数值、不同显示帧节奏、检查点/重置、追帧预算和非法 tick；`yarn test:motion-browser` 同时运行固定 tick 的 Canvas 画面测试。该切片没有 host time 变换或资源版本失效，不能据此关闭 #31。
+
+`yarn test:replay-archive` 验证[完整输入日志与有界最近检查点](replay-archive.md)的严格类型、旧 tick 重放、预算不足、重置及原生/JS 手算；`yarn test:motion-browser` 补充浏览器倒退后的画面与实色像素。此策略未持久化输入，也未限制日志长期内存。
 
 `yarn test:direct` 验证 [绝对时间 CPU 直接采样](direct-frame-sampling.md) 的类型、乱序/重复采样、六类依赖的相同时间失效、完整键复用与非法时间/版本；`yarn test:motion-browser` 同时运行 Canvas 截图和像素断言。调用方仍须维护完整版本，测试不代表通用组件公共入口或 #31 已完成。
 
