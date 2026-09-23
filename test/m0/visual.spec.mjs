@@ -85,6 +85,7 @@ for (const item of cases) {
     }
 
     // The per-scene edge allowance is below a visibly shifted or missing shape.
+    await canvas.screenshot({ path: testInfo.outputPath(`${item.name}-actual.png`), animations: "disabled" });
     await expect(canvas).toHaveScreenshot(`${item.name}.png`, {
       threshold: 0.04,
       maxDiffPixels: item.maxDiffPixels,
@@ -144,5 +145,7 @@ test("旧版顺序帧夹具检查矩形中间帧与只绘制重放", async ({ pa
     return { same: first === second, count, progress: window.quamolitFixture.progress() };
   });
   expect(result).toEqual({ same: true, count: 5, progress: 0.5 });
-  await expect(page.locator("#frame")).toHaveScreenshot("legacy-half.png", { threshold: 0.04, maxDiffPixels: 40 });
+  const canvas = page.locator("#frame");
+  await canvas.screenshot({ path: testInfo.outputPath("legacy-half-actual.png") });
+  await expect(canvas).toHaveScreenshot("legacy-half.png", { threshold: 0.04, maxDiffPixels: 40 });
 });
