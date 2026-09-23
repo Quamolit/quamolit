@@ -1,5 +1,7 @@
 # 确定性帧测试
 
+三类独立的 M0 参考场景及固定画面见 [m0/README.md](m0/README.md)。本页描述 Calcit 顺序帧求值测试；M0 参考场景使用独立、可乱序采样的数学输入，不代表公共动画 API 已完成。
+
 时间单位为秒。新代码使用 `initial-frame` 建立模型和场景，再用 `evaluate-at` 显式推进时间；重复时间复用模型与场景，较早的时间戳会报错。详见[显式帧求值](../docs/frame-evaluation.md)。旧版 `advance-frame-clock!` 继续供 `on-tick` 使用。`sample-times` 用于包含首尾的等距采样，例如 `sample-times 0 1 4` 得到 0、0.25、0.5、0.75、1。
 
 在项目目录中使用 Node.js 24 和 Calcit 0.19.1：
