@@ -17,9 +17,13 @@ yarn test:runtime
 yarn test:fixtures
 yarn compile:visual
 yarn test:visual
+yarn test:bench
+yarn bench
 ```
 
 `compile:visual`、`compile:motion` 改变忽略的 `js-out/` 入口产物；普通打包前重新 `yarn compile`。当前普通入口仍是 bootstrap，以上成功不证明旧主应用可用。新增公共命名空间还需运行实际范围的 `calcit analyze check-public --ns <namespace>`；所有新代码严格检查通过，不通过兼容模式掩盖错误。
+
+`yarn bench --help` 列出 #39 的 Canvas2D 参考基准参数；正式运行默认每次预热 5 秒、采样 30 秒、独立运行 3 次。短时 CI 仅检查浏览器运行、报告格式和原始文件产出，不是硬件吞吐门禁。首份基线见 [M0 性能基线](performance-m0.md)。
 
 `yarn compile:visual` 只编译；`yarn test:visual` 先编译该入口，再启动固定 Chromium 执行浏览器断言和截图比较。浏览器需先通过 `yarn playwright install chromium` 安装，Linux CI 使用 `--with-deps`。固定版本见 `package.json`/`yarn.lock`，快照与逐场景容差见 `test/m0/`。PR #45 已合并；`evaluate-at` 仍是顺序帧求值基础。
 
@@ -29,7 +33,6 @@ yarn test:visual
 
 | 命令 | 负责工作项 | 完成条件 |
 | --- | --- | --- |
-| `yarn bench` | #39 | 可指定 fixture/backend/size/seed，输出报告与原始采样；实际参数写入帮助与文档 |
 | 完整 Motion/过渡测试 | #48、#31 | 在标量/二维向量/关键帧切片之上补齐颜色、有界组合与过渡生命周期，覆盖模拟/打断边界 |
 | `yarn test:scene` | #32、增量执行、资源/交互 | 验证身份、变更、缓存失效、资源和命中语义 |
 

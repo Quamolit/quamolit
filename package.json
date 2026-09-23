@@ -17,6 +17,8 @@
     "test:motion-browser": "yarn test:motion && playwright test --config test/motion.playwright.config.mjs",
     "test:runtime": "node test/runtime-smoke.mjs",
     "test:fixtures": "node --test test/m0/fixtures.test.mjs",
+    "test:bench": "node --test test/m0/bench-metrics.test.mjs",
+    "bench": "node test/m0/bench.mjs",
     "test:visual": "caps --ci && yarn compile:visual && playwright test --config test/m0/playwright.config.mjs",
     "compile:visual": "calcit --init-fn quamolit.test.frame-fixture/main! --reload-fn quamolit.test.frame-fixture/reload! calcit.cirru js",
     "release": "yarn vite build --base=./"
