@@ -2958,16 +2958,37 @@
           :code $ quote $ defstruct ScalarDescriptor (:id 'String) (:version 'Number) (:motion 'quamolit.motion/ScalarMotion)
           :examples $ []
           :schema $ :: 'StructDef
+        'ScalarKeyframe $ %{} 'CodeEntry
+          :doc "|A scalar keyframe; sampling requires finite instant/value and easing applies to the following segment."
+          :code $ quote $ defstruct ScalarKeyframe (:at 'Number) (:value 'Number) (:easing 'quamolit.motion/Easing)
+          :examples $ []
+          :schema $ :: 'StructDef
         'ScalarMotion $ %{} 'CodeEntry
           :doc "|Closed scalar expression; no arbitrary closure in serializable data."
-          :code $ quote $ defenum ScalarMotion (:constant 'Number) (:time 'Number 'Number) (:tween 'quamolit.motion/ScalarTween)
+          :code $ quote $ defenum ScalarMotion (:constant 'Number) (:time 'Number 'Number) (:tween 'quamolit.motion/ScalarTween) (:keyframes 'quamolit.motion/ScalarTrack)
           :examples $ []
           :schema $ :: 'EnumDef
+        'ScalarTrack $ %{} 'CodeEntry
+          :doc "|Keyframes and loop mode; sampling validates non-empty ordered frames."
+          :code $ quote $ defstruct ScalarTrack
+            :frames $ :: 'List 'quamolit.motion/ScalarKeyframe
+            :loop 'quamolit.motion/TrackLoop
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ScalarTrackCursor $ %{} 'CodeEntry
+          :doc "|Private scan state for deterministic keyframe reference sampling."
+          :code $ quote $ defstruct ScalarTrackCursor (:previous 'quamolit.motion/ScalarKeyframe) (:value 'Number) (:done 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
         'ScalarTween $ %{} 'CodeEntry
           :doc "|A scalar interval in seconds; duration zero switches at start."
           :code $ quote $ defstruct ScalarTween (:start 'Number) (:duration 'Number) (:from 'Number) (:to 'Number) (:easing 'quamolit.motion/Easing)
           :examples $ []
           :schema $ :: 'StructDef
+        'TrackLoop $ %{} 'CodeEntry (:doc "|Clamp, half-open repeat, or mirrored repeat.")
+          :code $ quote $ defenum TrackLoop (:clamp) (:repeat) (:mirror)
+          :examples $ []
+          :schema $ :: 'EnumDef
         'Vec2 $ %{} 'CodeEntry
           :doc "|Two-dimensional coordinates in caller-defined units; sampling requires finite values."
           :code $ quote $ defstruct Vec2 (:x 'Number) (:y 'Number)
@@ -2987,6 +3008,22 @@
           :code $ quote $ defstruct Vec2Tween (:start 'Number) (:duration 'Number) (:from 'quamolit.motion/Vec2) (:to 'quamolit.motion/Vec2) (:easing 'quamolit.motion/Easing)
           :examples $ []
           :schema $ :: 'StructDef
+        'advance-track $ %{} 'CodeEntry
+          :doc "|Scan one sorted keyframe; the rightmost duplicate wins at its timestamp."
+          :code $ quote $ defn advance-track (cursor frame time)
+            if (:done cursor) cursor $ if
+              < time $ :at frame
+              let
+                  previous $ :previous cursor
+                  tween $ ScalarTween :start (:at previous) :duration
+                    - (:at frame) (:at previous)
+                    , :from (:value previous) :to (:value frame) :easing $ :easing previous
+                  value $ sample-tween tween time
+                ScalarTrackCursor :previous previous :value value :done true
+              ScalarTrackCursor :previous frame :value (:value frame) :done false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarTrackCursor)
+            :args $ [] 'quamolit.motion/ScalarTrackCursor 'quamolit.motion/ScalarKeyframe 'Number
         'finite-number? $ %{} 'CodeEntry
           :doc "|Detect NaN and either infinity on native and JS numeric paths."
           :code $ quote $ defn finite-number? (value)
@@ -3009,6 +3046,20 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.motion/Vec2
+        'first-keyframe $ %{} 'CodeEntry
+          :doc "|Return the first keyframe; caller validates a non-empty ordered track."
+          :code $ quote $ defn first-keyframe (frames)
+            -> (first frames) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarKeyframe)
+            :args $ [] $ :: 'List 'quamolit.motion/ScalarKeyframe
+        'last-keyframe $ %{} 'CodeEntry
+          :doc "|Return the last keyframe; caller validates a non-empty ordered track."
+          :code $ quote $ defn last-keyframe (frames)
+            -> (last frames) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarKeyframe)
+            :args $ [] $ :: 'List 'quamolit.motion/ScalarKeyframe
         'sample-scalar $ %{} 'CodeEntry
           :doc "|Sample a versioned scalar descriptor without reading previous frames."
           :code $ quote $ defn sample-scalar (descriptor time)
@@ -3029,23 +3080,116 @@
                     assert |invalid-motion-result $ finite-number? value
                     , value
               (:tween tween) (sample-tween tween time)
+              (:keyframes track) (sample-track track time)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.motion/ScalarDescriptor 'Number
-          :tests $ [] $ %{} 'TestEntry (:name |arbitrary-order-and-fade)
-            :code $ quote $ let
-                tween $ ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
-                descriptor $ ScalarDescriptor :id |old-fade :version 1 :motion $ ScalarMotion :tween tween
-                constant $ ScalarDescriptor :id |constant :version 1 :motion $ ScalarMotion :constant 7
-                clock $ ScalarDescriptor :id |clock :version 1 :motion $ ScalarMotion :time 2 1
-              is= 20 $ sample-scalar descriptor 1
-              is= 10 $ sample-scalar descriptor 0
-              is= 15 $ sample-scalar descriptor 0.5
-              is= 12.5 $ sample-scalar descriptor 0.25
-              is= 20 $ sample-scalar descriptor 1
-              is= 7 $ sample-scalar constant -3
-              is= 2 $ sample-scalar clock 0.5
-            :tags $ #{} :motion :unit
+          :tests $ []
+            %{} 'TestEntry (:name |arbitrary-order-and-fade)
+              :code $ quote $ let
+                  tween $ ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                  descriptor $ ScalarDescriptor :id |old-fade :version 1 :motion $ ScalarMotion :tween tween
+                  constant $ ScalarDescriptor :id |constant :version 1 :motion $ ScalarMotion :constant 7
+                  clock $ ScalarDescriptor :id |clock :version 1 :motion $ ScalarMotion :time 2 1
+                is= 20 $ sample-scalar descriptor 1
+                is= 10 $ sample-scalar descriptor 0
+                is= 15 $ sample-scalar descriptor 0.5
+                is= 12.5 $ sample-scalar descriptor 0.25
+                is= 20 $ sample-scalar descriptor 1
+                is= 7 $ sample-scalar constant -3
+                is= 2 $ sample-scalar clock 0.5
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |keyframes-variant)
+              :code $ quote $ let
+                  track $ ScalarTrack :frames
+                    []
+                      ScalarKeyframe :at 0 :value 10 :easing $ Easing :linear
+                      ScalarKeyframe :at 1 :value 20 :easing $ Easing :linear
+                    , :loop $ TrackLoop :mirror
+                  descriptor $ ScalarDescriptor :id |old-fade-track :version 1 :motion $ ScalarMotion :keyframes track
+                is= 20 $ sample-scalar descriptor 1
+                is= 10 $ sample-scalar descriptor 0
+                is= 15 $ sample-scalar descriptor 0.5
+                is= 12.5 $ sample-scalar descriptor 0.25
+                is= 17.5 $ sample-scalar descriptor 1.25
+                is= 12.5 $ sample-scalar descriptor -0.25
+              :tags $ #{} :motion :unit
+        'sample-track $ %{} 'CodeEntry
+          :doc "|Reference scalar keyframe sampler at arbitrary finite seconds."
+          :code $ quote $ defn sample-track (track time)
+            assert |invalid-motion-time $ finite-number? time
+            assert |invalid-keyframe-track $ validate-track track
+            let
+                frames $ :frames track
+                initial-frame $ first-keyframe frames
+                final-frame $ last-keyframe frames
+                wrapped-time $ wrap-track-time time (:at initial-frame) (:at final-frame) (:loop track)
+                cursor $ scan-track frames wrapped-time
+              :value cursor
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.motion/ScalarTrack 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |keyframe-order-and-duplicates)
+              :code $ quote $ let
+                  f0 $ ScalarKeyframe :at 0 :value 0 :easing $ Easing :linear
+                  f1 $ ScalarKeyframe :at 0.5 :value 5 :easing $ Easing :linear
+                  f2 $ ScalarKeyframe :at 0.5 :value 7 :easing $ Easing :smoothstep
+                  f3 $ ScalarKeyframe :at 1 :value 10 :easing $ Easing :linear
+                  track $ ScalarTrack :frames ([] f0 f1 f2 f3) :loop $ TrackLoop :clamp
+                is= 10 $ sample-track track 1
+                is= 0 $ sample-track track 0
+                is= 7 $ sample-track track 0.5
+                is= 2.5 $ sample-track track 0.25
+                is= 8.5 $ sample-track track 0.75
+                is= 10 $ sample-track track 1
+                is= 0 $ sample-track track -0.000001
+                is= 10 $ sample-track track 1.000001
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |repeat-and-mirror)
+              :code $ quote $ let
+                  a $ ScalarKeyframe :at 0 :value 0 :easing $ Easing :linear
+                  b $ ScalarKeyframe :at 1 :value 10 :easing $ Easing :linear
+                  repeated $ ScalarTrack :frames ([] a b) :loop $ TrackLoop :repeat
+                  mirrored $ ScalarTrack :frames ([] a b) :loop $ TrackLoop :mirror
+                  instant $ ScalarTrack :frames
+                    []
+                      ScalarKeyframe :at 0 :value 3 :easing $ Easing :linear
+                      ScalarKeyframe :at 0 :value 8 :easing $ Easing :linear
+                    , :loop $ TrackLoop :repeat
+                is= 0 $ sample-track repeated 1
+                is= 2.5 $ sample-track repeated 1.25
+                is= 7.5 $ sample-track repeated -0.25
+                is= 0 $ sample-track repeated 2
+                is= 10 $ sample-track mirrored 1
+                is= 7.5 $ sample-track mirrored 1.25
+                is= 0 $ sample-track mirrored 2
+                is= 2.5 $ sample-track mirrored -0.25
+                is= 8 $ sample-track instant -99
+                is= 8 $ sample-track instant 99
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |rejects-invalid)
+              :code $ quote $ let
+                  a $ ScalarKeyframe :at 0 :value 0 :easing $ Easing :linear
+                  b $ ScalarKeyframe :at 1 :value 10 :easing $ Easing :linear
+                  bad-time $ ScalarKeyframe :at (sqrt -1) :value 1 :easing $ Easing :linear
+                  bad-value $ ScalarKeyframe :at 0.5 :value (/ 1 0) :easing $ Easing :linear
+                  good $ ScalarTrack :frames ([] a b) :loop $ TrackLoop :clamp
+                is-throws $ sample-track
+                  ScalarTrack :frames ([]) :loop $ TrackLoop :clamp
+                  , 0
+                is-throws $ sample-track
+                  ScalarTrack :frames ([] b a) :loop $ TrackLoop :clamp
+                  , 0.5
+                is-throws $ sample-track
+                  ScalarTrack :frames ([] a bad-time b) :loop $ TrackLoop :clamp
+                  , 0.5
+                is-throws $ sample-track
+                  ScalarTrack :frames ([] a bad-value b) :loop $ TrackLoop :clamp
+                  , 0.5
+                is-throws $ sample-track good $ sqrt -1
+                is-throws $ sample-track good $ / 1 0
+              :tags $ #{} :motion :unit
         'sample-tween $ %{} 'CodeEntry
           :doc "|Reference scalar tween value at arbitrary finite seconds."
           :code $ quote $ defn sample-tween (tween time)
@@ -3176,6 +3320,86 @@
                 is-throws $ sample-vec2 negative 0.5
                 is-throws $ sample-vec2 invalid 0.5
               :tags $ #{} :motion :unit
+        'scan-track $ %{} 'CodeEntry
+          :doc "|Scan validated keyframes at one explicit time without previous-frame state."
+          :code $ quote $ defn scan-track (frames time)
+            let
+                initial-frame $ first-keyframe frames
+                initial $ ScalarTrackCursor :previous initial-frame :value (:value initial-frame) :done false
+              if
+                < time $ :at initial-frame
+                , initial $ foldl (rest frames) initial $ fn (cursor frame)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.motion/ScalarTrackCursor 'quamolit.motion/ScalarKeyframe
+                    :return 'quamolit.motion/ScalarTrackCursor
+                  advance-track cursor frame time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarTrackCursor)
+            :args $ [] (:: 'List 'quamolit.motion/ScalarKeyframe) 'Number
+        'validate-track $ %{} 'CodeEntry
+          :doc "|Reject empty, unordered, or non-finite keyframes. Equal timestamps are valid."
+          :code $ quote $ defn validate-track (track)
+            let
+                frames $ :frames track
+              assert |empty-keyframes $ > (count frames) 0
+              let
+                  initial $ first-keyframe frames
+                assert |invalid-keyframe-time $ finite-number? $ :at initial
+                assert |invalid-keyframe-value $ finite-number? $ :value initial
+                foldl (rest frames) initial $ fn (previous frame)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.motion/ScalarKeyframe 'quamolit.motion/ScalarKeyframe
+                    :return 'quamolit.motion/ScalarKeyframe
+                  assert |invalid-keyframe-time $ finite-number? $ :at frame
+                  assert |invalid-keyframe-value $ finite-number? $ :value frame
+                  assert |unordered-keyframes $ >= (:at frame) (:at previous)
+                  , frame
+                , true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/ScalarTrack
+        'wrap-track-time $ %{} 'CodeEntry
+          :doc "|Map finite time into a track according to explicit endpoint semantics."
+          :code $ quote $ defn wrap-track-time (time start end mode)
+            assert |invalid-motion-time $ finite-number? time
+            assert |invalid-track-start $ finite-number? start
+            assert |invalid-track-end $ finite-number? end
+            assert |unordered-track-bounds $ >= end start
+            let
+                duration $ - end start
+              match mode
+                (:clamp) time
+                (:repeat)
+                  if (= duration 0) start $ let
+                      elapsed $ - time start
+                      quotient $ floor $ / elapsed duration
+                      phase $ - elapsed $ * quotient duration
+                      result $ + start phase
+                    assert |invalid-repeat-phase $ finite-number? result
+                    , result
+                (:mirror)
+                  if (= duration 0) start $ let
+                      elapsed $ - time start
+                      period $ * 2 duration
+                      quotient $ floor $ / elapsed period
+                      phase $ - elapsed $ * quotient period
+                      result $ if (<= phase duration) (+ start phase)
+                        - end $ - phase duration
+                    assert |invalid-mirror-phase $ finite-number? result
+                    , result
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number 'quamolit.motion/TrackLoop
+          :tests $ [] $ %{} 'TestEntry (:name |shifted-bounds)
+            :code $ quote $ do
+              is= 2 $ wrap-track-time 3 2 3 $ TrackLoop :repeat
+              is= 2.75 $ wrap-track-time 1.75 2 3 $ TrackLoop :repeat
+              is= 2.75 $ wrap-track-time 3.25 2 3 $ TrackLoop :mirror
+              is= 2.25 $ wrap-track-time 1.75 2 3 $ TrackLoop :mirror
+              is= 2 $ wrap-track-time 99 2 2 $ TrackLoop :repeat
+              is= 2 $ wrap-track-time -99 2 2 $ TrackLoop :mirror
+              is= 1 $ wrap-track-time 1 2 3 $ TrackLoop :clamp
+            :tags $ #{} :motion :unit
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.motion
           :require $ calcit.test :refer $ is= is-throws
@@ -3774,6 +3998,37 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'sample-keyframes-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-keyframes-at (time mode)
+            let
+                f0 $ ScalarKeyframe :at 0 :value 48 :easing $ Easing :linear
+                f1 $ ScalarKeyframe :at 0.5 :value 128 :easing $ Easing :linear
+                f2 $ ScalarKeyframe :at 0.5 :value 144 :easing $ Easing :linear
+                f3 $ ScalarKeyframe :at 1 :value 208 :easing $ Easing :linear
+                track $ ScalarTrack :frames ([] f0 f1 f2 f3) :loop mode
+                descriptor $ ScalarDescriptor :id |keyframe-track :version 1 :motion $ ScalarMotion :keyframes track
+              sample-scalar descriptor time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'quamolit.motion/TrackLoop
+        'sample-keyframes-clamp-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-keyframes-clamp-at (time)
+            sample-keyframes-at time $ TrackLoop :clamp
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'sample-keyframes-mirror-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-keyframes-mirror-at (time)
+            sample-keyframes-at time $ TrackLoop :mirror
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'sample-keyframes-repeat-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-keyframes-repeat-at (time)
+            sample-keyframes-at time $ TrackLoop :repeat
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
         'sample-vec2-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sample-vec2-at (time)
             let
@@ -3799,7 +4054,7 @@
             :args $ [] 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.motion-fixture
-          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2
+          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)

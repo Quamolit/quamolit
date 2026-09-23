@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   main_$x_, sample_at, sample_vec2_at, sample_vec2_x_at, sample_vec2_y_at,
+  sample_keyframes_clamp_at, sample_keyframes_repeat_at, sample_keyframes_mirror_at,
 } from "../js-out/quamolit.test.motion-fixture.mjs";
 
 test("motion fixture samples arbitrary times without mutable clock", () => {
@@ -10,6 +11,21 @@ test("motion fixture samples arbitrary times without mutable clock", () => {
     assert.equal(sample_at(time), value);
   }
   assert.equal(sample_at(0.5), 15);
+});
+
+test("keyframe duplicates and loop endpoints agree with hand-calculated values", () => {
+  for (const [time, clamp, repeat, mirror] of [
+    [0.5, 144, 144, 144],
+    [0.25, 88, 88, 88],
+    [1, 208, 48, 208],
+    [1.25, 208, 88, 176],
+    [-0.25, 48, 176, 88],
+    [2, 208, 48, 48],
+  ]) {
+    assert.equal(sample_keyframes_clamp_at(time), clamp);
+    assert.equal(sample_keyframes_repeat_at(time), repeat);
+    assert.equal(sample_keyframes_mirror_at(time), mirror);
+  }
 });
 
 test("typed Vec2 motion samples the same positions in generated JavaScript", () => {
