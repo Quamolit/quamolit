@@ -1,12 +1,8 @@
-# Deterministic frame testing
+# 确定性帧测试
 
-The clock uses absolute seconds. Reset before each independent case, then call
-`advance-frame-clock!` with monotonically increasing timestamps. The returned
-delta drives `on-tick`; passing the same timestamp gives a zero delta and
-passing an earlier one raises. Use `sample-times` for inclusive sampling
-(for example `sample-times 0 1 4` yields 0, 0.25, 0.5, 0.75, 1).
+时钟使用以秒为单位的绝对时间。每个独立测试先重置时钟，再以单调递增的时间戳调用 `advance-frame-clock!`。返回的时间间隔用于驱动 `on-tick`：重复时间戳产生零间隔，较早的时间戳会报错。`sample-times` 用于包含首尾的等距采样，例如 `sample-times 0 1 4` 得到 0、0.25、0.5、0.75、1。
 
-From the project directory, with Node.js 24 and Calcit 0.19.1:
+在项目目录中使用 Node.js 24 和 Calcit 0.19.1：
 
 ```sh
 yarn test:clock
@@ -14,23 +10,8 @@ yarn compile:visual
 yarn vite
 ```
 
-Open `http://localhost:5173/test/visual.html?time=0.5`. The page runs its
-pixel checks at all five sampled times, verifies that redraw and a repeated
-timestamp do not advance progress, and verifies that a rewind is rejected.
-`PASS` below the canvas means the checks completed. Click a timestamp or
-change the `time` query parameter to capture a particular frame. Each frame
-starts from a reset clock, so screenshot results are independent of wall time,
-animation-frame scheduling, and click order. The 280×160 canvas has a white
-background; at time `t` the pink rectangle is centered at `x = 48 + 160t`,
-`y = 80`.
+打开 `http://localhost:5173/test/visual.html?time=0.5`。页面会检查五个采样点的像素，验证重绘和重复时间戳不会推进进度，并验证时间倒退会被拒绝。Canvas 下方显示 `PASS` 表示检查通过。点击时间按钮或修改 `time` 查询参数即可截取指定帧。每帧都从重置后的时钟开始，因此截图不依赖墙上时间、动画帧调度或点击顺序。画布大小为 280×160，背景为白色；在时间 `t`，粉色矩形的中心位置是 `x = 48 + 160t`、`y = 80`。
 
-The fixture uses the framework's component tree walker and the actual
-rectangle painter. Other painter branches are not included yet because their
-legacy strict-type diagnostics currently block the visual entry from compiling.
-When those branches migrate, add focused fixtures for text, transforms, paths,
-images, transparency, and event regions, then add image baselines in a pinned
-browser environment. Until then the current browser check is a deterministic
-pixel and screenshot harness, not a full visual-regression CI suite.
+测试夹具先用采样得到的时间间隔调用 `tick-tree`，再调用 `paint-tree-only-with` 和真实的矩形绘制器。重绘只运行绘制阶段。其他绘制分支暂未覆盖，因为其旧版严格类型诊断仍会阻止可视化入口编译。完成这些分支的迁移后，应为文本、变换、路径、图片、透明度和事件区域增加专项夹具，并在固定版本的浏览器环境中建立图像基线。目前的浏览器检查是确定性像素与截图测试工具，还不是完整的视觉回归 CI 测试套件。
 
-`yarn compile:visual` changes only ignored `js-out/` output. Run
-`yarn compile` again before building the regular bootstrap entry.
+`yarn compile:visual` 只修改被忽略的 `js-out/` 产物。构建普通 bootstrap 入口前，应重新运行 `yarn compile`。

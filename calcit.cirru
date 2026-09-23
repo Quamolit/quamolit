@@ -2591,6 +2591,51 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.frame-clock
           :require $ calcit.test :refer $ is= is-throws
+    'quamolit.frame-eval $ %{} 'FileEntry
+      :defs $ {} $ 'tick-tree
+        %{} 'CodeEntry
+          :doc "|Invoke component on-tick callbacks in tree order without drawing; callers rebuild the scene after updates."
+          :code $ quote $ defn tick-tree (tree dispatch! elapsed)
+            if (nil? tree) &unit $ if
+              and (struct? tree) (&struct:matches? tree Component)
+              let
+                  component $ assert-type tree Component
+                  on-tick $ :on-tick component
+                when (fn? on-tick) (on-tick elapsed dispatch!)
+                tick-tree (:tree component) dispatch! elapsed
+              let
+                  shape $ assert-type tree Shape
+                &doseq
+                  cursor $ :children shape
+                  tick-tree
+                      last cursor
+                      , .unwrap-or nil
+                    , dispatch! elapsed
+                , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'Dynamic 'Dynamic 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |parent-before-child)
+            :code $ quote $ let
+                seen $ atom $ []
+                child $ %{} Component (:name :child) (:tree nil)
+                  :on-tick $ fn (elapsed dispatch!) (swap! seen conj :child)
+                parent $ %{} Component (:name :parent)
+                  :on-tick $ fn (elapsed dispatch!) (swap! seen conj :parent)
+                  :tree $ %{} Shape (:name :group)
+                    :style $ {}
+                    :event nil
+                    :children $ [] $ [] 0 child
+              tick-tree parent
+                fn (op data) &unit
+                , 0.25
+              is= ([] :parent :child) @seen
+            :tags $ #{} :frame-clock :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.frame-eval
+          :require
+            quamolit.types :refer $ Component Shape
+            calcit.test :refer $ is=
     'quamolit.global $ %{} 'FileEntry
       :defs $ {}
         '*stage-config $ %{} 'CodeEntry (:doc |)
@@ -2920,24 +2965,7 @@
             :args $ [] 'Dynamic
             :features $ #{} :js-ffi
         'paint $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn paint (ctx tree coord dispatch! elapsed tick?) (; js/console.log |paint tree)
-            if (nil? tree) nil $ if
-              and (struct? tree) (&struct:matches? tree Component)
-              let
-                  on-tick $ :on-tick $ assert-type tree 'quamolit.types/Component
-                if
-                  and tick? $ fn? on-tick
-                  on-tick elapsed dispatch!
-                recur ctx
-                  :tree $ assert-type tree 'quamolit.types/Component
-                  conj coord $ :name $ assert-type tree 'quamolit.types/Component
-                  , dispatch! elapsed tick?
-              do (paint-one ctx tree coord)
-                &doseq
-                  cursor $ :children $ assert-type tree 'quamolit.types/Shape
-                  paint ctx (last cursor)
-                    append coord $ first cursor
-                    , dispatch! elapsed tick?
+          :code $ quote $ defn paint (ctx tree coord dispatch! elapsed tick?) (; js/console.log |paint tree) (paint-tree-with ctx tree coord dispatch! elapsed tick? paint-one)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic) 'Dynamic 'Number 'Bool
@@ -3204,27 +3232,59 @@
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic
             :features $ #{} :js-ffi
-        'paint-tree-with $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn paint-tree-with (ctx tree coord dispatch! elapsed tick? paint-leaf)
+        'paint-tree-only-with $ %{} 'CodeEntry
+          :doc "|Paint a scene without invoking on-tick callbacks or advancing frame time."
+          :code $ quote $ defn paint-tree-only-with (ctx tree coord paint-leaf)
             if (nil? tree) &unit $ if
               and (struct? tree) (&struct:matches? tree Component)
               let
                   component $ assert-type tree Component
-                  on-tick $ :on-tick component
-                when
-                  and tick? $ fn? on-tick
-                  on-tick elapsed dispatch!
-                paint-tree-with ctx (:tree component)
+                paint-tree-only-with ctx (:tree component)
                   conj coord $ :name component
-                  , dispatch! elapsed tick? paint-leaf
+                  , paint-leaf
               let
                   shape $ assert-type tree Shape
                 paint-leaf ctx shape coord
                 &doseq
                   cursor $ :children shape
-                  paint-tree-with ctx (last cursor)
-                    append coord $ first cursor
-                    , dispatch! elapsed tick? paint-leaf
+                  paint-tree-only-with ctx
+                    (last cursor) .unwrap-or nil
+                    append coord $
+                      first cursor
+                      , .unwrap-or nil
+                    , paint-leaf
+                , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic) 'Dynamic
+          :tests $ [] $ %{} 'TestEntry (:name |paint-does-not-tick)
+            :code $ quote $ let
+                ticked $ atom 0
+                painted $ atom 0
+                shape $ %{} Shape (:name :rect)
+                  :style $ {}
+                  :event nil
+                  :children $ []
+                component $ %{} Component (:name :probe) (:tree shape)
+                  :on-tick $ fn (elapsed dispatch!) (swap! ticked inc)
+                leaf $ fn (ctx shape coord) (swap! painted inc)
+              paint-tree-only-with nil component ([]) leaf
+              is= 0 @ticked
+              is= 1 @painted
+              tick-tree component
+                fn (op data) &unit
+                , 0.25
+              is= 1 @ticked
+              is= 1 @painted
+              paint-tree-only-with nil component ([]) leaf
+              is= 1 @ticked
+              is= 2 @painted
+            :tags $ #{} :frame-clock :unit
+        'paint-tree-with $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn paint-tree-with (ctx tree coord dispatch! elapsed tick? paint-leaf)
+            do
+              when tick? $ tick-tree tree dispatch! elapsed
+              paint-tree-only-with ctx tree coord paint-leaf
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic) 'Dynamic 'Number 'Bool 'Dynamic
@@ -3257,6 +3317,7 @@
             quamolit.global :refer $ *transforms-memory *tracked-transform *touch-event-areas
             js-ffi.browser :refer $ image-create image-src!
             calcit.test :refer $ is=
+            quamolit.frame-eval :refer $ tick-tree
     'quamolit.test.frame-fixture $ %{} 'FileEntry
       :defs $ {}
         '*progress $ %{} 'CodeEntry (:doc |)
@@ -3275,9 +3336,8 @@
             :args $ []
         'redraw-fixture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn redraw-fixture! (ctx)
-            paint-tree-with ctx (scene) ([])
-              fn (op data) &unit
-              , 0 false $ fn (context shape coord)
+            paint-tree-only-with ctx (scene) ([])
+              fn (context shape coord)
                 paint-rect context
                   :style $ assert-type shape Shape
                   , coord $ :event $ assert-type shape Shape
@@ -3310,9 +3370,9 @@
           :code $ quote $ defn step-fixture! (ctx seconds)
             let
                 elapsed $ advance-frame-clock! seconds
-              paint-tree-with ctx (scene) ([])
+              tick-tree (scene)
                 fn (op data) &unit
-                , elapsed true $ fn (context shape coord) &unit
+                , elapsed
               redraw-fixture! ctx
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
@@ -3324,7 +3384,8 @@
             quamolit.alias :refer $ rect
             quamolit.types :refer $ Component Shape
             quamolit.core :refer $ reset-frame-clock! advance-frame-clock!
-            quamolit.render.paint :refer $ paint-tree-with paint-rect
+            quamolit.render.paint :refer $ paint-tree-only-with paint-rect
+            quamolit.frame-eval :refer $ tick-tree
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)

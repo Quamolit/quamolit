@@ -1,84 +1,43 @@
-# Quamolit vNext: core contract (draft)
+# Quamolit vNext：核心约定（草案）
 
-This document records the M1 direction for [API design](https://github.com/Quamolit/quamolit/issues/30),
-[deterministic time](https://github.com/Quamolit/quamolit/issues/31), and
-[Scene IR](https://github.com/Quamolit/quamolit/issues/32). It is a design draft,
-not a claim that the proposed APIs below are implemented.
+本文记录 M1 阶段关于 [API 设计](https://github.com/Quamolit/quamolit/issues/30)、[确定性时间](https://github.com/Quamolit/quamolit/issues/31) 和 [Scene IR](https://github.com/Quamolit/quamolit/issues/32) 的方向。它是设计草案；下文提出的 API 并非都已实现。
 
-## Preserve the model
+## 保留原有理念
 
-Quamolit remains a declarative canvas animation library. Application and
-animation state are explicit application data, not private state hidden in a
-renderer. A component describes a scene from that state; an update receives an
-event or frame sample and produces the next state. Rendering never advances the
-clock, dispatches updates, or creates event handlers as a paint side effect.
+Quamolit 仍是声明式 Canvas 动画库。应用状态和动画状态应是显式的应用数据，而不是渲染器内部的私有状态。组件根据状态描述场景；更新函数接收事件或帧采样，产生下一份状态。最终的渲染过程不应推进时钟、派发更新，也不应在绘制时创建事件处理器。
 
-The intended flow is:
+目标流程：
 
 ```text
-input + absolute time → update model → pure view → Scene IR → renderer
-                                             └────→ hit index
+输入 + 绝对时间 → 更新模型 → 纯视图 → Scene IR → 渲染器
+                                         └────→ 命中索引
 ```
 
-The current `defcomp`/`Shape` tree is the migration source, not yet the new IR.
-Today `on-tick` is invoked during `paint`, and hit areas are accumulated during
-painting. Issues #33 and #34 separate these effects; until then, screenshot
-tests must use the explicit clock helpers and redraw without ticking.
+现有的 `defcomp`/`Shape` 树是迁移输入，尚不是新的 IR。旧版 `paint` 入口目前先执行独立的 `tick-tree` 遍历，再绘制；`paint-tree-only-with` 只遍历并绘制，不调用 `on-tick`。这分离了两种副作用，但还没有实现纯帧求值器：tick 回调仍会派发应用更新。命中区域也仍在绘制时收集。#33 和 #34 将继续推进纯场景求值与独立于绘制的命中索引。
 
-## Time contract
+## 时间约定
 
-All framework time values are seconds. `step-frame(previous, current)` is a
-pure operation returning `FrameSample {time, elapsed}`. Equal times yield zero
-elapsed; a rewind raises. `reset-frame-clock!` is the explicit escape hatch for
-seeking backward in legacy code. `advance-frame-clock!` now consumes the same
-pure step calculation, so the current imperative entry and future evaluator
-share monotonicity semantics.
+框架中的时间单位统一为秒。`step-frame(previous, current)` 是纯函数，返回 `FrameSample {time, elapsed}`。重复时间戳产生零间隔；时间倒退则报错。旧代码如需回退，应显式调用 `reset-frame-clock!`。`advance-frame-clock!` 复用同一套纯计算，使现有命令式入口与未来求值器具有相同的时间单调性语义。
 
-The vNext frame evaluator should accept absolute time and the previous model
-explicitly. Its result should include the next model and scene, with no canvas
-or browser dependency. A visual fixture will reset its model and clock, replay
-the required samples, and render the requested scene. Calling render twice on
-the same result must neither tick again nor change its pixels. If an animation
-uses randomness, the seed or generator state belongs in the model. Asynchronous
-resources need a declared ready/failure state before a screenshot is asserted.
+未来的 vNext 帧求值器应显式接收绝对时间和上一份模型，返回下一份模型及场景，不依赖 Canvas 或浏览器。可视化测试先重置模型和时钟，再重放所需采样点并渲染目标场景。对同一结果重复渲染，不应再次触发 tick，也不应改变像素。若动画包含随机性，种子或生成器状态应属于模型；异步资源应在截图断言前明确处于就绪或失败状态。
 
-## Proposed public API boundaries
+对旧版组件树，`tick-tree(tree, dispatch!, elapsed)` 按父节点先于子节点的顺序调用回调，不访问 Canvas；`paint-tree-only-with` 随后绘制该树，不执行 tick。兼容入口 `paint-tree-with` 和 `paint` 在要求 tick 时依次调用这两个阶段。这只是迁移边界，并非最终的模型纯函数求值器。
 
-- **Component/view:** a pure function of props and model data returning
-  declarative nodes. Stable keys identify repeated children; component names
-  alone are not sufficient identity.
-- **Update:** event and frame update functions change model data. Keyframes,
-  easing, loop, and mirror may be convenient descriptors, but their current
-  sampled values are evaluated from explicit time, not renderer-owned hooks.
-- **Scene:** immutable, typed nodes for group, drawable, transform, clip, and
-  eventually batch/instances. No DOM, Canvas2D, WebGPU, or JavaScript handles.
-- **Renderer:** consumes a scene and resources. Canvas2D provides the reference
-  implementation and a fallback; the eventual preferred backend is chosen from
-  current platform support and measured results. WebGPU may consume selected
-  batch layers without replacing the component/model API.
-- **Interaction:** an index derived from the scene, with documented z-order,
-  transform, clip, and pointer-capture behavior. It must be testable without
-  painting. GPU picking is optional, not the normal 2D event path.
-- **Host boundary:** generic browser FFI belongs in `calcit-lang/js-ffi`;
-  Quamolit retains only a thin library-specific adapter.
+## 拟议的公共 API 边界
 
-The Scene IR must specify coordinate and angle units, colors, alpha
-composition, clipping, image/text resource identity, draw order, and hit order.
-Its first version need not expose all GPU concepts. A batch node may reference
-typed arrays and dirty ranges, but ordinary components should not need to know
-GPU buffer layouts.
+- **组件／视图：** props 和模型数据的纯函数，返回声明式节点。重复子节点由稳定 key 标识，单靠组件名称不足以确定身份。
+- **更新：** 事件更新与帧更新函数负责修改模型数据。关键帧、缓动、循环与镜像可以作为便捷描述，但采样值应由显式时间计算，而非由渲染器内部 hook 管理。
+- **场景：** 用不可变、带类型的节点表示分组、图元、变换、裁剪，以及未来的批量绘制／实例化；其中不含 DOM、Canvas2D、WebGPU 或 JavaScript 句柄。
+- **渲染器：** 消费场景与资源。Canvas2D 提供参考实现和回退路径；最终首选后端由平台支持情况及实测结果决定。WebGPU 可以处理选定的批量图层，而不替换组件／模型 API。
+- **交互：** 从场景生成命中索引，明确层叠顺序、变换、裁剪和指针捕获语义，且无需绘制即可测试。GPU picking 是可选方案，不是普通 2D 事件路径的默认实现。
+- **宿主边界：** 通用浏览器 FFI 放在 `calcit-lang/js-ffi`；Quamolit 只保留库专用的薄适配层。
 
-## Migration order and compatibility
+Scene IR 需要明确坐标与角度单位、颜色、透明度合成、裁剪、图片／文本资源身份、绘制顺序和命中顺序。首版不必暴露所有 GPU 概念。批量节点可以引用类型化数组和脏数据范围，但普通组件不应了解 GPU 缓冲区布局。
 
-1. Specify and test the time, state, identity, and Scene IR contracts (M1).
-2. Render the IR with Canvas2D, derive hit regions separately, and restore the
-   real application entry rather than the compile-only bootstrap (M2).
-3. Add a data-driven batch path, benchmark the complete frame, and prototype a
-   WebGPU layer. Choose the preferred backend from those measurements, with
-   Canvas2D available when WebGPU is unsuitable. Adopt Use.GPU internals if
-   their measured benefit justifies the runtime and maintenance cost (M3).
+## 迁移顺序与兼容性
 
-The old `on-tick` callback and `defcomp` shape syntax remain legacy migration
-inputs while M1 is underway. Their exact replacement and deprecation window
-are deliberately unresolved in #30. Existing `yarn compile` validates only
-the bootstrap entry; it does not validate the original application behavior.
+1. 定义并测试时间、状态、身份标识和 Scene IR 的约定（M1）。
+2. 用 Canvas2D 渲染 IR，独立生成命中区域，并恢复真实应用入口，替换当前仅用于编译的 bootstrap（M2）。
+3. 增加数据驱动的批量绘制路径，测量完整帧性能，并构建 WebGPU 图层原型。根据测量结果选择首选后端；WebGPU 不适用时保留 Canvas2D。仅在实测收益足以覆盖运行时与维护成本时采用 Use.GPU 内部方案（M3）。
+
+M1 期间，旧版 `on-tick` 回调和 `defcomp` 形状语法仍作为迁移输入。其替代方案与弃用窗口留待 #30 决定。现有 `yarn compile` 只验证 bootstrap 入口，不能证明原应用功能正常。

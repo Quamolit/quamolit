@@ -1,6 +1,25 @@
 
-Quamolit in calcit-js
+Quamolit in calcit-js / Calcit 版 Quamolit
 ----
+
+Quamolit 是用 Calcit 编写的声明式 Canvas 动画库。组件描述画面，应用模型保存动画状态；框架提供绘制与帧更新能力。
+
+当前 vNext 迁移仍在进行中：[设计草案](docs/vnext-design.md) 说明目标 API 与渲染边界，[确定性帧测试](test/README.md) 说明固定时间截图的使用方式。要在本地编译和运行，需要 Calcit 0.19.1 与 Node.js 24：
+
+```sh
+corepack enable
+yarn install --immutable
+yarn compile
+yarn test:clock
+yarn test:runtime
+yarn release
+```
+
+目前 `yarn compile` 仅验证 `quamolit.bootstrap`，还不能证明旧版应用入口的功能已恢复。旧版 `paint` 会先执行独立的 `tick-tree` 阶段，再绘制；`paint-tree-only-with` 可在不推进动画状态的情况下重绘。下文保留英文说明及旧版 API 示例，作为迁移参考。
+
+---
+
+English documentation and legacy API examples follow.
 
 > what if we describe UI transitions in React's way? Previously written in [ClojureScript](https://github.com/Quamolit/quamolit.cljs).
 
@@ -197,9 +216,11 @@ also checks the generated core against the installed `@calcit/procs` runtime.
 ### Deterministic frame tests
 
 Quamolit now exposes an absolute frame clock (`reset-frame-clock!`,
-`advance-frame-clock!`) and a tree walker with an injectable leaf painter
-(`paint-tree-with`). Advancing a frame calls component `on-tick` once with the
-elapsed seconds; a redraw can paint the same state without advancing time.
+`advance-frame-clock!`), a separate `tick-tree` pass for component `on-tick`
+callbacks, and `paint-tree-only-with` for drawing without advancing animation
+state. The compatibility `paint-tree-with` entry combines these passes.
+Advancing a frame calls component `on-tick` once with the elapsed seconds; a
+redraw can paint the same state without advancing time.
 The browser fixture exercises this with a real Canvas rectangle at fixed
 timestamps, including intermediate frames. See [test/README.md](test/README.md)
 for the screenshot workflow and current coverage limits.
