@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit · M0 参考场景</title>
+    <style>
+      :root { color-scheme: light; font: 15px/1.5 system-ui, sans-serif; color: #243451; background: #eef2f8; }
+      body { margin: 24px auto; padding: 0 16px; max-width: 1000px; }
+      h1 { margin-bottom: 4px; font-size: 1.65rem; }
+      p { margin-top: 0; color: #53627c; }
+      .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 12px 0; }
+      label { display: inline-flex; align-items: center; gap: 7px; }
+      select, input, button { font: inherit; }
+      input[type="range"] { width: min(42vw, 320px); }
+      button { padding: 5px 9px; border: 1px solid #9daac3; border-radius: 5px; background: white; cursor: pointer; }
+      button:hover { background: #e8edfb; }
+      canvas { display: block; width: min(100%, 640px); height: auto; border: 1px solid #b8c2d5; background: white; }
+      output { display: block; margin: 12px 0; white-space: pre-wrap; }
+      output[data-result="error"] { color: #b91c1c; }
+      pre { overflow: auto; max-height: 220px; padding: 12px; background: #fff; border: 1px solid #d5ddec; }
+    </style>
+  </head>
+  <body>
+    <h1>Quamolit · M0 参考场景</h1>
+    <p>固定时间和输入记录驱动 Canvas 参考画面。后续后端可复用下方 manifest 和纯模型。</p>
+    <div class="controls">
+      <label>场景 <select id="fixture">
+        <option value="ui-transition">UI 过渡／打断／进入退出</option>
+        <option value="instances">同类实例</option>
+        <option value="text-path">固定字形／路径</option>
+      </select></label>
+      <label>实例数 <select id="count"><option value="1000">1k</option><option value="10000">10k</option><option value="100000">100k</option></select></label>
+      <label>时间 <input id="time" type="range" min="0" max="1.5" step="0.01" value="0.5" /><span id="time-label"></span></label>
+      <button id="play" type="button">播放</button>
+      <button id="interrupt" type="button">此刻改目标</button>
+      <button id="reset" type="button">重置输入</button>
+    </div>
+    <canvas id="frame" width="640" height="360" aria-label="固定时间参考画面"></canvas>
+    <output id="status">加载中…</output>
+    <details><summary>可序列化输入与参考模型</summary><pre id="manifest"></pre></details>
+    <script type="module" src="./main.mjs"></script>
+  </body>
+</html>
