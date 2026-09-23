@@ -15,6 +15,8 @@ yarn test:simulation
 yarn test:direct
 yarn test:host-clock
 yarn test:scene-core
+yarn test:scene-diff
+yarn test:scene-binding
 yarn test:motion
 yarn test:motion-browser
 yarn test:runtime
@@ -42,6 +44,8 @@ yarn bench
 `yarn test:scene-core` 验证 [Scene IR 核心切片](scene-ir-core.md) 的类型、构造/校验、重复 ID/兄弟 key、错误父级、非法数值/资源/绑定以及 JSON 往返；`yarn test:motion-browser` 额外验证 Scene IR 驱动的 Canvas 中间帧。该命令不等于下方拟议的完整 `yarn test:scene`，目前尚无保留执行计划或双后端验收。
 
 `yarn test:scene-diff` 验证 [逻辑身份与参考差分](scene-diff.md) 的严格类型、变更分类、重排/重挂载、仅时间变化和 JS 序列化；`yarn test:motion-browser` 也会在 Chromium 校验 Scene diff 与 Canvas 中间帧一致。仍未实现 #50 保留执行计划和双后端验收。
+
+`yarn test:scene-binding` 验证 [Scene 标量绑定解析](scene-binding.md) 的 ID/version 契约、绝对时间采样、非法输入/输出、Calcit 类型与 JS JSON 边界；`yarn test:motion-browser` 实际绘制绑定解析结果，并与独立直接采样参考比对。它不证明生产增量执行或 GPU lowering。
 
 ## 待实现的统一命令
 

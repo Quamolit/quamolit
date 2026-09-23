@@ -6,6 +6,7 @@ test("Scene IR 任意时间构造、序列化后可绘制准确中间帧", async
   await page.goto("/test/scene-core.html?time=0.5");
   const status = page.locator("#status");
   await expect(status).toContainText("t=0.5s · rect-center=108 · nodes=3 · instances=10000 · pixel=234,88,12,255");
+  await expect(status).toContainText("bound=pass");
   for (const [time, x] of [[1, 128], [0, 88], [0.25, 98], [0.5, 108], [0.5, 108]]) {
     await page.getByRole("button", { name: `${time}s`, exact: true }).click();
     await expect(status).toContainText(`t=${time}s · rect-center=${x} · nodes=3 · instances=10000 · pixel=234,88,12,255`);

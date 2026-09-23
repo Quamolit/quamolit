@@ -4721,6 +4721,263 @@
             js-ffi.browser :refer $ image-create image-src!
             calcit.test :refer $ is=
             quamolit.frame-eval :refer $ tick-tree
+    'quamolit.scene-binding $ %{} 'FileEntry
+      :defs $ {}
+        'apply-group-scalar $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn apply-group-scalar (group target value)
+            match target
+              (:opacity)
+                scene-ir/GroupNode :transform (:transform group) :clip (:clip group) :opacity value
+              _ $ raise |unsupported-group-binding
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/GroupNode)
+            :args $ [] 'quamolit.scene-ir/GroupNode 'quamolit.scene-ir/ScalarTarget 'Number
+        'apply-rect-scalar $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn apply-rect-scalar (rect target value)
+            if
+              match target
+                (:opacity) true
+                _ false
+              raise |unsupported-rect-binding
+              scene-ir/RectNode :x
+                match target
+                  (:x) value
+                  _ $ :x rect
+                , :y
+                  match target
+                    (:y) value
+                    _ $ :y rect
+                  , :width
+                    match target
+                      (:width) value
+                      _ $ :width rect
+                    , :height
+                      match target
+                        (:height) value
+                        _ $ :height rect
+                      , :fill $ :fill rect
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/RectNode)
+            :args $ [] 'quamolit.scene-ir/RectNode 'quamolit.scene-ir/ScalarTarget 'Number
+        'apply-scalar $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn apply-scalar (content target value)
+            match content
+              (:group group)
+                scene-ir/SceneContent :group $ apply-group-scalar group target value
+              (:rect rect)
+                scene-ir/SceneContent :rect $ apply-rect-scalar rect target value
+              (:instances instance) (raise |unsupported-instance-binding)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ [] 'quamolit.scene-ir/SceneContent 'quamolit.scene-ir/ScalarTarget 'Number
+        'descriptor-pair-in? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn descriptor-pair-in? (descriptors id version)
+            if (empty? descriptors) false $ let
+                descriptor $ first-descriptor descriptors
+              if
+                and
+                  = id $ :id descriptor
+                  = version $ :version descriptor
+                , true $ recur (rest descriptors) id version
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.motion/ScalarDescriptor) 'String 'Number
+        'empty-descriptors $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-descriptors () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.motion/ScalarDescriptor
+        'empty-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-nodes () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'find-descriptor $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn find-descriptor (descriptors id version)
+            if (empty? descriptors) (raise |missing-motion-descriptor)
+              let
+                  descriptor $ first-descriptor descriptors
+                if
+                  and
+                    = id $ :id descriptor
+                    = version $ :version descriptor
+                  , descriptor $ recur (rest descriptors) id version
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] (:: 'List 'quamolit.motion/ScalarDescriptor) 'String 'Number
+        'first-binding $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-binding (bindings)
+            -> (first bindings) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/ScalarBinding)
+            :args $ [] $ :: 'List 'quamolit.scene-ir/ScalarBinding
+        'first-descriptor $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-descriptor (descriptors)
+            -> (first descriptors) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] $ :: 'List 'quamolit.motion/ScalarDescriptor
+        'first-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-node (nodes)
+            -> (first nodes) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] $ :: 'List 'quamolit.scene-ir/SceneNode
+        'resolve-bindings $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resolve-bindings (bindings content descriptors time)
+            if (empty? bindings) content $ let
+                binding $ first-binding bindings
+                descriptor $ find-descriptor descriptors (:motion-id binding) (:version binding)
+                value $ motion/sample-scalar descriptor time
+              recur (rest bindings)
+                apply-scalar content (:target binding) value
+                , descriptors time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ [] (:: 'List 'quamolit.scene-ir/ScalarBinding) 'quamolit.scene-ir/SceneContent (:: 'List 'quamolit.motion/ScalarDescriptor) 'Number
+        'resolve-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resolve-node (node descriptors time)
+            scene-ir/SceneNode :id (:id node) :parent (:parent node) :key (:key node) :content
+              resolve-bindings (:bindings node) (:content node) descriptors time
+              , :bindings (:bindings node) :interaction $ :interaction node
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'quamolit.scene-ir/SceneNode (:: 'List 'quamolit.motion/ScalarDescriptor) 'Number
+        'resolve-nodes-prefix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resolve-nodes-prefix (remaining resolved descriptors time)
+            if (empty? remaining) resolved $ recur (rest remaining)
+              append resolved $ resolve-node (first-node remaining) descriptors time
+              , descriptors time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) (:: 'List 'quamolit.scene-ir/SceneNode) (:: 'List 'quamolit.motion/ScalarDescriptor) 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'resolve-scene $ %{} 'CodeEntry
+          :doc "|按绝对时间解析 Scene 标量绑定并返回合法的新 SceneDocument；这是全量 CPU 正确性参考，不是保留式执行计划。"
+          :code $ quote $ defn resolve-scene (document descriptors time)
+            do (scene-ir/validate-scene document) (validate-descriptors descriptors)
+              if
+                not $ motion/finite-number? time
+                raise |invalid-scene-sample-time
+                let
+                    resolved $ scene-ir/SceneDocument :nodes $ resolve-nodes-prefix (:nodes document) (empty-nodes) descriptors time
+                  scene-ir/validate-scene resolved
+                  , resolved
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.scene-ir/SceneDocument (:: 'List 'quamolit.motion/ScalarDescriptor) 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |absolute-time-and-preserved-bindings)
+              :code $ quote $ let
+                  matrix $ scene-ir/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                  color $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+                  group-content $ scene-ir/SceneContent :group $ scene-ir/GroupNode :transform matrix :clip (scene-ir/ClipSpec :none) :opacity 1
+                  rect-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 80 :y 42 :width 16 :height 16 :fill color
+                  opacity-binding $ scene-ir/ScalarBinding :target (scene-ir/ScalarTarget :opacity) :motion-id |fade :version 2
+                  x-binding $ scene-ir/ScalarBinding :target (scene-ir/ScalarTarget :x) :motion-id |slide :version 3
+                  group $ scene-ir/SceneNode :id |root :parent | :key |root :content group-content :bindings ([] opacity-binding) :interaction $ scene-ir/SceneInteraction :none
+                  rect $ scene-ir/SceneNode :id |badge :parent |root :key |badge :content rect-content :bindings ([] x-binding) :interaction $ scene-ir/SceneInteraction :none
+                  document $ scene-ir/SceneDocument :nodes $ [] group rect
+                  slide $ motion/ScalarDescriptor :id |slide :version 3 :motion $ motion/ScalarMotion :tween
+                    motion/ScalarTween :start 0 :duration 1 :from 80 :to 120 :easing $ motion/Easing :linear
+                  fade $ motion/ScalarDescriptor :id |fade :version 2 :motion $ motion/ScalarMotion :tween
+                    motion/ScalarTween :start 0 :duration 1 :from 1 :to 0.5 :easing $ motion/Easing :linear
+                  descriptors $ append
+                    append (empty-descriptors) slide
+                    , fade
+                  middle $ resolve-scene document descriptors 0.5
+                  end $ resolve-scene document descriptors 1
+                  start $ resolve-scene document descriptors -1
+                is= 100 $ match
+                  :content $ first-node $ rest (:nodes middle)
+                  (:rect value) (:x value)
+                  _ -1
+                is= 0.75 $ match
+                  :content $ first-node $ :nodes middle
+                  (:group value) (:opacity value)
+                  _ -1
+                is= 120 $ match
+                  :content $ first-node $ rest (:nodes end)
+                  (:rect value) (:x value)
+                  _ -1
+                is= 0.5 $ match
+                  :content $ first-node $ :nodes end
+                  (:group value) (:opacity value)
+                  _ -1
+                is= 80 $ match
+                  :content $ first-node $ rest (:nodes start)
+                  (:rect value) (:x value)
+                  _ -1
+                is= 1 $ match
+                  :content $ first-node $ :nodes start
+                  (:group value) (:opacity value)
+                  _ -1
+                is= true $ scene-ir/validate-scene middle
+                is= true $ scene-ir/validate-scene $ resolve-scene document descriptors 0.5
+                is= (:bindings rect)
+                  :bindings $ first-node $ rest (:nodes middle)
+              :tags $ #{} :scene-binding :unit
+            %{} 'TestEntry (:name |rejects-invalid-registry-and-results)
+              :code $ quote $ let
+                  color $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+                  rect-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 0 :y 0 :width 16 :height 16 :fill color
+                  x-binding $ scene-ir/ScalarBinding :target (scene-ir/ScalarTarget :x) :motion-id |slide :version 3
+                  width-binding $ scene-ir/ScalarBinding :target (scene-ir/ScalarTarget :width) :motion-id |bad-width :version 1
+                  x-node $ scene-ir/SceneNode :id |rect :parent | :key |rect :content rect-content :bindings ([] x-binding) :interaction $ scene-ir/SceneInteraction :none
+                  width-node $ scene-ir/SceneNode :id |rect :parent | :key |rect :content rect-content :bindings ([] width-binding) :interaction $ scene-ir/SceneInteraction :none
+                  document $ scene-ir/SceneDocument :nodes $ [] x-node
+                  width-document $ scene-ir/SceneDocument :nodes $ [] width-node
+                  slide $ motion/ScalarDescriptor :id |slide :version 3 :motion $ motion/ScalarMotion :constant 10
+                  wrong-version $ motion/ScalarDescriptor :id |slide :version 2 :motion $ motion/ScalarMotion :constant 10
+                  duplicate $ append
+                    append (empty-descriptors) slide
+                    , slide
+                  width-motion $ motion/ScalarDescriptor :id |bad-width :version 1 :motion $ motion/ScalarMotion :constant -1
+                  blank-id $ motion/ScalarDescriptor :id | :version 1 :motion $ motion/ScalarMotion :constant 1
+                  fraction-version $ motion/ScalarDescriptor :id |slide :version 1.5 :motion $ motion/ScalarMotion :constant 1
+                is-throws $ resolve-scene document (empty-descriptors) 0
+                is-throws $ resolve-scene document
+                  append (empty-descriptors) wrong-version
+                  , 0
+                is-throws $ resolve-scene document duplicate 0
+                is-throws $ resolve-scene width-document
+                  append (empty-descriptors) width-motion
+                  , 0
+                is-throws $ resolve-scene document
+                  append (empty-descriptors) slide
+                  / 0 0
+                is-throws $ validate-descriptors $ append (empty-descriptors) blank-id
+                is-throws $ validate-descriptors $ append (empty-descriptors) fraction-version
+              :tags $ #{} :scene-binding :unit
+        'validate-descriptors $ %{} 'CodeEntry (:doc "|拒绝空 ID、非有限或非整数版本及重复的 ID/version 对；不同版本可以同时存在。")
+          :code $ quote $ defn validate-descriptors (descriptors)
+            validate-descriptors-prefix descriptors $ empty-descriptors
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] $ :: 'List 'quamolit.motion/ScalarDescriptor
+        'validate-descriptors-prefix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn validate-descriptors-prefix (remaining earlier)
+            if (empty? remaining) true $ let
+                descriptor $ first-descriptor remaining
+                version $ :version descriptor
+              if
+                and
+                  not $ empty? $ :id descriptor
+                  motion/finite-number? version
+                  >= version 0
+                  = version $ floor version
+                  not $ descriptor-pair-in? earlier (:id descriptor) version
+                recur (rest remaining) (append earlier descriptor)
+                raise |invalid-or-duplicate-motion-descriptor
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.motion/ScalarDescriptor) (:: 'List 'quamolit.motion/ScalarDescriptor)
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.scene-binding
+          :require (quamolit.scene-ir :as scene-ir) (quamolit.motion :as motion)
+            calcit.test :refer $ is= is-throws
     'quamolit.scene-diff $ %{} 'FileEntry
       :defs $ {}
         'DirtyFlags $ %{} 'CodeEntry
@@ -4936,7 +5193,7 @@
                   q $ scene-ir/SceneNode :id |q :parent |root :key |q :content group-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
                   old-child $ scene-ir/SceneNode :id |child :parent |p :key |item :content rect-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
                   new-child $ scene-ir/SceneNode :id |child :parent |q :key |item :content rect-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
-                  before $ scene-ir/SceneDocument :nodes $ [] root p q old-child
+                  before $ scene-ir/SceneDocument :nodes $ [] root p old-child q
                   after $ scene-ir/SceneDocument :nodes $ [] root p q new-child
                   empty-doc $ scene-ir/SceneDocument :nodes $ [] root p q
                 is= ([] |removed |added)
@@ -5227,6 +5484,26 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] $ :: 'List 'quamolit.scene-ir/SceneNode
+        'last-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn last-node (nodes)
+            if
+              empty? $ rest nodes
+              first-node nodes
+              recur $ rest nodes
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] $ :: 'List 'quamolit.scene-ir/SceneNode
+        'node-for-id $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn node-for-id (nodes id)
+            if (empty? nodes) (raise |missing-scene-ancestor)
+              let
+                  node $ first-node nodes
+                if
+                  = id $ :id node
+                  , node $ recur (rest nodes) id
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'String
         'parent-group? $ %{} 'CodeEntry
           :doc "|A non-root parent must already exist in the prefix and be a group."
           :code $ quote $ defn parent-group? (parent-id earlier)
@@ -5241,6 +5518,22 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'String $ :: 'List 'quamolit.scene-ir/SceneNode
+        'parent-on-spine? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn parent-on-spine? (parent-id earlier)
+            if (empty? parent-id) true $ if (empty? earlier) false $ spine-contains?
+              :id $ last-node earlier
+              , parent-id earlier
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'String $ :: 'List 'quamolit.scene-ir/SceneNode
+        'spine-contains? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn spine-contains? (current-id target-id earlier)
+            if (empty? current-id) false $ if (= current-id target-id) true $ recur
+              :parent $ node-for-id earlier current-id
+              , target-id earlier
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'String 'String $ :: 'List 'quamolit.scene-ir/SceneNode
         'target-in? $ %{} 'CodeEntry (:doc "|Check for another binding of the same target.")
           :code $ quote $ defn target-in? (target bindings)
             if (empty? bindings) false $ if
@@ -5375,6 +5668,7 @@
               assert |missing-or-non-group-parent $ or
                 empty? $ :parent node
                 parent-group? (:parent node) earlier
+              assert |non-preorder-parent $ parent-on-spine? (:parent node) earlier
               recur (rest remaining) (append earlier node)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -5446,6 +5740,19 @@
                 is-throws $ validate-scene $ SceneDocument :nodes ([] group duplicate-binding)
                 is-throws $ validate-scene $ SceneDocument :nodes ([] invalid-target)
                 is-throws $ validate-scene $ SceneDocument :nodes ([] group bad-event)
+              :tags $ #{} :scene :unit
+            %{} 'TestEntry (:name |rejects-return-to-closed-subtree)
+              :code $ quote $ let
+                  matrix $ Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                  color $ ColorRgba :r 1 :g 0 :b 0 :a 1
+                  group-content $ SceneContent :group $ GroupNode :transform matrix :clip (ClipSpec :none) :opacity 1
+                  rect-content $ SceneContent :rect $ RectNode :x 0 :y 0 :width 1 :height 1 :fill color
+                  root $ SceneNode :id |root :parent | :key |root :content group-content :bindings ([]) :interaction $ SceneInteraction :none
+                  p $ SceneNode :id |p :parent |root :key |p :content group-content :bindings ([]) :interaction $ SceneInteraction :none
+                  q $ SceneNode :id |q :parent |root :key |q :content group-content :bindings ([]) :interaction $ SceneInteraction :none
+                  child $ SceneNode :id |child :parent |p :key |child :content rect-content :bindings ([]) :interaction $ SceneInteraction :none
+                is= true $ validate-scene $ SceneDocument :nodes ([] root p child q)
+                is-throws $ validate-scene $ SceneDocument :nodes ([] root p q child)
               :tags $ #{} :scene :unit
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.scene-ir
@@ -5521,6 +5828,24 @@
             quamolit.frame-eval :refer $ initial-frame evaluate-at
     'quamolit.test.motion-fixture $ %{} 'FileEntry
       :defs $ {}
+        'bound-scene-document-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn bound-scene-document-at (time)
+            let
+                base $ scene-document-at 0
+                root $ scene-ir/first-node $ :nodes base
+                badge $ scene-ir/first-node $ rest (:nodes base)
+                instances $ scene-ir/first-node $ rest
+                  rest $ :nodes base
+                binding $ scene-ir/ScalarBinding :target (scene-ir/ScalarTarget :x) :motion-id |badge-x :version 1
+                bound-badge $ scene-ir/SceneNode :id (:id badge) :parent (:parent badge) :key (:key badge) :content (:content badge) :bindings ([] binding) :interaction $ :interaction badge
+                unresolved $ scene-ir/SceneDocument :nodes $ [] root bound-badge instances
+                descriptor $ ScalarDescriptor :id |badge-x :version 1 :motion $ ScalarMotion :tween
+                  ScalarTween :start 0 :duration 1 :from 80 :to 120 :easing $ Easing :linear
+                descriptors $ append (scene-binding/empty-descriptors) descriptor
+              scene-binding/resolve-scene unresolved descriptors time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
         'cpu-gpu-reason $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn cpu-gpu-reason ()
             let
@@ -5758,6 +6083,7 @@
             quamolit.host-clock :as host-clock
             quamolit.scene-ir :as scene-ir
             quamolit.scene-diff :as scene-diff
+            quamolit.scene-binding :as scene-binding
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)
