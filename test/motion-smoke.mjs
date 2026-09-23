@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   main_$x_, sample_at, sample_vec2_at, sample_vec2_x_at, sample_vec2_y_at,
   sample_keyframes_clamp_at, sample_keyframes_repeat_at, sample_keyframes_mirror_at,
+  sample_color_r_at, sample_color_b_at, sample_color_a_at,
 } from "../js-out/quamolit.test.motion-fixture.mjs";
 
 test("motion fixture samples arbitrary times without mutable clock", () => {
@@ -33,5 +34,19 @@ test("typed Vec2 motion samples the same positions in generated JavaScript", () 
     assert.equal(sample_vec2_x_at(time), x);
     assert.equal(sample_vec2_y_at(time), y);
     assert.equal(sample_vec2_at(time).toString(), `(%{} 'Vec2 (:x ${x}) (:y ${y}))`);
+  }
+});
+
+test("typed color samples straight alpha and linear-sRGB RGB in generated JavaScript", () => {
+  for (const [time, red, blue, alpha] of [
+    [1, 0, 1, 1],
+    [0, 1, 0, 0],
+    [0.5, 0.7353569830524495, 0.7353569830524495, 0.5],
+    [0.25, 0.8808250210902997, 0.5370987304831942, 0.25],
+    [1, 0, 1, 1],
+  ]) {
+    assert.ok(Math.abs(sample_color_r_at(time) - red) < 1e-12);
+    assert.ok(Math.abs(sample_color_b_at(time) - blue) < 1e-12);
+    assert.equal(sample_color_a_at(time), alpha);
   }
 });
