@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit 直接采样与同时间失效验证</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { display: block; border: 1px solid #94a3b8; margin: 16px 0; }
+      button { margin: 0 8px 8px 0; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>任意时间直接采样</h1>
+    <p>Calcit 的动画描述、模型、输入、资源 ready 状态和视口快照共同生成画面。即使时间不变，其他依赖改变也必须重新采样。本页 Canvas 仅验证中间帧。</p>
+    <div id="times"></div>
+    <div id="changes"></div>
+    <canvas id="direct" width="320" height="100"></canvas>
+    <output id="status">加载中…</output>
+    <script type="module" src="./direct.mjs"></script>
+  </body>
+</html>

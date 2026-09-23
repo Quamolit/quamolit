@@ -12,6 +12,7 @@ yarn compile
 yarn release
 yarn test:clock
 yarn test:simulation
+yarn test:direct
 yarn test:motion
 yarn test:motion-browser
 yarn test:runtime
@@ -31,6 +32,8 @@ yarn bench
 `yarn test:motion` 对实验性标量、二维向量、关键帧、颜色、两输入组合与 CPU-only 自定义标量 Motion 做严格类型检查、原生测试、JS 编译与数值测试；`yarn test:motion-browser` 再验证 Chromium 中间帧、循环端点、颜色/位置像素、GPU 不支持诊断和时间倒退/重复。两者目前只覆盖 [初始切片](motion-scalar.md)，不能代表 #48 全部 Motion IR 或 #31 生命周期已完成。
 
 `yarn test:simulation` 验证 [固定步长 CPU 状态推进](fixed-step-simulation.md) 的类型、手算数值、不同显示帧节奏、检查点/重置、追帧预算和非法 tick；`yarn test:motion-browser` 同时运行固定 tick 的 Canvas 画面测试。该切片没有 host time 变换或资源版本失效，不能据此关闭 #31。
+
+`yarn test:direct` 验证 [绝对时间 CPU 直接采样](direct-frame-sampling.md) 的类型、乱序/重复采样、六类依赖的相同时间失效、完整键复用与非法时间/版本；`yarn test:motion-browser` 同时运行 Canvas 截图和像素断言。调用方仍须维护完整版本，测试不代表通用组件公共入口或 #31 已完成。
 
 ## 待实现的统一命令
 
