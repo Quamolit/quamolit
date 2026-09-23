@@ -2968,6 +2968,25 @@
           :code $ quote $ defstruct ScalarTween (:start 'Number) (:duration 'Number) (:from 'Number) (:to 'Number) (:easing 'quamolit.motion/Easing)
           :examples $ []
           :schema $ :: 'StructDef
+        'Vec2 $ %{} 'CodeEntry
+          :doc "|Two-dimensional coordinates in caller-defined units; sampling requires finite values."
+          :code $ quote $ defstruct Vec2 (:x 'Number) (:y 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'Vec2Descriptor $ %{} 'CodeEntry
+          :doc "|Versioned identity for a serializable Vec2 motion."
+          :code $ quote $ defstruct Vec2Descriptor (:id 'String) (:version 'Number) (:motion 'quamolit.motion/Vec2Motion)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'Vec2Motion $ %{} 'CodeEntry (:doc "|Closed two-dimensional expression.")
+          :code $ quote $ defenum Vec2Motion (:constant 'quamolit.motion/Vec2) (:tween 'quamolit.motion/Vec2Tween)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'Vec2Tween $ %{} 'CodeEntry
+          :doc "|A Vec2 interval in seconds with explicit easing."
+          :code $ quote $ defstruct Vec2Tween (:start 'Number) (:duration 'Number) (:from 'quamolit.motion/Vec2) (:to 'quamolit.motion/Vec2) (:easing 'quamolit.motion/Easing)
+          :examples $ []
+          :schema $ :: 'StructDef
         'finite-number? $ %{} 'CodeEntry
           :doc "|Detect NaN and either infinity on native and JS numeric paths."
           :code $ quote $ defn finite-number? (value)
@@ -2982,6 +3001,14 @@
               is= false $ finite-number? $ / 1 0
               is= false $ finite-number? $ / -1 0
             :tags $ #{} :motion :unit
+        'finite-vec2? $ %{} 'CodeEntry (:doc "|Reject non-finite vector coordinates.")
+          :code $ quote $ defn finite-vec2? (value)
+            and
+              finite-number? $ :x value
+              finite-number? $ :y value
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/Vec2
         'sample-scalar $ %{} 'CodeEntry
           :doc "|Sample a versioned scalar descriptor without reading previous frames."
           :code $ quote $ defn sample-scalar (descriptor time)
@@ -3078,6 +3105,76 @@
                 is-throws $ sample-tween good $ / 1 0
                 is-throws $ sample-tween negative 0.5
                 is-throws $ sample-tween invalid 0.5
+              :tags $ #{} :motion :unit
+        'sample-vec2 $ %{} 'CodeEntry
+          :doc "|Sample a Vec2 descriptor at arbitrary finite seconds without previous-frame state."
+          :code $ quote $ defn sample-vec2 (descriptor time)
+            assert |invalid-motion-time $ finite-number? time
+            assert |invalid-motion-version $ finite-number? $ :version descriptor
+            assert |negative-motion-version $ >= (:version descriptor) 0
+            match (:motion descriptor)
+              (:constant value)
+                do
+                  assert |invalid-vec2-constant $ finite-vec2? value
+                  , value
+              (:tween tween)
+                do
+                  assert |invalid-vec2-from $ finite-vec2? $ :from tween
+                  assert |invalid-vec2-to $ finite-vec2? $ :to tween
+                  let
+                      progress $ sample-tween
+                        ScalarTween :start (:start tween) :duration (:duration tween) :from 0 :to 1 :easing $ :easing tween
+                        , time
+                      from $ :from tween
+                      to $ :to tween
+                      result $ Vec2 :x
+                        +
+                          * (:x from) (- 1 progress)
+                          * (:x to) progress
+                        , :y $ +
+                          * (:y from) (- 1 progress)
+                          * (:y to) progress
+                    assert |invalid-vec2-result $ finite-vec2? result
+                    , result
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.motion/Vec2Descriptor 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |arbitrary-order-and-boundaries)
+              :code $ quote $ let
+                  from $ Vec2 :x 0 :y 0
+                  to $ Vec2 :x 10 :y 20
+                  linear $ Vec2Descriptor :id |move :version 1 :motion $ Vec2Motion :tween
+                    Vec2Tween :start 0 :duration 1 :from from :to to :easing $ Easing :linear
+                  smooth $ Vec2Descriptor :id |smooth :version 1 :motion $ Vec2Motion :tween
+                    Vec2Tween :start 0 :duration 1 :from from :to to :easing $ Easing :smoothstep
+                  instant $ Vec2Descriptor :id |instant :version 1 :motion $ Vec2Motion :tween
+                    Vec2Tween :start 0.5 :duration 0 :from from :to to :easing $ Easing :linear
+                is= to $ sample-vec2 linear 1
+                is= from $ sample-vec2 linear 0
+                is= (Vec2 :x 5 :y 10) (sample-vec2 linear 0.5)
+                is= (Vec2 :x 2.5 :y 5) (sample-vec2 linear 0.25)
+                is= to $ sample-vec2 linear 1
+                is= from $ sample-vec2 linear -0.000001
+                is= to $ sample-vec2 linear 1.000001
+                is= (Vec2 :x 1.5625 :y 3.125) (sample-vec2 smooth 0.25)
+                is= from $ sample-vec2 instant 0.499999
+                is= to $ sample-vec2 instant 0.5
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |rejects-invalid)
+              :code $ quote $ let
+                  from $ Vec2 :x 0 :y 0
+                  to $ Vec2 :x 10 :y 20
+                  good $ Vec2Descriptor :id |move :version 1 :motion $ Vec2Motion :tween
+                    Vec2Tween :start 0 :duration 1 :from from :to to :easing $ Easing :linear
+                  negative $ Vec2Descriptor :id |negative :version 1 :motion $ Vec2Motion :tween
+                    Vec2Tween :start 0 :duration -1 :from from :to to :easing $ Easing :linear
+                  invalid $ Vec2Descriptor :id |invalid :version 1 :motion $ Vec2Motion :constant
+                    Vec2 :x (sqrt -1) :y 0
+                is-throws $ sample-vec2 good $ sqrt -1
+                is-throws $ sample-vec2 good $ / 1 0
+                is-throws $ sample-vec2 negative 0.5
+                is-throws $ sample-vec2 invalid 0.5
               :tags $ #{} :motion :unit
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.motion
@@ -3677,9 +3774,32 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'sample-vec2-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-vec2-at (time)
+            let
+                from $ Vec2 :x 48 :y 80
+                to $ Vec2 :x 208 :y 120
+                tween $ Vec2Tween :start 0 :duration 1 :from from :to to :easing $ Easing :linear
+                descriptor $ Vec2Descriptor :id |moving-rect :version 1 :motion $ Vec2Motion :tween tween
+              sample-vec2 descriptor time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'Number
+        'sample-vec2-x-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-vec2-x-at (time)
+            :x $ sample-vec2-at time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'sample-vec2-y-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-vec2-y-at (time)
+            :y $ sample-vec2-at time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.motion-fixture
-          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar
+          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)
