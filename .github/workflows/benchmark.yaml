@@ -37,6 +37,7 @@ jobs:
         if: inputs.mode == 'full'
         run: |
           yarn bench --fixture ui-transition --out test-results/bench-ui
+          yarn bench --fixture mixed-ui --count 1000 --out test-results/bench-mixed-1k
           yarn bench --fixture instances --count 1000 --out test-results/bench-1k
           yarn bench --fixture instances --count 10000 --out test-results/bench-10k
           yarn bench --fixture instances --count 100000 --out test-results/bench-100k

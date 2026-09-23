@@ -43,6 +43,7 @@ function renderAt(time) {
     controls.time.value = String(Math.min(1.5, time));
     controls.timeLabel.textContent = `${time.toFixed(2)}s`;
     controls.count.disabled = manifest.fixture !== "instances";
+    if (manifest.fixture === "mixed-ui") controls.count.value = "1000";
     controls.interrupt.disabled = manifest.fixture !== "ui-transition";
     controls.manifest.textContent = JSON.stringify({ manifest, sampleTime: time, referenceModel: model }, null, 2);
     controls.status.dataset.result = "ready";
@@ -94,7 +95,7 @@ function playFrame(wallTime) {
 
 controls.fixture.addEventListener("change", () => {
   stop();
-  makeManifest();
+  makeManifest(controls.fixture.value === "mixed-ui" ? { count: 1_000 } : {});
   renderAt(currentTime);
   updateUrl();
 });
@@ -142,7 +143,7 @@ controls.reset.addEventListener("click", () => {
 
 try {
   const fixture = query.get("fixture") ?? "ui-transition";
-  const count = Number(query.get("count") ?? 10_000);
+  const count = Number(query.get("count") ?? (fixture === "mixed-ui" ? 1_000 : 10_000));
   if (!FIXTURE_IDS.includes(fixture) || !INSTANCE_COUNTS.includes(count)) throw new RangeError("Invalid fixture or count URL parameter");
   controls.fixture.value = fixture;
   controls.count.value = String(count);
