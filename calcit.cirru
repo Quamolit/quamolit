@@ -2518,6 +2518,151 @@
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.cursor
+    'quamolit.fixed-step $ %{} 'FileEntry
+      :defs $ {}
+        'SimulationState $ %{} 'CodeEntry
+          :doc "|Immutable simulation checkpoint; tick is an integer, dt is fixed seconds, seed and state are explicit."
+          :code $ quote $ defstruct SimulationState ([] 'S) (:tick 'Number) (:dt 'Number) (:seed 'Number) (:state 'S)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'advance-simulation $ %{} 'CodeEntry
+          :doc "|Advance through logged inputs up to target tick within an explicit catch-up budget."
+          :code $ quote $ defn advance-simulation (previous target-tick input-log max-steps update-state)
+            assert |invalid-simulation-checkpoint $ valid-simulation-state? previous
+            assert |invalid-target-tick $ finite-number? target-tick
+            assert |non-integer-target-tick $ = target-tick $ floor target-tick
+            assert |simulation-cannot-rewind $ >= target-tick $ :tick previous
+            assert |invalid-catch-up-budget $ finite-number? max-steps
+            assert |negative-catch-up-budget $ >= max-steps 0
+            assert |non-integer-catch-up-budget $ = max-steps $ floor max-steps
+            assert |catch-up-budget-exceeded $ <=
+              - target-tick $ :tick previous
+              , max-steps
+            if
+              = target-tick $ :tick previous
+              , previous $ let
+                  next-tick $ + 1 $ :tick previous
+                assert |missing-simulation-input $ contains? input-log next-tick
+                let
+                    input $
+                      get input-log next-tick
+                      , .unwrap
+                  recur (step-simulation previous next-tick input update-state) target-tick input-log (- max-steps 1) update-state
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.fixed-step/SimulationState 'S) 'Number (:: 'Map 'Number 'I) 'Number $ :: 'Fn
+              {} (:return 'S)
+                :args $ [] 'S 'I 'Number 'Number
+            :generics $ [] 'S 'I
+            :return $ :: 'quamolit.fixed-step/SimulationState 'S
+          :tests $ []
+            %{} 'TestEntry (:name |cadence-checkpoint-replay)
+              :code $ quote $ let
+                  update-state $ fn (state input dt seed)
+                    hint-fn $ {}
+                      :args $ [] 'Number 'Number 'Number 'Number
+                      :return 'Number
+                    + state $ * input dt
+                  inputs $ {} (1 2) (2 4) (3 -2) (4 0)
+                  initial $ start-simulation 0.25 7 0
+                  direct $ advance-simulation initial 4 inputs 4 update-state
+                  first-step $ advance-simulation initial 1 inputs 1 update-state
+                  checkpoint $ advance-simulation first-step 2 inputs 1 update-state
+                  staged $ advance-simulation checkpoint 4 inputs 2 update-state
+                  paused $ advance-simulation checkpoint 2 inputs 0 update-state
+                  reset $ start-simulation 0.25 7 0
+                  replay $ advance-simulation reset 4 inputs 4 update-state
+                  single $ step-simulation initial 1 2 update-state
+                is= 1 $ :state direct
+                is= 4 $ :tick direct
+                is= direct staged
+                is= direct replay
+                is= checkpoint paused
+                is= 0.5 $ :state single
+                is= 7 $ :seed checkpoint
+                is= 0.25 $ :dt checkpoint
+              :tags $ #{} :simulation :unit
+            %{} 'TestEntry (:name |reject-invalid-steps)
+              :code $ quote $ let
+                  update-state $ fn (state input dt seed)
+                    hint-fn $ {}
+                      :args $ [] 'Number 'Number 'Number 'Number
+                      :return 'Number
+                    + state $ * input dt
+                  inputs $ {} (1 2) (2 4)
+                  initial $ start-simulation 0.25 7 0
+                  first-step $ step-simulation initial 1 2 update-state
+                  bad-checkpoint $ SimulationState :tick -1 :dt 0.25 :seed 7 :state 0
+                  bad-duration-checkpoint $ SimulationState :tick 0 :dt 0 :seed 7 :state 0
+                is-throws $ start-simulation 0 7 0
+                is-throws $ start-simulation -0.25 7 0
+                is-throws $ start-simulation (sqrt -1) 7 0
+                is-throws $ start-simulation 0.25 (/ 1 0) 0
+                is-throws $ start-simulation 0.25 1.5 0
+                is-throws $ step-simulation initial 0 2 update-state
+                is-throws $ step-simulation initial 2 2 update-state
+                is-throws $ step-simulation initial (sqrt -1) 2 update-state
+                is-throws $ advance-simulation first-step 0 inputs 1 update-state
+                is-throws $ advance-simulation initial 2 inputs 1 update-state
+                is-throws $ advance-simulation initial 2
+                  {} $ 1 2
+                  , 2 update-state
+                is-throws $ advance-simulation initial 1 inputs -1 update-state
+                is-throws $ advance-simulation initial 1 inputs 0.5 update-state
+                is-throws $ step-simulation bad-checkpoint 0 2 update-state
+                is-throws $ advance-simulation bad-checkpoint 0 inputs 0 update-state
+                is-throws $ advance-simulation bad-duration-checkpoint 1 inputs 1 update-state
+              :tags $ #{} :simulation :unit
+        'start-simulation $ %{} 'CodeEntry
+          :doc "|Construct or reset a simulation at tick zero; rejects invalid dt or seed."
+          :code $ quote $ defn start-simulation (dt seed state)
+            assert |invalid-simulation-dt $ finite-number? dt
+            assert |non-positive-simulation-dt $ > dt 0
+            assert |invalid-simulation-seed $ finite-number? seed
+            assert |non-integer-simulation-seed $ = seed $ floor seed
+            SimulationState :tick 0 :dt dt :seed seed :state state
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'S
+            :generics $ [] 'S
+            :return $ :: 'quamolit.fixed-step/SimulationState 'S
+        'step-simulation $ %{} 'CodeEntry
+          :doc "|Advance exactly one explicitly numbered tick with one input; no display-clock reads."
+          :code $ quote $ defn step-simulation (previous next-tick input update-state)
+            assert |invalid-simulation-checkpoint $ valid-simulation-state? previous
+            assert |invalid-simulation-tick $ finite-number? next-tick
+            assert |non-integer-simulation-tick $ = next-tick $ floor next-tick
+            assert |simulation-tick-must-advance-once $ = next-tick $ + 1 (:tick previous)
+            SimulationState :tick next-tick :dt (:dt previous) :seed (:seed previous) :state $ update-state (:state previous) input (:dt previous) (:seed previous)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.fixed-step/SimulationState 'S) 'Number 'I $ :: 'Fn
+              {} (:return 'S)
+                :args $ [] 'S 'I 'Number 'Number
+            :generics $ [] 'S 'I
+            :return $ :: 'quamolit.fixed-step/SimulationState 'S
+        'valid-simulation-state? $ %{} 'CodeEntry
+          :doc "|Validate a checkpoint constructed externally before advancing or restoring it."
+          :code $ quote $ defn valid-simulation-state? (simulation)
+            and
+              finite-number? $ :tick simulation
+              >= (:tick simulation) 0
+              = (:tick simulation)
+                floor $ :tick simulation
+              finite-number? $ :dt simulation
+              > (:dt simulation) 0
+              finite-number? $ :seed simulation
+              = (:seed simulation)
+                floor $ :seed simulation
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] $ :: 'quamolit.fixed-step/SimulationState 'S
+            :generics $ [] 'S
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.fixed-step
+          :require
+            quamolit.motion :refer $ finite-number?
+            calcit.test :refer $ is= is-throws
     'quamolit.frame-clock $ %{} 'FileEntry
       :defs $ {}
         'FrameSample $ %{} 'CodeEntry
@@ -4441,6 +4586,38 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'sample-simulation-direct $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-simulation-direct (tick)
+            let
+                update-state $ fn (state input dt seed)
+                  hint-fn $ {}
+                    :args $ [] 'Number 'Number 'Number 'Number
+                    :return 'Number
+                  + state $ * input dt
+                inputs $ {} (1 2) (2 4) (3 -2) (4 0)
+                initial $ start-simulation 0.25 7 0
+              :state $ advance-simulation initial tick inputs 4 update-state
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'sample-simulation-staged $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-simulation-staged (tick)
+            let
+                update-state $ fn (state input dt seed)
+                  hint-fn $ {}
+                    :args $ [] 'Number 'Number 'Number 'Number
+                    :return 'Number
+                  + state $ * input dt
+                inputs $ {} (1 2) (2 4) (3 -2) (4 0)
+                initial $ start-simulation 0.25 7 0
+              if (<= tick 2)
+                :state $ advance-simulation initial tick inputs 2 update-state
+                let
+                    checkpoint $ advance-simulation initial 2 inputs 2 update-state
+                  :state $ advance-simulation checkpoint tick inputs 2 update-state
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
         'sample-vec2-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sample-vec2-at (time)
             let
@@ -4466,7 +4643,9 @@
             :args $ [] 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.motion-fixture
-          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color ScalarComposeOp ScalarComposition sample-scalar-composition CpuScalarDescriptor CpuGpuStatus CpuScalarRegistry register-cpu-scalar sample-cpu-scalar
+          :require
+            quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color ScalarComposeOp ScalarComposition sample-scalar-composition CpuScalarDescriptor CpuGpuStatus CpuScalarRegistry register-cpu-scalar sample-cpu-scalar
+            quamolit.fixed-step :refer $ start-simulation advance-simulation
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)
