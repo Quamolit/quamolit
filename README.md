@@ -14,6 +14,10 @@ Features:
 
 ### Design
 
+The staged vNext API and rendering contract is documented in
+[docs/vnext-design.md](docs/vnext-design.md). It is a draft; the API described
+there is not yet implemented.
+
 Quamolit is trying to combine two things:
 
 * declarative programming experience like React
@@ -173,7 +177,7 @@ hug-log :data "|more data"
 
 ### Develop
 
-To run this project, install Calcit 0.18.1 and Node.js 24 first:
+To run this project, install Calcit 0.19.1 and Node.js 24 first:
 
 ```bash
 corepack enable
@@ -183,11 +187,12 @@ calcit calcit.cirru js
 yarn vite
 ```
 
-The 0.18.1 migration currently uses `quamolit.bootstrap` as a compile-only
+The 0.19.1 migration currently uses `quamolit.bootstrap` as a compile-only
 entry. The original canvas application remains in `quamolit.app.main`, but is
 not wired into the Vite entry yet: its strict type check still reports legacy
 warnings. `yarn compile` and `yarn release` validate the migration baseline;
-they do not validate the original application's behavior.
+they do not validate the original application's behavior. `yarn test:runtime`
+also checks the generated core against the installed `@calcit/procs` runtime.
 
 ### Deterministic frame tests
 

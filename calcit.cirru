@@ -2154,7 +2154,7 @@
           :doc "|Advance the absolute animation clock in seconds and return elapsed seconds. Reject backward time; use reset-frame-clock! to seek."
           :code $ quote $ defn advance-frame-clock! (seconds)
             let
-                elapsed $ elapsed-between @*last-tick seconds
+                elapsed $ :elapsed $ step-frame @*last-tick seconds
               reset! *last-tick seconds
               , elapsed
           :examples $ []
@@ -2486,7 +2486,7 @@
             pointed-prompt.core :refer $ clear-prompt!
             quamolit.global :refer $ *touch-event-areas *tracked-transform *stage-config
             quamolit.math :refer $ point-minus point-divide point-add point-times vec-length point-scale
-            quamolit.frame-clock :refer $ elapsed-between
+            quamolit.frame-clock :refer $ step-frame
     'quamolit.cursor $ %{} 'FileEntry
       :defs $ {}
         'gc-states $ %{} 'CodeEntry (:doc |)
@@ -2520,6 +2520,11 @@
         :code $ quote $ ns quamolit.cursor
     'quamolit.frame-clock $ %{} 'FileEntry
       :defs $ {}
+        'FrameSample $ %{} 'CodeEntry
+          :doc "|Pure absolute-time frame sample in seconds; elapsed is zero for a repeated timestamp."
+          :code $ quote $ defstruct FrameSample (:time 'Number) (:elapsed 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
         'elapsed-between $ %{} 'CodeEntry
           :doc "|Return elapsed seconds for a monotonic absolute clock; reject rewinds. Reset the clock before seeking backward in tests."
           :code $ quote $ defn elapsed-between (previous current)
@@ -2560,6 +2565,28 @@
                 is-throws $ sample-times 1 0 4
                 is-throws $ sample-times 0 1 0
                 is-throws $ sample-times 0 1 2.5
+              :tags $ #{} :frame-clock :unit
+        'step-frame $ %{} 'CodeEntry
+          :doc "|Calculate a pure frame sample from two absolute times in seconds; reject rewinds."
+          :code $ quote $ defn step-frame (previous current)
+            %{} FrameSample (:time current)
+              :elapsed $ elapsed-between previous current
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.frame-clock/FrameSample)
+            :args $ [] 'Number 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |fixed-and-repeated)
+              :code $ quote $ do
+                let
+                    first-frame $ step-frame 0 0.25
+                    repeated $ step-frame 0.25 0.25
+                  is= 0.25 $ :time first-frame
+                  is= 0.25 $ :elapsed first-frame
+                  is= 0.25 $ :time repeated
+                  is= 0 $ :elapsed repeated
+              :tags $ #{} :frame-clock :unit
+            %{} 'TestEntry (:name |rejects-rewind)
+              :code $ quote $ is-throws (step-frame 2 1)
               :tags $ #{} :frame-clock :unit
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.frame-clock

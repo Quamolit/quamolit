@@ -1,7 +1,7 @@
 {
   "version": "0.0.18-alpha.1",
   "dependencies": {
-    "@calcit/procs": "0.18.1",
+    "@calcit/procs": "0.19.1",
     "@quamolit/touch-control": "^0.0.13"
   },
   "devDependencies": {
@@ -11,6 +11,7 @@
   "scripts": {
     "compile": "caps --ci && calcit calcit.cirru js",
     "test:clock": "calcit test --tag frame-clock --require-match",
+    "test:runtime": "node test/runtime-smoke.mjs",
     "compile:visual": "calcit --init-fn quamolit.test.frame-fixture/main! --reload-fn quamolit.test.frame-fixture/reload! calcit.cirru js",
     "release": "yarn vite build --base=./"
   },

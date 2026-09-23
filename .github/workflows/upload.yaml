@@ -27,7 +27,7 @@ jobs:
       run: >
         yarn install --immutable
         && yarn compile && yarn release
-        && yarn test:clock && yarn compile:visual
+        && yarn test:clock && yarn test:runtime && yarn compile:visual
         && cp -vr assets dist/
 
     - name: Deploy to server
