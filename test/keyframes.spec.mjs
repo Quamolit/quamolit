@@ -6,6 +6,7 @@ test("关键帧重复、负时间、repeat 与 mirror 端点可重放", async ({
   await page.goto("/test/keyframes.html?time=0.5");
   const status = page.locator("#status");
   await expect(status).toContainText("t=0.5s · clamp=144 · repeat=144 · mirror=144");
+  await expect(status).toContainText("GPU 候选: 4 帧");
   for (const [button, result] of [
     ["1s", "t=1s · clamp=208 · repeat=48 · mirror=208"],
     ["-0.25s", "t=-0.25s · clamp=48 · repeat=176 · mirror=88"],

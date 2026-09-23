@@ -2,13 +2,18 @@ import {
   sample_keyframes_clamp_at as clampAt,
   sample_keyframes_repeat_at as repeatAt,
   sample_keyframes_mirror_at as mirrorAt,
+  gpu_keyframes_repeat_plan as gpuKeyframesRepeatPlan,
 } from "../js-out/quamolit.test.motion-fixture.mjs";
+import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
 
 const canvas = document.querySelector("#tracks");
 const context = canvas.getContext("2d", { willReadFrequently: true });
 const status = document.querySelector("#status");
 const slider = document.querySelector("#time");
 const samples = [-0.25, 0, 0.25, 0.5, 0.75, 1, 1.25, 2];
+const gpuPlan = toJsData(gpuKeyframesRepeatPlan());
+assert(gpuPlan[0] === "supported" && gpuPlan[1].kernel[0] === "keyframes", "关键帧 GPU 候选计划缺失");
+assert(gpuPlan[1].kernel[1].frames.length === 4, "关键帧计划与画面夹具不一致");
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -30,7 +35,7 @@ function renderAt(seconds) {
   });
   slider.value = String(seconds);
   status.dataset.result = "pass";
-  status.textContent = `PASS · t=${seconds}s · clamp=${values[0]} · repeat=${values[1]} · mirror=${values[2]}`;
+  status.textContent = `PASS · t=${seconds}s · clamp=${values[0]} · repeat=${values[1]} · mirror=${values[2]} · GPU 候选: ${gpuPlan[1].kernel[1].frames.length} 帧`;
   return values;
 }
 
