@@ -10,4 +10,4 @@
 
 运行 `yarn test:simulation` 和 `yarn test:motion-browser`。前者覆盖 Calcit 原生、严格公共类型检查和编译后 JS；后者在固定 Chromium 中验证画面。架构 scaffold 见 `docs/architectures/fixed-step-simulation.cirru`；源码 `calcit.cirru` 由 Calcit CLI 维护。
 
-本切片尚未提供 host wall time 到 simulation time 的暂停/速度/seek 变换、输入事件归档/检查点策略、随机数生成器、同一时间模型/资源/视口版本失效、通用直接 `sample-at`，也未处理设备丢失。上述能力仍属 #31 与后续资源/渲染 issue，不因本测试通过而关闭 #31。
+独立的 [宿主时间映射](host-clock.md) 现提供暂停、速度和 seek 的纯函数变换；它不自动推进固定步长模拟。输入事件归档/检查点保留策略、随机数生成器和设备丢失仍未处理；同时间依赖失效由 [直接采样切片](direct-frame-sampling.md) 的显式修订号覆盖，但完整组件公共入口尚未提供。上述能力仍属 #31 与后续资源/渲染 issue，不因本测试通过而关闭 #31。
