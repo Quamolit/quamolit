@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Quamolit 实例数据版本验证</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { border: 1px solid #94a3b8; display: block; margin: 16px 0; }
+      button { margin-right: 8px; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>单逻辑节点、万实例数据</h1>
+    <p>Canvas 仅用于确定性像素测试；页面不是生产渲染器。</p>
+    <button id="v1">版本 1</button><button id="v2">版本 2</button>
+    <canvas id="scene" width="320" height="100"></canvas>
+    <output id="status">加载中…</output>
+    <script type="module" src="./instance-sources.mjs"></script>
+  </body>
+</html>

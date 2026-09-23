@@ -98,6 +98,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check versioned instance data boundary
+        if: inputs.mutation != 'color'
+        run: yarn test:instance-sources
+        env:
+          CI: "true"
+
       - name: Check logical Scene diff and dirty classifications
         if: inputs.mutation != 'color'
         run: yarn test:scene-diff
