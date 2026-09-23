@@ -8,4 +8,6 @@
 
 这是 O(n²) 路径匹配加 Scene 校验的 CPU 正确性参考，不是 #50 的保留执行计划。当前 alpha 是逐逻辑节点的局部参数；浏览器夹具只对固定 group 下的两个矩形做 fade，不能宣称已实现一般嵌套组的隔离透明合成。退出项在新声明之后按旧顺序绘制，属于当前覆盖层策略；更复杂的层叠、裁剪及命中由 #33/#34/#53 统一验收。
 
+[旧 fade 迁移夹具](fade-migration.md)负责展示描述符与 Scene opacity 的直接时间采样；本模块负责逻辑 enter/exit、终点卸载通知与重入。两者尚未在生产执行计划中合并，不能把单子节点 Canvas 淡入淡出当作一般组隔离或宿主资源释放。
+
 `yarn test:presence` 覆盖重排、同 key 重入、换类型、父级卸载顺序、退出禁交互、终点停帧、重复结算、非法 key，以及 100 次 10k 实例逻辑图层装卸后的模型计数和通知数。`yarn test:motion-browser` 在 [独立页面](../test/presence.html) 验证 fade、重叠层序、退出/重入的任意时间画面与像素。架构约束见 [presence-lifecycle.cirru](architectures/presence-lifecycle.cirru)。宿主资源计数与指针捕获清理仍需 #51/#34 的实际实现；#49 不应仅凭本切片关闭。

@@ -9,3 +9,5 @@ M1 #31 的 `quamolit.component-sample` 把 [组件 API 契约](api-contract.md)�
 运行 `yarn test:component-sample` 检查全部公共定义的严格类型、原生与 JS 数值/序列化；`yarn test:motion-browser` 检查 Chromium 中间帧、像素和同时间输入变化。[交互页面](../test/component.html)可手动切换时间、Model、资源与视口。编译输出隔离于 `js-out-component/`，避免不同 Calcit 入口覆盖同名导出。
 
 当前实现是逐次声明和全量 Scene 绑定解析的 CPU **正确性参考**，不是保留式执行计划；它没有把大型组件树的静态结构每帧复用，也没有自动处理实例源或资源生命周期。这些属于 #32/#50/#51。历史状态仍走独立的 [固定步长模拟](fixed-step-simulation.md)，不能藏进组件声明或 paint。生产迁移与长期输入日志/检查点策略尚未完成，不能据此关闭 #31 或 M1。
+
+旧 `comp-fade-in-out` 已有[进入/退出透明度的可编译迁移夹具](fade-migration.md)，展示过渡意图留在 Model、Scene opacity 引用 Motion 的具体用法；它尚未替代旧应用入口或实现保留执行计划。

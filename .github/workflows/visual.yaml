@@ -86,6 +86,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check legacy fade migration
+        if: inputs.mutation != 'color'
+        run: yarn test:fade-migration
+        env:
+          CI: "true"
+
       - name: Check typed Scene IR core and serialization
         if: inputs.mutation != 'color'
         run: yarn test:scene-core
