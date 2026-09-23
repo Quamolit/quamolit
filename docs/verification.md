@@ -15,6 +15,7 @@ yarn test:simulation
 yarn test:direct
 yarn test:host-clock
 yarn test:playback
+yarn test:component-sample
 yarn test:scene-core
 yarn test:scene-diff
 yarn test:scene-binding
@@ -48,6 +49,8 @@ yarn bench
 `yarn test:host-clock` 验证 [宿主时间映射](host-clock.md) 的暂停、恢复、变速、倒放、seek、固定 dt tick、浮点边界与非法输入；`yarn test:motion-browser` 在 Canvas 上核对各时间点中间帧、像素与刷新。该切片不推进模拟状态，也不负责检查点与输入日志策略。
 
 `yarn test:playback` 验证[同一宿主时间轴上的直接帧与固定 tick 边界](playback-boundary.md)，包括暂停、资源 ready 的同时间失效、seek 后从旧检查点重放、预算超限与 JS 数值；`yarn test:motion-browser` 在 Canvas 上核对两条路径的固定时间画面。它是 CPU 参考适配，不是生产调度器。
+
+`yarn test:component-sample` 验证[声明式组件直接采样入口](component-sample.md)的泛型输入、严格类型、乱序绝对时间、六类版本复用及同时间 Model/资源/视口变更；`yarn test:motion-browser` 在固定 Chromium 页面核对可编译组件声明的中间帧和像素。该入口会全量重新声明/解析 Scene，不是保留式执行计划。
 
 `yarn test:scene-core` 验证 [Scene IR 核心切片](scene-ir-core.md) 的类型、构造/校验、重复 ID/兄弟 key、错误父级、非法数值/资源/绑定以及 JSON 往返；`yarn test:motion-browser` 额外验证 Scene IR 驱动的 Canvas 中间帧。该命令不等于下方拟议的完整 `yarn test:scene`，目前尚无保留执行计划或双后端验收。
 
