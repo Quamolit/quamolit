@@ -2947,6 +2947,141 @@
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.math
+    'quamolit.motion $ %{} 'FileEntry
+      :defs $ {}
+        'Easing $ %{} 'CodeEntry (:doc "|Scalar easing for interpolation.")
+          :code $ quote $ defenum Easing (:linear) (:smoothstep)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ScalarDescriptor $ %{} 'CodeEntry
+          :doc "|Versioned identity for a serializable scalar motion."
+          :code $ quote $ defstruct ScalarDescriptor (:id 'String) (:version 'Number) (:motion 'quamolit.motion/ScalarMotion)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ScalarMotion $ %{} 'CodeEntry
+          :doc "|Closed scalar expression; no arbitrary closure in serializable data."
+          :code $ quote $ defenum ScalarMotion (:constant 'Number) (:time 'Number 'Number) (:tween 'quamolit.motion/ScalarTween)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ScalarTween $ %{} 'CodeEntry
+          :doc "|A scalar interval in seconds; duration zero switches at start."
+          :code $ quote $ defstruct ScalarTween (:start 'Number) (:duration 'Number) (:from 'Number) (:to 'Number) (:easing 'quamolit.motion/Easing)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'finite-number? $ %{} 'CodeEntry
+          :doc "|Detect NaN and either infinity on native and JS numeric paths."
+          :code $ quote $ defn finite-number? (value)
+            = 0 $ - value value
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |reject-non-finite)
+            :code $ quote $ do
+              is= true $ finite-number? 3.5
+              is= false $ finite-number? $ sqrt -1
+              is= false $ finite-number? $ / 1 0
+              is= false $ finite-number? $ / -1 0
+            :tags $ #{} :motion :unit
+        'sample-scalar $ %{} 'CodeEntry
+          :doc "|Sample a versioned scalar descriptor without reading previous frames."
+          :code $ quote $ defn sample-scalar (descriptor time)
+            assert |invalid-motion-time $ finite-number? time
+            assert |invalid-motion-version $ finite-number? $ :version descriptor
+            assert |negative-motion-version $ >= (:version descriptor) 0
+            match (:motion descriptor)
+              (:constant value)
+                do
+                  assert |invalid-motion-constant $ finite-number? value
+                  , value
+              (:time scale offset)
+                do
+                  assert |invalid-motion-scale $ finite-number? scale
+                  assert |invalid-motion-offset $ finite-number? offset
+                  let
+                      value $ + offset $ * scale time
+                    assert |invalid-motion-result $ finite-number? value
+                    , value
+              (:tween tween) (sample-tween tween time)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.motion/ScalarDescriptor 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |arbitrary-order-and-fade)
+            :code $ quote $ let
+                tween $ ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                descriptor $ ScalarDescriptor :id |old-fade :version 1 :motion $ ScalarMotion :tween tween
+                constant $ ScalarDescriptor :id |constant :version 1 :motion $ ScalarMotion :constant 7
+                clock $ ScalarDescriptor :id |clock :version 1 :motion $ ScalarMotion :time 2 1
+              is= 20 $ sample-scalar descriptor 1
+              is= 10 $ sample-scalar descriptor 0
+              is= 15 $ sample-scalar descriptor 0.5
+              is= 12.5 $ sample-scalar descriptor 0.25
+              is= 20 $ sample-scalar descriptor 1
+              is= 7 $ sample-scalar constant -3
+              is= 2 $ sample-scalar clock 0.5
+            :tags $ #{} :motion :unit
+        'sample-tween $ %{} 'CodeEntry
+          :doc "|Reference scalar tween value at arbitrary finite seconds."
+          :code $ quote $ defn sample-tween (tween time)
+            assert |invalid-motion-time $ finite-number? time
+            assert |invalid-motion-start $ finite-number? $ :start tween
+            assert |invalid-motion-duration $ finite-number? $ :duration tween
+            assert |invalid-motion-from $ finite-number? $ :from tween
+            assert |invalid-motion-to $ finite-number? $ :to tween
+            assert |negative-motion-duration $ >= (:duration tween) 0
+            let
+                start $ :start tween
+                duration $ :duration tween
+                from $ :from tween
+                to $ :to tween
+              if (= duration 0)
+                if (< time start) from to
+                let
+                    progress $ if (< time start) 0 $ if
+                      > time $ + start duration
+                      , 1
+                        / (- time start) duration
+                    ratio $ match (:easing tween)
+                      (:linear) progress
+                      (:smoothstep)
+                        * progress progress $ - 3 $ * 2 progress
+                    value $ +
+                      * from $ - 1 ratio
+                      * to ratio
+                  assert |invalid-motion-result $ finite-number? value
+                  , value
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.motion/ScalarTween 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |linear-smooth-and-boundaries)
+              :code $ quote $ let
+                  linear $ ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                  smooth $ ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :smoothstep
+                  instant $ ScalarTween :start 0.5 :duration 0 :from 10 :to 20 :easing $ Easing :linear
+                is= 10 $ sample-tween linear -1
+                is= 10 $ sample-tween linear 0
+                is= 12.5 $ sample-tween linear 0.25
+                is= 15 $ sample-tween linear 0.5
+                is= 20 $ sample-tween linear 1
+                is= 20 $ sample-tween linear 1.5
+                is= 11.5625 $ sample-tween smooth 0.25
+                is= 15 $ sample-tween smooth 0.5
+                is= 10 $ sample-tween instant 0.499
+                is= 20 $ sample-tween instant 0.5
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |reject-invalid-input)
+              :code $ quote $ let
+                  good $ ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                  negative $ ScalarTween :start 0 :duration -1 :from 10 :to 20 :easing $ Easing :linear
+                  invalid $ ScalarTween :start 0 :duration 1 :from 10 :to (sqrt -1) :easing $ Easing :linear
+                is-throws $ sample-tween good $ sqrt -1
+                is-throws $ sample-tween good $ / 1 0
+                is-throws $ sample-tween negative 0.5
+                is-throws $ sample-tween invalid 0.5
+              :tags $ #{} :motion :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.motion
+          :require $ calcit.test :refer $ is= is-throws
     'quamolit.render.element $ %{} 'FileEntry
       :defs $ {}
         'alpha $ %{} 'CodeEntry (:doc |)
@@ -3516,6 +3651,35 @@
             quamolit.types :refer $ Component Shape
             quamolit.render.paint :refer $ paint-tree-only-with paint-rect
             quamolit.frame-eval :refer $ initial-frame evaluate-at
+    'quamolit.test.motion-fixture $ %{} 'FileEntry
+      :defs $ {}
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! ()
+            let
+                tween $ ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                descriptor $ ScalarDescriptor :id |old-fade :version 1 :motion $ ScalarMotion :tween tween
+              [] (sample-scalar descriptor 1) (sample-scalar descriptor 0) (sample-scalar descriptor 0.5) (sample-scalar descriptor 0.25) (sample-scalar descriptor 1)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'Number
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'sample-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-at (time)
+            let
+                tween $ ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                descriptor $ ScalarDescriptor :id |old-fade :version 1 :motion $ ScalarMotion :tween tween
+              sample-scalar descriptor time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.test.motion-fixture
+          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)

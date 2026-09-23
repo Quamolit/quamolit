@@ -44,6 +44,12 @@ jobs:
           CI: "true"
           QUAMOLIT_VISUAL_MUTATION: ${{ inputs.mutation == 'color' && 'color' || '' }}
 
+      - name: Check Motion scalar sampling in Chromium
+        if: inputs.mutation != 'color'
+        run: yarn test:motion-browser
+        env:
+          CI: "true"
+
       - name: Upload actual, expected, diff and input manifest on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -51,6 +57,8 @@ jobs:
           name: quamolit-visual-failure-${{ github.run_id }}
           path: |
             test-results/visual/
+            test-results/motion/
             playwright-report/
+            playwright-report-motion/
           if-no-files-found: error
           retention-days: 14
