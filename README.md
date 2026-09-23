@@ -15,7 +15,7 @@ yarn test:runtime
 yarn release
 ```
 
-目前 `yarn compile` 仅验证 `quamolit.bootstrap`，还不能证明旧版应用入口的功能已恢复。旧版 `paint` 会先执行独立的 `tick-tree` 阶段，再绘制；`paint-tree-only-with` 可在不推进动画状态的情况下重绘。下文保留英文说明及旧版 API 示例，作为迁移参考。
+目前 `yarn compile` 仅验证 `quamolit.bootstrap`，还不能证明旧版应用入口的功能已恢复。新代码可以使用 `initial-frame` / `evaluate-at` 显式求值模型和场景，详见[显式帧求值](docs/frame-evaluation.md)。旧版 `paint` 会先执行独立的 `tick-tree` 阶段，再绘制；`paint-tree-only-with` 可在不推进动画状态的情况下重绘。下文保留英文说明及旧版 API 示例，作为迁移参考。
 
 ---
 
@@ -215,14 +215,21 @@ also checks the generated core against the installed `@calcit/procs` runtime.
 
 ### Deterministic frame tests
 
-Quamolit now exposes an absolute frame clock (`reset-frame-clock!`,
+The generic `initial-frame` and `evaluate-at` APIs return an explicit frame
+containing the time sample, model, and scene. With pure update/view functions,
+the same inputs replay deterministically. Repeated time skips both callbacks;
+rewinding requires a new initial frame. The browser fixture uses this API and
+redraws its saved scene. See [the frame evaluation guide](docs/frame-evaluation.md)
+for the contract and migration example (Chinese).
+
+Legacy code retains the absolute frame clock (`reset-frame-clock!`,
 `advance-frame-clock!`), a separate `tick-tree` pass for component `on-tick`
 callbacks, and `paint-tree-only-with` for drawing without advancing animation
 state. The compatibility `paint-tree-with` entry combines these passes.
 Advancing a frame calls component `on-tick` once with the elapsed seconds; a
 redraw can paint the same state without advancing time.
-The browser fixture exercises this with a real Canvas rectangle at fixed
-timestamps, including intermediate frames. See [test/README.md](test/README.md)
+The browser fixture paints a real Canvas rectangle at fixed timestamps,
+including intermediate frames. See [test/README.md](test/README.md)
 for the screenshot workflow and current coverage limits.
 
 ### History

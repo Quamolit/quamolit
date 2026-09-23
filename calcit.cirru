@@ -2592,8 +2592,138 @@
         :code $ quote $ ns quamolit.frame-clock
           :require $ calcit.test :refer $ is= is-throws
     'quamolit.frame-eval $ %{} 'FileEntry
-      :defs $ {} $ 'tick-tree
-        %{} 'CodeEntry
+      :defs $ {}
+        'EvaluatedFrame $ %{} 'CodeEntry (:doc "|一次显式求值的时间采样、模型和场景；泛型保留模型与场景的类型。")
+          :code $ quote $ defstruct EvaluatedFrame ([] 'M 'S) (:sample 'quamolit.frame-clock/FrameSample) (:model 'M) (:scene 'S)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'evaluate-at $ %{} 'CodeEntry
+          :doc "|以绝对秒数推进显式帧，先更新模型再求场景；重复时间复用模型与场景且 elapsed 为零，倒退报错。调用方提供纯函数。"
+          :code $ quote $ defn evaluate-at (previous time update-model view)
+            let
+                sample $ step-frame
+                  :time $ :sample previous
+                  , time
+              if
+                = 0 $ :elapsed sample
+                %{} EvaluatedFrame (:sample sample)
+                  :model $ :model previous
+                  :scene $ :scene previous
+                let
+                    model $ update-model (:model previous) sample
+                  %{} EvaluatedFrame (:sample sample) (:model model)
+                    :scene $ view model
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.frame-eval/EvaluatedFrame 'M 'S) 'Number
+              :: 'Fn $ {} (:return 'M)
+                :args $ [] 'M 'quamolit.frame-clock/FrameSample
+              :: 'Fn $ {} (:return 'S)
+                :args $ [] 'M
+            :generics $ [] 'M 'S
+            :return $ :: 'quamolit.frame-eval/EvaluatedFrame 'M 'S
+          :tests $ []
+            %{} 'TestEntry (:name |replay-and-step)
+              :code $ quote $ let
+                  update-model $ fn (model sample)
+                    hint-fn $ {}
+                      :args $ [] 'Number 'quamolit.frame-clock/FrameSample
+                      :return 'Number
+                    + model $ :elapsed sample
+                  view $ fn (model)
+                    hint-fn $ {}
+                      :args $ [] 'Number
+                      :return 'Number
+                    + 48 $ * 160 model
+                  start $ initial-frame 0 0 view
+                  first-frame $ evaluate-at start 0.25 update-model view
+                  second-frame $ evaluate-at first-frame 0.5 update-model view
+                  replay $ evaluate-at (evaluate-at start 0.25 update-model view) 0.5 update-model view
+                is= 0 $ :model start
+                is= 48 $ :scene start
+                is= 0.5 $ :model second-frame
+                is= 128 $ :scene second-frame
+                is= 0.25 $ :elapsed $ :sample second-frame
+                is= second-frame replay
+                is= second-frame $ evaluate-at first-frame 0.5 update-model view
+              :tags $ #{} :frame-clock :unit
+            %{} 'TestEntry (:name |repeated-time-skips-callbacks)
+              :code $ quote $ let
+                  update-model $ fn (model sample)
+                    hint-fn $ {}
+                      :args $ [] 'Number 'quamolit.frame-clock/FrameSample
+                      :return 'Number
+                    + model $ :elapsed sample
+                  view $ fn (model)
+                    hint-fn $ {}
+                      :args $ [] 'Number
+                      :return 'Number
+                    + 48 $ * 160 model
+                  advanced $ evaluate-at (initial-frame 0 0 view) 0.5 update-model view
+                  repeated $ evaluate-at advanced 0.5
+                    fn (model sample)
+                      hint-fn $ {}
+                        :args $ [] 'Number 'quamolit.frame-clock/FrameSample
+                        :return 'Number
+                      raise |unexpected-update
+                    fn (model)
+                      hint-fn $ {}
+                        :args $ [] 'Number
+                        :return 'Number
+                      raise |unexpected-view
+                is= 0.5 $ :model repeated
+                is= 128 $ :scene repeated
+                is= 0 $ :elapsed $ :sample repeated
+              :tags $ #{} :frame-clock :unit
+            %{} 'TestEntry (:name |rewind-and-explicit-reset)
+              :code $ quote $ let
+                  update-model $ fn (model sample)
+                    hint-fn $ {}
+                      :args $ [] 'Number 'quamolit.frame-clock/FrameSample
+                      :return 'Number
+                    + model $ :elapsed sample
+                  view $ fn (model)
+                    hint-fn $ {}
+                      :args $ [] 'Number
+                      :return 'Number
+                    + 48 $ * 160 model
+                  advanced $ evaluate-at (initial-frame 0 0 view) 1 update-model view
+                  restarted $ initial-frame 0 0 view
+                is-throws $ evaluate-at advanced 0.5 update-model view
+                is= 128 $ :scene $ evaluate-at restarted 0.5 update-model view
+                is= 1 $ :model advanced
+              :tags $ #{} :frame-clock :unit
+            %{} 'TestEntry (:name |model-and-scene-types)
+              :code $ quote $ let
+                  update-model $ fn (model sample)
+                    hint-fn $ {}
+                      :args $ [] 'Number 'quamolit.frame-clock/FrameSample
+                      :return 'Number
+                    + model $ :elapsed sample
+                  view $ fn (model)
+                    hint-fn $ {}
+                      :args $ [] 'Number
+                      :return 'String
+                    str |position: model
+                  frame $ evaluate-at (initial-frame 2 10 view) 2.5 update-model view
+                is= 10.5 $ :model frame
+                is= |position:10.5 $ :scene frame
+                is= 2.5 $ :time $ :sample frame
+              :tags $ #{} :frame-clock :unit
+        'initial-frame $ %{} 'CodeEntry (:doc "|从给定时间和模型建立起点，调用纯视图一次；可用于显式重置或重放。")
+          :code $ quote $ defn initial-frame (time model view)
+            %{} EvaluatedFrame
+              :sample $ step-frame time time
+              :model model
+              :scene $ view model
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'M $ :: 'Fn
+              {} (:return 'S)
+                :args $ [] 'M
+            :generics $ [] 'M 'S
+            :return $ :: 'quamolit.frame-eval/EvaluatedFrame 'M 'S
+        'tick-tree $ %{} 'CodeEntry
           :doc "|Invoke component on-tick callbacks in tree order without drawing; callers rebuild the scene after updates."
           :code $ quote $ defn tick-tree (tree dispatch! elapsed)
             if (nil? tree) &unit $ if
@@ -2635,7 +2765,8 @@
         :code $ quote $ ns quamolit.frame-eval
           :require
             quamolit.types :refer $ Component Shape
-            calcit.test :refer $ is=
+            calcit.test :refer $ is= is-throws
+            quamolit.frame-clock :refer $ FrameSample step-frame
     'quamolit.global $ %{} 'FileEntry
       :defs $ {}
         '*stage-config $ %{} 'CodeEntry (:doc |)
@@ -3320,8 +3451,8 @@
             quamolit.frame-eval :refer $ tick-tree
     'quamolit.test.frame-fixture $ %{} 'FileEntry
       :defs $ {}
-        '*progress $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *progress 0
+        '*frame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defatom *frame (initial-frame 0 0 scene)
           :examples $ []
           :schema $ :: 'Dynamic
         'main! $ %{} 'CodeEntry (:doc |)
@@ -3330,13 +3461,13 @@
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ []
         'progress $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn progress () @*progress
+          :code $ quote $ defn progress () (:model @*frame)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ []
         'redraw-fixture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn redraw-fixture! (ctx)
-            paint-tree-only-with ctx (scene) ([])
+            paint-tree-only-with ctx (:scene @*frame) ([])
               fn (context shape coord)
                 paint-rect context
                   :style $ assert-type shape Shape
@@ -3351,41 +3482,40 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
         'reset-fixture! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn reset-fixture! () (reset! *progress 0) (reset-frame-clock! 0) &unit
+          :code $ quote $ defn reset-fixture! ()
+            reset! *frame $ initial-frame 0 0 scene
+            , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
         'scene $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn scene ()
-            let
-                x $ + 48 $ * 160 @*progress
-              %{} Component (:name :fixture)
-                :on-tick $ fn (elapsed d!)
-                  reset! *progress $ + @*progress $ assert-type elapsed Number
-                :tree $ rect $ {} (:w 48) (:h 48) (:x x) (:y 80) (:fill-style |#ec4899)
+          :code $ quote $ defn scene (progress)
+            rect $ {} (:w 48) (:h 48) (:y 80) (:fill-style |#ec4899)
+              :x $ + 48 $ * 160 progress
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.types/Component)
-            :args $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.types/Shape)
+            :args $ [] 'Number
         'step-fixture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn step-fixture! (ctx seconds)
-            let
-                elapsed $ advance-frame-clock! seconds
-              tick-tree (scene)
-                fn (op data) &unit
-                , elapsed
-              redraw-fixture! ctx
+            reset! *frame $ evaluate-at @*frame seconds update-progress scene
+            redraw-fixture! ctx
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Number
             :features $ #{} :js-ffi
+        'update-progress $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-progress (model sample)
+            + model $ :elapsed sample
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'quamolit.frame-clock/FrameSample
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.frame-fixture
           :require
             quamolit.alias :refer $ rect
             quamolit.types :refer $ Component Shape
-            quamolit.core :refer $ reset-frame-clock! advance-frame-clock!
             quamolit.render.paint :refer $ paint-tree-only-with paint-rect
-            quamolit.frame-eval :refer $ tick-tree
+            quamolit.frame-eval :refer $ initial-frame evaluate-at
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)
