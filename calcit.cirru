@@ -2969,6 +2969,25 @@
           :code $ quote $ defstruct ColorTween (:start 'Number) (:duration 'Number) (:from 'quamolit.motion/ColorRgba) (:to 'quamolit.motion/ColorRgba) (:easing 'quamolit.motion/Easing)
           :examples $ []
           :schema $ :: 'StructDef
+        'CpuGpuStatus $ %{} 'CodeEntry
+          :doc "|CPU callbacks cannot lower to GPU; retain a diagnostic reason."
+          :code $ quote $ defenum CpuGpuStatus (:unsupported 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'CpuScalarDescriptor $ %{} 'CodeEntry
+          :doc "|Versioned serializable reference to a CPU sampler; never embeds a closure or GPU handle."
+          :code $ quote $ defstruct CpuScalarDescriptor (:id 'String) (:version 'Number) (:callback-id 'String) (:gpu-status 'quamolit.motion/CpuGpuStatus)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'CpuScalarRegistry $ %{} 'CodeEntry
+          :doc "|Runtime-only immutable map of CPU scalar callbacks; excluded from Motion IR serialization and GPU lowering."
+          :code $ quote $ defstruct CpuScalarRegistry
+            :samplers $ :: 'Map 'String $ :: 'Fn
+              {}
+                :args $ [] 'Number
+                :return 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
         'Easing $ %{} 'CodeEntry (:doc "|Scalar easing for interpolation.")
           :code $ quote $ defenum Easing (:linear) (:smoothstep)
           :examples $ []
@@ -3179,6 +3198,17 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'register-cpu-scalar $ %{} 'CodeEntry
+          :doc "|Add one uniquely named, typed CPU sampler to a new registry value."
+          :code $ quote $ defn register-cpu-scalar (registry callback-id sampler)
+            assert |empty-cpu-callback-id $ not $ empty? callback-id
+            assert |duplicate-cpu-callback-id $ not $ contains? (:samplers registry) callback-id
+            CpuScalarRegistry :samplers $ assoc (:samplers registry) callback-id sampler
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/CpuScalarRegistry)
+            :args $ [] 'quamolit.motion/CpuScalarRegistry 'String $ :: 'Fn
+              {} (:return 'Number)
+                :args $ [] 'Number
         'sample-color $ %{} 'CodeEntry
           :doc "|Sample a versioned color descriptor at arbitrary finite seconds."
           :code $ quote $ defn sample-color (descriptor time)
@@ -3220,6 +3250,86 @@
                 ColorDescriptor :id |bad-duration :version 1 :motion $ ColorMotion :tween $ ColorTween :start 0 :duration -1 :from red :to blue :easing (Easing :linear)
                 , 0.5
             :tags $ #{} :motion :unit
+        'sample-cpu-scalar $ %{} 'CodeEntry
+          :doc "|Resolve and sample one CPU-only custom function at arbitrary finite seconds."
+          :code $ quote $ defn sample-cpu-scalar (descriptor time registry)
+            assert |invalid-cpu-motion-time $ finite-number? time
+            assert |invalid-cpu-motion-version $ finite-number? $ :version descriptor
+            assert |negative-cpu-motion-version $ >= (:version descriptor) 0
+            assert |empty-cpu-descriptor-id $ not $ empty? (:id descriptor)
+            assert |empty-cpu-callback-id $ not $ empty? (:callback-id descriptor)
+            match (:gpu-status descriptor)
+              (:unsupported reason)
+                assert |empty-cpu-gpu-diagnostic $ not $ empty? reason
+            assert |missing-cpu-callback $ contains? (:samplers registry) (:callback-id descriptor)
+            let
+                sampler $
+                  get (:samplers registry) (:callback-id descriptor)
+                  , .unwrap
+                result $ sampler time
+              assert |invalid-cpu-motion-result $ finite-number? result
+              , result
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.motion/CpuScalarDescriptor 'Number 'quamolit.motion/CpuScalarRegistry
+          :tests $ []
+            %{} 'TestEntry (:name |arbitrary-time)
+              :code $ quote $ let
+                  sampler $ fn (time)
+                    hint-fn $ {}
+                      :args $ [] 'Number
+                      :return 'Number
+                    + 10 $ * time 2
+                  empty-registry $ CpuScalarRegistry :samplers $ {}
+                  registry $ register-cpu-scalar empty-registry |double-offset sampler
+                  descriptor $ CpuScalarDescriptor :id |custom-example :version 1 :callback-id |double-offset :gpu-status $ CpuGpuStatus :unsupported |runtime-callback
+                is=
+                  count $ :samplers empty-registry
+                  , 0
+                is=
+                  count $ :samplers registry
+                  , 1
+                is= (:gpu-status descriptor) (CpuGpuStatus :unsupported |runtime-callback)
+                is= (sample-cpu-scalar descriptor 1 registry) 12
+                is= (sample-cpu-scalar descriptor 0 registry) 10
+                is= (sample-cpu-scalar descriptor 0.25 registry) 10.5
+                is= (sample-cpu-scalar descriptor 0.5 registry) 11
+                is= (sample-cpu-scalar descriptor -0.25 registry) 9.5
+                is= (sample-cpu-scalar descriptor 1 registry) 12
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |rejects-invalid)
+              :code $ quote $ let
+                  sampler $ fn (time)
+                    hint-fn $ {}
+                      :args $ [] 'Number
+                      :return 'Number
+                    * time 2
+                  empty-registry $ CpuScalarRegistry :samplers $ {}
+                  registry $ register-cpu-scalar empty-registry |double sampler
+                  non-finite-sampler $ fn (time)
+                    hint-fn $ {}
+                      :args $ [] 'Number
+                      :return 'Number
+                    / 1 0
+                  bad-registry $ register-cpu-scalar registry |non-finite non-finite-sampler
+                  descriptor $ CpuScalarDescriptor :id |custom-example :version 1 :callback-id |double :gpu-status $ CpuGpuStatus :unsupported |runtime-callback
+                is-throws $ register-cpu-scalar registry |double sampler
+                is-throws $ register-cpu-scalar registry | sampler
+                is-throws $ sample-cpu-scalar
+                  CpuScalarDescriptor :id |missing :version 1 :callback-id |unknown :gpu-status $ CpuGpuStatus :unsupported |runtime-callback
+                  , 0 registry
+                is-throws $ sample-cpu-scalar
+                  CpuScalarDescriptor :id |invalid :version -1 :callback-id |double :gpu-status $ CpuGpuStatus :unsupported |runtime-callback
+                  , 0 registry
+                is-throws $ sample-cpu-scalar
+                  CpuScalarDescriptor :id |invalid :version 1 :callback-id |double :gpu-status $ CpuGpuStatus :unsupported |
+                  , 0 registry
+                is-throws $ sample-cpu-scalar descriptor (sqrt -1) registry
+                is-throws $ sample-cpu-scalar descriptor (/ 1 0) registry
+                is-throws $ sample-cpu-scalar
+                  CpuScalarDescriptor :id |invalid-result :version 1 :callback-id |non-finite :gpu-status $ CpuGpuStatus :unsupported |runtime-callback
+                  , 0 bad-registry
+              :tags $ #{} :motion :unit
         'sample-scalar $ %{} 'CodeEntry
           :doc "|Sample a versioned scalar descriptor without reading previous frames."
           :code $ quote $ defn sample-scalar (descriptor time)
@@ -4211,6 +4321,15 @@
             quamolit.frame-eval :refer $ initial-frame evaluate-at
     'quamolit.test.motion-fixture $ %{} 'FileEntry
       :defs $ {}
+        'cpu-gpu-reason $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cpu-gpu-reason ()
+            let
+                descriptor $ CpuScalarDescriptor :id |test-custom :version 1 :callback-id |test-pure-function :gpu-status $ CpuGpuStatus :unsupported |runtime-callback
+              match (:gpu-status descriptor)
+                (:unsupported reason) reason
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ []
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
             let
@@ -4275,6 +4394,22 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'sample-cpu-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-cpu-at (time)
+            let
+                sampler $ fn (at)
+                  hint-fn $ {}
+                    :args $ [] 'Number
+                    :return 'Number
+                  + 10 $ * at 2
+                registry $ register-cpu-scalar
+                  CpuScalarRegistry :samplers $ {}
+                  , |test-pure-function sampler
+                descriptor $ CpuScalarDescriptor :id |test-custom :version 1 :callback-id |test-pure-function :gpu-status $ CpuGpuStatus :unsupported |runtime-callback
+              sample-cpu-scalar descriptor time registry
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
         'sample-keyframes-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sample-keyframes-at (time mode)
             let
@@ -4331,7 +4466,7 @@
             :args $ [] 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.motion-fixture
-          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color ScalarComposeOp ScalarComposition sample-scalar-composition
+          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color ScalarComposeOp ScalarComposition sample-scalar-composition CpuScalarDescriptor CpuGpuStatus CpuScalarRegistry register-cpu-scalar sample-cpu-scalar
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)

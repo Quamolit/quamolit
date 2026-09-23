@@ -5,6 +5,7 @@ import {
   sample_keyframes_clamp_at, sample_keyframes_repeat_at, sample_keyframes_mirror_at,
   sample_color_r_at, sample_color_b_at, sample_color_a_at,
   sample_composition_at,
+  sample_cpu_at, cpu_gpu_reason,
 } from "../js-out/quamolit.test.motion-fixture.mjs";
 
 test("motion fixture samples arbitrary times without mutable clock", () => {
@@ -56,4 +57,13 @@ test("bounded scalar composition stays deterministic in generated JavaScript", (
   for (const [time, value] of [[1, 23], [0, 11], [0.25, 14], [0.5, 17], [1, 23]]) {
     assert.equal(sample_composition_at(time), value);
   }
+});
+
+test("CPU custom sampler resolves by registry ID and never claims GPU lowering", () => {
+  for (const [time, value] of [[1, 12], [0, 10], [0.25, 10.5], [0.5, 11], [-0.25, 9.5], [1, 12]]) {
+    assert.equal(sample_cpu_at(time), value);
+  }
+  assert.equal(cpu_gpu_reason(), "runtime-callback");
+  assert.throws(() => sample_cpu_at(Number.NaN));
+  assert.throws(() => sample_cpu_at(Number.POSITIVE_INFINITY));
 });
