@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "smoke 是格式检查；full 运行五个正式场景并上传原始样本"
+        description: "smoke 是格式检查；full 运行六个正式场景并上传原始样本"
         required: true
         default: smoke
         type: choice
@@ -32,7 +32,9 @@ jobs:
       - run: yarn test:bench
       - name: Browser smoke (not a hardware performance baseline)
         if: inputs.mode != 'full'
-        run: yarn bench --fixture instances --count 1000 --warmup 0.2 --duration 0.6 --runs 3 --out test-results/bench-smoke
+        run: |
+          yarn bench --fixture instances --count 1000 --warmup 0.2 --duration 0.6 --runs 3 --out test-results/bench-smoke
+          yarn bench --fixture mixed-ui --count 1000 --warmup 0.2 --duration 0.6 --runs 3 --out test-results/bench-mixed-smoke
       - name: Full reference workload (CI artifact, not hardware acceptance)
         if: inputs.mode == 'full'
         run: |
