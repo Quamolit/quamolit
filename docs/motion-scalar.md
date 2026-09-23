@@ -4,6 +4,8 @@
 
 `quamolit.motion` 定义 `ScalarDescriptor { id, version, motion }`。`motion` 是封闭枚举：常量、`scale * time + offset`、`ScalarTween { start, duration, from, to, easing }`，以及关键帧轨道；easing 目前只有 linear 和 smoothstep。所有时间以秒为单位，结果为标量 `Number`。`sample-scalar descriptor time` 是纯函数，不读取上一帧，也不维护播放状态；调用方可以按 `1, 0, 0.5, 0.25, 1` 的顺序采样。`duration=0` 在 `start` 时刻切换；正时长区间在两端钳制。输入/输出中的 NaN 与无穷值会拒绝，持续时间不能为负。描述可以作为数据传递，里面没有 JS 闭包或 GPU handle。
 
+所有带 ID/version 的 Motion 描述（标量、Vec2、颜色、两输入组合和 CPU 自定义标量）现在统一要求非空 ID、有限非负整数版本。独立 CPU 采样与 GPU 候选分类使用同一边界；不能让 `1.5` 或空 ID 先被采样接受、到 Scene 绑定时才失败。版本代表描述内容的修订，内容变化必须递增版本；不能在同一 ID/version 下悄悄替换内容。对于接受原始 `Number` 的结构体，这些约束由入口的运行时校验执行，静态类型仍保证它是数值而非字符串。
+
 旧 fade 矩形的过渡可先写成 `from=10, to=20, start=0, duration=1` 的 `ScalarTween`，再由宿主绘制适配器映射为画面位置。本仓库的 [浏览器夹具](../test/motion.html) 使用 Calcit 编译出的 `sample-at` 在 Canvas 上展示这个中间帧；Canvas 只负责夹具绘制，不是新渲染后端。`docs/architectures/motion-scalar.cirru` 保留可重复校验的 Calcit 架构 scaffold，真正定义存于 `calcit.cirru`，后者由 Calcit CLI 修改而非文本生成。
 
 二维切片新增 `Vec2 { x, y }`、`Vec2Tween`、`Vec2Motion`、`Vec2Descriptor` 与 `sample-vec2`。两轴共用一个按标量规则采样的进度，因而起止、缓动和 `duration=0` 语义一致；坐标必须有限，端点是带类型的 `Vec2`，不能误传标量。它目前只处理常量和 tween，不宣称支持变换矩阵或颜色。架构 scaffold 见 `docs/architectures/motion-vec2.cirru`。
