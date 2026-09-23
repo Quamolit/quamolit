@@ -24,6 +24,6 @@ UI 夹具的默认输入记录：0.15 秒进入 `detail-card`，0.65 秒将运�
 
 先用 `yarn playwright install chromium` 安装锁定版本配套的浏览器，再运行 `yarn test:visual`。命令先由 `caps --ci` 安装 Calcit 模块，再编译旧版帧夹具、启动独立 Vite 服务，检查 UI 的四个固定时刻、1k 实例、文字路径以及旧版矩形中间帧；同时验证实色内区精确 RGBA、顺序帧重放、乱序采样与手动打断刷新后重放。浏览器缺失、页面异常、资源非 ready 或快照缺失都报错。
 
-快照存于 `snapshots/`，按浏览器项目和操作系统区分。M0 的逐像素阈值为 `0.04`；允许差异像素数分别是 UI 40、实例 100、文字路径 180、旧版矩形 40，且 UI 实色内区必须完全相等。阈值只处理边缘抗锯齿差异；明显位移或漏绘应失败。CI 的 Ubuntu/Chromium 是主验收环境，Mac 快照仅供本机运行。
+快照存于 `snapshots/`，按浏览器项目和操作系统区分。截图包含画布的 1px CSS 边框；画布原始像素仍由 manifest 固定为 640×360。M0 的逐像素阈值为 `0.04`；允许差异像素数分别是 UI 40、实例 100、文字路径 180、旧版矩形 40，且 UI 实色内区必须完全相等。阈值只处理边缘抗锯齿差异；明显位移或漏绘应失败。CI 的 Ubuntu/Chromium 是主验收环境，Mac 快照仅供本机运行。Linux 初始快照来自 [Actions #35888330727](https://github.com/Quamolit/quamolit/actions/runs/35888330727) 的 actual 图，按 manifest 核对了 7 张场景、时间和浏览器 153.0.8010.12 后入库；该次失败仅因快照缺失。
 
 更新基线时在相同 Playwright/Chromium/系统版本运行 `yarn compile:visual` 和 `yarn playwright test --config test/m0/playwright.config.mjs --update-snapshots`，人工审查 before、after 和 diff 后提交图片及原因。普通 `yarn test:visual` 设置 `updateSnapshots: none`，不会自动接受新画面。失败的 `test-results/visual/` 包含 actual/expected/diff 和请求及实际 manifest；Actions 自动上传这些文件及 HTML 报告。`QUAMOLIT_VISUAL_MUTATION=color yarn test:visual` 用于负例验证，应以非零退出并产生差异图；不要把变异条件加入正常基线。
