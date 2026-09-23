@@ -10,4 +10,4 @@
 
 运行 `yarn test:simulation` 和 `yarn test:motion-browser`。前者覆盖 Calcit 原生、严格公共类型检查和编译后 JS；后者在固定 Chromium 中验证画面。架构 scaffold 见 `docs/architectures/fixed-step-simulation.cirru`；源码 `calcit.cirru` 由 Calcit CLI 维护。
 
-独立的 [宿主时间映射](host-clock.md) 现提供暂停、速度和 seek 的纯函数变换；它不自动推进固定步长模拟。输入事件归档/检查点保留策略、随机数生成器和设备丢失仍未处理；同时间依赖失效由 [直接采样切片](direct-frame-sampling.md) 的显式修订号覆盖，但完整组件公共入口尚未提供。上述能力仍属 #31 与后续资源/渲染 issue，不因本测试通过而关闭 #31。
+独立的 [宿主时间映射](host-clock.md) 现提供暂停、速度和 seek 的纯函数变换；它不自动推进固定步长模拟。[CPU 回放档案](replay-archive.md)定义完整输入日志与有界最近检查点的保留/淘汰及旧 tick 重放；尚未提供持久化、长期输入日志容量上限、随机数生成器或设备丢失处理。同时间依赖失效由 [直接采样切片](direct-frame-sampling.md) 的显式修订号覆盖；声明式组件的 CPU 参考入口见 [组件直接采样](component-sample.md)。这些切片不等于 #50 的生产保留执行计划或 GPU 模拟。

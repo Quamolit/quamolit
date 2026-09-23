@@ -4866,6 +4866,29 @@
                 :args $ [] 'D 'M 'I 'R 'V 'Number
             :generics $ [] 'D 'M 'I 'R 'V 'S
             :return $ :: 'quamolit.direct-frame/DirectFrame 'S
+        'sample-archive-at-host $ %{} 'CodeEntry (:doc "|将宿主暂停或 seek 后的动画时间映射为 tick，再按档案和预算重放。")
+          :code $ quote $ defn sample-archive-at-host (timeline host-time saved max-steps update-state)
+            archive/sample-archive-at saved
+              clock/simulation-tick-at timeline host-time $ :dt $ :origin saved
+              , max-steps update-state
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.host-clock/HostClock 'Number (:: 'quamolit.replay-archive/ReplayArchive 'S 'I) 'Number $ :: 'Fn
+              {} (:return 'S)
+                :args $ [] 'S 'I 'Number 'Number
+            :generics $ [] 'S 'I
+            :return $ :: 'quamolit.fixed-step/SimulationState 'S
+          :tests $ [] $ %{} 'TestEntry (:name |host-pause-seek-with-retained-log)
+            :code $ quote $ let
+                timeline $ clock/start-clock 10 0 1
+                paused $ clock/pause-clock timeline 10.5
+                seeked $ clock/seek-clock timeline 20 0.5
+                saved $ quamolit.test.replay-archive-fixture/make-archive
+              is= 2 $ :state $ sample-archive-at-host timeline 11.5 saved 0 quamolit.test.replay-archive-fixture/update-state
+              is= 1.5 $ :state $ sample-archive-at-host paused 20 saved 2 quamolit.test.replay-archive-fixture/update-state
+              is= 1.5 $ :state $ sample-archive-at-host seeked 20 saved 2 quamolit.test.replay-archive-fixture/update-state
+              is-throws $ sample-archive-at-host seeked 20 saved 1 quamolit.test.replay-archive-fixture/update-state
+            :tags $ #{} :playback :replay-archive :unit
         'sample-at-host $ %{} 'CodeEntry (:doc "|在任意宿主时间直接采样完整请求；不读取或推进固定步长模拟状态。")
           :code $ quote $ defn sample-at-host (timeline host-time request evaluate)
             direct/sample-at (request-at-host timeline host-time request) evaluate
@@ -4915,6 +4938,7 @@
           :require (quamolit.host-clock :as clock) (quamolit.direct-frame :as direct) (quamolit.fixed-step :as fixed)
             calcit.test :refer $ is= is-throws
             quamolit.motion :as motion
+            quamolit.replay-archive :as archive
     'quamolit.presence $ %{} 'FileEntry
       :defs $ {}
         'PresenceItem $ %{} 'CodeEntry (:doc "|稳定 Scene 路径、保留展示数据、阶段和局部 alpha 意图。")
@@ -5829,6 +5853,149 @@
             js-ffi.browser :refer $ image-create image-src!
             calcit.test :refer $ is=
             quamolit.frame-eval :refer $ tick-tree
+    'quamolit.replay-archive $ %{} 'FileEntry
+      :defs $ {}
+        'ReplayArchive $ %{} 'CodeEntry (:doc "|完整 tick 输入日志与有界最近检查点的不可变 CPU 回放档案；原点永久保留。")
+          :code $ quote $ defstruct ReplayArchive ([] 'S 'I)
+            :origin $ :: 'quamolit.fixed-step/SimulationState 'S
+            :latest $ :: 'quamolit.fixed-step/SimulationState 'S
+            :inputs $ :: 'Map 'Number 'I
+            :checkpoints $ :: 'List $ :: 'quamolit.fixed-step/SimulationState 'S
+            :stride 'Number
+            :max-checkpoints 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'nearest-checkpoint $ %{} 'CodeEntry (:doc "|内部按目标 tick 选择最近的不晚于目标的检查点；找不到则使用原点。")
+          :code $ quote $ defn nearest-checkpoint (checkpoints target best)
+            if (empty? checkpoints) best $ let
+                candidate $ assert-type
+                  -> (first checkpoints) .unwrap
+                  :: 'quamolit.fixed-step/SimulationState 'S
+                next-best $ if
+                  <= (:tick candidate) target
+                  , candidate best
+              recur (rest checkpoints) target next-best
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+              :: 'List $ :: 'quamolit.fixed-step/SimulationState 'S
+              , 'Number $ :: 'quamolit.fixed-step/SimulationState 'S
+            :generics $ [] 'S
+            :return $ :: 'quamolit.fixed-step/SimulationState 'S
+        'record-input $ %{} 'CodeEntry (:doc "|顺序记录下一 tick 的输入并生成新档案；只保留最近的额外检查点。")
+          :code $ quote $ defn record-input (archive input update-state)
+            let
+                next-tick $ + 1 $ :tick (:latest archive)
+                next-state $ fixed/step-simulation (:latest archive) next-tick input update-state
+                next-inputs $ assoc (:inputs archive) next-tick input
+                checkpoints $ if
+                  = next-tick $ * (:stride archive)
+                    floor $ / next-tick $ :stride archive
+                  conj (:checkpoints archive) next-state
+                  :checkpoints archive
+                retained $ if
+                  > (count checkpoints) (:max-checkpoints archive)
+                  rest checkpoints
+                  , checkpoints
+              ReplayArchive :origin (:origin archive) :latest next-state :inputs next-inputs :checkpoints retained :stride (:stride archive) :max-checkpoints $ :max-checkpoints archive
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.replay-archive/ReplayArchive 'S 'I) 'I $ :: 'Fn
+              {} (:return 'S)
+                :args $ [] 'S 'I 'Number 'Number
+            :generics $ [] 'S 'I
+            :return $ :: 'quamolit.replay-archive/ReplayArchive 'S 'I
+          :tests $ [] $ %{} 'TestEntry (:name |zero-checkpoint-capacity)
+            :code $ quote $ let
+                base-archive $ assert-type
+                  start-archive (fixed/start-simulation 0.25 7 0) 2 0
+                  :: 'quamolit.replay-archive/ReplayArchive 'Number 'Number
+                step-one $ record-input base-archive 2 quamolit.test.replay-archive-fixture/update-state
+                step-two $ record-input step-one 4 quamolit.test.replay-archive-fixture/update-state
+                reset-state $ reset-archive step-two
+                after-reset $ record-input reset-state 2 quamolit.test.replay-archive-fixture/update-state
+              is= 0 $ count $ :checkpoints step-two
+              is= 2 $ count $ :inputs step-two
+              is= 1.5 $ :state $ sample-archive-at step-two 2 2 quamolit.test.replay-archive-fixture/update-state
+              is-throws $ sample-archive-at step-two 2 1 quamolit.test.replay-archive-fixture/update-state
+              is= 0 $ count $ :inputs reset-state
+              is= 0.5 $ :state $ :latest after-reset
+              is= 1 $ :tick $ :latest after-reset
+            :tags $ #{} :replay-archive :unit
+        'reset-archive $ %{} 'CodeEntry (:doc "|清空输入与额外检查点，保留原点和策略以重新开始。")
+          :code $ quote $ defn reset-archive (archive)
+            ReplayArchive :origin (:origin archive) :latest (:origin archive) :inputs ({}) :checkpoints ([]) :stride (:stride archive) :max-checkpoints $ :max-checkpoints archive
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] $ :: 'quamolit.replay-archive/ReplayArchive 'S 'I
+            :generics $ [] 'S 'I
+            :return $ :: 'quamolit.replay-archive/ReplayArchive 'S 'I
+        'sample-archive-at $ %{} 'CodeEntry (:doc "|从最近保留检查点或原点按完整日志重放目标 tick；预算不足明确失败。")
+          :code $ quote $ defn sample-archive-at (archive target-tick max-steps update-state)
+            assert |invalid-archive-target $ and (motion/finite-number? target-tick) (>= target-tick 0)
+              = target-tick $ floor target-tick
+            assert |archive-target-not-recorded $ <= target-tick $ :tick (:latest archive)
+            let
+                checkpoint $ nearest-checkpoint (:checkpoints archive) target-tick $ :origin archive
+              fixed/advance-simulation checkpoint target-tick (:inputs archive) max-steps update-state
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.replay-archive/ReplayArchive 'S 'I) 'Number 'Number $ :: 'Fn
+              {} (:return 'S)
+                :args $ [] 'S 'I 'Number 'Number
+            :generics $ [] 'S 'I
+            :return $ :: 'quamolit.fixed-step/SimulationState 'S
+          :tests $ [] $ %{} 'TestEntry (:name |bounded-checkpoint-replay)
+            :code $ quote $ let
+                saved $ quamolit.test.replay-archive-fixture/make-archive
+                reset-state $ reset-archive saved
+                direct-two $ fixed/advance-simulation (:origin saved) 2 (:inputs saved) 2 quamolit.test.replay-archive-fixture/update-state
+              is= 6 $ count $ :inputs saved
+              is= 2 $ count $ :checkpoints saved
+              is= 2 $ :state $ sample-archive-at saved 6 0 quamolit.test.replay-archive-fixture/update-state
+              is= 0 $ :state $ sample-archive-at saved 0 0 quamolit.test.replay-archive-fixture/update-state
+              is= 1.5 $ :state $ sample-archive-at saved 2 2 quamolit.test.replay-archive-fixture/update-state
+              is= direct-two $ sample-archive-at saved 2 2 quamolit.test.replay-archive-fixture/update-state
+              is= 1 $ :state $ sample-archive-at saved 4 0 quamolit.test.replay-archive-fixture/update-state
+              is= 2.5 $ :state $ sample-archive-at saved 5 1 quamolit.test.replay-archive-fixture/update-state
+              is-throws $ sample-archive-at saved 2 1 quamolit.test.replay-archive-fixture/update-state
+              is-throws $ sample-archive-at saved 7 7 quamolit.test.replay-archive-fixture/update-state
+              is-throws $ sample-archive-at saved -1 7 quamolit.test.replay-archive-fixture/update-state
+              is-throws $ sample-archive-at saved (sqrt -1) 7 quamolit.test.replay-archive-fixture/update-state
+              is= 0 $ count $ :inputs reset-state
+              is= 0 $ count $ :checkpoints reset-state
+              is= 0 $ :tick $ :latest reset-state
+            :tags $ #{} :replay-archive :unit
+        'start-archive $ %{} 'CodeEntry (:doc "|从 tick 0 检查点创建档案；检查点间隔为正整数，容量可为零。")
+          :code $ quote $ defn start-archive (origin stride max-checkpoints)
+            assert |invalid-archive-origin $ fixed/valid-simulation-state? origin
+            assert |archive-origin-must-be-zero $ = 0 $ :tick origin
+            assert |invalid-archive-stride $ and (motion/finite-number? stride) (> stride 0)
+              = stride $ floor stride
+            assert |invalid-archive-capacity $ and (motion/finite-number? max-checkpoints) (>= max-checkpoints 0)
+              = max-checkpoints $ floor max-checkpoints
+            ReplayArchive :origin origin :latest origin :inputs ({}) :checkpoints ([]) :stride stride :max-checkpoints max-checkpoints
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.fixed-step/SimulationState 'S) 'Number 'Number
+            :generics $ [] 'S 'I
+            :return $ :: 'quamolit.replay-archive/ReplayArchive 'S 'I
+          :tests $ [] $ %{} 'TestEntry (:name |reject-invalid-policy)
+            :code $ quote $ let
+                origin $ fixed/start-simulation 0.25 7 0
+                shifted $ fixed/SimulationState :tick 1 :dt 0.25 :seed 7 :state 0
+              is-throws $ start-archive shifted 2 2
+              is-throws $ start-archive origin 0 2
+              is-throws $ start-archive origin 1.5 2
+              is-throws $ start-archive origin (sqrt -1) 2
+              is-throws $ start-archive origin 2 -1
+              is-throws $ start-archive origin 2 1.5
+              is-throws $ start-archive origin 2 $ / 1 0
+            :tags $ #{} :replay-archive :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.replay-archive
+          :require (quamolit.fixed-step :as fixed) (quamolit.motion :as motion)
+            calcit.test :refer $ is= is-throws
     'quamolit.scene-binding $ %{} 'FileEntry
       :defs $ {}
         'apply-group-scalar $ %{} 'CodeEntry (:doc |)
@@ -7823,6 +7990,64 @@
             quamolit.host-clock :as host-clock
             quamolit.playback :as playback
             calcit.test :refer $ is=
+    'quamolit.test.replay-archive-fixture $ %{} 'FileEntry
+      :defs $ {}
+        'checkpoint-count $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn checkpoint-count ()
+            count $ :checkpoints $ make-archive
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ []
+        'input-count $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn input-count ()
+            count $ :inputs $ make-archive
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ []
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! ()
+            [] (sample-at 6 0) (sample-at 0 0) (sample-at 2 2) (sample-at 4 0) (sample-at 5 1)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'Number
+        'make-archive $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-archive ()
+            let
+                base-archive $ assert-type
+                  archive/start-archive (fixed/start-simulation 0.25 7 0) 2 2
+                  :: 'quamolit.replay-archive/ReplayArchive 'Number 'Number
+                a1 $ archive/record-input base-archive 2 update-state
+                a2 $ archive/record-input a1 4 update-state
+                a3 $ archive/record-input a2 -2 update-state
+                a4 $ archive/record-input a3 0 update-state
+                a5 $ archive/record-input a4 6 update-state
+              archive/record-input a5 -2 update-state
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'quamolit.replay-archive/ReplayArchive 'Number 'Number
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () (main!)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'Number
+        'sample-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-at (tick budget)
+            :state $ archive/sample-archive-at (make-archive) tick budget update-state
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
+        'update-state $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-state (state input dt seed)
+            + state $ * input dt
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.test.replay-archive-fixture
+          :require (quamolit.replay-archive :as archive) (quamolit.fixed-step :as fixed)
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")

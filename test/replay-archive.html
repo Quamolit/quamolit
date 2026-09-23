@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit 固定 tick 回放档案</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { display: block; border: 1px solid #94a3b8; margin: 16px 0; }
+      button { margin-right: 8px; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>固定 tick 回放档案</h1>
+    <p>六条显式输入、最多两个最近检查点，旧 tick 从保留的原点重放；画布不推进状态。</p>
+    <div id="controls"></div>
+    <canvas id="frame" width="240" height="140"></canvas>
+    <output id="status">加载中…</output>
+    <script type="module" src="./replay-archive.mjs"></script>
+  </body>
+</html>

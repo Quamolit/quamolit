@@ -17,6 +17,8 @@
 | `quamolit.motion-cpu/CpuFunctionRequest<I>`、`CpuFunctionRegistry<I,O>`、`sample-function`、`resample-function` | 已实现的实验性泛型 CPU-only 扩展切片；非组件公共入口 | 显式输入/输出校验和六类依赖版本；Vec2 浏览器夹具通过，回调本身不序列化；[泛型 CPU 扩展](cpu-motion-extension.md) |
 | `step-simulation(state, tick, inputs)` | 拟议独立入口；固定步长历史模拟 | #31；不与 `sample-at` 混用 |
 | `quamolit.fixed-step/start-simulation`、`step-simulation`、`advance-simulation` | 已实现的实验性泛型 CPU 状态推进切片；显式 tick/输入日志/追帧预算 | [固定步长模拟](fixed-step-simulation.md)；时间映射由独立时钟提供，尚无组件公共入口 |
+| `quamolit.replay-archive/start-archive`、`record-input`、`sample-archive-at`、`reset-archive` | 已实现的实验性 CPU 输入日志与有界检查点策略；非持久化宿主存储 | [固定 tick 回放档案](replay-archive.md)；完整日志保留、旧 tick 重放受预算限制，不是生产调度器 |
+| `quamolit.playback/sample-archive-at-host` | 已实现的实验性宿主时间到回放档案桥梁 | 暂停/seek 映射到固定 tick 后从保留检查点重放；不隐式反向积分；[回放档案](replay-archive.md) |
 | `quamolit.host-clock/start-clock`、`sample-clock`、暂停/变速/seek 与 `simulation-tick-at` | 已实现的实验性纯函数时间映射切片；非宿主循环 | [宿主时间映射](host-clock.md)；调用方提供单调宿主秒数，模拟倒退仍需检查点 |
 | `quamolit.scene-ir/SceneDocument`、`SceneNode`、`validate-scene` | 已实现的实验性可序列化核心切片；非生产绘制入口 | [Scene IR 核心](scene-ir-core.md)；group/rect/实例源、校验和 JSON 夹具；参考变更集见下行 |
 | `quamolit.scene-diff/index-scene`、`diff-scene`、`SceneDelta` | 已实现的逻辑身份与 O(n²) 参考差分；非生产调度器 | [Scene diff](scene-diff.md)；重排保身份、重挂载、分类和时间独立标记；#50 执行计划未完成 |
