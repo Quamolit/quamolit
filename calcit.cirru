@@ -7576,6 +7576,28 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuVec2Lowering)
             :args $ []
+        'instance-presence-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-presence-document (version present?)
+            let
+                base $ scene-document-at 0
+                root $ scene-ir/first-node $ :nodes base
+                color $ ColorRgba :r 0.9176470588235294 :g 0.34509803921568627 :b 0.047058823529411764 :a 1
+                content $ scene-ir/SceneContent :instances $ scene-ir/InstanceNode :source (scene-ir/InstanceSource :id |particles :version version :count 10000) :width 2 :height 2 :fill color
+                item $ scene-ir/SceneNode :id |particles :parent |root :key |particles :content content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                document $ if present?
+                  scene-ir/SceneDocument :nodes $ [] root item
+                  scene-ir/SceneDocument :nodes $ [] root
+              scene-ir/validate-scene document
+              , document
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number 'Bool
+        'instance-presence-reconcile $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-presence-reconcile (model version time present?)
+            presence/reconcile-presence model (instance-presence-document version present?) time 0.25 $ Easing :linear
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
+            :args $ [] 'quamolit.presence/PresenceModel 'Number 'Number 'Bool
         'keyframes-descriptor $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn keyframes-descriptor (mode)
             let

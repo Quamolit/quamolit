@@ -24,6 +24,7 @@ yarn test:scene-diff
 yarn test:scene-binding
 yarn test:transition
 yarn test:presence
+yarn test:presence-resources
 yarn test:motion
 yarn test:cpu-motion
 yarn test:motion-gpu
@@ -73,6 +74,8 @@ yarn bench
 `yarn test:transition` 验证 [位置连续打断过渡](transition-interruption.md) 的严格类型、25%/50%/75% 手算连续性、重复/非法事件、固定日志乱序重放与 JS 数值；`yarn test:motion-browser` 在 Chromium 核对两次打断后的 Canvas 中间帧、像素和终点停帧信号。它不等于 #49 完整的进入/退出生命周期。
 
 `yarn test:presence` 验证 [Scene 逻辑实例生命周期](presence-lifecycle.md) 的严格类型、重排/换类型/退出/重入、父级释放顺序、重复结算、100 次 10k 实例图层逻辑装卸与 JS JSON 边界；`yarn test:motion-browser` 核对 fade、重叠层序和时间跳转画面。逻辑释放通知不等于真实 GPU/Canvas 资源或指针捕获释放。
+
+`yarn test:presence-resources` 验证 [宿主实例资源跟踪](presence-resources.md)：Calcit 严格类型、100 次 10k Float32 快照挂载/退出、共享源最后引用、重入取消释放及错误输入不破坏现有资源；浏览器还验证退出中间帧与终点像素和停帧。此命令仍不验证 GPU buffer 或指针捕获。
 
 ## 待实现的统一命令
 

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Quamolit 退出资源验证</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { border: 1px solid #94a3b8; display: block; margin: 16px 0; }
+      button { margin-right: 8px; margin-bottom: 8px; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>退出动画与实例资源生命周期</h1>
+    <p>固定事件日志独立重放；Canvas 仅用于验证中间帧，不是生产后端。</p>
+    <div id="times"></div>
+    <canvas id="scene" width="320" height="100"></canvas>
+    <output id="status">加载中…</output>
+    <script type="module" src="./presence-resources.mjs"></script>
+  </body>
+</html>
