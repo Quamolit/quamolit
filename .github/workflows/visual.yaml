@@ -86,6 +86,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check interruption continuity and event replay
+        if: inputs.mutation != 'color'
+        run: yarn test:transition
+        env:
+          CI: "true"
+
       - name: Upload actual, expected, diff and input manifest on failure
         if: failure()
         uses: actions/upload-artifact@v4

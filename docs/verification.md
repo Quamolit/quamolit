@@ -17,6 +17,7 @@ yarn test:host-clock
 yarn test:scene-core
 yarn test:scene-diff
 yarn test:scene-binding
+yarn test:transition
 yarn test:motion
 yarn test:motion-browser
 yarn test:runtime
@@ -46,6 +47,8 @@ yarn bench
 `yarn test:scene-diff` 验证 [逻辑身份与参考差分](scene-diff.md) 的严格类型、变更分类、重排/重挂载、仅时间变化和 JS 序列化；`yarn test:motion-browser` 也会在 Chromium 校验 Scene diff 与 Canvas 中间帧一致。仍未实现 #50 保留执行计划和双后端验收。
 
 `yarn test:scene-binding` 验证 [Scene 标量绑定解析](scene-binding.md) 的 ID/version 契约、绝对时间采样、非法输入/输出、Calcit 类型与 JS JSON 边界；`yarn test:motion-browser` 实际绘制绑定解析结果，并与独立直接采样参考比对。它不证明生产增量执行或 GPU lowering。
+
+`yarn test:transition` 验证 [位置连续打断过渡](transition-interruption.md) 的严格类型、25%/50%/75% 手算连续性、重复/非法事件、固定日志乱序重放与 JS 数值；`yarn test:motion-browser` 在 Chromium 核对两次打断后的 Canvas 中间帧、像素和终点停帧信号。它不等于 #49 完整的进入/退出生命周期。
 
 ## 待实现的统一命令
 
