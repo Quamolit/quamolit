@@ -27,13 +27,13 @@ yarn bench
 
 `yarn compile:visual` 只编译；`yarn test:visual` 先编译该入口，再启动固定 Chromium 执行浏览器断言和截图比较。浏览器需先通过 `yarn playwright install chromium` 安装，Linux CI 使用 `--with-deps`。固定版本见 `package.json`/`yarn.lock`，快照与逐场景容差见 `test/m0/`。PR #45 已合并；`evaluate-at` 仍是顺序帧求值基础。
 
-`yarn test:motion` 对实验性标量和二维向量 Motion 做严格类型检查、原生测试、JS 编译与数值测试；`yarn test:motion-browser` 再验证 Chromium 中间帧和时间倒退/重复。两者目前只覆盖 [初始切片](motion-scalar.md)，不能代表 #48 全部 Motion IR 或 #31 生命周期已完成。
+`yarn test:motion` 对实验性标量、二维向量与关键帧 Motion 做严格类型检查、原生测试、JS 编译与数值测试；`yarn test:motion-browser` 再验证 Chromium 中间帧、循环端点和时间倒退/重复。两者目前只覆盖 [初始切片](motion-scalar.md)，不能代表 #48 全部 Motion IR 或 #31 生命周期已完成。
 
 ## 待实现的统一命令
 
 | 命令 | 负责工作项 | 完成条件 |
 | --- | --- | --- |
-| 完整 Motion/过渡测试 | #48、#31 | 在标量/二维向量切片之上补齐颜色、关键帧、循环与过渡生命周期，覆盖模拟/打断边界 |
+| 完整 Motion/过渡测试 | #48、#31 | 在标量/二维向量/关键帧切片之上补齐颜色、有界组合与过渡生命周期，覆盖模拟/打断边界 |
 | `yarn test:scene` | #32、增量执行、资源/交互 | 验证身份、变更、缓存失效、资源和命中语义 |
 
 引入命令的 PR 同步 package scripts、说明、CI 及退出码行为。实现前不得在报告中声称运行过它们；暂缺测试或硬件写“未验证”，而不是通过。
