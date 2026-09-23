@@ -96,6 +96,36 @@ for (const item of cases) {
   });
 }
 
+test("1k 混合 UI 节点可截图、乱序采样并在刷新后重放", async ({ page }, testInfo) => {
+  const snapshot = await openFixture(page, testInfo, { fixture: "mixed-ui", time: 0.5, count: 1_000 });
+  expect(snapshot.manifest.mixedNodes).toHaveLength(1_000);
+  const canvas = page.locator("#frame");
+  const first = await canvas.evaluate((element) => element.toDataURL("image/png"));
+  await canvas.screenshot({ path: testInfo.outputPath("mixed-ui-1k-actual.png"), animations: "disabled" });
+  const evidence = await canvas.evaluate((element) => {
+    const ctx = element.getContext("2d");
+    const pixels = ctx.getImageData(0, 0, element.width, element.height).data;
+    let nonBackground = 0;
+    for (let index = 0; index < pixels.length; index += 4) {
+      if (pixels[index] !== 245 || pixels[index + 1] !== 247 || pixels[index + 2] !== 252) nonBackground += 1;
+    }
+    return nonBackground;
+  });
+  expect(evidence).toBeGreaterThan(10_000);
+  const replay = await page.evaluate(() => {
+    window.quamolitM0.renderAt(0.75);
+    const changed = window.quamolitM0.getFramePng();
+    window.quamolitM0.renderAt(0);
+    window.quamolitM0.renderAt(0.5);
+    return { changed, restored: window.quamolitM0.getFramePng() };
+  });
+  expect(replay.changed).not.toBe(first);
+  expect(replay.restored).toBe(first);
+  await page.reload();
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+  expect(await canvas.evaluate((element) => element.toDataURL("image/png"))).toBe(first);
+});
+
 test("固定输入序列和重复绘制可重放", async ({ page }, testInfo) => {
   await openFixture(page, testInfo, { fixture: "ui-transition", time: 0.75 });
   const first = await page.locator("#frame").evaluate((canvas) => canvas.toDataURL("image/png"));

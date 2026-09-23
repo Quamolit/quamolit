@@ -6,13 +6,13 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve, join } from "node:path";
 import { platform, release, arch, cpus } from "node:os";
-import { compareBaseline, median, summarizeRun } from "./bench-metrics.mjs";
+import { compareBaseline, environmentMismatches, median, summarizeRun } from "./bench-metrics.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const help = `用法: yarn bench [--fixture ui-transition|instances|text-path] [--count 1000|10000|100000]
+const help = `用法: yarn bench [--fixture ui-transition|mixed-ui|instances|text-path] [--count 1000|10000|100000]
   [--backend canvas2d] [--seed uint32] [--dpr 1|2] [--warmup 秒] [--duration 秒]
   [--runs 次数] [--power 供电状态] [--gpu GPU说明] [--out 目录] [--baseline report.json]
-默认：Canvas2D、seed=7、DPR=1、预热 5 秒、采样 30 秒、独立运行 3 次。
+默认：Canvas2D、seed=7、DPR=1、预热 5 秒、采样 30 秒、独立运行 3 次。mixed-ui 固定 1000 个混合节点。
 输出 report.json、每次原始样本 run-N.json；--baseline 仅同环境比较，超过 10% 且 0.5ms 退出 1。
 短时调试可覆盖时长，但不得把这种结果当作正式基线。`;
 
@@ -27,8 +27,10 @@ function parseArgs(args) {
     options[name] = args[++index];
   }
   for (const key of ["count", "seed", "dpr", "warmupSeconds", "durationSeconds", "runs"]) options[key] = Number(options[key]);
-  if (!["ui-transition", "instances", "text-path"].includes(options.fixture)) throw new Error("无效 fixture");
+  if (!["ui-transition", "mixed-ui", "instances", "text-path"].includes(options.fixture)) throw new Error("无效 fixture");
+  if (options.fixture === "mixed-ui" && !args.includes("--count")) options.count = 1_000;
   if (![1000, 10000, 100000].includes(options.count)) throw new Error("count 只支持 1000、10000、100000");
+  if (options.fixture === "mixed-ui" && options.count !== 1_000) throw new Error("mixed-ui 固定 1000 个节点");
   if (options.backend !== "canvas2d") throw new Error("当前只实现 canvas2d；其他后端不得假报为已测");
   if (!Number.isSafeInteger(options.seed) || options.seed < 0 || options.seed > 0xffffffff) throw new Error("seed 必须是 uint32");
   if (![1, 2].includes(options.dpr)) throw new Error("dpr 只支持 1 或 2");
@@ -43,9 +45,9 @@ function gitSha() {
   catch { return "unknown"; }
 }
 
-function sameEnvironment(a, b) {
-  const keys = ["fixture", "count", "backend", "seed", "dpr", "browserVersion", "platform", "osRelease", "arch", "cpu", "power", "gpu", "alpha", "blend", "antialias", "resourceState"];
-  return keys.filter((key) => a[key] !== b[key]);
+function gitDirty() {
+  try { return execFileSync("git", ["status", "--porcelain", "--untracked-files=normal"], { cwd: root, encoding: "utf8" }).trim().length > 0; }
+  catch { return null; }
 }
 
 async function main() {
@@ -60,9 +62,10 @@ async function main() {
       fixture: options.fixture, count: options.count, backend: options.backend,
       seed: options.seed, dpr: options.dpr, power: options.power, gpu: options.gpu,
       browserVersion: browser.version(), platform: platform(), osRelease: release(), arch: arch(),
-      node: process.version, cpu: cpus()[0]?.model ?? "unknown", gitSha: gitSha(),
+      node: process.version, cpu: cpus()[0]?.model ?? "unknown", gitSha: gitSha(), gitDirty: gitDirty(),
       viewport: { width: 1280, height: 720 }, pixelSize: { width: 640 * options.dpr, height: 360 * options.dpr },
       resourceState: "glyphAtlas=ready;image=ready", alpha: false, blend: "source-over", antialias: "browser-default", driver: "unavailable",
+      sceneComposition: options.fixture === "mixed-ui" ? { groups: 20, nodes: 1_000, rects: 250, circles: 250, lines: 250, glyphs: 250, animated: 250 } : null,
       command: process.argv.join(" "), warmupSeconds: options.warmupSeconds,
       durationSeconds: options.durationSeconds, runs: options.runs,
     };
@@ -98,6 +101,7 @@ async function main() {
         cpuP95RangeMs: [Math.min(...summaries.map((item) => item.cpuFrameMs.p95)), Math.max(...summaries.map((item) => item.cpuFrameMs.p95))],
         rafP95MedianMs: median(summaries.map((item) => item.rafIntervalMs.p95)),
         longIntervalFractionMedian: median(summaries.map((item) => item.longIntervalFraction)),
+        checksumConsistent: new Set(summaries.map((item) => item.checksum)).size === 1,
       },
       unavailable: {
         componentEvaluationMs: "M0 夹具没有组件树", changeCalculationMs: "M0 夹具没有变更计算阶段",
@@ -110,13 +114,13 @@ async function main() {
     if (options.baseline) {
       const baseline = JSON.parse(await readFile(resolve(root, options.baseline), "utf8"));
       if (baseline.schema !== report.schema) throw new Error("基线 schema 不匹配");
-      const mismatches = sameEnvironment(environment, baseline.environment);
+      const mismatches = environmentMismatches(environment, baseline.environment);
       if (mismatches.length) throw new Error(`环境不匹配，拒绝比较：${mismatches.join(", ")}`);
-      if (summaries.length < 3 || baseline.runs.length < 3) throw new Error("回归比较需要双方至少 3 次独立运行");
       report.comparison = compareBaseline(report, baseline);
     }
     await writeFile(join(out, "report.json"), JSON.stringify(report, null, 2) + "\n");
     console.log(`报告：${join(out, "report.json")}`);
+    if (!report.aggregate.checksumConsistent) throw new Error("固定 t=0.5 画面校验和跨运行不一致；原始样本已保存，基准无效");
     if (report.comparison?.regression) throw new Error(`CPU p95 回归：+${report.comparison.deltaMs.toFixed(3)}ms / +${(report.comparison.deltaFraction * 100).toFixed(1)}%`);
   } finally {
     await browser?.close();

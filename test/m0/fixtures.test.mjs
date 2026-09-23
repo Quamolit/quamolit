@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createManifest, instanceAt, sampleFixture } from "./fixtures.mjs";
+import { createManifest, instanceAt, mixedNodeAt, sampleFixture } from "./fixtures.mjs";
 
 test("UI fixture replays a target interruption without a position jump", () => {
   const manifest = createManifest();
@@ -29,6 +29,20 @@ test("instance data is indexed by seed without materializing scene nodes", () =>
   assert.deepEqual(instanceAt(7, 999), instanceAt(7, 999));
   assert.notDeepEqual(instanceAt(7, 999), instanceAt(8, 999));
   assert.ok(instanceAt(7, 99_999).x >= 16);
+});
+
+test("mixed UI materializes exactly 1000 stable heterogeneous nodes in 20 groups", () => {
+  const manifest = createManifest({ fixture: "mixed-ui", seed: 7 });
+  assert.equal(manifest.mixedNodes.length, 1_000);
+  assert.equal(new Set(manifest.mixedNodes.map((node) => node.id)).size, 1_000);
+  assert.deepEqual(Object.fromEntries(["rect", "circle", "line", "glyph"].map((kind) => [kind, manifest.mixedNodes.filter((node) => node.kind === kind).length])), { rect: 250, circle: 250, line: 250, glyph: 250 });
+  assert.equal(manifest.mixedNodes[999].group, 19);
+  assert.equal(manifest.mixedNodes.filter((node) => node.animated).length, 250);
+  assert.deepEqual(Object.fromEntries(["rect", "circle", "line", "glyph"].map((kind) => [kind, manifest.mixedNodes.filter((node) => node.kind === kind && node.animated).length])), { rect: 63, circle: 63, line: 62, glyph: 62 });
+  assert.deepEqual(manifest.mixedNodes[999], mixedNodeAt(7, 999));
+  assert.notDeepEqual(manifest.mixedNodes[999], mixedNodeAt(8, 999));
+  assert.deepEqual(sampleFixture(manifest, 0.5), sampleFixture(structuredClone(manifest), 0.5));
+  assert.throws(() => createManifest({ fixture: "mixed-ui", count: 10_000 }), /mixed-ui/);
 });
 
 test("invalid fixture inputs fail rather than silently altering a baseline", () => {

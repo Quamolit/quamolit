@@ -1,7 +1,7 @@
 // M0 reference input. This module has no browser or renderer dependency.
 export const WIDTH = 640;
 export const HEIGHT = 360;
-export const FIXTURE_IDS = ["ui-transition", "instances", "text-path"];
+export const FIXTURE_IDS = ["ui-transition", "instances", "text-path", "mixed-ui"];
 export const INSTANCE_COUNTS = [1_000, 10_000, 100_000];
 
 const DEFAULT_EVENTS = [
@@ -33,7 +33,7 @@ function eventCopy(event, index) {
 export function createManifest({
   fixture = "ui-transition",
   seed = 7,
-  count = 10_000,
+  count = fixture === "mixed-ui" ? 1_000 : 10_000,
   dpr = 1,
   glyphState = "ready",
   events = DEFAULT_EVENTS,
@@ -41,6 +41,7 @@ export function createManifest({
   if (!FIXTURE_IDS.includes(fixture)) throw new RangeError(`Unknown fixture: ${fixture}`);
   if (!Number.isSafeInteger(seed) || seed < 0 || seed > 0xffffffff) throw new RangeError("seed must be uint32");
   if (!INSTANCE_COUNTS.includes(count)) throw new RangeError("count must be 1000, 10000 or 100000");
+  if (fixture === "mixed-ui" && count !== 1_000) throw new RangeError("mixed-ui requires exactly 1000 nodes");
   if (dpr !== 1 && dpr !== 2) throw new RangeError("dpr must be 1 or 2");
   if (!["loading", "ready", "error"].includes(glyphState)) throw new RangeError("glyphState must be loading, ready or error");
   if (!Array.isArray(events)) throw new TypeError("events must be an array");
@@ -62,6 +63,7 @@ export function createManifest({
       image: { id: "none", version: 0, state: "ready" },
     },
     events: copied,
+    ...(fixture === "mixed-ui" ? { mixedNodes: Array.from({ length: 1_000 }, (_, index) => mixedNodeAt(seed, index)) } : {}),
   };
 }
 
@@ -109,6 +111,7 @@ export function sampleFixture(manifest, time) {
     case "ui-transition": return { ...base, ui: sampleUi(manifest, time) };
     case "instances": return { ...base, count: manifest.count, motionPhase: time * 0.8 };
     case "text-path": return { ...base, label: "QUAMOLIT 0123", pathPhase: time * Math.PI };
+    case "mixed-ui": return { ...base, count: manifest.count, motionPhase: time * 0.8 };
     default: throw new RangeError(`Unknown fixture: ${manifest.fixture}`);
   }
 }
@@ -127,5 +130,25 @@ export function instanceAt(seed, index) {
     radius: 1.25 + hash(2) * 2.25,
     phase: hash(3) * Math.PI * 2,
     palette: Math.floor(hash(4) * 4),
+  };
+}
+
+// Fixed 20 clipped groups × 50 heterogeneous nodes; unlike the instances fixture,
+// these serialized descriptors are deliberately materialized once during setup.
+export function mixedNodeAt(seed, index) {
+  if (!Number.isSafeInteger(index) || index < 0 || index >= 1_000) throw new RangeError("mixed node index must be 0..999");
+  const source = instanceAt(seed, index);
+  return {
+    id: `mixed-${index}`,
+    group: Math.floor(index / 50),
+    kind: ["rect", "circle", "line", "glyph"][index % 4],
+    x: 8 + ((source.x - 16) / (WIDTH - 32)) * 112,
+    y: 8 + ((source.y - 16) / (HEIGHT - 32)) * 74,
+    size: 3 + source.radius * 2,
+    phase: source.phase,
+    palette: source.palette,
+    animated: index % 4 === Math.floor(index / 4) % 4,
+    opacity: index % 5 === 0 ? 0.6 : 1,
+    label: String(index % 4),
   };
 }
