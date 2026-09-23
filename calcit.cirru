@@ -2019,6 +2019,84 @@
             quamolit.math :refer $ bound-01 bound-x
             |@calcit/std :refer $ rand
             quamolit.util.ref :refer $ new-ref ref-get ref-set!
+    'quamolit.component-sample $ %{} 'FileEntry
+      :defs $ {}
+        'ComponentDeclaration $ %{} 'CodeEntry
+          :doc "|声明式组件返回的 Scene 与版本化 Motion 描述列表；纯逻辑数据，不含宿主句柄或闭包。"
+          :code $ quote $ defstruct ComponentDeclaration (:scene 'quamolit.scene-ir/SceneDocument)
+            :motions $ :: 'List 'quamolit.motion/ScalarDescriptor
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ComponentRequest $ %{} 'CodeEntry (:doc "|组件一次采样的显式身份、时间、六类依赖版本以及 props/Model/输入/资源/视口快照。")
+          :code $ quote $ defstruct ComponentRequest ([] 'P 'M 'I 'R 'V) (:id 'String) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:props 'P) (:model 'M) (:input 'I) (:resources 'R) (:viewport 'V)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'resample-component-at $ %{} 'CodeEntry (:doc "|仅当组件身份、绝对时间与六类版本全相同时复用上一帧；调用方负责真实依赖版本。")
+          :code $ quote $ defn resample-component-at (previous request declare)
+            direct/resample-at previous (to-direct-request request)
+              fn (props model input resources viewport time)
+                resolve-declaration (declare props model input resources viewport) time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.direct-frame/DirectFrame 'quamolit.scene-ir/SceneDocument) (:: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V)
+              :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+                :args $ [] 'P 'M 'I 'R 'V
+            :generics $ [] 'P 'M 'I 'R 'V
+            :return $ :: 'quamolit.direct-frame/DirectFrame 'quamolit.scene-ir/SceneDocument
+        'resample-component-at-host $ %{} 'CodeEntry (:doc "|宿主时钟映射后按完整版本判断可否复用组件帧；同时间资源 ready 必须更新版本。")
+          :code $ quote $ defn resample-component-at-host (previous timeline host-time request declare)
+            playback/resample-at-host previous timeline host-time (to-direct-request request)
+              fn (props model input resources viewport time)
+                resolve-declaration (declare props model input resources viewport) time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.direct-frame/DirectFrame 'quamolit.scene-ir/SceneDocument) 'quamolit.host-clock/HostClock 'Number (:: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V)
+              :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+                :args $ [] 'P 'M 'I 'R 'V
+            :generics $ [] 'P 'M 'I 'R 'V
+            :return $ :: 'quamolit.direct-frame/DirectFrame 'quamolit.scene-ir/SceneDocument
+        'resolve-declaration $ %{} 'CodeEntry (:doc "|按绝对时间解析组件声明中的 Scene 标量绑定；CPU 全量正确性参考。")
+          :code $ quote $ defn resolve-declaration (declaration time)
+            binding/resolve-scene (:scene declaration) (:motions declaration) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.component-sample/ComponentDeclaration 'Number
+        'sample-component-at $ %{} 'CodeEntry (:doc "|从完整组件输入重新声明并直接采样任意有限时间，不读取上一帧或推进模拟。")
+          :code $ quote $ defn sample-component-at (request declare)
+            direct/sample-at (to-direct-request request)
+              fn (props model input resources viewport time)
+                resolve-declaration (declare props model input resources viewport) time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V)
+              :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+                :args $ [] 'P 'M 'I 'R 'V
+            :generics $ [] 'P 'M 'I 'R 'V
+            :return $ :: 'quamolit.direct-frame/DirectFrame 'quamolit.scene-ir/SceneDocument
+        'sample-component-at-host $ %{} 'CodeEntry (:doc "|先映射显式宿主时钟再直接采样声明式组件；暂停和 seek 不会推进模拟。")
+          :code $ quote $ defn sample-component-at-host (timeline host-time request declare)
+            playback/sample-at-host timeline host-time (to-direct-request request)
+              fn (props model input resources viewport time)
+                resolve-declaration (declare props model input resources viewport) time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.host-clock/HostClock 'Number (:: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V)
+              :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+                :args $ [] 'P 'M 'I 'R 'V
+            :generics $ [] 'P 'M 'I 'R 'V
+            :return $ :: 'quamolit.direct-frame/DirectFrame 'quamolit.scene-ir/SceneDocument
+        'to-direct-request $ %{} 'CodeEntry (:doc "|把组件 props 映射到通用直接采样请求的描述输入；只做不可变数据转换。")
+          :code $ quote $ defn to-direct-request (request)
+            direct/DirectRequest :id (:id request) :time (:time request) :versions (:versions request) :motion (:props request) :model (:model request) :input (:input request) :resources (:resources request) :viewport $ :viewport request
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] $ :: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V
+            :generics $ [] 'P 'M 'I 'R 'V
+            :return $ :: 'quamolit.direct-frame/DirectRequest 'P 'M 'I 'R 'V
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.component-sample
+          :require (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene-ir) (quamolit.scene-binding :as binding) (quamolit.motion :as motion) (quamolit.host-clock :as clock) (quamolit.playback :as playback)
+            calcit.test :refer $ is= is-throws
     'quamolit.config $ %{} 'FileEntry
       :defs $ {} $ 'dev?
         %{} 'CodeEntry (:doc |)
@@ -6526,6 +6604,116 @@
         :code $ quote $ ns quamolit.scene-ir
           :require
             quamolit.motion :refer $ finite-number? ColorRgba
+            calcit.test :refer $ is= is-throws
+    'quamolit.test.component-fixture $ %{} 'FileEntry
+      :defs $ {}
+        'declare-badge $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-badge (props model input resources viewport)
+            let
+                color $ if resources
+                  motion/ColorRgba :r 0 :g 0.7 :b 0.4 :a 1
+                  motion/ColorRgba :r 0.92 :g 0.28 :b 0.6 :a 1
+                content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 80 :y (+ props model input) :width (/ viewport 10) :height 20 :fill color
+                binding $ scene-ir/ScalarBinding :target (scene-ir/ScalarTarget :x) :motion-id |badge-x :version 1
+                node $ scene-ir/SceneNode :id |badge :parent | :key |badge :content content :bindings ([] binding) :interaction $ scene-ir/SceneInteraction :none
+                descriptor $ motion/ScalarDescriptor :id |badge-x :version 1 :motion $ motion/ScalarMotion :tween
+                  motion/ScalarTween :start 0 :duration 1 :from 80 :to 120 :easing $ motion/Easing :linear
+              component/ComponentDeclaration :scene
+                scene-ir/SceneDocument :nodes $ [] node
+                , :motions $ [] descriptor
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'frame-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn frame-at (time model ready viewport)
+            component/sample-component-at (make-request time model ready viewport) declare-badge
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Bool 'Number
+            :return $ :: 'quamolit.direct-frame/DirectFrame 'quamolit.scene-ir/SceneDocument
+          :tests $ [] $ %{} 'TestEntry (:name |complete-version-reuse-and-host-clock)
+            :code $ quote $ let
+                request $ make-request 0.5 40 false 100
+                initial $ frame-at 0.5 40 false 100
+                reused $ component/resample-component-at initial request $ fn (props model input resources viewport)
+                  hint-fn $ {}
+                    :args $ [] 'Number 'Number 'Number 'Bool 'Number
+                    :return 'quamolit.component-sample/ComponentDeclaration
+                  raise |unexpected-component-evaluation
+                ready $ component/resample-component-at initial (make-request 0.5 40 true 100) declare-badge
+                timeline $ clock/start-clock 10 0 1
+                paused $ clock/pause-clock timeline 10.5
+                host-frame $ component/sample-component-at-host paused 20 request declare-badge
+                seeked $ clock/seek-clock paused 20 0.25
+                seek-frame $ component/sample-component-at-host seeked 20 request declare-badge
+              is= initial reused
+              is= 0.7 $ :g $ :fill (rect-at 0.5 40 true 100)
+              is= 0.5 $ :time host-frame
+              is= 0.25 $ :time seek-frame
+              is= 90 $ match
+                :content $ scene-ir/first-node $ :nodes (:scene seek-frame)
+                (:rect value) (:x value)
+                _ -1
+              is= 0.7 $ match
+                :content $ scene-ir/first-node $ :nodes (:scene ready)
+                (:rect value)
+                  :g $ :fill value
+                _ -1
+            :tags $ #{} :component-sample :unit
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! ()
+            scene-ir/validate-scene $ scene-at 0.5 40 false 100
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ []
+        'make-request $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-request (time model ready viewport)
+            component/ComponentRequest :id |badge :time time :versions
+              direct/FrameVersions :component 0 :motion 0 :model model :input 0 :resources (if ready 1 0) :viewport viewport
+              , :props 20 :model model :input 2 :resources ready :viewport viewport
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Bool 'Number
+            :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'Number 'Number 'Bool 'Number
+        'rect-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rect-at (time model ready viewport)
+            match
+              :content $ scene-ir/first-node $ :nodes (scene-at time model ready viewport)
+              (:rect value) value
+              _ $ raise |expected-rect
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/RectNode)
+            :args $ [] 'Number 'Number 'Bool 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |arbitrary-time-and-snapshot-inputs)
+            :code $ quote $ let
+                xs $ map ([] 1 0 0.5 0.25 1)
+                  fn (time)
+                    :x $ rect-at time 40 false 100
+                middle $ rect-at 0.5 40 false 100
+                changed-model $ rect-at 0.5 41 false 100
+                changed-resource $ rect-at 0.5 40 true 100
+                changed-viewport $ rect-at 0.5 40 false 110
+              is= ([] 120 80 100 90 120) xs
+              is= 62 $ :y middle
+              is= 63 $ :y changed-model
+              is= 0.7 $ :g $ :fill changed-resource
+              is= 11 $ :width changed-viewport
+              is-throws $ frame-at (/ 0 0) 40 false 100
+            :tags $ #{} :component-sample :unit
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () (main!)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ []
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (time model ready viewport)
+            :scene $ frame-at time model ready viewport
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number 'Number 'Bool 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.test.component-fixture
+          :require (quamolit.component-sample :as component) (quamolit.scene-ir :as scene-ir) (quamolit.motion :as motion) (quamolit.direct-frame :as direct) (quamolit.host-clock :as clock)
             calcit.test :refer $ is= is-throws
     'quamolit.test.frame-fixture $ %{} 'FileEntry
       :defs $ {}

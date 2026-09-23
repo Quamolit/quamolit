@@ -80,6 +80,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check declarative component sampling
+        if: inputs.mutation != 'color'
+        run: yarn test:component-sample
+        env:
+          CI: "true"
+
       - name: Check typed Scene IR core and serialization
         if: inputs.mutation != 'color'
         run: yarn test:scene-core

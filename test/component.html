@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit 声明式组件采样夹具</title>
+    <style>
+      body { margin: 24px; font: 16px/1.5 system-ui, sans-serif; color: #222; }
+      canvas { display: block; border: 1px solid #aaa; margin: 16px 0; }
+      button { margin: 0 8px 8px 0; padding: 6px 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>声明式组件 · 绝对时间采样</h1>
+    <div id="times"></div>
+    <button id="model">Model +1</button>
+    <button id="resource">资源 ready 切换</button>
+    <button id="viewport">视口版本切换</button>
+    <canvas id="scene" width="240" height="160"></canvas>
+    <p id="status" aria-live="polite">加载中…</p>
+    <script type="module" src="./component.mjs"></script>
+  </body>
+</html>
