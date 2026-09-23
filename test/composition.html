@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit 有界 Motion 组合验证</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { display: block; border: 1px solid #94a3b8; margin: 16px 0; }
+      button { margin: 0 8px 8px 0; padding: 6px 10px; }
+      input { width: 280px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>两输入 Motion 组合</h1>
+    <p>把旧 fade 的标量 tween 与绝对时间项相加。描述符只含两个标量叶子，没有递归表达式或隐藏播放状态。</p>
+    <div id="controls"></div>
+    <label>时间 <input id="time" type="range" min="0" max="1" step="0.01" value="0.5" /></label>
+    <canvas id="composition" width="320" height="100"></canvas>
+    <output id="status">加载中…</output>
+    <script type="module" src="./composition.mjs"></script>
+  </body>
+</html>

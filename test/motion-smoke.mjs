@@ -4,6 +4,7 @@ import {
   main_$x_, sample_at, sample_vec2_at, sample_vec2_x_at, sample_vec2_y_at,
   sample_keyframes_clamp_at, sample_keyframes_repeat_at, sample_keyframes_mirror_at,
   sample_color_r_at, sample_color_b_at, sample_color_a_at,
+  sample_composition_at,
 } from "../js-out/quamolit.test.motion-fixture.mjs";
 
 test("motion fixture samples arbitrary times without mutable clock", () => {
@@ -48,5 +49,11 @@ test("typed color samples straight alpha and linear-sRGB RGB in generated JavaSc
     assert.ok(Math.abs(sample_color_r_at(time) - red) < 1e-12);
     assert.ok(Math.abs(sample_color_b_at(time) - blue) < 1e-12);
     assert.equal(sample_color_a_at(time), alpha);
+  }
+});
+
+test("bounded scalar composition stays deterministic in generated JavaScript", () => {
+  for (const [time, value] of [[1, 23], [0, 11], [0.25, 14], [0.5, 17], [1, 23]]) {
+    assert.equal(sample_composition_at(time), value);
   }
 });
