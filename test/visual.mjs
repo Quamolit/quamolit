@@ -54,9 +54,12 @@ function runChecks() {
   clear();
   step(context, 1);
   assert(progress() === 1, "Repeated timestamp advanced time");
+  const repeated = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  assert(before.every((value, index) => value === repeated[index]), "Repeated timestamp changed pixels");
   let rejectedRewind = false;
   try { step(context, 0.5); } catch { rejectedRewind = true; }
   assert(rejectedRewind, "Backward time was accepted");
+  assert(progress() === 1, "Rejected rewind changed the model");
   return samples.length;
 }
 

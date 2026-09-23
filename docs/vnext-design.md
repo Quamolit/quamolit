@@ -13,13 +13,15 @@ Quamolit 仍是声明式 Canvas 动画库。应用状态和动画状态应是显
                                          └────→ 命中索引
 ```
 
-现有的 `defcomp`/`Shape` 树是迁移输入，尚不是新的 IR。旧版 `paint` 入口目前先执行独立的 `tick-tree` 遍历，再绘制；`paint-tree-only-with` 只遍历并绘制，不调用 `on-tick`。这分离了两种副作用，但还没有实现纯帧求值器：tick 回调仍会派发应用更新。命中区域也仍在绘制时收集。#33 和 #34 将继续推进纯场景求值与独立于绘制的命中索引。
+现有的 `defcomp`/`Shape` 树是迁移输入，尚不是新的 IR。旧版 `paint` 入口目前先执行独立的 `tick-tree` 遍历，再绘制；`paint-tree-only-with` 只遍历并绘制，不调用 `on-tick`。旧版 tick 回调仍会派发应用更新。新入口 `initial-frame` / `evaluate-at` 已将模型更新与视图求值作为显式函数参数，不依赖旧版 tick。命中区域仍在旧版绘制过程中收集；#32、#33 和 #34 将继续落实 Scene IR、渲染器与独立命中索引。
 
 ## 时间约定
 
 框架中的时间单位统一为秒。`step-frame(previous, current)` 是纯函数，返回 `FrameSample {time, elapsed}`。重复时间戳产生零间隔；时间倒退则报错。旧代码如需回退，应显式调用 `reset-frame-clock!`。`advance-frame-clock!` 复用同一套纯计算，使现有命令式入口与未来求值器具有相同的时间单调性语义。
 
-未来的 vNext 帧求值器应显式接收绝对时间和上一份模型，返回下一份模型及场景，不依赖 Canvas 或浏览器。可视化测试先重置模型和时钟，再重放所需采样点并渲染目标场景。对同一结果重复渲染，不应再次触发 tick，也不应改变像素。若动画包含随机性，种子或生成器状态应属于模型；异步资源应在截图断言前明确处于就绪或失败状态。
+现已提供 `EvaluatedFrame<M, S>`，保存 `sample`、`model`、`scene`。`initial-frame(time, model, view)` 建立起点；`evaluate-at(previous, time, update-model, view)` 根据绝对时间先更新模型再计算场景。相同时间只将 `elapsed` 置零，复用模型和场景，不调用更新与视图函数；时间倒退则报错。求值器本身不依赖 Canvas、浏览器或全局时钟，调用方负责提供纯函数。完整语义、重放限制和示例见[显式帧求值](frame-evaluation.md)。
+
+可视化测试先重置模型和时间，再重放所需采样点并渲染目标场景。对同一结果重复渲染，不应再次触发更新，也不应改变像素。若动画包含随机性，种子或生成器状态应属于模型；异步资源应在截图断言前明确处于就绪或失败状态。
 
 对旧版组件树，`tick-tree(tree, dispatch!, elapsed)` 按父节点先于子节点的顺序调用回调，不访问 Canvas；`paint-tree-only-with` 随后绘制该树，不执行 tick。兼容入口 `paint-tree-with` 和 `paint` 在要求 tick 时依次调用这两个阶段。这只是迁移边界，并非最终的模型纯函数求值器。
 
