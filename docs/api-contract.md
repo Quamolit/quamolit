@@ -10,8 +10,9 @@
 | `tick-tree` / `paint-tree-only-with` | 已实现；旧树迁移桥梁 | [确定性帧测试](../test/README.md) |
 | `defcomp` / `on-tick` / `fade` 缓存 | 兼容旧组件写法；不承诺新架构语义 | 旧入口未恢复，不应据 bootstrap 编译推断可用 |
 | `sample-at(motion, time, parameters)` | 拟议公共入口；直接采样 | #31；Motion 描述由 #48 定义 |
+| `quamolit.motion/sample-scalar`、`sample-vec2` | 已实现的实验性内部 CPU 参考切片；非公共组件入口 | [标量与二维向量验证](motion-scalar.md)、#48 的局部进展 |
 | `step-simulation(state, tick, inputs)` | 拟议独立入口；固定步长历史模拟 | #31；不与 `sample-at` 混用 |
-| Scene IR / Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；IR 不持有 DOM/GPU 句柄 |
+| Scene IR / 完整 Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；现有 Motion 切片不持有 DOM/GPU 句柄 |
 | WebGPU/Canvas2D 双后端、资源表、命中索引 | 拟议、尚未实现 | #40/#33/#51/#34 |
 
 `evaluate-at` 不是 `sample-at`：前者从上一帧按非倒退时间更新模型，相同时间直接复用旧场景；它既不能任意乱序求值，也不会在相同时间但资源/模型改变时自动刷新。M0 的 JavaScript 参考夹具可以乱序求值，但不是 Calcit 公共 API。应用不得用“先把历史跑一遍”的隐藏全局状态伪装成直接采样。
