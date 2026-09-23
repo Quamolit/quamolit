@@ -2150,8 +2150,18 @@
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ :: 'Trait
+        'advance-frame-clock! $ %{} 'CodeEntry
+          :doc "|Advance the absolute animation clock in seconds and return elapsed seconds. Reject backward time; use reset-frame-clock! to seek."
+          :code $ quote $ defn advance-frame-clock! (seconds)
+            let
+                elapsed $ elapsed-between @*last-tick seconds
+              reset! *last-tick seconds
+              , elapsed
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
         'call-paint $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn call-paint (tree target dispatch! elapsed) (; js/console.log tree)
+          :code $ quote $ defn call-paint (tree target dispatch! elapsed tick?) (; js/console.log tree)
             let
                 ctx $ unsafe-coerce (.!getContext target |2d) 'CanvasContextHost
                 w js/window.innerWidth
@@ -2168,7 +2178,7 @@
               swap! *tracked-transform update :offset $ fn (point) (point-add point viewer-shift)
               swap! *tracked-transform update :transform $ fn (point)
                 point-times point $ [] viewer-scale 0
-              paint ctx tree ([]) dispatch! elapsed
+              paint ctx tree ([]) dispatch! elapsed tick?
               let
                   scale-back $ &/ 1 viewer-scale
                 .scale ctx scale-back scale-back
@@ -2185,7 +2195,7 @@
                 clear-hud-logs!
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic 'Dynamic 'Dynamic
+            :args $ [] 'Dynamic 'Dynamic 'Dynamic 'Number 'Bool
             :features $ #{} :js-ffi
         'configure-canvas $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn configure-canvas (app-container)
@@ -2263,6 +2273,17 @@
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic 'Dynamic
             :features $ #{} :js-ffi
+        'paint-context-at $ %{} 'CodeEntry
+          :doc "|Paint directly to a Canvas 2D context at an explicit absolute time in seconds, advancing on-tick callbacks once. Useful for visual fixtures."
+          :code $ quote $ defn paint-context-at (tree ctx dispatch! seconds)
+            let
+                elapsed $ advance-frame-clock! seconds
+              reset! *element-tree tree
+              paint ctx tree ([]) dispatch! elapsed true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+            :args $ [] 'Dynamic 'Dynamic 'Dynamic 'Number
+            :features $ #{} :js-ffi
         'paint-logs! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-logs! (ctx logs)
             set! (.-fillStyle ctx) "|hsla(0,0%,0%,0.5)"
@@ -2283,20 +2304,45 @@
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic $ :: 'List 'Dynamic
             :features $ #{} :js-ffi
-        'render-page $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn render-page (tree target dispatch!)
-            let
-                new-tick $ get-tick
-                elapsed $ &- new-tick @*last-tick
-              ; js/console.info "|render page:" tree
-              reset! *element-tree tree
-              reset! *last-tick new-tick
-              call-paint tree target dispatch! elapsed
-              ; js/console.log |tree tree
+        'redraw-context $ %{} 'CodeEntry
+          :doc "|Paint the current scene on a Canvas 2D context without advancing on-tick callbacks; use after a deterministic step for screenshots."
+          :code $ quote $ defn redraw-context (tree ctx dispatch!) (reset! *element-tree tree)
+            paint ctx tree ([]) dispatch! 0 false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic 'Dynamic
             :features $ #{} :js-ffi
+        'redraw-page $ %{} 'CodeEntry
+          :doc "|Repaint a browser canvas without advancing on-tick callbacks; pass a freshly constructed scene after a deterministic step."
+          :code $ quote $ defn redraw-page (tree target dispatch!) (reset! *element-tree tree) (call-paint tree target dispatch! 0 false)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+            :args $ [] 'Dynamic 'Dynamic 'Dynamic
+            :features $ #{} :js-ffi
+        'render-page $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn render-page (tree target dispatch!)
+            render-page-at tree target dispatch! $ get-tick
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+            :args $ [] 'Dynamic 'Dynamic 'Dynamic
+            :features $ #{} :js-ffi
+        'render-page-at $ %{} 'CodeEntry
+          :doc "|Render a browser canvas at an explicit absolute time in seconds, advancing component on-tick callbacks once."
+          :code $ quote $ defn render-page-at (tree target dispatch! seconds)
+            let
+                elapsed $ advance-frame-clock! seconds
+              reset! *element-tree tree
+              call-paint tree target dispatch! elapsed true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+            :args $ [] 'Dynamic 'Dynamic 'Dynamic 'Number
+            :features $ #{} :js-ffi
+        'reset-frame-clock! $ %{} 'CodeEntry
+          :doc "|Set the absolute animation clock in seconds before deterministic stepping. This does not paint or tick components."
+          :code $ quote $ defn reset-frame-clock! (seconds) (reset! *last-tick seconds) &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'Number
         'reset-stage-config! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reset-stage-config! ()
             let
@@ -2440,6 +2486,7 @@
             pointed-prompt.core :refer $ clear-prompt!
             quamolit.global :refer $ *touch-event-areas *tracked-transform *stage-config
             quamolit.math :refer $ point-minus point-divide point-add point-times vec-length point-scale
+            quamolit.frame-clock :refer $ elapsed-between
     'quamolit.cursor $ %{} 'FileEntry
       :defs $ {}
         'gc-states $ %{} 'CodeEntry (:doc |)
@@ -2471,6 +2518,52 @@
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.cursor
+    'quamolit.frame-clock $ %{} 'FileEntry
+      :defs $ {}
+        'elapsed-between $ %{} 'CodeEntry
+          :doc "|Return elapsed seconds for a monotonic absolute clock; reject rewinds. Reset the clock before seeking backward in tests."
+          :code $ quote $ defn elapsed-between (previous current)
+            if (< current previous) (raise |frame-time-must-be-monotonic) (- current previous)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |fixed-and-repeated)
+              :code $ quote $ do
+                is= 0.25 $ elapsed-between 1 1.25
+                is= 0 $ elapsed-between 1 1
+              :tags $ #{} :frame-clock :unit
+            %{} 'TestEntry (:name |rejects-rewind)
+              :code $ quote $ is-throws (elapsed-between 2 1)
+              :tags $ #{} :frame-clock :unit
+        'sample-times $ %{} 'CodeEntry
+          :doc "|Generate inclusive sample times from start through end with a fixed number of intervals; useful for deterministic animation screenshots."
+          :code $ quote $ defn sample-times (start end steps)
+            if
+              or (< end start) (<= steps 0)
+                not= steps $ floor steps
+              raise |invalid-frame-sampling
+              map
+                range 0 $ + steps 1
+                fn (index)
+                  + start $ * (- end start) (/ index steps)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number
+            :return $ :: 'List 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |inclusive-quarter-frames)
+              :code $ quote $ is= ([] 0 0.25 0.5 0.75 1) (sample-times 0 1 4)
+              :tags $ #{} :frame-clock :unit
+            %{} 'TestEntry (:name |rejects-invalid-samples)
+              :code $ quote $ do
+                is-throws $ sample-times 1 0 4
+                is-throws $ sample-times 0 1 0
+                is-throws $ sample-times 0 1 2.5
+              :tags $ #{} :frame-clock :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.frame-clock
+          :require $ calcit.test :refer $ is= is-throws
     'quamolit.global $ %{} 'FileEntry
       :defs $ {}
         '*stage-config $ %{} 'CodeEntry (:doc |)
@@ -2800,25 +2893,27 @@
             :args $ [] 'Dynamic
             :features $ #{} :js-ffi
         'paint $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn paint (ctx tree coord dispatch! elapsed) (; js/console.log |paint tree)
+          :code $ quote $ defn paint (ctx tree coord dispatch! elapsed tick?) (; js/console.log |paint tree)
             if (nil? tree) nil $ if
-              and (struct? tree) (&struct:matches? Component tree)
+              and (struct? tree) (&struct:matches? tree Component)
               let
                   on-tick $ :on-tick $ assert-type tree 'quamolit.types/Component
-                if (fn? on-tick) (on-tick elapsed dispatch!)
+                if
+                  and tick? $ fn? on-tick
+                  on-tick elapsed dispatch!
                 recur ctx
                   :tree $ assert-type tree 'quamolit.types/Component
                   conj coord $ :name $ assert-type tree 'quamolit.types/Component
-                  , dispatch! elapsed
+                  , dispatch! elapsed tick?
               do (paint-one ctx tree coord)
                 &doseq
                   cursor $ :children $ assert-type tree 'quamolit.types/Shape
                   paint ctx (last cursor)
                     append coord $ first cursor
-                    , dispatch! elapsed
+                    , dispatch! elapsed tick?
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic) 'Dynamic 'Number
+            :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic) 'Dynamic 'Number 'Bool
             :features $ #{} :js-ffi
         'paint-alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-alpha (ctx style)
@@ -2981,17 +3076,15 @@
               .!beginPath ctx
               .!rect ctx x y w h
               when (some? event)
-                reset! *touch-event-areas $ prepend
-                  {} (:kind :rect)
-                    :half-w $ &* 0.5 w
-                    :half-h $ &* 0.5 h
-                    :transform $ :transform @*tracked-transform
-                    :offset $ :offset @*tracked-transform
-                    :coord coord
-                    :position $ []
-                      &+ x $ &* 0.5 w
-                      &+ y $ &* 0.5 h
-                  , @*touch-event-areas
+                reset! *touch-event-areas $ prepend @*touch-event-areas $ {} (:kind :rect)
+                  :half-w $ &* 0.5 w
+                  :half-h $ &* 0.5 h
+                  :transform $ :transform @*tracked-transform
+                  :offset $ :offset @*tracked-transform
+                  :coord coord
+                  :position $ []
+                    &+ x $ &* 0.5 w
+                    &+ y $ &* 0.5 h
               when (&map:contains? style :fill-style)
                 set! (.-fillStyle ctx) (&map:get style :fill-style)
                 .!fill ctx
@@ -3084,6 +3177,45 @@
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic
             :features $ #{} :js-ffi
+        'paint-tree-with $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn paint-tree-with (ctx tree coord dispatch! elapsed tick? paint-leaf)
+            if (nil? tree) &unit $ if
+              and (struct? tree) (&struct:matches? tree Component)
+              let
+                  component $ assert-type tree Component
+                  on-tick $ :on-tick component
+                when
+                  and tick? $ fn? on-tick
+                  on-tick elapsed dispatch!
+                paint-tree-with ctx (:tree component)
+                  conj coord $ :name component
+                  , dispatch! elapsed tick? paint-leaf
+              let
+                  shape $ assert-type tree Shape
+                paint-leaf ctx shape coord
+                &doseq
+                  cursor $ :children shape
+                  paint-tree-with ctx (last cursor)
+                    append coord $ first cursor
+                    , dispatch! elapsed tick? paint-leaf
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+            :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic) 'Dynamic 'Number 'Bool 'Dynamic
+          :tests $ [] $ %{} 'TestEntry (:name |tick-versus-redraw)
+            :code $ quote $ let
+                seen $ atom 0
+                component $ %{} Component (:name :sample) (:tree nil)
+                  :on-tick $ fn (elapsed dispatch!)
+                    reset! seen $ + @seen elapsed
+              paint-tree-with nil component ([])
+                fn (op data) &unit
+                , 0.25 true $ fn (ctx shape coord) &unit
+              is= 0.25 @seen
+              paint-tree-with nil component ([])
+                fn (op data) &unit
+                , 0 false $ fn (ctx shape coord) &unit
+              is= 0.25 @seen
+            :tags $ #{} :frame-clock :unit
         'pi-ratio $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def pi-ratio 0.017453292519943295
           :examples $ []
@@ -3092,11 +3224,80 @@
         :code $ quote $ ns quamolit.render.paint
           :require
             quamolit.util.string :refer $ hsl
-            quamolit.types :refer $ Component
+            quamolit.types :refer $ Component Shape
             quamolit.util.string :refer $ gen-id!
             quamolit.math :refer $ bound-opacity point-times point-add
             quamolit.global :refer $ *transforms-memory *tracked-transform *touch-event-areas
             js-ffi.browser :refer $ image-create image-src!
+            calcit.test :refer $ is=
+    'quamolit.test.frame-fixture $ %{} 'FileEntry
+      :defs $ {}
+        '*progress $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defatom *progress 0
+          :examples $ []
+          :schema $ :: 'Dynamic
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () (reset-fixture!) ([] step-fixture! redraw-fixture! progress)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+            :args $ []
+        'progress $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn progress () @*progress
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ []
+        'redraw-fixture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn redraw-fixture! (ctx)
+            paint-tree-with ctx (scene) ([])
+              fn (op data) &unit
+              , 0 false $ fn (context shape coord)
+                paint-rect context
+                  :style $ assert-type shape Shape
+                  , coord $ :event $ assert-type shape Shape
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+            :args $ [] 'Dynamic
+            :features $ #{} :js-ffi
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'reset-fixture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reset-fixture! () (reset! *progress 0) (reset-frame-clock! 0) &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'scene $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene ()
+            let
+                x $ + 48 $ * 160 @*progress
+              %{} Component (:name :fixture)
+                :on-tick $ fn (elapsed d!)
+                  reset! *progress $ + @*progress $ assert-type elapsed Number
+                :tree $ rect $ {} (:w 48) (:h 48) (:x x) (:y 80) (:fill-style |#ec4899)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.types/Component)
+            :args $ []
+        'step-fixture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn step-fixture! (ctx seconds)
+            let
+                elapsed $ advance-frame-clock! seconds
+              paint-tree-with ctx (scene) ([])
+                fn (op data) &unit
+                , elapsed true $ fn (context shape coord) &unit
+              redraw-fixture! ctx
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+            :args $ [] 'Dynamic 'Number
+            :features $ #{} :js-ffi
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.test.frame-fixture
+          :require
+            quamolit.alias :refer $ rect
+            quamolit.types :refer $ Component Shape
+            quamolit.core :refer $ reset-frame-clock! advance-frame-clock!
+            quamolit.render.paint :refer $ paint-tree-with paint-rect
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)
@@ -3222,10 +3423,9 @@
       :defs $ {} $ 'get-tick
         %{} 'CodeEntry (:doc |)
           :code $ quote $ defn get-tick ()
-            * 0.001 $ unsafe-coerce js/performance.now Number
+            * 0.001 $ js-ffi.shared/performance-now
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+          :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ []
-            :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.util.time

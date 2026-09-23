@@ -189,6 +189,16 @@ not wired into the Vite entry yet: its strict type check still reports legacy
 warnings. `yarn compile` and `yarn release` validate the migration baseline;
 they do not validate the original application's behavior.
 
+### Deterministic frame tests
+
+Quamolit now exposes an absolute frame clock (`reset-frame-clock!`,
+`advance-frame-clock!`) and a tree walker with an injectable leaf painter
+(`paint-tree-with`). Advancing a frame calls component `on-tick` once with the
+elapsed seconds; a redraw can paint the same state without advancing time.
+The browser fixture exercises this with a real Canvas rectangle at fixed
+timestamps, including intermediate frames. See [test/README.md](test/README.md)
+for the screenshot workflow and current coverage limits.
+
 ### History
 
 By rethinking MVC and GUI during using React, I developed the need of writing animations with declarative code. It was late 2014. I created the first prototype with CoffeeScript but it's not viable. In early 2016, I rewrote it with ClojureScript, which is last version of Quamolit. Now it's being rewritten in calcit-js.
