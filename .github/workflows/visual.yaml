@@ -74,6 +74,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check integrated playback time boundary
+        if: inputs.mutation != 'color'
+        run: yarn test:playback
+        env:
+          CI: "true"
+
       - name: Check typed Scene IR core and serialization
         if: inputs.mutation != 'color'
         run: yarn test:scene-core

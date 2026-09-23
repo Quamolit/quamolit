@@ -4461,6 +4461,120 @@
         :code $ quote $ ns quamolit.motion-gpu
           :require (quamolit.motion :as motion)
             calcit.test :refer $ is= is-throws
+    'quamolit.playback $ %{} 'FileEntry
+      :defs $ {}
+        'advance-to-host $ %{} 'CodeEntry
+          :doc "|从显式检查点按映射后的目标 tick 和输入日志推进；暂停返回原检查点，倒退须传旧检查点，预算不足报错。"
+          :code $ quote $ defn advance-to-host (timeline host-time checkpoint input-log max-steps update-state)
+            fixed/advance-simulation checkpoint
+              clock/simulation-tick-at timeline host-time $ :dt checkpoint
+              , input-log max-steps update-state
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.host-clock/HostClock 'Number (:: 'quamolit.fixed-step/SimulationState 'S) (:: 'Map 'Number 'I) 'Number $ :: 'Fn
+              {} (:return 'S)
+                :args $ [] 'S 'I 'Number 'Number
+            :generics $ [] 'S 'I
+            :return $ :: 'quamolit.fixed-step/SimulationState 'S
+          :tests $ [] $ %{} 'TestEntry (:name |staged-paused-and-seeked)
+            :code $ quote $ let
+                timeline $ clock/start-clock 10 0 1
+                paused $ clock/pause-clock timeline 10.5
+                seeked $ clock/seek-clock paused 20 0.25
+                inputs $ {} (1 2) (2 4) (3 -2) (4 0)
+                update-state $ fn (state input dt seed)
+                  hint-fn $ {}
+                    :args $ [] 'Number 'Number 'Number 'Number
+                    :return 'Number
+                  + state $ * input dt
+                initial $ fixed/start-simulation 0.25 7 0
+                direct $ advance-to-host timeline 11 initial inputs 4 update-state
+                first-step $ advance-to-host timeline 10.25 initial inputs 1 update-state
+                second-step $ advance-to-host timeline 10.5 first-step inputs 1 update-state
+                staged $ advance-to-host timeline 11 second-step inputs 2 update-state
+                paused-frame $ advance-to-host paused 20 second-step inputs 0 update-state
+                rewound $ advance-to-host seeked 20 initial inputs 1 update-state
+              is= 4 $ :tick direct
+              is= 1 $ :state direct
+              is= direct staged
+              is= second-step paused-frame
+              is= 1 $ :tick rewound
+              is= 0.5 $ :state rewound
+              is-throws $ advance-to-host seeked 20 second-step inputs 1 update-state
+              is-throws $ advance-to-host timeline 11 initial inputs 3 update-state
+              is-throws $ advance-to-host timeline 9 initial inputs 4 update-state
+            :tags $ #{} :playback :unit
+        'request-at-host $ %{} 'CodeEntry
+          :doc "|用显式宿主时钟替换请求的动画时间，校验完整身份与六类版本；原请求 time 仅作占位，不被读取。"
+          :code $ quote $ defn request-at-host (timeline host-time request)
+            let
+                mapped $ direct/DirectRequest :id (:id request) :time (clock/sample-clock timeline host-time) :versions (:versions request) :motion (:motion request) :model (:model request) :input (:input request) :resources (:resources request) :viewport $ :viewport request
+              assert |invalid-playback-request $ direct/valid-direct-request? mapped
+              , mapped
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.host-clock/HostClock 'Number $ :: 'quamolit.direct-frame/DirectRequest 'D 'M 'I 'R 'V
+            :generics $ [] 'D 'M 'I 'R 'V
+            :return $ :: 'quamolit.direct-frame/DirectRequest 'D 'M 'I 'R 'V
+        'resample-at-host $ %{} 'CodeEntry (:doc "|仅当映射后的动画时间、身份及所有版本相同才复用前帧；资源/输入变化须递增相应版本。")
+          :code $ quote $ defn resample-at-host (previous timeline host-time request evaluate)
+            direct/resample-at previous (request-at-host timeline host-time request) evaluate
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.direct-frame/DirectFrame 'S) 'quamolit.host-clock/HostClock 'Number (:: 'quamolit.direct-frame/DirectRequest 'D 'M 'I 'R 'V)
+              :: 'Fn $ {} (:return 'S)
+                :args $ [] 'D 'M 'I 'R 'V 'Number
+            :generics $ [] 'D 'M 'I 'R 'V 'S
+            :return $ :: 'quamolit.direct-frame/DirectFrame 'S
+        'sample-at-host $ %{} 'CodeEntry (:doc "|在任意宿主时间直接采样完整请求；不读取或推进固定步长模拟状态。")
+          :code $ quote $ defn sample-at-host (timeline host-time request evaluate)
+            direct/sample-at (request-at-host timeline host-time request) evaluate
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.host-clock/HostClock 'Number (:: 'quamolit.direct-frame/DirectRequest 'D 'M 'I 'R 'V)
+              :: 'Fn $ {} (:return 'S)
+                :args $ [] 'D 'M 'I 'R 'V 'Number
+            :generics $ [] 'D 'M 'I 'R 'V 'S
+            :return $ :: 'quamolit.direct-frame/DirectFrame 'S
+          :tests $ [] $ %{} 'TestEntry (:name |direct-and-revision-at-host)
+            :code $ quote $ let
+                timeline $ clock/start-clock 10 0 1
+                paused $ clock/pause-clock timeline 10.5
+                seeked $ clock/seek-clock paused 20 0.25
+                descriptor $ motion/ScalarDescriptor :id |fade :version 1 :motion $ motion/ScalarMotion :tween
+                  motion/ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ motion/Easing :linear
+                versions $ direct/FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources 0 :viewport 0
+                request $ direct/DirectRequest :id |badge :time 999 :versions versions :motion descriptor :model 5 :input 0 :resources false :viewport 100
+                ready-request $ direct/DirectRequest :id |badge :time 999 :versions
+                  direct/FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources 1 :viewport 0
+                  , :motion descriptor :model 5 :input 0 :resources true :viewport 100
+                evaluate $ fn (motion model input resources viewport time)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.motion/ScalarDescriptor 'Number 'Number 'Bool 'Number 'Number
+                    :return 'Number
+                  + (motion/sample-scalar motion time) model input (if resources 20 0) (/ viewport 10)
+                baseline $ sample-at-host timeline 10.5 request evaluate
+                reused $ resample-at-host baseline paused 20 request $ fn (motion model input resources viewport time)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.motion/ScalarDescriptor 'Number 'Number 'Bool 'Number 'Number
+                    :return 'Number
+                  raise |unexpected-evaluation
+              is= 0.5 $ :time baseline
+              is= 30 $ :scene baseline
+              is= ([] 35 25 30 27.5 35)
+                map ([] 11 10 10.5 10.25 11)
+                  fn (host-time)
+                    :scene $ sample-at-host timeline host-time request evaluate
+              is= baseline reused
+              is= 50 $ :scene $ resample-at-host baseline paused 20 ready-request evaluate
+              is= 27.5 $ :scene $ sample-at-host seeked 20 request evaluate
+              is-throws $ request-at-host timeline 9 request
+            :tags $ #{} :playback :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.playback
+          :require (quamolit.host-clock :as clock) (quamolit.direct-frame :as direct) (quamolit.fixed-step :as fixed)
+            calcit.test :refer $ is= is-throws
+            quamolit.motion :as motion
     'quamolit.presence $ %{} 'FileEntry
       :defs $ {}
         'PresenceItem $ %{} 'CodeEntry (:doc "|稳定 Scene 路径、保留展示数据、阶段和局部 alpha 意图。")
@@ -6870,6 +6984,92 @@
             quamolit.transition :as transition
             quamolit.presence :as presence
             quamolit.motion-gpu :as motion-gpu
+    'quamolit.test.playback-fixture $ %{} 'FileEntry
+      :defs $ {}
+        'PlaybackFixtureFrame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PlaybackFixtureFrame (:animation-time 'Number) (:value 'Number) (:tick 'Number) (:state 'Number) (:ready 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! ()
+            :value $ playback-frame-at (host-clock/start-clock 10 0 1) 10 false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ []
+        'make-playback-request $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-playback-request (ready)
+            let
+                descriptor $ ScalarDescriptor :id |playback-fade :version 1 :motion $ ScalarMotion :tween
+                  ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                versions $ direct-frame/FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources (if ready 1 0) :viewport 0
+              direct-frame/DirectRequest :id |playback-badge :time 0 :versions versions :motion descriptor :model 5 :input 0 :resources ready :viewport 100
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Bool
+            :return $ :: 'quamolit.direct-frame/DirectRequest 'quamolit.motion/ScalarDescriptor 'Number 'Number 'Bool 'Number
+        'playback-frame-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn playback-frame-at (timeline host-time ready)
+            let
+                request $ make-playback-request ready
+                evaluate $ fn (motion model input resources viewport time)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.motion/ScalarDescriptor 'Number 'Number 'Bool 'Number 'Number
+                    :return 'Number
+                  + (sample-scalar motion time) model input (if resources 20 0) (/ viewport 10)
+                mapped $ playback/request-at-host timeline host-time request
+                direct-frame $ direct-frame/sample-at mapped evaluate
+                inputs $ {} (1 2) (2 4) (3 -2) (4 0)
+                update-state $ fn (state input dt seed)
+                  hint-fn $ {}
+                    :args $ [] 'Number 'Number 'Number 'Number
+                    :return 'Number
+                  + state $ * input dt
+                simulation $ playback/advance-to-host timeline host-time (start-simulation 0.25 7 0) inputs 4 update-state
+              PlaybackFixtureFrame :animation-time (:time direct-frame) :value (:scene direct-frame) :tick (:tick simulation) :state (:state simulation) :ready ready
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.test.playback-fixture/PlaybackFixtureFrame
+            :args $ [] 'quamolit.host-clock/HostClock 'Number 'Bool
+          :tests $ [] $ %{} 'TestEntry (:name |fixed-time-reference)
+            :code $ quote $ let
+                running $ host-clock/start-clock 10 0 1
+                paused $ host-clock/pause-clock running 10.5
+                seeked $ host-clock/seek-clock paused 20 0.25
+                at-zero $ playback-frame-at running 10 false
+                middle $ playback-frame-at running 10.5 false
+                ready $ playback-frame-at paused 20 true
+                rewound $ playback-frame-at seeked 20 false
+                finished $ playback-frame-at running 11 false
+              is=
+                PlaybackFixtureFrame :animation-time 0 :value 25 :tick 0 :state 0 :ready false
+                , at-zero
+              is=
+                PlaybackFixtureFrame :animation-time 0.5 :value 30 :tick 2 :state 1.5 :ready false
+                , middle
+              is=
+                PlaybackFixtureFrame :animation-time 0.5 :value 50 :tick 2 :state 1.5 :ready true
+                , ready
+              is=
+                PlaybackFixtureFrame :animation-time 0.25 :value 27.5 :tick 1 :state 0.5 :ready false
+                , rewound
+              is=
+                PlaybackFixtureFrame :animation-time 1 :value 35 :tick 4 :state 1 :ready false
+                , finished
+            :tags $ #{} :playback :unit
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.test.playback-fixture
+          :require
+            quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar
+            quamolit.fixed-step :refer $ start-simulation
+            quamolit.direct-frame :as direct-frame
+            quamolit.host-clock :as host-clock
+            quamolit.playback :as playback
+            calcit.test :refer $ is=
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")

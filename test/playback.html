@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit 时间入口验证</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { display: block; border: 1px solid #94a3b8; margin: 16px 0; }
+      button { margin: 0 8px 8px 0; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>直接采样与固定步长模拟</h1>
+    <p>粉色方块来自任意时间直接采样，绿色方块来自带输入日志的固定 tick。时间映射、暂停、资源 ready 与 seek 均为显式输入；绘制不保存模拟状态。</p>
+    <div id="actions"></div>
+    <canvas id="playback" width="320" height="120"></canvas>
+    <output id="status">加载中…</output>
+    <script type="module" src="./playback.mjs"></script>
+  </body>
+</html>
