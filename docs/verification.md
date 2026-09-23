@@ -13,6 +13,7 @@ yarn release
 yarn test:clock
 yarn test:simulation
 yarn test:direct
+yarn test:host-clock
 yarn test:motion
 yarn test:motion-browser
 yarn test:runtime
@@ -34,6 +35,8 @@ yarn bench
 `yarn test:simulation` 验证 [固定步长 CPU 状态推进](fixed-step-simulation.md) 的类型、手算数值、不同显示帧节奏、检查点/重置、追帧预算和非法 tick；`yarn test:motion-browser` 同时运行固定 tick 的 Canvas 画面测试。该切片没有 host time 变换或资源版本失效，不能据此关闭 #31。
 
 `yarn test:direct` 验证 [绝对时间 CPU 直接采样](direct-frame-sampling.md) 的类型、乱序/重复采样、六类依赖的相同时间失效、完整键复用与非法时间/版本；`yarn test:motion-browser` 同时运行 Canvas 截图和像素断言。调用方仍须维护完整版本，测试不代表通用组件公共入口或 #31 已完成。
+
+`yarn test:host-clock` 验证 [宿主时间映射](host-clock.md) 的暂停、恢复、变速、倒放、seek、固定 dt tick、浮点边界与非法输入；`yarn test:motion-browser` 在 Canvas 上核对各时间点中间帧、像素与刷新。该切片不推进模拟状态，也不负责检查点与输入日志策略。
 
 ## 待实现的统一命令
 

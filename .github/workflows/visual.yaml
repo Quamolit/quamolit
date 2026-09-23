@@ -62,6 +62,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check host-clock mapping and playback controls
+        if: inputs.mutation != 'color'
+        run: yarn test:host-clock
+        env:
+          CI: "true"
+
       - name: Upload actual, expected, diff and input manifest on failure
         if: failure()
         uses: actions/upload-artifact@v4

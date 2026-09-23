@@ -14,7 +14,8 @@
 | `quamolit.motion/sample-scalar`、`sample-vec2`、`sample-track`、`sample-color`、`sample-scalar-composition` | 已实现的实验性内部 CPU 参考切片；非公共组件入口 | [Motion 数值与浏览器验证](motion-scalar.md)、#48 的局部进展 |
 | `CpuScalarDescriptor`、`CpuScalarRegistry`、`register-cpu-scalar`、`sample-cpu-scalar` | 已实现的实验性 CPU-only 标量扩展切片；非组件公共入口 | 描述符仅保存回调 ID，注册表不参与序列化，GPU 明确为 `unsupported`；[Motion 数值与浏览器验证](motion-scalar.md) |
 | `step-simulation(state, tick, inputs)` | 拟议独立入口；固定步长历史模拟 | #31；不与 `sample-at` 混用 |
-| `quamolit.fixed-step/start-simulation`、`step-simulation`、`advance-simulation` | 已实现的实验性泛型 CPU 状态推进切片；显式 tick/输入日志/追帧预算 | [固定步长模拟](fixed-step-simulation.md)；尚无 host time 变换与组件公共入口 |
+| `quamolit.fixed-step/start-simulation`、`step-simulation`、`advance-simulation` | 已实现的实验性泛型 CPU 状态推进切片；显式 tick/输入日志/追帧预算 | [固定步长模拟](fixed-step-simulation.md)；时间映射由独立时钟提供，尚无组件公共入口 |
+| `quamolit.host-clock/start-clock`、`sample-clock`、暂停/变速/seek 与 `simulation-tick-at` | 已实现的实验性纯函数时间映射切片；非宿主循环 | [宿主时间映射](host-clock.md)；调用方提供单调宿主秒数，模拟倒退仍需检查点 |
 | Scene IR / 完整 Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；现有 Motion 切片不持有 DOM/GPU 句柄 |
 | WebGPU/Canvas2D 双后端、资源表、命中索引 | 拟议、尚未实现 | #40/#33/#51/#34 |
 

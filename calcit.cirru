@@ -3116,6 +3116,153 @@
           :schema $ :: 'Ref $ :: 'List (:: 'Map 'Tag 'Dynamic)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.global
+    'quamolit.host-clock $ %{} 'FileEntry
+      :defs $ {}
+        'HostClock $ %{} 'CodeEntry
+          :doc "|Immutable mapping from a monotonic host timestamp to animation seconds. Negative speed is allowed for direct playback, not implicit reverse simulation."
+          :code $ quote $ defstruct HostClock (:host-anchor 'Number) (:animation-anchor 'Number) (:speed 'Number) (:paused 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'pause-clock $ %{} 'CodeEntry
+          :doc "|Freeze animation at the value sampled at this host timestamp."
+          :code $ quote $ defn pause-clock (clock host-time)
+            HostClock :host-anchor host-time :animation-anchor (sample-clock clock host-time) :speed (:speed clock) :paused true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.host-clock/HostClock)
+            :args $ [] 'quamolit.host-clock/HostClock 'Number
+        'resume-clock $ %{} 'CodeEntry
+          :doc "|Resume at the stored rate without counting paused host time."
+          :code $ quote $ defn resume-clock (clock host-time)
+            HostClock :host-anchor host-time :animation-anchor (sample-clock clock host-time) :speed (:speed clock) :paused false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.host-clock/HostClock)
+            :args $ [] 'quamolit.host-clock/HostClock 'Number
+        'sample-clock $ %{} 'CodeEntry
+          :doc "|Map a finite host timestamp at or after the anchor to finite animation seconds."
+          :code $ quote $ defn sample-clock (clock host-time)
+            assert |invalid-host-clock $ valid-host-clock? clock
+            assert |invalid-host-time $ finite-number? host-time
+            assert |host-time-before-anchor $ >= host-time $ :host-anchor clock
+            let
+                animation-time $ if (:paused clock) (:animation-anchor clock)
+                  + (:animation-anchor clock)
+                    *
+                      - host-time $ :host-anchor clock
+                      :speed clock
+              assert |non-finite-animation-time $ finite-number? animation-time
+              , animation-time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.host-clock/HostClock 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |timeline)
+              :code $ quote $ let
+                  start $ start-clock 10 0 1
+                  paused $ pause-clock start 11
+                  resumed $ resume-clock paused 20
+                  fast $ set-clock-speed start 11 2
+                  backward $ set-clock-speed fast 11.25 -1
+                  paused-seek $ seek-clock paused 21 0.25
+                  seek-resume $ resume-clock paused-seek 23
+                is= ([] 0 0.5 1)
+                  [] (sample-clock start 10) (sample-clock start 10.5) (sample-clock start 11)
+                is= 1 $ sample-clock paused 20
+                is= 1.5 $ sample-clock resumed 20.5
+                is= 1.5 $ sample-clock fast 11.25
+                is= 1.25 $ sample-clock backward 11.5
+                is= 0.25 $ sample-clock paused-seek 23
+                is= 0.75 $ sample-clock seek-resume 23.5
+                is= 6 $ simulation-tick-at fast 11.25 0.25
+                is= 4 $ simulation-tick-at paused 20 0.25
+              :tags $ #{} :host-clock :unit
+            %{} 'TestEntry (:name |invalid-clock-and-target)
+              :code $ quote $ let
+                  start $ start-clock 10 0 1
+                  negative $ seek-clock start 11 -0.25
+                  overflow $ start-clock 0 1e308 1e308
+                is-throws $ start-clock (/ 0 0) 0 1
+                is-throws $ start-clock 0 0 $ / 1 0
+                is-throws $ sample-clock start 9.9
+                is-throws $ sample-clock start $ / 0 0
+                is-throws $ sample-clock overflow 1e308
+                is-throws $ set-clock-speed start 10 $ / 1 0
+                is-throws $ seek-clock start 11 $ / 0 0
+                is-throws $ simulation-tick-at negative 11 0.25
+                is-throws $ simulation-tick-at start 10 0
+                is-throws $ simulation-tick-at start 10 $ / 1 0
+              :tags $ #{} :host-clock :unit
+        'seek-clock $ %{} 'CodeEntry
+          :doc "|Set animation time explicitly at this host timestamp, retaining rate and pause state."
+          :code $ quote $ defn seek-clock (clock host-time animation-time)
+            assert |invalid-animation-time $ finite-number? animation-time
+            sample-clock clock host-time
+            HostClock :host-anchor host-time :animation-anchor animation-time :speed (:speed clock) :paused $ :paused clock
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.host-clock/HostClock)
+            :args $ [] 'quamolit.host-clock/HostClock 'Number 'Number
+        'set-clock-speed $ %{} 'CodeEntry
+          :doc "|Change signed playback rate without jumping animation time; retain pause state."
+          :code $ quote $ defn set-clock-speed (clock host-time speed)
+            assert |invalid-clock-speed $ finite-number? speed
+            HostClock :host-anchor host-time :animation-anchor (sample-clock clock host-time) :speed speed :paused $ :paused clock
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.host-clock/HostClock)
+            :args $ [] 'quamolit.host-clock/HostClock 'Number 'Number
+        'simulation-tick-at $ %{} 'CodeEntry
+          :doc "|Map nonnegative animation seconds to a bounded target tick with explicit near-integer float snapping; never advance simulation state."
+          :code $ quote $ defn simulation-tick-at (clock host-time dt)
+            assert |invalid-simulation-dt $ finite-number? dt
+            assert |non-positive-simulation-dt $ > dt 0
+            let
+                animation-time $ sample-clock clock host-time
+                quotient $ / animation-time dt
+              assert |negative-simulation-time $ >= animation-time 0
+              assert |non-finite-simulation-tick $ finite-number? quotient
+              assert |unsafe-simulation-tick $ <= quotient 9007199254740991
+              let
+                  nearest $ floor $ + quotient 0.5
+                  tick $ if
+                    <
+                      abs $ - quotient nearest
+                      , 1e-9
+                    , nearest $ floor quotient
+                , tick
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.host-clock/HostClock 'Number 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |fractional-boundary)
+            :code $ quote $ let
+                clock $ start-clock 0 0 1
+              is= 3 $ simulation-tick-at clock 0.3 0.1
+              is= 2 $ simulation-tick-at clock 0.299 0.1
+              is= 0 $ simulation-tick-at clock 0 0.1
+              is-throws $ simulation-tick-at clock 9007199254740992 1
+            :tags $ #{} :host-clock :unit
+        'start-clock $ %{} 'CodeEntry
+          :doc "|Create an unpaused clock at explicit host and animation seconds with a signed rate."
+          :code $ quote $ defn start-clock (host-time animation-time speed)
+            assert |invalid-host-time $ finite-number? host-time
+            assert |invalid-animation-time $ finite-number? animation-time
+            assert |invalid-clock-speed $ finite-number? speed
+            HostClock :host-anchor host-time :animation-anchor animation-time :speed speed :paused false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.host-clock/HostClock)
+            :args $ [] 'Number 'Number 'Number
+        'valid-host-clock? $ %{} 'CodeEntry
+          :doc "|Check that all clock anchors and the signed playback rate are finite."
+          :code $ quote $ defn valid-host-clock? (clock)
+            and
+              finite-number? $ :host-anchor clock
+              finite-number? $ :animation-anchor clock
+              finite-number? $ :speed clock
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.host-clock/HostClock
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.host-clock
+          :require
+            quamolit.motion :refer $ finite-number?
+            calcit.test :refer $ is= is-throws
     'quamolit.hud-logs $ %{} 'FileEntry
       :defs $ {}
         '*hud-logs $ %{} 'CodeEntry (:doc |)
@@ -4676,6 +4823,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'sample-clock-x $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-clock-x (clock host-time)
+            sample-direct-x (host-clock/sample-clock clock host-time) 0 0 false 100 0 0 0 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.host-clock/HostClock 'Number
         'sample-color-a-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sample-color-a-at (time)
             :a $ sample-color-at time
@@ -4847,6 +5000,7 @@
             quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color ScalarComposeOp ScalarComposition sample-scalar-composition CpuScalarDescriptor CpuGpuStatus CpuScalarRegistry register-cpu-scalar sample-cpu-scalar
             quamolit.fixed-step :refer $ start-simulation advance-simulation
             quamolit.direct-frame :as direct-frame
+            quamolit.host-clock :as host-clock
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)
