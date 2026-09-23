@@ -3760,8 +3760,8 @@
           :doc "|Sample a versioned color descriptor at arbitrary finite seconds."
           :code $ quote $ defn sample-color (descriptor time)
             assert |invalid-motion-time $ finite-number? time
-            assert |invalid-color-version $ finite-number? $ :version descriptor
-            assert |negative-color-version $ >= (:version descriptor) 0
+            assert |invalid-color-id $ not $ empty? (:id descriptor)
+            assert |invalid-color-version $ valid-motion-version? $ :version descriptor
             match (:motion descriptor)
               (:constant value)
                 do
@@ -3779,31 +3779,44 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
             :args $ [] 'quamolit.motion/ColorDescriptor 'Number
-          :tests $ [] $ %{} 'TestEntry (:name |arbitrary-time)
-            :code $ quote $ let
-                red $ ColorRgba :r 1 :g 0 :b 0 :a 0
-                blue $ ColorRgba :r 0 :g 0 :b 1 :a 1
-                tween $ ColorTween :start 0 :duration 1 :from red :to blue :easing $ Easing :linear
-                descriptor $ ColorDescriptor :id |color-test :version 1 :motion $ ColorMotion :tween tween
-                middle $ sample-color descriptor 0.5
-              is= (sample-color descriptor -1) red
-              is= (sample-color descriptor 1) blue
-              is= (:a middle) 0.5
-              assert |color-midpoint $ <
-                abs $ - (:r middle) 0.7353569830524495
-                , 0.000000000001
-              is= (sample-color descriptor 0) red
-              is-throws $ sample-color
-                ColorDescriptor :id |bad-duration :version 1 :motion $ ColorMotion :tween $ ColorTween :start 0 :duration -1 :from red :to blue :easing (Easing :linear)
-                , 0.5
-            :tags $ #{} :motion :unit
+          :tests $ []
+            %{} 'TestEntry (:name |arbitrary-time)
+              :code $ quote $ let
+                  red $ ColorRgba :r 1 :g 0 :b 0 :a 0
+                  blue $ ColorRgba :r 0 :g 0 :b 1 :a 1
+                  tween $ ColorTween :start 0 :duration 1 :from red :to blue :easing $ Easing :linear
+                  descriptor $ ColorDescriptor :id |color-test :version 1 :motion $ ColorMotion :tween tween
+                  middle $ sample-color descriptor 0.5
+                is= (sample-color descriptor -1) red
+                is= (sample-color descriptor 1) blue
+                is= (:a middle) 0.5
+                assert |color-midpoint $ <
+                  abs $ - (:r middle) 0.7353569830524495
+                  , 0.000000000001
+                is= (sample-color descriptor 0) red
+                is-throws $ sample-color
+                  ColorDescriptor :id |bad-duration :version 1 :motion $ ColorMotion :tween $ ColorTween :start 0 :duration -1 :from red :to blue :easing (Easing :linear)
+                  , 0.5
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |reject-invalid-identity)
+              :code $ quote $ let
+                  value $ ColorRgba :r 1 :g 0 :b 0 :a 1
+                is-throws $ sample-color
+                  ColorDescriptor :id | :version 1 :motion $ ColorMotion :constant value
+                  , 0
+                is-throws $ sample-color
+                  ColorDescriptor :id |red :version 1.5 :motion $ ColorMotion :constant value
+                  , 0
+                is= value $ sample-color
+                  ColorDescriptor :id |red :version 2 :motion $ ColorMotion :constant value
+                  , 0
+              :tags $ #{} :motion :unit
         'sample-cpu-scalar $ %{} 'CodeEntry
           :doc "|Resolve and sample one CPU-only custom function at arbitrary finite seconds."
           :code $ quote $ defn sample-cpu-scalar (descriptor time registry)
             assert |invalid-cpu-motion-time $ finite-number? time
-            assert |invalid-cpu-motion-version $ finite-number? $ :version descriptor
-            assert |negative-cpu-motion-version $ >= (:version descriptor) 0
-            assert |empty-cpu-descriptor-id $ not $ empty? (:id descriptor)
+            assert |invalid-cpu-motion-id $ not $ empty? (:id descriptor)
+            assert |invalid-cpu-motion-version $ valid-motion-version? $ :version descriptor
             assert |empty-cpu-callback-id $ not $ empty? (:callback-id descriptor)
             match (:gpu-status descriptor)
               (:unsupported reason)
@@ -3877,12 +3890,31 @@
                   CpuScalarDescriptor :id |invalid-result :version 1 :callback-id |non-finite :gpu-status $ CpuGpuStatus :unsupported |runtime-callback
                   , 0 bad-registry
               :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |reject-invalid-identity)
+              :code $ quote $ let
+                  sampler $ fn (time)
+                    hint-fn $ {}
+                      :args $ [] 'Number
+                      :return 'Number
+                    + time 2
+                  registry $ register-cpu-scalar
+                    CpuScalarRegistry :samplers $ {}
+                    , |add-two sampler
+                  make $ fn (id version)
+                    hint-fn $ {}
+                      :args $ [] 'String 'Number
+                      :return 'quamolit.motion/CpuScalarDescriptor
+                    CpuScalarDescriptor :id id :version version :callback-id |add-two :gpu-status $ CpuGpuStatus :unsupported |runtime-callback
+                is-throws $ sample-cpu-scalar (make | 1) 0 registry
+                is-throws $ sample-cpu-scalar (make |custom 1.5) 0 registry
+                is= 2 $ sample-cpu-scalar (make |custom 2) 0 registry
+              :tags $ #{} :motion :unit
         'sample-scalar $ %{} 'CodeEntry
           :doc "|Sample a versioned scalar descriptor without reading previous frames."
           :code $ quote $ defn sample-scalar (descriptor time)
             assert |invalid-motion-time $ finite-number? time
-            assert |invalid-motion-version $ finite-number? $ :version descriptor
-            assert |negative-motion-version $ >= (:version descriptor) 0
+            assert |invalid-motion-id $ not $ empty? (:id descriptor)
+            assert |invalid-motion-version $ valid-motion-version? $ :version descriptor
             match (:motion descriptor)
               (:constant value)
                 do
@@ -3931,12 +3963,24 @@
                 is= 17.5 $ sample-scalar descriptor 1.25
                 is= 12.5 $ sample-scalar descriptor -0.25
               :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |reject-invalid-identity)
+              :code $ quote $ do
+                is-throws $ sample-scalar
+                  ScalarDescriptor :id | :version 1 :motion $ ScalarMotion :constant 10
+                  , 0
+                is-throws $ sample-scalar
+                  ScalarDescriptor :id |value :version 1.5 :motion $ ScalarMotion :constant 10
+                  , 0
+                is= 10 $ sample-scalar
+                  ScalarDescriptor :id |value :version 2 :motion $ ScalarMotion :constant 10
+                  , 0
+              :tags $ #{} :motion :unit
         'sample-scalar-composition $ %{} 'CodeEntry
           :doc "|Sample a fixed two-input composition at arbitrary finite seconds."
           :code $ quote $ defn sample-scalar-composition (composition time)
             assert |invalid-composition-time $ finite-number? time
-            assert |invalid-composition-version $ finite-number? $ :version composition
-            assert |negative-composition-version $ >= (:version composition) 0
+            assert |invalid-composition-id $ not $ empty? (:id composition)
+            assert |invalid-composition-version $ valid-motion-version? $ :version composition
             let
                 left $ sample-scalar (:left composition) time
                 right $ sample-scalar (:right composition) time
@@ -3981,6 +4025,19 @@
                   invalid-version $ ScalarComposition :id |invalid-version :version -1 :left left :right right :operation $ ScalarComposeOp :add
                 is-throws $ sample-scalar-composition invalid-weight 0.5
                 is-throws $ sample-scalar-composition invalid-version 0.5
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |reject-invalid-identity)
+              :code $ quote $ let
+                  left $ ScalarDescriptor :id |left :version 1 :motion $ ScalarMotion :constant 2
+                  right $ ScalarDescriptor :id |right :version 1 :motion $ ScalarMotion :constant 3
+                  make $ fn (id version)
+                    hint-fn $ {}
+                      :args $ [] 'String 'Number
+                      :return 'quamolit.motion/ScalarComposition
+                    ScalarComposition :id id :version version :left left :right right :operation $ ScalarComposeOp :add
+                is-throws $ sample-scalar-composition (make | 1) 0
+                is-throws $ sample-scalar-composition (make |sum 1.5) 0
+                is= 5 $ sample-scalar-composition (make |sum 2) 0
               :tags $ #{} :motion :unit
         'sample-track $ %{} 'CodeEntry
           :doc "|Reference scalar keyframe sampler at arbitrary finite seconds."
@@ -4122,8 +4179,8 @@
           :doc "|Sample a Vec2 descriptor at arbitrary finite seconds without previous-frame state."
           :code $ quote $ defn sample-vec2 (descriptor time)
             assert |invalid-motion-time $ finite-number? time
-            assert |invalid-motion-version $ finite-number? $ :version descriptor
-            assert |negative-motion-version $ >= (:version descriptor) 0
+            assert |invalid-vec2-id $ not $ empty? (:id descriptor)
+            assert |invalid-vec2-version $ valid-motion-version? $ :version descriptor
             match (:motion descriptor)
               (:constant value)
                 do
@@ -4188,6 +4245,19 @@
                 is-throws $ sample-vec2 negative 0.5
                 is-throws $ sample-vec2 invalid 0.5
               :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |reject-invalid-identity)
+              :code $ quote $ let
+                  value $ Vec2 :x 2 :y 3
+                is-throws $ sample-vec2
+                  Vec2Descriptor :id | :version 1 :motion $ Vec2Motion :constant value
+                  , 0
+                is-throws $ sample-vec2
+                  Vec2Descriptor :id |point :version 1.5 :motion $ Vec2Motion :constant value
+                  , 0
+                is= value $ sample-vec2
+                  Vec2Descriptor :id |point :version 2 :motion $ Vec2Motion :constant value
+                  , 0
+              :tags $ #{} :motion :unit
         'scan-track $ %{} 'CodeEntry
           :doc "|Scan validated keyframes at one explicit time without previous-frame state."
           :code $ quote $ defn scan-track (frames time)
@@ -4230,6 +4300,22 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.motion/ColorRgba
+        'valid-motion-version? $ %{} 'CodeEntry (:doc "|Motion 描述版本必须是有限、非负的整数；与 Scene 绑定及帧缓存使用同一身份规则。")
+          :code $ quote $ defn valid-motion-version? (value)
+            and (finite-number? value) (>= value 0)
+              = value $ floor value
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |finite-nonnegative-integer)
+            :code $ quote $ do
+              is= true $ valid-motion-version? 0
+              is= true $ valid-motion-version? 2
+              is= false $ valid-motion-version? -1
+              is= false $ valid-motion-version? 1.5
+              is= false $ valid-motion-version? $ / 1 0
+              is= false $ valid-motion-version? $ sqrt -1
+            :tags $ #{} :motion :unit
         'validate-track $ %{} 'CodeEntry
           :doc "|Reject empty, unordered, or non-finite keyframes. Equal timestamps are valid."
           :code $ quote $ defn validate-track (track)
@@ -4384,8 +4470,9 @@
         'lower-cpu-scalar $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn lower-cpu-scalar (descriptor)
             do
-              assert |invalid-cpu-motion-version $ motion/finite-number? $ :version descriptor
-              assert |negative-cpu-motion-version $ >= (:version descriptor) 0
+              assert |invalid-cpu-motion-id $ not $ empty? (:id descriptor)
+              assert |invalid-cpu-motion-version $ motion/valid-motion-version? $ :version descriptor
+              assert |empty-cpu-callback-id $ not $ empty? (:callback-id descriptor)
               match (:gpu-status descriptor)
                 (:unsupported reason)
                   do
@@ -4394,13 +4481,27 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuScalarLowering)
             :args $ [] 'quamolit.motion/CpuScalarDescriptor
-          :tests $ [] $ %{} 'TestEntry (:name |explicit-cpu-diagnostic)
-            :code $ quote $ let
-                descriptor $ motion/CpuScalarDescriptor :id |custom :version 1 :callback-id |ease :gpu-status $ motion/CpuGpuStatus :unsupported |runtime-callback
-                bad $ motion/CpuScalarDescriptor :id |bad :version -1 :callback-id |ease :gpu-status $ motion/CpuGpuStatus :unsupported |runtime-callback
-              is= (GpuScalarLowering :unsupported |runtime-callback) (lower-cpu-scalar descriptor)
-              is-throws $ lower-cpu-scalar bad
-            :tags $ #{} :motion-gpu :unit
+          :tests $ []
+            %{} 'TestEntry (:name |explicit-cpu-diagnostic)
+              :code $ quote $ let
+                  descriptor $ motion/CpuScalarDescriptor :id |custom :version 1 :callback-id |ease :gpu-status $ motion/CpuGpuStatus :unsupported |runtime-callback
+                  bad $ motion/CpuScalarDescriptor :id |bad :version -1 :callback-id |ease :gpu-status $ motion/CpuGpuStatus :unsupported |runtime-callback
+                is= (GpuScalarLowering :unsupported |runtime-callback) (lower-cpu-scalar descriptor)
+                is-throws $ lower-cpu-scalar bad
+              :tags $ #{} :motion-gpu :unit
+            %{} 'TestEntry (:name |reject-invalid-identity)
+              :code $ quote $ let
+                  make $ fn (id version callback-id)
+                    hint-fn $ {}
+                      :args $ [] 'String 'Number 'String
+                      :return 'quamolit.motion/CpuScalarDescriptor
+                    motion/CpuScalarDescriptor :id id :version version :callback-id callback-id :gpu-status $ motion/CpuGpuStatus :unsupported |runtime-callback
+                is-throws $ lower-cpu-scalar $ make | 1 |callback
+                is-throws $ lower-cpu-scalar $ make |custom 1.5 |callback
+                is-throws $ lower-cpu-scalar $ make |custom 1 |
+                is= (GpuScalarLowering :unsupported |runtime-callback)
+                  lower-cpu-scalar $ make |custom 2 |callback
+              :tags $ #{} :motion-gpu :unit
         'lower-scalar $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn lower-scalar (descriptor)
             do (motion/sample-scalar descriptor 0)

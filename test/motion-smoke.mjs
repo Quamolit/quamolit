@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { valid_motion_version_$q_ as validMotionVersion } from "../js-out/quamolit.motion.mjs";
 import {
   main_$x_, sample_at, sample_vec2_at, sample_vec2_x_at, sample_vec2_y_at,
   sample_keyframes_clamp_at, sample_keyframes_repeat_at, sample_keyframes_mirror_at,
@@ -7,6 +8,13 @@ import {
   sample_composition_at,
   sample_cpu_at, cpu_gpu_reason,
 } from "../js-out/quamolit.test.motion-fixture.mjs";
+
+test("Motion 描述版本在 JS 侧只接受有限非负整数", () => {
+  for (const version of [0, 1, 24]) assert.equal(validMotionVersion(version), true);
+  for (const version of [-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+    assert.equal(validMotionVersion(version), false);
+  }
+});
 
 test("motion fixture samples arbitrary times without mutable clock", () => {
   assert.equal(main_$x_().toString(), "([] 20 10 15 12.5 20)");

@@ -38,7 +38,7 @@ yarn bench
 
 `yarn compile:visual` 只编译；`yarn test:visual` 先编译该入口，再启动固定 Chromium 执行浏览器断言和截图比较。浏览器需先通过 `yarn playwright install chromium` 安装，Linux CI 使用 `--with-deps`。固定版本见 `package.json`/`yarn.lock`，快照与逐场景容差见 `test/m0/`。PR #45 已合并；`evaluate-at` 仍是顺序帧求值基础。
 
-`yarn test:motion` 对实验性标量、二维向量、关键帧、颜色、两输入组合与 CPU-only 自定义标量 Motion 做严格类型检查、原生测试、JS 编译与数值测试；`yarn test:motion-browser` 再验证 Chromium 中间帧、循环端点、颜色/位置像素、GPU 不支持诊断和时间倒退/重复。两者目前只覆盖 [初始切片](motion-scalar.md)，不能代表 #48 全部 Motion IR 或 #31 生命周期已完成。
+`yarn test:motion` 对实验性标量、二维向量、关键帧、颜色、两输入组合与 CPU-only 自定义标量 Motion 做严格类型检查、原生测试、JS 编译与数值测试；还检验所有描述的非空 ID/整数版本边界。`yarn test:motion-browser` 再验证 Chromium 中间帧、循环端点、颜色/位置像素、GPU 不支持诊断和时间倒退/重复。两者目前只覆盖 [受限 Motion IR](motion-scalar.md)，不能代表 #31 生命周期或 #52 真实 GPU 执行已完成。
 
 `yarn test:motion-gpu` 验证[受限 GPU 候选计划](motion-gpu-contract.md)的类型、容量边界、显式回退和 JS 数据序列化；浏览器 Motion 页面也显示与 CPU 绘图共用描述符的候选分类。此处的“候选”不代表已在 GPU 执行，真实 WGSL 数值等价与硬件测量仍待 #52。
 
