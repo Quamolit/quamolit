@@ -6816,6 +6816,211 @@
         :code $ quote $ ns quamolit.test.component-fixture
           :require (quamolit.component-sample :as component) (quamolit.scene-ir :as scene-ir) (quamolit.motion :as motion) (quamolit.direct-frame :as direct) (quamolit.host-clock :as clock)
             calcit.test :refer $ is= is-throws
+    'quamolit.test.fade-migration-fixture $ %{} 'FileEntry
+      :defs $ {}
+        'FadeModel $ %{} 'CodeEntry (:doc "|旧 fade 迁移用的显式应用 Model：保存过渡意图、描述版本和进入/退出阶段。")
+          :code $ quote $ defstruct FadeModel (:intent 'quamolit.transition/TransitionIntent) (:revision 'Number) (:phase 'quamolit.test.fade-migration-fixture/FadePhase)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'FadePhase $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum FadePhase (:enter) (:exit)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'declare-fade $ %{} 'CodeEntry
+          :doc "|声明一个 group 与单矩形 Scene；group opacity 仅保存 Motion 引用，组件与绘制无缓存副作用。"
+          :code $ quote $ defn declare-fade (props model input resources viewport)
+            let
+                descriptor $ fade-descriptor model
+                tween $ :tween $ :intent model
+                transform $ scene-ir/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                group-content $ scene-ir/SceneContent :group $ scene-ir/GroupNode :transform transform :clip (scene-ir/ClipSpec :none) :opacity (:from tween)
+                binding $ scene-ir/ScalarBinding :target (scene-ir/ScalarTarget :opacity) :motion-id (:id descriptor) :version $ :version descriptor
+                group $ scene-ir/SceneNode :id |fade-root :parent | :key |fade-root :content group-content :bindings ([] binding) :interaction $ scene-ir/SceneInteraction :none
+                fill $ if resources
+                  motion/ColorRgba :r 0 :g 0.2 :b 0.8 :a 1
+                  motion/ColorRgba :r 0 :g 0 :b 0 :a 1
+                rect-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x props :y input :width (/ viewport 2) :height 60 :fill fill
+                rect $ scene-ir/SceneNode :id |fade-rect :parent |fade-root :key |fade-rect :content rect-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+              component/ComponentDeclaration :scene
+                scene-ir/SceneDocument :nodes $ [] group rect
+                , :motions $ [] descriptor
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'quamolit.test.fade-migration-fixture/FadeModel 'Number 'Bool 'Number
+        'enter-model $ %{} 'CodeEntry (:doc "|把旧 v=4 的淡入速度映射为从 0 到 1、持续 0.25 秒的绝对时间意图。")
+          :code $ quote $ defn enter-model ()
+            FadeModel :intent
+              transition/start-transition |fade 0 1 0 0.25 $ motion/Easing :linear
+              , :revision 1 :phase $ FadePhase :enter
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.test.fade-migration-fixture/FadeModel)
+            :args $ []
+        'enter-opacity-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn enter-opacity-at (time)
+            opacity-for-model time $ enter-model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |legacy-speed-four-equivalence)
+            :code $ quote $ do
+              is= ([] 0 0.25 0.5 1 1 0.5)
+                map ([] 0 0.0625 0.125 0.25 1 0.125)
+                  fn (time) (enter-opacity-at time)
+              is= 0 $ enter-opacity-at -1
+              is-throws $ enter-opacity-at $ / 0 0
+            :tags $ #{} :fade-migration :unit
+        'enter-scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn enter-scene-at (time)
+            scene-for-model time $ enter-model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+        'exit-model $ %{} 'CodeEntry (:doc "|在 t=0.5 从淡入完成值建立淡出意图，保证切换处透明度连续。")
+          :code $ quote $ defn exit-model ()
+            let
+                initial $ enter-model
+              FadeModel :intent
+                transition/interrupt-transition (:intent initial) 0 0.5 0.25 $ motion/Easing :linear
+                , :revision 2 :phase $ FadePhase :exit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.test.fade-migration-fixture/FadeModel)
+            :args $ []
+        'exit-opacity-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn exit-opacity-at (time)
+            opacity-for-model time $ exit-model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |exit-and-interruption-continuity)
+            :code $ quote $ do
+              is= 1 $ exit-opacity-at 0.5
+              is= 1 $ enter-opacity-at 0.5
+              is= 0.75 $ exit-opacity-at 0.5625
+              is= 0.5 $ exit-opacity-at 0.625
+              is= 0 $ exit-opacity-at 0.75
+              is= 0.5 $ enter-opacity-at 0.125
+              is= 0.5 $ interrupt-opacity-at 0.125
+              is= 0.25 $ interrupt-opacity-at 0.25
+              is= 0 $ interrupt-opacity-at 0.375
+              is= 0.5 $ interrupt-opacity-at 0.125
+            :tags $ #{} :fade-migration :unit
+        'exit-scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn exit-scene-at (time)
+            scene-for-model time $ exit-model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+        'fade-descriptor $ %{} 'CodeEntry
+          :doc "|从 FadeModel 生成纯数据的版本化标量 tween，供 Scene opacity 绑定与 GPU 候选计划共用。"
+          :code $ quote $ defn fade-descriptor (model)
+            assert |invalid-fade-revision $ motion/valid-motion-version? $ :revision model
+            motion/ScalarDescriptor :id |fade-alpha :version (:revision model) :motion $ motion/ScalarMotion :tween $ :tween (:intent model)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'quamolit.test.fade-migration-fixture/FadeModel
+        'gpu-enter-plan $ %{} 'CodeEntry (:doc "|将同一 fade 描述降为受限 GPU 候选数据计划，不表示 WGSL 已执行。")
+          :code $ quote $ defn gpu-enter-plan ()
+            motion-gpu/lower-scalar $ fade-descriptor $ enter-model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuScalarLowering)
+            :args $ []
+          :tests $ [] $ %{} 'TestEntry (:name |serializable-fade-candidate)
+            :code $ quote $ match (gpu-enter-plan)
+              (:supported plan)
+                do
+                  is= |fade-alpha $ :id plan
+                  is= 1 $ :version plan
+                  match (:kernel plan)
+                    (:tween tween)
+                      do
+                        is= 0.25 $ :duration tween
+                        is= 0 $ :from tween
+                        is= 1 $ :to tween
+                    _ $ raise |expected-fade-tween
+              (:unsupported reason) (raise |expected-supported-fade)
+            :tags $ #{} :fade-migration :unit
+        'interrupt-model $ %{} 'CodeEntry (:doc "|在淡入 t=0.125 时采样当前 alpha=0.5，再建立到 0 的新意图。")
+          :code $ quote $ defn interrupt-model ()
+            let
+                initial $ enter-model
+              FadeModel :intent
+                transition/interrupt-transition (:intent initial) 0 0.125 0.25 $ motion/Easing :linear
+                , :revision 2 :phase $ FadePhase :exit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.test.fade-migration-fixture/FadeModel)
+            :args $ []
+        'interrupt-opacity-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interrupt-opacity-at (time)
+            opacity-for-model time $ interrupt-model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'interrupt-scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interrupt-scene-at (time)
+            scene-for-model time $ interrupt-model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! ()
+            [] (enter-opacity-at 0.125) (exit-opacity-at 0.625) (interrupt-opacity-at 0.25)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'Number
+        'make-request $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-request (time model)
+            component/ComponentRequest :id |fade :time time :versions
+              direct/FrameVersions :component 0 :motion (:revision model) :model (:revision model) :input 0 :resources 0 :viewport 0
+              , :props 80 :model model :input 50 :resources false :viewport 100
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'quamolit.test.fade-migration-fixture/FadeModel
+            :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'quamolit.test.fade-migration-fixture/FadeModel 'Number 'Bool 'Number
+        'opacity-for-model $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn opacity-for-model (time model)
+            match
+              :content $ scene-ir/first-node $ :nodes (scene-for-model time model)
+              (:group value) (:opacity value)
+              _ $ raise |expected-fade-group
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'quamolit.test.fade-migration-fixture/FadeModel
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () (main!)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'Number
+        'scene-for-model $ %{} 'CodeEntry (:doc "|在任意绝对时间直接求旧 fade 迁移组件的 Scene；这是 CPU 全量正确性参考。")
+          :code $ quote $ defn scene-for-model (time model)
+            :scene $ component/sample-component-at (make-request time model) declare-fade
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number 'quamolit.test.fade-migration-fixture/FadeModel
+          :tests $ [] $ %{} 'TestEntry (:name |scene-binding-and-model-version)
+            :code $ quote $ let
+                enter $ enter-model
+                exiting $ exit-model
+                entering-scene $ scene-for-model 0.125 enter
+                exiting-scene $ scene-for-model 0.625 exiting
+                root $ scene-ir/first-node $ :nodes entering-scene
+                exit-root $ scene-ir/first-node $ :nodes exiting-scene
+              is= true $ scene-ir/validate-scene entering-scene
+              is= true $ scene-ir/validate-scene exiting-scene
+              is= 2 $ count $ :nodes entering-scene
+              is= 1 $ :version $ fade-descriptor enter
+              is= 2 $ :version $ fade-descriptor exiting
+              is= 1 $ :version $ scene-ir/first-binding (:bindings root)
+              is= 2 $ :version $ scene-ir/first-binding (:bindings exit-root)
+              is= 0.5 $ opacity-for-model 0.125 enter
+              is= 0.5 $ opacity-for-model 0.625 exiting
+              is-throws $ scene-for-model (/ 0 0) enter
+            :tags $ #{} :fade-migration :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.test.fade-migration-fixture
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.motion :as motion) (quamolit.motion-gpu :as motion-gpu) (quamolit.scene-ir :as scene-ir) (quamolit.transition :as transition)
+            calcit.test :refer $ is= is-throws
     'quamolit.test.frame-fixture $ %{} 'FileEntry
       :defs $ {}
         '*frame $ %{} 'CodeEntry (:doc |)

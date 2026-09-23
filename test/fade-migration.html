@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit 旧 fade 迁移夹具</title>
+    <style>
+      body { margin: 24px; font: 16px/1.5 system-ui, sans-serif; color: #222; }
+      canvas { display: block; border: 1px solid #aaa; margin: 16px 0; }
+      button { margin: 0 8px 8px 0; padding: 6px 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>旧 fade → Model + Motion + Scene</h1>
+    <p>旧速度 v=4：进入/退出各 0.25 秒；透明度由绝对时间直接采样。</p>
+    <div id="modes">
+      <button data-mode="enter">进入</button>
+      <button data-mode="exit">退出</button>
+      <button data-mode="interrupt">中途打断</button>
+    </div>
+    <div id="times"></div>
+    <canvas id="frame" width="240" height="160"></canvas>
+    <p id="status" aria-live="polite">加载中…</p>
+    <script type="module" src="./fade-migration.mjs"></script>
+  </body>
+</html>

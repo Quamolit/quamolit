@@ -59,7 +59,7 @@
 | --- | --- | --- |
 | `defcomp` 生成带 `on-tick` 的 Shape | 保留纯视图；用 `initial-frame` / `evaluate-at` 把模型更新移出绘制 | `component(props, model, resources)` 返回声明，#32 降为 Scene IR |
 | `on-tick(elapsed, dispatch!)` 积分 | `evaluate-at` 的 `update-model(model, FrameSample)` 仅按给定顺序推进 | 无历史动画转 `sample-at`；有历史状态转固定步长 `step-simulation` |
-| fade 内部 opacity/stage 缓存 | Model 显式保存 opacity/目标/阶段，不依赖画笔调用次数 | #49 过渡意图与 enter/present/exit |
+| fade 内部 opacity/stage 缓存 | [可编译迁移夹具](fade-migration.md)：Model 保存过渡意图与阶段，Motion 描述绑定 Scene opacity；不依赖画笔调用次数 | #49 的 enter/present/exit 与宿主释放继续分离验收 |
 | 在绘制时登记事件区域/资源 | 兼容旧入口仅用于迁移 | Scene IR 事件目标、资源 ID/version，独立命中/资源表 |
 
 下面是**已实现且由仓库入口编译**的最小迁移例子，不是拟议 `sample-at` 的示例。`quamolit.test.frame-fixture/update-progress`、`scene` 和 `main!` 位于 `calcit.cirru`；`yarn compile:visual` 编译该入口，`yarn test:clock` 验证泛型求值及重放，`yarn test:visual` 在 Chromium 检查矩形中间帧：

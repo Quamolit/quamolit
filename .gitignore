@@ -8,6 +8,7 @@
 js-out/
 js-out-playback/
 js-out-component/
+js-out-fade/
 node_modules/
 dist/
 test-results/
