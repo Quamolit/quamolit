@@ -1,12 +1,18 @@
 {
-  "version": "0.0.17",
+  "version": "0.0.18-alpha.1",
   "dependencies": {
-    "@calcit/procs": "^0.8.44",
-    "@calcit/std": "^0.0.3",
+    "@calcit/procs": "0.18.1",
     "@quamolit/touch-control": "^0.0.13"
   },
   "devDependencies": {
     "bottom-tip": "^0.1.5",
-    "vite": "^5.2.6"
-  }
+    "vite": "^8.0.12"
+  },
+  "scripts": {
+    "compile": "caps --ci && calcit calcit.cirru js",
+    "test:clock": "calcit test --tag frame-clock --require-match",
+    "compile:visual": "calcit --init-fn quamolit.test.frame-fixture/main! --reload-fn quamolit.test.frame-fixture/reload! calcit.cirru js",
+    "release": "yarn vite build --base=./"
+  },
+  "packageManager": "yarn@4.12.0"
 }

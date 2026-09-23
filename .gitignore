@@ -1,6 +1,9 @@
 
 .compact-inc.cirru
 .calcit-error.cirru
+.calcit/
+.yarn/
+.DS_Store
 
 js-out/
 node_modules/

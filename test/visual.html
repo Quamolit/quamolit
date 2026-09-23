@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit frame fixture</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { display: block; border: 1px solid #94a3b8; margin: 16px 0; }
+      button { margin-right: 8px; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>Quamolit deterministic frame fixture</h1>
+    <p>One second moves the rectangle from x=48 to x=208. The clock is explicit; no animation loop runs here.</p>
+    <div id="controls"></div>
+    <canvas id="frame" width="280" height="160"></canvas>
+    <output id="status">Loading…</output>
+    <script type="module" src="./visual.mjs"></script>
+  </body>
+</html>

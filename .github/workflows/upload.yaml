@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request: {}
+  workflow_dispatch: {}
 
 jobs:
   test:
@@ -12,22 +13,25 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v6
       with:
-        node-version: 20
-        cache: 'yarn'
+        node-version: 24
 
-    - uses: calcit-lang/setup-cr@0.0.3
+    - run: corepack enable
+
+    - uses: calcit-lang/setup-calcit@v1
       with:
-        version: "0.8.44"
+        tools: calcit,caps
 
     - name: "compiles to js"
       run: >
-        caps --ci && cr --emit-js --once
-        && yarn && yarn vite build --base=./
+        yarn install --immutable
+        && yarn compile && yarn release
+        && yarn test:clock && yarn compile:visual
         && cp -vr assets dist/
 
     - name: Deploy to server
+      if: github.event_name == 'workflow_dispatch'
       id: deploy
       uses: Pendect/action-rsyncer@v2.0.0
       env:
