@@ -2019,7 +2019,6 @@
             quamolit.math :refer $ bound-01 bound-x
             |@calcit/std :refer $ rand
             quamolit.util.ref :refer $ new-ref ref-get ref-set!
-            quamolit.math :refer $ bound-x
     'quamolit.config $ %{} 'FileEntry
       :defs $ {} $ 'dev?
         %{} 'CodeEntry (:doc |)
@@ -2430,25 +2429,6 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic
-        'update-viewer! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn update-viewer! (move scale-change)
-            when
-              or
-                not= ([] 0 0) move
-                not= 0 scale-change
-              swap! *viewer-config update :move $ fn (prev)
-                point-add prev $ point-times
-                  []
-                    negate $ first move
-                    nth move 1
-                  [] 0.05 0
-              swap! *viewer-config update :scale $ fn (prev)
-                let
-                    next $ &+ prev $ * 0.01 scale-change
-                  &max 0.2 $ &min next 8
-          :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.core
           :require
@@ -2822,16 +2802,17 @@
         'paint $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint (ctx tree coord dispatch! elapsed) (; js/console.log |paint tree)
             if (nil? tree) nil $ if
-              and (record? tree) (&struct:matches? Component tree)
+              and (struct? tree) (&struct:matches? Component tree)
               let
-                  on-tick $ &record:get tree :on-tick
+                  on-tick $ :on-tick $ assert-type tree 'quamolit.types/Component
                 if (fn? on-tick) (on-tick elapsed dispatch!)
-                recur ctx (&record:get tree :tree)
-                  conj coord $ &record:get tree :name
+                recur ctx
+                  :tree $ assert-type tree 'quamolit.types/Component
+                  conj coord $ :name $ assert-type tree 'quamolit.types/Component
                   , dispatch! elapsed
               do (paint-one ctx tree coord)
                 &doseq
-                  cursor $ &record:get tree :children
+                  cursor $ :children $ assert-type tree 'quamolit.types/Shape
                   paint ctx (last cursor)
                     append coord $ first cursor
                     , dispatch! elapsed
@@ -2929,9 +2910,9 @@
         'paint-one $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-one (ctx directive coord)
             let
-                op $ &record:get directive :name
-                style $ &record:get directive :style
-                event $ &record:get directive :event
+                op $ :name directive
+                style $ :style directive
+                event $ :event directive
               ; js/console.log :paint-one op style
               cond
                   identical? op :line
@@ -2951,7 +2932,7 @@
                 true $ do $ js/console.log "|painting not implemented" directive
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic 'Dynamic
+            :args $ [] 'Dynamic 'quamolit.types/Shape $ :: 'List 'Dynamic
             :features $ #{} :js-ffi
         'paint-path $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-path (ctx style)
