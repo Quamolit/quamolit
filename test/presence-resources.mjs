@@ -1,9 +1,10 @@
 import { init_tags as initTags, to_js_data as toJsData } from "../js-out/calcit.core.mjs";
 import { instance_presence_document as instanceDocument, instance_presence_reconcile as reconcile } from "../js-out/quamolit.test.motion-fixture.mjs";
 import { presence_needs_frame_$q_ as needsFrame, sample_presence as sample, settle_presence as settle, start_presence as start } from "../js-out/quamolit.presence.mjs";
-import { float32At } from "../.calcit/modules/js-ffi/typed-arrays.mjs";
 import { InstanceSourceRegistry } from "../instance-sources.mjs";
 import { PresenceInstanceResources } from "../presence-resources.mjs";
+import { CanvasInstanceBatches } from "../canvas-instance-batches.mjs";
+import { instanceGrid } from "./instance-grid.mjs";
 
 const { model: modelTag } = initTags(["model"]);
 const canvas = document.querySelector("#scene");
@@ -15,14 +16,12 @@ function replayAt(time) {
   if (!Number.isFinite(time) || time < 0) throw new RangeError("时间必须是非负有限数");
   const registry = new InstanceSourceRegistry();
   const resources = new PresenceInstanceResources(registry);
+  const batches = new CanvasInstanceBatches(registry);
   let model = start(instanceDocument(1, false));
   resources.sync(toJsData(model));
   if (time >= 0.25) {
     const source = toJsData(instanceDocument(1, true)).nodes[1].content[1].source;
-    const positions = new Float32Array(source.count * 2);
-    positions.fill(-1000);
-    positions[0] = 40;
-    positions[1] = 50;
+    const positions = instanceGrid(source.count, 40);
     registry.register(source, positions);
     model = reconcile(model, 1, 0.25, true).nthAt(0, modelTag);
     resources.sync(toJsData(model));
@@ -34,27 +33,32 @@ function replayAt(time) {
   const completed = settle(model, time);
   model = completed.nthAt(0, modelTag);
   const ownership = resources.sync(toJsData(model));
-  return { samples: toJsData(sample(model, time)), registry, ownership, released: toJsData(completed).released.length, active: needsFrame(model, time) };
+  return { samples: toJsData(sample(model, time)), registry, batches, ownership, released: toJsData(completed).released.length, active: needsFrame(model, time) };
 }
 
 function renderAt(time) {
   const frame = replayAt(time);
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
+  let frameBoundaryCalls = 0;
+  let canvasCalls = 0;
   for (const entry of frame.samples) {
     const [kind, shape] = entry.entry.node.content;
     if (kind !== "instances") continue;
-    const token = frame.registry.resolve(shape.source);
-    const { r, g, b, a } = shape.fill;
-    context.globalAlpha = entry.alpha;
-    context.fillStyle = `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a})`;
-    for (let index = 0; index < shape.source.count; index++) {
-      context.fillRect(float32At(token, index * 2), float32At(token, index * 2 + 1), shape.width, shape.height);
-    }
+    const metrics = frame.batches.draw(context, shape, entry.alpha);
+    frameBoundaryCalls += metrics.frameBoundaryCalls;
+    canvasCalls += metrics.canvasCalls;
   }
-  context.globalAlpha = 1;
   const instance = frame.samples.find((entry) => entry.entry.node.content[0] === "instances");
   const pixel = Array.from(context.getImageData(40, 50, 1, 1).data).join(",");
+  const gridPixel = Array.from(context.getImageData(0, 0, 1, 1).data).join(",");
+  const gapPixel = Array.from(context.getImageData(2, 0, 1, 1).data).join(",");
+  if (gapPixel !== "255,255,255,255") throw new Error("可见实例网格间隔像素错误");
+  if (instance?.alpha === 1 && gridPixel !== pixel) throw new Error("不透明网格像素错误");
+  if (instance?.alpha === 0.5 && (gridPixel === pixel || gridPixel === "255,255,255,255")) {
+    throw new Error("重叠实例的半透明像素错误");
+  }
+  if (!instance && gridPixel !== "255,255,255,255") throw new Error("卸载后仍留下网格像素");
   if (time === 0.5 && pixel !== "234,88,12,255") throw new Error(`进入终点像素错误: ${pixel}`);
   if (time === 1 && (pixel !== "255,255,255,255" || frame.registry.liveCount !== 0 || frame.released !== 1 || frame.active)) {
     throw new Error("退出终点未停帧或未释放资源");
@@ -63,7 +67,7 @@ function renderAt(time) {
     throw new Error("退出中间帧未保留实例资源");
   }
   status.dataset.result = "pass";
-  status.textContent = `PASS · t=${time}s · alpha=${instance?.alpha ?? "none"} · live=${frame.registry.liveCount} · released=${frame.released} · active=${frame.active} · pixel=${pixel}`;
+  status.textContent = `PASS · t=${time}s · alpha=${instance?.alpha ?? "none"} · live=${frame.registry.liveCount} · released=${frame.released} · active=${frame.active} · ffi=${frameBoundaryCalls} · canvas=${canvasCalls} · pixel=${pixel}`;
 }
 
 for (const time of times) {

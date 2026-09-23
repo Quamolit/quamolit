@@ -20,6 +20,7 @@ yarn test:component-sample
 yarn test:fade-migration
 yarn test:scene-core
 yarn test:instance-sources
+yarn test:canvas-batches
 yarn test:scene-diff
 yarn test:scene-binding
 yarn test:transition
@@ -66,6 +67,8 @@ yarn bench
 `yarn test:scene-core` 验证 [Scene IR 核心切片](scene-ir-core.md) 的类型、构造/校验、重复 ID/兄弟 key、错误父级、非法数值/资源/绑定以及 JSON 往返；`yarn test:motion-browser` 额外验证 Scene IR 驱动的 Canvas 中间帧。该命令不等于下方拟议的完整 `yarn test:scene`，目前尚无保留执行计划或双后端验收。
 
 `yarn test:instance-sources` 验证 [实例数据源边界](instance-sources.md) 的 10k 位置、拷贝隔离、严格版本与错误输入；`yarn test:motion-browser` 还核对同一时间切换资源版本的像素。其 Canvas 循环仅是验证夹具，不是生产渲染性能结果。
+
+`yarn test:canvas-batches` 验证 [Canvas 实例批次边界](canvas-instance-batches.md) 的冷/热调用次数、拷贝和读取字节、脏范围及失效；`yarn test:motion-browser` 检查两处 10k 实例页面的像素和指标。Canvas 仍逐实例调用 `fillRect`；调用次数不是 GPU draw-call 数或吞吐证据。
 
 `yarn test:scene-diff` 验证 [逻辑身份与参考差分](scene-diff.md) 的严格类型、变更分类、重排/重挂载、仅时间变化和 JS 序列化；`yarn test:motion-browser` 也会在 Chromium 校验 Scene diff 与 Canvas 中间帧一致。仍未实现 #50 保留执行计划和双后端验收。
 

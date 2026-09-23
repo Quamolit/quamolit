@@ -104,6 +104,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check batched Canvas instance boundary
+        if: inputs.mutation != 'color'
+        run: yarn test:canvas-batches
+        env:
+          CI: "true"
+
       - name: Check logical Scene diff and dirty classifications
         if: inputs.mutation != 'color'
         run: yarn test:scene-diff
