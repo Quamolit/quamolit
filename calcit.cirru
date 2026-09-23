@@ -2949,6 +2949,26 @@
         :code $ quote $ ns quamolit.math
     'quamolit.motion $ %{} 'FileEntry
       :defs $ {}
+        'ColorDescriptor $ %{} 'CodeEntry
+          :doc "|Versioned identity for serializable color motion."
+          :code $ quote $ defstruct ColorDescriptor (:id 'String) (:version 'Number) (:motion 'quamolit.motion/ColorMotion)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ColorMotion $ %{} 'CodeEntry
+          :doc "|Closed color motion without host handles or closures."
+          :code $ quote $ defenum ColorMotion (:constant 'quamolit.motion/ColorRgba) (:tween 'quamolit.motion/ColorTween)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ColorRgba $ %{} 'CodeEntry
+          :doc "|Straight-alpha sRGB channels in [0,1]; sampling validates their range."
+          :code $ quote $ defstruct ColorRgba (:r 'Number) (:g 'Number) (:b 'Number) (:a 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ColorTween $ %{} 'CodeEntry
+          :doc "|Color interval in seconds, interpolated in linear sRGB with separate alpha."
+          :code $ quote $ defstruct ColorTween (:start 'Number) (:duration 'Number) (:from 'quamolit.motion/ColorRgba) (:to 'quamolit.motion/ColorRgba) (:easing 'quamolit.motion/Easing)
+          :examples $ []
+          :schema $ :: 'StructDef
         'Easing $ %{} 'CodeEntry (:doc "|Scalar easing for interpolation.")
           :code $ quote $ defenum Easing (:linear) (:smoothstep)
           :examples $ []
@@ -3053,6 +3073,81 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarKeyframe)
             :args $ [] $ :: 'List 'quamolit.motion/ScalarKeyframe
+        'interpolate-color $ %{} 'CodeEntry
+          :doc "|Interpolate straight-alpha colors; hidden RGB is not premultiplied away."
+          :code $ quote $ defn interpolate-color (from to ratio)
+            assert |invalid-color-from $ valid-color? from
+            assert |invalid-color-to $ valid-color? to
+            assert |invalid-color-ratio $ unit-channel? ratio
+            if (= ratio 0) from $ if (= ratio 1) to $ let
+                red $ interpolate-color-channel (:r from) (:r to) ratio
+                green $ interpolate-color-channel (:g from) (:g to) ratio
+                blue $ interpolate-color-channel (:b from) (:b to) ratio
+                alpha $ +
+                  * (:a from) (- 1 ratio)
+                  * (:a to) ratio
+                result $ ColorRgba :r red :g green :b blue :a alpha
+              assert |invalid-color-result $ valid-color? result
+              , result
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
+            :args $ [] 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |linear-midpoint)
+              :code $ quote $ let
+                  red $ ColorRgba :r 1 :g 0 :b 0 :a 1
+                  blue $ ColorRgba :r 0 :g 0 :b 1 :a 1
+                  middle $ interpolate-color red blue 0.5
+                assert |red-linear-midpoint $ <
+                  abs $ - (:r middle) 0.7353569830524495
+                  , 0.000000000001
+                is= (:g middle) 0
+                assert |blue-linear-midpoint $ <
+                  abs $ - (:b middle) 0.7353569830524495
+                  , 0.000000000001
+                is= (:a middle) 1
+                is= (interpolate-color red blue 0) red
+                is= (interpolate-color red blue 1) blue
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |straight-alpha)
+              :code $ quote $ let
+                  hidden-red $ ColorRgba :r 1 :g 0 :b 0 :a 0
+                  blue $ ColorRgba :r 0 :g 0 :b 1 :a 1
+                  middle $ interpolate-color hidden-red blue 0.5
+                  hidden-middle $ interpolate-color hidden-red
+                    ColorRgba :r 0 :g 0 :b 1 :a 0
+                    , 0.5
+                is= (:a middle) 0.5
+                is= (:a hidden-middle) 0
+                assert |hidden-red-rgb-preserved $ <
+                  abs $ - (:r hidden-middle) 0.7353569830524495
+                  , 0.000000000001
+                assert |hidden-blue-rgb-preserved $ <
+                  abs $ - (:b hidden-middle) 0.7353569830524495
+                  , 0.000000000001
+                is= (interpolate-color hidden-red blue 0) hidden-red
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |invalid-input)
+              :code $ quote $ let
+                  red $ ColorRgba :r 1 :g 0 :b 0 :a 1
+                  invalid $ ColorRgba :r 1.1 :g 0 :b 0 :a 1
+                is-throws $ interpolate-color invalid red 0.5
+                is-throws $ interpolate-color red invalid 0.5
+                is-throws $ interpolate-color red red -0.1
+                is-throws $ interpolate-color red red 1.1
+              :tags $ #{} :motion :unit
+        'interpolate-color-channel $ %{} 'CodeEntry (:doc "|Interpolate one sRGB channel in linear light.")
+          :code $ quote $ defn interpolate-color-channel (from to ratio)
+            assert |invalid-color-from $ unit-channel? from
+            assert |invalid-color-to $ unit-channel? to
+            assert |invalid-color-ratio $ unit-channel? ratio
+            if (= ratio 0) from $ if (= ratio 1) to $ linear-to-srgb
+              +
+                * (srgb-to-linear from) (- 1 ratio)
+                * (srgb-to-linear to) ratio
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number
         'last-keyframe $ %{} 'CodeEntry
           :doc "|Return the last keyframe; caller validates a non-empty ordered track."
           :code $ quote $ defn last-keyframe (frames)
@@ -3060,6 +3155,61 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarKeyframe)
             :args $ [] $ :: 'List 'quamolit.motion/ScalarKeyframe
+        'linear-to-srgb $ %{} 'CodeEntry
+          :doc "|Encode a normalized linear-light channel to sRGB."
+          :code $ quote $ defn linear-to-srgb (channel)
+            assert |invalid-linear-channel $ unit-channel? channel
+            let
+                result $ if (<= channel 0.0031308) (* 12.92 channel)
+                  -
+                    * 1.055 $ pow channel $ / 1 2.4
+                    , 0.055
+              assert |invalid-encoded-srgb $ unit-channel? result
+              , result
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'sample-color $ %{} 'CodeEntry
+          :doc "|Sample a versioned color descriptor at arbitrary finite seconds."
+          :code $ quote $ defn sample-color (descriptor time)
+            assert |invalid-motion-time $ finite-number? time
+            assert |invalid-color-version $ finite-number? $ :version descriptor
+            assert |negative-color-version $ >= (:version descriptor) 0
+            match (:motion descriptor)
+              (:constant value)
+                do
+                  assert |invalid-color-constant $ valid-color? value
+                  , value
+              (:tween tween)
+                do
+                  assert |invalid-color-from $ valid-color? $ :from tween
+                  assert |invalid-color-to $ valid-color? $ :to tween
+                  let
+                      progress $ sample-tween
+                        ScalarTween :start (:start tween) :duration (:duration tween) :from 0 :to 1 :easing $ :easing tween
+                        , time
+                    interpolate-color (:from tween) (:to tween) progress
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
+            :args $ [] 'quamolit.motion/ColorDescriptor 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |arbitrary-time)
+            :code $ quote $ let
+                red $ ColorRgba :r 1 :g 0 :b 0 :a 0
+                blue $ ColorRgba :r 0 :g 0 :b 1 :a 1
+                tween $ ColorTween :start 0 :duration 1 :from red :to blue :easing $ Easing :linear
+                descriptor $ ColorDescriptor :id |color-test :version 1 :motion $ ColorMotion :tween tween
+                middle $ sample-color descriptor 0.5
+              is= (sample-color descriptor -1) red
+              is= (sample-color descriptor 1) blue
+              is= (:a middle) 0.5
+              assert |color-midpoint $ <
+                abs $ - (:r middle) 0.7353569830524495
+                , 0.000000000001
+              is= (sample-color descriptor 0) red
+              is-throws $ sample-color
+                ColorDescriptor :id |bad-duration :version 1 :motion $ ColorMotion :tween $ ColorTween :start 0 :duration -1 :from red :to blue :easing (Easing :linear)
+                , 0.5
+            :tags $ #{} :motion :unit
         'sample-scalar $ %{} 'CodeEntry
           :doc "|Sample a versioned scalar descriptor without reading previous frames."
           :code $ quote $ defn sample-scalar (descriptor time)
@@ -3336,6 +3486,32 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarTrackCursor)
             :args $ [] (:: 'List 'quamolit.motion/ScalarKeyframe) 'Number
+        'srgb-to-linear $ %{} 'CodeEntry (:doc "|Decode normalized sRGB channel to linear light.")
+          :code $ quote $ defn srgb-to-linear (channel)
+            assert |invalid-srgb-channel $ unit-channel? channel
+            if (<= channel 0.04045) (/ channel 12.92)
+              pow
+                / (+ channel 0.055) 1.055
+                , 2.4
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'unit-channel? $ %{} 'CodeEntry (:doc "|Finite normalized channel predicate.")
+          :code $ quote $ defn unit-channel? (value)
+            and (finite-number? value) (>= value 0) (<= value 1)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number
+        'valid-color? $ %{} 'CodeEntry (:doc "|Check all straight-alpha sRGB channels.")
+          :code $ quote $ defn valid-color? (color)
+            and
+              unit-channel? $ :r color
+              unit-channel? $ :g color
+              unit-channel? $ :b color
+              unit-channel? $ :a color
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/ColorRgba
         'validate-track $ %{} 'CodeEntry
           :doc "|Reject empty, unordered, or non-finite keyframes. Equal timestamps are valid."
           :code $ quote $ defn validate-track (track)
@@ -3998,6 +4174,35 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'sample-color-a-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-color-a-at (time)
+            :a $ sample-color-at time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'sample-color-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-color-at (time)
+            let
+                from $ ColorRgba :r 1 :g 0 :b 0 :a 0
+                to $ ColorRgba :r 0 :g 0 :b 1 :a 1
+                tween $ ColorTween :start 0 :duration 1 :from from :to to :easing $ Easing :linear
+                descriptor $ ColorDescriptor :id |transparent-red-to-blue :version 1 :motion $ ColorMotion :tween tween
+              sample-color descriptor time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
+            :args $ [] 'Number
+        'sample-color-b-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-color-b-at (time)
+            :b $ sample-color-at time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'sample-color-r-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-color-r-at (time)
+            :r $ sample-color-at time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
         'sample-keyframes-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sample-keyframes-at (time mode)
             let
@@ -4054,7 +4259,7 @@
             :args $ [] 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.motion-fixture
-          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop
+          :require $ quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)

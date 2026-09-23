@@ -6,7 +6,7 @@ const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 
 export default defineConfig({
   testDir: ".",
-  testMatch: ["motion.spec.mjs", "keyframes.spec.mjs"],
+  testMatch: ["motion.spec.mjs", "keyframes.spec.mjs", "color.spec.mjs"],
   workers: 1,
   retries: 0,
   timeout: 30_000,

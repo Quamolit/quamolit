@@ -8,8 +8,10 @@
 
 二维切片新增 `Vec2 { x, y }`、`Vec2Tween`、`Vec2Motion`、`Vec2Descriptor` 与 `sample-vec2`。两轴共用一个按标量规则采样的进度，因而起止、缓动和 `duration=0` 语义一致；坐标必须有限，端点是带类型的 `Vec2`，不能误传标量。它目前只处理常量和 tween，不宣称支持变换矩阵或颜色。架构 scaffold 见 `docs/architectures/motion-vec2.cirru`。
 
+颜色切片新增 `ColorRgba { r, g, b, a }`、`ColorTween`、`ColorMotion`、`ColorDescriptor` 与 `sample-color`。输入是 `[0,1]` 内的直通道 sRGB 与 alpha；RGB 解码到线性 sRGB 插值后重新编码，alpha 独立线性插值。恰在两端返回原始颜色，透明端点的隐藏 RGB 仍可继续参与渐变。无效通道、版本、时间或时长报错。`test/color.html` 用 Canvas 合成到白底并读取像素，验证的是 CPU 数值与浏览器适配，不代表 Canvas2D 或 WebGPU 渲染后端已经完成。架构 scaffold 见 `docs/architectures/motion-color.cirru`。
+
 关键帧切片新增 `ScalarKeyframe { at, value, easing }`、带类型列表的 `ScalarTrack { frames, loop }`，并成为 `ScalarMotion :keyframes` 分支。`sample-track` 是纯 CPU 参考：列表必须非空、按时间非降序、时间和值有限；相邻帧使用左帧的 easing。重复时间合法，恰在该时间取最后一帧，之后从它开始下一段。clamp 在边界外保留首尾值；repeat 使用半开区间 `[begin,end)`，恰在 end 回到 begin；mirror 在 end 折返，到 `begin + 2 * duration` 回到 begin。负时间按同一周期数学映射；首尾时间相同的零跨度轨道取最后一帧。当前每次采样都扫描验证列表，复杂度 O(n)，用于正确性参考，不是后续保留执行计划的性能实现。架构 scaffold 见 `docs/architectures/motion-keyframes.cirru`。
 
-运行 `yarn test:motion`，再运行 `yarn test:motion-browser`。后者需安装锁定的 Chromium；CI 使用 Node 24。浏览器测试检查二维位置及关键帧轨迹的乱序、倒退、重复采样和页面重载，失败时非零退出。手工检查可打开 `/test/motion.html?time=0.5` 与 [关键帧页面](../test/keyframes.html)；即使时间倒退也不依赖累积状态。
+运行 `yarn test:motion`，再运行 `yarn test:motion-browser`。后者需安装锁定的 Chromium；CI 使用 Node 24。浏览器测试检查二维位置、关键帧轨迹和颜色渐变的乱序、倒退、重复采样及页面重载，失败时非零退出。手工检查可打开 `/test/motion.html?time=0.5`、[关键帧页面](../test/keyframes.html) 与 [颜色页面](../test/color.html)；即使时间倒退也不依赖累积状态。
 
 尚未实现：颜色和线性 sRGB 语义、动画节点的有界组合、自定义曲线注册、组件绑定、目标切换和打断、固定步长模拟、资源生命周期、GPU lowering。此切片的 Canvas 画面与 CPU 数值通过，不可据此关闭 #48 或声称生产场景性能达标。
