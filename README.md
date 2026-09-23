@@ -10,6 +10,7 @@ Quamolit 是用 Calcit 编写的声明式 Canvas 动画库。组件描述画面�
 
 M0 的[三类可运行参考场景](test/m0/README.md)可独立打开，用于后续后端的相同输入与画面对照。
 固定 Chromium 截图回归运行 `yarn test:visual`；浏览器安装、快照容差和基线更新方式见该场景文档。
+性能参考基准运行 `yarn bench --help` 查看参数；[M0 基线](docs/performance-m0.md)记录了实测环境、三次运行的离散程度及当前不可测的 GPU 指标。
 
 ```sh
 corepack enable
@@ -43,6 +44,7 @@ The current implementation plan is [roadmap v2](docs/roadmap.md), with
 in Chinese. It separates direct time sampling from stateful simulation and
 brings batching, benchmarks, and WebGPU into the early architecture work.
 Performance figures are validation targets, not measured claims.
+The [M0 benchmark record](docs/performance-m0.md) documents a measured Canvas2D reference workload, its environment, and unavailable GPU metrics.
 
 The staged vNext API and rendering contract is documented in
 [docs/vnext-design.md](docs/vnext-design.md). It is a draft; the API described

@@ -29,3 +29,11 @@ UI 夹具的默认输入记录：0.15 秒进入 `detail-card`，0.65 秒将运�
 更新基线时在相同 Playwright/Chromium/系统版本运行 `yarn compile:visual` 和 `yarn playwright test --config test/m0/playwright.config.mjs --update-snapshots`，人工审查 before、after 和 diff 后提交图片及原因。普通 `yarn test:visual` 设置 `updateSnapshots: none`，不会自动接受新画面。失败的 `test-results/visual/` 包含 actual/expected/diff 和请求及实际 manifest；Actions 自动上传这些文件及 HTML 报告。`QUAMOLIT_VISUAL_MUTATION=color yarn test:visual` 用于负例验证，应以非零退出并产生差异图；不要把变异条件加入正常基线。
 
 云端证据：[正常 PR 运行 #35888862214](https://github.com/Quamolit/quamolit/actions/runs/35888862214) 全部通过；[改色负例 #35888993300](https://github.com/Quamolit/quamolit/actions/runs/35888993300) 只有 `ui-middle` 失败，识别 1155 个差异像素。已下载检查该次失败 artifact，包含实际图、期望图、差异图、请求输入及实际 manifest。
+
+## 性能基准（#39）
+
+先运行 `yarn playwright install chromium`，再从项目根目录执行 `yarn bench --fixture ui-transition --warmup 5 --duration 30 --runs 3`。`yarn bench --help` 列出全部选项。`instances` 场景用 `--count 1000|10000|100000` 指定档位；后端目前仅支持 `canvas2d`，传入 `webgpu` 会明确失败，不会冒充已测试。`--seed`、`--dpr`、`--power`、`--gpu` 和 `--out` 可固定输入与报告目录；无法确认的供电/GPU 应保留 `unknown`。默认输出在忽略的 `test-results/bench/`，每次运行独立创建浏览器 context，生成 `report.json` 与 `run-1.json` 等原始逐帧样本。输出目录由调用者自行选择，请勿让两条并行命令写同一目录。
+
+每次记录页面加载、首帧、约 1 秒空闲 rAF 校准、5 秒预热、30 秒采样。逐帧 `sampleMs` 是参考模型求值耗时，`canvasCallMs` 是调用 Canvas2D 绘制的主线程耗时，`cpuFrameMs` 是两者总和；它们都**不是** GPU 执行或实际呈现延迟。`rafIntervalMs` 仅作为浏览器帧节奏代理；`longIntervalFraction` 用空闲 rAF 间隔中位数的 1.5 倍作为诊断阈值，避免重负载自身重新定义“刷新周期”。它仍不证明显示器物理刷新率或真实掉帧。GPU timestamp、实际上传字节、驱动 draw call、逐帧分配、live 资源与输入到可见帧延迟当前不可测，在报告中明确标为 unavailable。画面正确性由独立的 `yarn test:visual` 检验。
+
+只有同一 fixture、count、seed、DPR、后端、浏览器版本、操作系统架构与供电说明，且双方至少 3 次运行，才能使用 `--baseline <report.json>` 比较。CPU 帧耗时的各次 p95 中位数同时增加超过 10% 和 0.5ms 时，命令以非零退出；这提示人工复测并解释，不能把共享 CI 的吞吐当成硬件性能门禁。CI 只做 0.2/0.6 秒的短时浏览器烟测与报告上传，不能视作正式基线。正式基线和目标记录在 [M0 性能基线](../../docs/performance-m0.md)。
