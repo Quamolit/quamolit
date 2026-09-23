@@ -9,6 +9,7 @@ Quamolit 是用 Calcit 编写的声明式 Canvas 动画库。组件描述画面�
 当前 vNext 迁移仍在进行中：[设计草案](docs/vnext-design.md) 说明目标 API 与渲染边界，[确定性帧测试](test/README.md) 说明固定时间截图的使用方式。要在本地编译和运行，需要 Calcit 0.19.1 与 Node.js 24：
 
 M0 的[三类可运行参考场景](test/m0/README.md)可独立打开，用于后续后端的相同输入与画面对照。
+固定 Chromium 截图回归运行 `yarn test:visual`；浏览器安装、快照容差和基线更新方式见该场景文档。
 
 ```sh
 corepack enable

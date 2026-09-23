@@ -113,6 +113,15 @@ function textPath(ctx, model) {
   ctx.beginPath();
   ctx.arc(319, 216 + lift * 0.28, 17, 0, Math.PI * 2);
   ctx.fill();
+  ctx.save();
+  ctx.translate(525, 278);
+  ctx.rotate(Math.sin(model.pathPhase) * 0.3);
+  const gradient = ctx.createLinearGradient(-60, 0, 60, 0);
+  gradient.addColorStop(0, "#18a999");
+  gradient.addColorStop(1, "#efaa38");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(-60, -12, 120, 24);
+  ctx.restore();
 }
 
 export function renderCanvas(ctx, manifest, model) {

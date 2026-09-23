@@ -1,0 +1,56 @@
+name: Visual regression
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+  workflow_dispatch:
+    inputs:
+      mutation:
+        description: "仅供验证失败 artifact：在 UI 中间帧注入颜色错误"
+        required: false
+        default: none
+        type: choice
+        options:
+          - none
+          - color
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - run: corepack enable
+
+      - uses: calcit-lang/setup-calcit@v1
+        with:
+          tools: calcit,caps
+
+      - run: yarn install --immutable
+
+      - name: Install pinned Chromium and system dependencies
+        run: yarn playwright install --with-deps chromium
+
+      - name: Run fixed-time browser comparisons
+        run: yarn test:visual
+        env:
+          CI: "true"
+          QUAMOLIT_VISUAL_MUTATION: ${{ inputs.mutation == 'color' && 'color' || '' }}
+
+      - name: Upload actual, expected, diff and input manifest on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-visual-failure-${{ github.run_id }}
+          path: |
+            test-results/visual/
+            playwright-report/
+          if-no-files-found: error
+          retention-days: 14
