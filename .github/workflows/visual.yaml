@@ -50,6 +50,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check typed Motion GPU lowering contract
+        if: inputs.mutation != 'color'
+        run: yarn test:motion-gpu
+        env:
+          CI: "true"
+
       - name: Check fixed-step simulation and replay
         if: inputs.mutation != 'color'
         run: yarn test:simulation

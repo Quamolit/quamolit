@@ -4219,6 +4219,143 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.motion
           :require $ calcit.test :refer $ is= is-throws
+    'quamolit.motion-gpu $ %{} 'FileEntry
+      :defs $ {}
+        'GpuCompositionLowering $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum GpuCompositionLowering (:supported 'quamolit.motion-gpu/GpuCompositionPlan) (:unsupported 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'GpuCompositionPlan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct GpuCompositionPlan (:id 'String) (:version 'Number) (:left 'quamolit.motion-gpu/GpuScalarPlan) (:right 'quamolit.motion-gpu/GpuScalarPlan) (:operation 'quamolit.motion/ScalarComposeOp)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'GpuScalarKernel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum GpuScalarKernel (:constant 'Number) (:time 'Number 'Number) (:tween 'quamolit.motion/ScalarTween)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'GpuScalarLowering $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum GpuScalarLowering (:supported 'quamolit.motion-gpu/GpuScalarPlan) (:unsupported 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'GpuScalarPlan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct GpuScalarPlan (:id 'String) (:version 'Number) (:kernel 'quamolit.motion-gpu/GpuScalarKernel)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'lower-composition $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn lower-composition (composition)
+            do (motion/sample-scalar-composition composition 0)
+              let
+                  left $ lower-scalar $ :left composition
+                  right $ lower-scalar $ :right composition
+                match left
+                  (:unsupported reason) (GpuCompositionLowering :unsupported reason)
+                  (:supported left-plan)
+                    match right
+                      (:unsupported reason) (GpuCompositionLowering :unsupported reason)
+                      (:supported right-plan)
+                        GpuCompositionLowering :supported $ GpuCompositionPlan :id (:id composition) :version (:version composition) :left left-plan :right right-plan :operation $ :operation composition
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuCompositionLowering)
+            :args $ [] 'quamolit.motion/ScalarComposition
+          :tests $ []
+            %{} 'TestEntry (:name |bounded-two-inputs)
+              :code $ quote $ let
+                  left $ motion/ScalarDescriptor :id |left :version 1 :motion $ motion/ScalarMotion :constant 10
+                  right $ motion/ScalarDescriptor :id |right :version 1 :motion $ motion/ScalarMotion :constant 20
+                  composition $ motion/ScalarComposition :id |mix :version 2 :left left :right right :operation $ motion/ScalarComposeOp :mix 0.25
+                is=
+                  GpuCompositionLowering :supported $ GpuCompositionPlan :id |mix :version 2 :left
+                    GpuScalarPlan :id |left :version 1 :kernel $ GpuScalarKernel :constant 10
+                    , :right
+                      GpuScalarPlan :id |right :version 1 :kernel $ GpuScalarKernel :constant 20
+                      , :operation $ motion/ScalarComposeOp :mix 0.25
+                  lower-composition composition
+                is= 12.5 $ motion/sample-scalar-composition composition 0
+              :tags $ #{} :motion-gpu :unit
+            %{} 'TestEntry (:name |unsupported-leaf-and-invalid-mix)
+              :code $ quote $ let
+                  track $ motion/ScalarTrack :frames
+                    [] $ motion/ScalarKeyframe :at 0 :value 10 :easing $ motion/Easing :linear
+                    , :loop $ motion/TrackLoop :clamp
+                  left $ motion/ScalarDescriptor :id |left :version 1 :motion $ motion/ScalarMotion :keyframes track
+                  right $ motion/ScalarDescriptor :id |right :version 1 :motion $ motion/ScalarMotion :constant 20
+                  composition $ motion/ScalarComposition :id |sum :version 1 :left left :right right :operation $ motion/ScalarComposeOp :add
+                  invalid $ motion/ScalarComposition :id |bad :version 1 :left right :right right :operation $ motion/ScalarComposeOp :mix 2
+                is= (GpuCompositionLowering :unsupported |keyframes-require-a-bounded-gpu-table) (lower-composition composition)
+                is-throws $ lower-composition invalid
+              :tags $ #{} :motion-gpu :unit
+        'lower-cpu-scalar $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn lower-cpu-scalar (descriptor)
+            do
+              assert |invalid-cpu-motion-version $ motion/finite-number? $ :version descriptor
+              assert |negative-cpu-motion-version $ >= (:version descriptor) 0
+              match (:gpu-status descriptor)
+                (:unsupported reason)
+                  do
+                    assert |missing-cpu-gpu-diagnostic $ not $ empty? reason
+                    GpuScalarLowering :unsupported reason
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuScalarLowering)
+            :args $ [] 'quamolit.motion/CpuScalarDescriptor
+          :tests $ [] $ %{} 'TestEntry (:name |explicit-cpu-diagnostic)
+            :code $ quote $ let
+                descriptor $ motion/CpuScalarDescriptor :id |custom :version 1 :callback-id |ease :gpu-status $ motion/CpuGpuStatus :unsupported |runtime-callback
+                bad $ motion/CpuScalarDescriptor :id |bad :version -1 :callback-id |ease :gpu-status $ motion/CpuGpuStatus :unsupported |runtime-callback
+              is= (GpuScalarLowering :unsupported |runtime-callback) (lower-cpu-scalar descriptor)
+              is-throws $ lower-cpu-scalar bad
+            :tags $ #{} :motion-gpu :unit
+        'lower-scalar $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn lower-scalar (descriptor)
+            let
+                value $ motion/sample-scalar descriptor 0
+              match (:motion descriptor)
+                (:constant amount)
+                  GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :constant amount
+                (:time scale offset)
+                  GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :time scale offset
+                (:tween tween)
+                  do
+                    motion/sample-tween tween $ :start tween
+                    GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :tween tween
+                (:keyframes track) (GpuScalarLowering :unsupported |keyframes-require-a-bounded-gpu-table)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuScalarLowering)
+            :args $ [] 'quamolit.motion/ScalarDescriptor
+          :tests $ []
+            %{} 'TestEntry (:name |standard-kernels)
+              :code $ quote $ let
+                  fade $ motion/ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ motion/Easing :linear
+                  descriptor $ motion/ScalarDescriptor :id |fade :version 1 :motion $ motion/ScalarMotion :tween fade
+                  constant $ motion/ScalarDescriptor :id |constant :version 1 :motion $ motion/ScalarMotion :constant 7
+                  clock $ motion/ScalarDescriptor :id |clock :version 1 :motion $ motion/ScalarMotion :time 2 1
+                is=
+                  GpuScalarLowering :supported $ GpuScalarPlan :id |fade :version 1 :kernel $ GpuScalarKernel :tween fade
+                  lower-scalar descriptor
+                is=
+                  GpuScalarLowering :supported $ GpuScalarPlan :id |constant :version 1 :kernel $ GpuScalarKernel :constant 7
+                  lower-scalar constant
+                is=
+                  GpuScalarLowering :supported $ GpuScalarPlan :id |clock :version 1 :kernel $ GpuScalarKernel :time 2 1
+                  lower-scalar clock
+                is= 10 $ motion/sample-scalar descriptor 0
+                is= 12.5 $ motion/sample-scalar descriptor 0.25
+                is= 15 $ motion/sample-scalar descriptor 0.5
+                is= 20 $ motion/sample-scalar descriptor 1
+              :tags $ #{} :motion-gpu :unit
+            %{} 'TestEntry (:name |unsupported-and-invalid)
+              :code $ quote $ let
+                  track $ motion/ScalarTrack :frames
+                    [] $ motion/ScalarKeyframe :at 0 :value 10 :easing $ motion/Easing :linear
+                    , :loop $ motion/TrackLoop :clamp
+                  keyframes $ motion/ScalarDescriptor :id |track :version 1 :motion $ motion/ScalarMotion :keyframes track
+                  bad $ motion/ScalarDescriptor :id |bad :version -1 :motion $ motion/ScalarMotion :constant 7
+                is= (GpuScalarLowering :unsupported |keyframes-require-a-bounded-gpu-table) (lower-scalar keyframes)
+                is-throws $ lower-scalar bad
+              :tags $ #{} :motion-gpu :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.motion-gpu
+          :require (quamolit.motion :as motion)
+            calcit.test :refer $ is= is-throws
     'quamolit.presence $ %{} 'FileEntry
       :defs $ {}
         'PresenceItem $ %{} 'CodeEntry (:doc "|稳定 Scene 路径、保留展示数据、阶段和局部 alpha 意图。")
@@ -6274,6 +6411,15 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ []
+        'gpu-fade-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-fade-plan ()
+            let
+                tween $ ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
+                descriptor $ ScalarDescriptor :id |old-fade :version 1 :motion $ ScalarMotion :tween tween
+              motion-gpu/lower-scalar descriptor
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuScalarLowering)
+            :args $ []
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
             let
@@ -6590,6 +6736,7 @@
             quamolit.scene-binding :as scene-binding
             quamolit.transition :as transition
             quamolit.presence :as presence
+            quamolit.motion-gpu :as motion-gpu
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")
