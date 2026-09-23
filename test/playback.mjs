@@ -1,6 +1,6 @@
-import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
-import { start_clock as startClock, pause_clock as pauseClock, seek_clock as seekClock } from "../js-out/quamolit.host-clock.mjs";
-import { playback_frame_at as playbackFrameAt } from "../js-out/quamolit.test.playback-fixture.mjs";
+import { to_js_data as toJsData } from "../js-out-playback/calcit.core.mjs";
+import { start_clock as startClock, pause_clock as pauseClock, seek_clock as seekClock } from "../js-out-playback/quamolit.host-clock.mjs";
+import { playback_frame_at as playbackFrameAt } from "../js-out-playback/quamolit.test.playback-fixture.mjs";
 
 const canvas = document.querySelector("#playback");
 const context = canvas.getContext("2d", { willReadFrequently: true });

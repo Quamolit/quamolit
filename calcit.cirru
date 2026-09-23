@@ -6669,11 +6669,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
             :args $ [] 'quamolit.motion/TrackLoop
-        'main! $ %{} 'CodeEntry (:doc |)
+        'main! $ %{} 'CodeEntry (:doc "|Motion 浏览器入口同时校验 Scene 绑定夹具，确保编译产物包含页面所需的绑定函数。")
           :code $ quote $ defn main! ()
             let
                 tween $ ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
                 descriptor $ ScalarDescriptor :id |old-fade :version 1 :motion $ ScalarMotion :tween tween
+              assert |invalid-bound-scene-fixture $ scene-ir/validate-scene $ bound-scene-document-at 0
               [] (sample-scalar descriptor 1) (sample-scalar descriptor 0) (sample-scalar descriptor 0.5) (sample-scalar descriptor 0.25) (sample-scalar descriptor 1)
           :examples $ []
           :schema $ :: 'Fn $ {}
