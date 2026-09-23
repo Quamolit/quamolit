@@ -1,5 +1,5 @@
 import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
-import { scene_document_at as sceneDocumentAt, scene_delta_at as sceneDeltaAt } from "../js-out/quamolit.test.motion-fixture.mjs";
+import { bound_scene_document_at as boundSceneDocumentAt, scene_document_at as sceneDocumentAt, scene_delta_at as sceneDeltaAt } from "../js-out/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#scene");
 const context = canvas.getContext("2d", { willReadFrequently: true });
@@ -7,7 +7,11 @@ const status = document.querySelector("#status");
 
 function renderAt(time) {
   if (!Number.isFinite(time)) throw new Error("时间必须有限");
-  const wire = toJsData(sceneDocumentAt(time));
+  const wire = toJsData(boundSceneDocumentAt(time));
+  const reference = toJsData(sceneDocumentAt(time));
+  if (JSON.stringify(wire.nodes.map((node) => node.content)) !== JSON.stringify(reference.nodes.map((node) => node.content))) {
+    throw new Error("绑定采样与独立时间参考不一致");
+  }
   const delta = toJsData(sceneDeltaAt(0, time));
   if (delta.timeChanged !== undefined) throw new Error("Scene diff 序列化字段错误");
   if (delta["time-changed"] !== (time !== 0)) throw new Error("Scene diff 时间标记错误");
@@ -31,7 +35,7 @@ function renderAt(time) {
   const pixel = Array.from(context.getImageData(centerX, 50, 1, 1).data).join(",");
   if (pixel !== "234,88,12,255") throw new Error(`Scene IR 中间帧像素错误：${pixel}`);
   status.dataset.result = "pass";
-  status.textContent = `PASS · t=${time}s · rect-center=${centerX} · nodes=${wire.nodes.length} · instances=${instances.content[1].source.count} · pixel=${pixel}`;
+  status.textContent = `PASS · t=${time}s · rect-center=${centerX} · nodes=${wire.nodes.length} · instances=${instances.content[1].source.count} · pixel=${pixel} · bound=pass`;
   return { centerX, wire };
 }
 
