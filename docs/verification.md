@@ -20,6 +20,7 @@ yarn test:scene-binding
 yarn test:transition
 yarn test:presence
 yarn test:motion
+yarn test:motion-gpu
 yarn test:motion-browser
 yarn test:runtime
 yarn test:fixtures
