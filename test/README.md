@@ -6,7 +6,7 @@ delta drives `on-tick`; passing the same timestamp gives a zero delta and
 passing an earlier one raises. Use `sample-times` for inclusive sampling
 (for example `sample-times 0 1 4` yields 0, 0.25, 0.5, 0.75, 1).
 
-From the project directory, with Node.js 24 and Calcit 0.18.1:
+From the project directory, with Node.js 24 and Calcit 0.19.1:
 
 ```sh
 yarn test:clock
