@@ -6,4 +6,4 @@
 
 `yarn test:transition` 覆盖在 25%/50%/75% 打断的手算位置、重复打断、零时长、非法输入、事件重放和编译后 JS。`yarn test:motion-browser` 在 [独立页面](../test/transition.html) 绘制两次打断后的 Canvas 中间帧，核对像素、乱序跳转、刷新及完成后的停帧信号。架构约束见 [transition-interruption.cirru](architectures/transition-interruption.cirru)。
 
-这还不是 #49 的完整生命周期：enter/present/exit、同 key 重入、父级卸载、资源释放、指针捕获清理与 fade/可重排列表示例仍待实现；不能仅凭本切片关闭 #49。速度连续若需要，应另定义模式和导数条件，不能把这里的结果当成速度连续。
+Scene 层的 enter/present/exit、同 key 重入、父级卸载以及 fade/可重排列表示例已有 [CPU 参考实现](presence-lifecycle.md)。宿主资源释放、指针捕获清理及生产执行计划仍未完成，不能仅凭这两个切片关闭 #49。速度连续若需要，应另定义模式和导数条件，不能把这里的结果当成速度连续。

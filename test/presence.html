@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit 列表生命周期验证</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { display: block; border: 1px solid #94a3b8; margin: 16px 0; }
+      button { margin-right: 8px; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>重排、fade 与退出重入</h1>
+    <p>0.25s 加入橙色节点，0.5s 重排，0.75s 删除；可选 0.875s 同 key 重入。橙色退出时不再交互。</p>
+    <label><input id="reenter" type="checkbox" /> 退出途中重入</label>
+    <div id="times"></div>
+    <canvas id="frame" width="240" height="120"></canvas>
+    <output id="status">加载中…</output>
+    <script type="module" src="./presence.mjs"></script>
+  </body>
+</html>
