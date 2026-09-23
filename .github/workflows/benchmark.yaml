@@ -1,0 +1,51 @@
+name: Benchmark format
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "smoke 是格式检查；full 运行五个正式场景并上传原始样本"
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - full
+
+jobs:
+  bench-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn playwright install --with-deps chromium
+      - run: yarn test:fixtures
+      - run: yarn test:bench
+      - name: Browser smoke (not a hardware performance baseline)
+        if: inputs.mode != 'full'
+        run: yarn bench --fixture instances --count 1000 --warmup 0.2 --duration 0.6 --runs 3 --out test-results/bench-smoke
+      - name: Full reference workload (CI artifact, not hardware acceptance)
+        if: inputs.mode == 'full'
+        run: |
+          yarn bench --fixture ui-transition --out test-results/bench-ui
+          yarn bench --fixture instances --count 1000 --out test-results/bench-1k
+          yarn bench --fixture instances --count 10000 --out test-results/bench-10k
+          yarn bench --fixture instances --count 100000 --out test-results/bench-100k
+          yarn bench --fixture text-path --out test-results/bench-text
+      - name: Upload raw samples and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-bench-smoke-${{ github.run_id }}
+          path: test-results/bench-*/
+          if-no-files-found: warn
+          retention-days: 14
