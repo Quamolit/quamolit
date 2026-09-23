@@ -4721,6 +4721,399 @@
             js-ffi.browser :refer $ image-create image-src!
             calcit.test :refer $ is=
             quamolit.frame-eval :refer $ tick-tree
+    'quamolit.scene-diff $ %{} 'FileEntry
+      :defs $ {}
+        'DirtyFlags $ %{} 'CodeEntry
+          :doc "|Independent reference flags; execution plan chooses actual work later."
+          :code $ quote $ defstruct DirtyFlags (:reference 'Bool) (:order 'Bool) (:geometry 'Bool) (:resources 'Bool) (:properties 'Bool) (:bindings 'Bool) (:interaction 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'GeometrySignature $ %{} 'CodeEntry
+          :doc "|Closed geometry-only projection of supported Scene content."
+          :code $ quote $ defenum GeometrySignature (:group 'quamolit.scene-ir/Matrix2D 'quamolit.scene-ir/ClipSpec) (:rect 'Number 'Number 'Number 'Number) (:instances 'Number 'Number)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'IdentitySegment $ %{} 'CodeEntry
+          :doc "|One stable path segment uses sibling key and content kind, never buffer slot or temporary node ID."
+          :code $ quote $ defstruct IdentitySegment (:key 'String) (:kind 'String)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PropertySignature $ %{} 'CodeEntry
+          :doc "|Closed visual-property projection; separate from geometry and resource versions."
+          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ResourceSignature $ %{} 'CodeEntry
+          :doc "|Versioned external instance source, or none for non-resource nodes."
+          :code $ quote $ defenum ResourceSignature (:none) (:instances 'quamolit.scene-ir/InstanceSource)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'SceneChange $ %{} 'CodeEntry
+          :doc "|Add/remove or retained-node update; no host handle or mutable cache."
+          :code $ quote $ defenum SceneChange (:added 'quamolit.scene-diff/SceneEntry) (:removed 'quamolit.scene-diff/SceneEntry) (:updated 'quamolit.scene-diff/SceneEntry 'quamolit.scene-diff/DirtyFlags)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'SceneDelta $ %{} 'CodeEntry
+          :doc "|Logical changes plus an independent animation-time invalidation bit."
+          :code $ quote $ defstruct SceneDelta
+            :changes $ :: 'List 'quamolit.scene-diff/SceneChange
+            :time-changed 'Bool
+          :examples $ []
+          :schema $ :: 'StructDef
+        'SceneEntry $ %{} 'CodeEntry
+          :doc "|Indexed node with resolved logical path and sibling position."
+          :code $ quote $ defstruct SceneEntry
+            :path $ :: 'List 'quamolit.scene-diff/IdentitySegment
+            :sibling-index 'Number
+            :node 'quamolit.scene-ir/SceneNode
+          :examples $ []
+          :schema $ :: 'StructDef
+        'any-dirty? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn any-dirty? (flags)
+            or (:reference flags) (:order flags) (:geometry flags) (:resources flags) (:properties flags) (:bindings flags) (:interaction flags)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-diff/DirtyFlags
+        'collect-current $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn collect-current (remaining old-entries changes)
+            if (empty? remaining) changes $ let
+                entry $ first-entry remaining
+                next-changes $ if
+                  path-in? old-entries $ :path entry
+                  let
+                      old-entry $ entry-for-path old-entries $ :path entry
+                      flags $ dirty-flags old-entry entry
+                    if (any-dirty? flags)
+                      append changes $ SceneChange :updated entry flags
+                      , changes
+                  append changes $ SceneChange :added entry
+              recur (rest remaining) old-entries next-changes
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.scene-diff/SceneChange)
+            :return $ :: 'List 'quamolit.scene-diff/SceneChange
+        'collect-removed $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn collect-removed (remaining current-entries changes)
+            if (empty? remaining) changes $ let
+                entry $ first-entry remaining
+                next-changes $ if
+                  path-in? current-entries $ :path entry
+                  , changes $ append changes (SceneChange :removed entry)
+              recur (rest remaining) current-entries next-changes
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.scene-diff/SceneChange)
+            :return $ :: 'List 'quamolit.scene-diff/SceneChange
+        'count-siblings $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn count-siblings (entries parent-id seen)
+            if (empty? entries) seen $ recur (rest entries) parent-id $ if
+              = parent-id $ :parent $ :node (first-entry entries)
+              + seen 1
+              , seen
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) 'String 'Number
+        'diff-scene $ %{} 'CodeEntry
+          :doc "|Conservative O(n²) logical reference diff; time-only requests leave structural changes empty."
+          :code $ quote $ defn diff-scene (previous current previous-time current-time)
+            if
+              not $ and (finite-number? previous-time) (finite-number? current-time)
+              raise |invalid-scene-time
+              let
+                  old-entries $ index-scene previous
+                  new-entries $ index-scene current
+                  removed $ collect-removed old-entries new-entries $ empty-changes
+                  changes $ collect-current new-entries old-entries removed
+                SceneDelta :changes changes :time-changed $ not= previous-time current-time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/SceneDelta)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'quamolit.scene-ir/SceneDocument 'Number 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |reorder-keeps-identity)
+              :code $ quote $ let
+                  matrix $ scene-ir/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                  group-content $ scene-ir/SceneContent :group $ scene-ir/GroupNode :transform matrix :clip (scene-ir/ClipSpec :none) :opacity 1
+                  color $ ColorRgba :r 1 :g 0 :b 0 :a 1
+                  rect-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 10 :y 20 :width 16 :height 16 :fill color
+                  root $ scene-ir/SceneNode :id |root :parent | :key |root :content group-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  a $ scene-ir/SceneNode :id |a :parent |root :key |a :content rect-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  b $ scene-ir/SceneNode :id |b :parent |root :key |b :content rect-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  before $ scene-ir/SceneDocument :nodes $ [] root a b
+                  after $ scene-ir/SceneDocument :nodes $ [] root b a
+                  delta $ diff-scene before after 0 1
+                is= 2 $ count $ :changes delta
+                is= true $ :time-changed delta
+                is=
+                  map (:changes delta)
+                    fn (change)
+                      match change
+                        (:updated entry flags) (:order flags)
+                        _ false
+                  [] true true
+              :tags $ #{} :scene-diff :unit
+            %{} 'TestEntry (:name |classifications)
+              :code $ quote $ let
+                  matrix $ scene-ir/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                  group-content $ scene-ir/SceneContent :group $ scene-ir/GroupNode :transform matrix :clip (scene-ir/ClipSpec :none) :opacity 1
+                  red $ ColorRgba :r 1 :g 0 :b 0 :a 1
+                  blue $ ColorRgba :r 0 :g 0 :b 1 :a 1
+                  base-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 10 :y 20 :width 16 :height 16 :fill red
+                  geo-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 11 :y 20 :width 16 :height 16 :fill red
+                  prop-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 10 :y 20 :width 16 :height 16 :fill blue
+                  instance-content $ scene-ir/SceneContent :instances $ scene-ir/InstanceNode :source (scene-ir/InstanceSource :id |points :version 1 :count 2) :width 2 :height 2 :fill red
+                  version-content $ scene-ir/SceneContent :instances $ scene-ir/InstanceNode :source (scene-ir/InstanceSource :id |points :version 2 :count 2) :width 2 :height 2 :fill red
+                  root $ scene-ir/SceneNode :id |root :parent | :key |root :content group-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  base $ scene-ir/SceneNode :id |a :parent |root :key |a :content base-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  geo $ scene-ir/SceneNode :id |a :parent |root :key |a :content geo-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  prop $ scene-ir/SceneNode :id |a :parent |root :key |a :content prop-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  binding $ scene-ir/ScalarBinding :target (scene-ir/ScalarTarget :x) :motion-id |motion :version 1
+                  bound $ scene-ir/SceneNode :id |a :parent |root :key |a :content base-content :bindings ([] binding) :interaction $ scene-ir/SceneInteraction :none
+                  new-id $ scene-ir/SceneNode :id |a2 :parent |root :key |a :content base-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  instance $ scene-ir/SceneNode :id |a :parent |root :key |a :content instance-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  version $ scene-ir/SceneNode :id |a :parent |root :key |a :content version-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  base-doc $ scene-ir/SceneDocument :nodes $ [] root base
+                  geo-doc $ scene-ir/SceneDocument :nodes $ [] root geo
+                  prop-doc $ scene-ir/SceneDocument :nodes $ [] root prop
+                  bound-doc $ scene-ir/SceneDocument :nodes $ [] root bound
+                  id-doc $ scene-ir/SceneDocument :nodes $ [] root new-id
+                  instance-doc $ scene-ir/SceneDocument :nodes $ [] root instance
+                  version-doc $ scene-ir/SceneDocument :nodes $ [] root version
+                is= 0 $ count $ :changes (diff-scene base-doc base-doc 0 1)
+                is= true $ :time-changed $ diff-scene base-doc base-doc 0 1
+                is= ([] true)
+                  map
+                    :changes $ diff-scene base-doc geo-doc 0 0
+                    fn (change)
+                      match change
+                        (:updated entry flags) (:geometry flags)
+                        _ false
+                is= ([] true)
+                  map
+                    :changes $ diff-scene base-doc prop-doc 0 0
+                    fn (change)
+                      match change
+                        (:updated entry flags) (:properties flags)
+                        _ false
+                is= ([] true)
+                  map
+                    :changes $ diff-scene base-doc bound-doc 0 0
+                    fn (change)
+                      match change
+                        (:updated entry flags) (:bindings flags)
+                        _ false
+                is= ([] true)
+                  map
+                    :changes $ diff-scene base-doc id-doc 0 0
+                    fn (change)
+                      match change
+                        (:updated entry flags) (:reference flags)
+                        _ false
+                is= ([] true)
+                  map
+                    :changes $ diff-scene instance-doc version-doc 0 0
+                    fn (change)
+                      match change
+                        (:updated entry flags) (:resources flags)
+                        _ false
+                is= ([] |removed |added)
+                  map
+                    :changes $ diff-scene base-doc instance-doc 0 0
+                    fn (change)
+                      match change
+                        (:removed entry) |removed
+                        (:added entry) |added
+                        _ |wrong
+                is-throws $ diff-scene base-doc base-doc 0 $ / 0 0
+              :tags $ #{} :scene-diff :unit
+            %{} 'TestEntry (:name |reparent-add-remove)
+              :code $ quote $ let
+                  matrix $ scene-ir/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                  group-content $ scene-ir/SceneContent :group $ scene-ir/GroupNode :transform matrix :clip (scene-ir/ClipSpec :none) :opacity 1
+                  color $ ColorRgba :r 1 :g 0 :b 0 :a 1
+                  rect-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 0 :y 0 :width 2 :height 2 :fill color
+                  root $ scene-ir/SceneNode :id |root :parent | :key |root :content group-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  p $ scene-ir/SceneNode :id |p :parent |root :key |p :content group-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  q $ scene-ir/SceneNode :id |q :parent |root :key |q :content group-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  old-child $ scene-ir/SceneNode :id |child :parent |p :key |item :content rect-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  new-child $ scene-ir/SceneNode :id |child :parent |q :key |item :content rect-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  before $ scene-ir/SceneDocument :nodes $ [] root p q old-child
+                  after $ scene-ir/SceneDocument :nodes $ [] root p q new-child
+                  empty-doc $ scene-ir/SceneDocument :nodes $ [] root p q
+                is= ([] |removed |added)
+                  map
+                    :changes $ diff-scene before after 0 0
+                    fn (change)
+                      match change
+                        (:removed entry) |removed
+                        (:added entry) |added
+                        _ |updated
+                is= ([] |removed)
+                  map
+                    :changes $ diff-scene before empty-doc 0 0
+                    fn (change)
+                      match change
+                        (:removed entry) |removed
+                        (:added entry) |added
+                        _ |updated
+                is= ([] |added)
+                  map
+                    :changes $ diff-scene empty-doc before 0 0
+                    fn (change)
+                      match change
+                        (:removed entry) |removed
+                        (:added entry) |added
+                        _ |updated
+              :tags $ #{} :scene-diff :unit
+        'dirty-flags $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn dirty-flags (previous current)
+            let
+                old-node $ :node previous
+                new-node $ :node current
+                old-content $ :content old-node
+                new-content $ :content new-node
+              DirtyFlags :reference
+                or
+                  not= (:id old-node) (:id new-node)
+                  not= (:parent old-node) (:parent new-node)
+                , :order
+                  not= (:sibling-index previous) (:sibling-index current)
+                  , :geometry
+                    not= (geometry-signature old-content) (geometry-signature new-content)
+                    , :resources
+                      not= (resource-signature old-content) (resource-signature new-content)
+                      , :properties
+                        not= (property-signature old-content) (property-signature new-content)
+                        , :bindings
+                          not= (:bindings old-node) (:bindings new-node)
+                          , :interaction $ not= (:interaction old-node) (:interaction new-node)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/DirtyFlags)
+            :args $ [] 'quamolit.scene-diff/SceneEntry 'quamolit.scene-diff/SceneEntry
+        'empty-changes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-changes () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-diff/SceneChange
+        'empty-entries $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-entries () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-diff/SceneEntry
+        'empty-segments $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-segments () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-diff/IdentitySegment
+        'entry-for-path $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn entry-for-path (entries path)
+            if (empty? entries) (raise |missing-scene-path)
+              if
+                = path $ :path $ first-entry entries
+                first-entry entries
+                recur (rest entries) path
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/SceneEntry)
+            :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.scene-diff/IdentitySegment)
+        'first-entry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-entry (entries)
+            -> (first entries) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/SceneEntry)
+            :args $ [] $ :: 'List 'quamolit.scene-diff/SceneEntry
+        'geometry-signature $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn geometry-signature (content)
+            match content
+              (:group group)
+                GeometrySignature :group (:transform group) (:clip group)
+              (:rect rect)
+                GeometrySignature :rect (:x rect) (:y rect) (:width rect) (:height rect)
+              (:instances instances)
+                GeometrySignature :instances (:width instances) (:height instances)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/GeometrySignature)
+            :args $ [] 'quamolit.scene-ir/SceneContent
+        'index-prefix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn index-prefix (remaining entries)
+            if (empty? remaining) entries $ let
+                node $ scene-ir/first-node remaining
+                segment $ IdentitySegment :key (:key node) :kind $ scene-ir/content-kind (:content node)
+                path $ append
+                  parent-path entries $ :parent node
+                  , segment
+                position $ sibling-index entries $ :parent node
+                entry $ SceneEntry :path path :sibling-index position :node node
+              recur (rest remaining) (append entries entry)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) (:: 'List 'quamolit.scene-diff/SceneEntry)
+            :return $ :: 'List 'quamolit.scene-diff/SceneEntry
+        'index-scene $ %{} 'CodeEntry
+          :doc "|Validate and resolve stable paths from preorder parent IDs."
+          :code $ quote $ defn index-scene (document) (scene-ir/validate-scene document)
+            index-prefix (:nodes document) (empty-entries)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-ir/SceneDocument
+            :return $ :: 'List 'quamolit.scene-diff/SceneEntry
+        'parent-path $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn parent-path (entries parent-id)
+            if (empty? parent-id) (empty-segments)
+              if (empty? entries) (raise |missing-scene-parent)
+                let
+                    entry $ first-entry entries
+                  if
+                    =
+                      :id $ :node entry
+                      , parent-id
+                    :path entry
+                    recur (rest entries) parent-id
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) 'String
+            :return $ :: 'List 'quamolit.scene-diff/IdentitySegment
+        'path-in? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn path-in? (entries path)
+            if (empty? entries) false $ if
+              = path $ :path $ first-entry entries
+              , true $ recur (rest entries) path
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.scene-diff/IdentitySegment)
+        'property-signature $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn property-signature (content)
+            match content
+              (:group group)
+                PropertySignature :group $ :opacity group
+              (:rect rect)
+                PropertySignature :rect $ :fill rect
+              (:instances instances)
+                PropertySignature :instances $ :fill instances
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/PropertySignature)
+            :args $ [] 'quamolit.scene-ir/SceneContent
+        'resource-signature $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resource-signature (content)
+            match content
+              (:group group) (ResourceSignature :none)
+              (:rect rect) (ResourceSignature :none)
+              (:instances instances)
+                ResourceSignature :instances $ :source instances
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/ResourceSignature)
+            :args $ [] 'quamolit.scene-ir/SceneContent
+        'sibling-index $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sibling-index (entries parent-id) (count-siblings entries parent-id 0)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) 'String
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.scene-diff
+          :require (quamolit.scene-ir :as scene-ir)
+            quamolit.motion :refer $ finite-number? ColorRgba
+            calcit.test :refer $ is= is-throws
     'quamolit.scene-ir $ %{} 'FileEntry
       :defs $ {}
         'ClipRect $ %{} 'CodeEntry (:doc "|Group-local rectangular clip in CSS pixels.")
@@ -5332,6 +5725,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'scene-delta-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-delta-at (previous-time current-time)
+            scene-diff/diff-scene (scene-document-at previous-time) (scene-document-at current-time) previous-time current-time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/SceneDelta)
+            :args $ [] 'Number 'Number
         'scene-document-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scene-document-at (time)
             let
@@ -5358,6 +5757,7 @@
             quamolit.direct-frame :as direct-frame
             quamolit.host-clock :as host-clock
             quamolit.scene-ir :as scene-ir
+            quamolit.scene-diff :as scene-diff
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)

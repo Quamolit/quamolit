@@ -39,7 +39,9 @@ yarn bench
 
 `yarn test:host-clock` 验证 [宿主时间映射](host-clock.md) 的暂停、恢复、变速、倒放、seek、固定 dt tick、浮点边界与非法输入；`yarn test:motion-browser` 在 Canvas 上核对各时间点中间帧、像素与刷新。该切片不推进模拟状态，也不负责检查点与输入日志策略。
 
-`yarn test:scene-core` 验证 [Scene IR 核心切片](scene-ir-core.md) 的类型、构造/校验、重复 ID/兄弟 key、错误父级、非法数值/资源/绑定以及 JSON 往返；`yarn test:motion-browser` 额外验证 Scene IR 驱动的 Canvas 中间帧。该命令不等于下方拟议的完整 `yarn test:scene`，目前尚无变更集、保留执行计划或双后端验收。
+`yarn test:scene-core` 验证 [Scene IR 核心切片](scene-ir-core.md) 的类型、构造/校验、重复 ID/兄弟 key、错误父级、非法数值/资源/绑定以及 JSON 往返；`yarn test:motion-browser` 额外验证 Scene IR 驱动的 Canvas 中间帧。该命令不等于下方拟议的完整 `yarn test:scene`，目前尚无保留执行计划或双后端验收。
+
+`yarn test:scene-diff` 验证 [逻辑身份与参考差分](scene-diff.md) 的严格类型、变更分类、重排/重挂载、仅时间变化和 JS 序列化；`yarn test:motion-browser` 也会在 Chromium 校验 Scene diff 与 Canvas 中间帧一致。仍未实现 #50 保留执行计划和双后端验收。
 
 ## 待实现的统一命令
 

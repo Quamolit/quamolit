@@ -74,6 +74,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check logical Scene diff and dirty classifications
+        if: inputs.mutation != 'color'
+        run: yarn test:scene-diff
+        env:
+          CI: "true"
+
       - name: Upload actual, expected, diff and input manifest on failure
         if: failure()
         uses: actions/upload-artifact@v4
