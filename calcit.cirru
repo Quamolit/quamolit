@@ -6074,6 +6074,37 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number
+        'transition-active-at? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transition-active-at? (time)
+            transition/replay-active? (transition-initial) (transition-events) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number
+        'transition-events $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transition-events ()
+            let
+                easing $ Easing :linear
+                first-event $ transition/TransitionEvent :at 0.5 :to 40 :duration 0.5 :easing easing
+                second-event $ transition/TransitionEvent :at 0.75 :to 120 :duration 0.5 :easing easing
+              append
+                append (transition/empty-events) first-event
+                , second-event
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.transition/TransitionEvent
+        'transition-initial $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transition-initial ()
+            transition/start-transition |badge 80 120 0 1 $ Easing :linear
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.transition/TransitionIntent)
+            :args $ []
+        'transition-x-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transition-x-at (time)
+            transition/sample-replay (transition-initial) (transition-events) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.motion-fixture
           :require
@@ -6084,6 +6115,185 @@
             quamolit.scene-ir :as scene-ir
             quamolit.scene-diff :as scene-diff
             quamolit.scene-binding :as scene-binding
+            quamolit.transition :as transition
+    'quamolit.transition $ %{} 'FileEntry
+      :defs $ {}
+        'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")
+          :code $ quote $ defstruct TransitionEvent (:at 'Number) (:to 'Number) (:duration 'Number) (:easing 'quamolit.motion/Easing)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'TransitionIntent $ %{} 'CodeEntry (:doc "|组件 key 与显式 ScalarTween 意图；只保证位置连续的 CPU 过渡模型。")
+          :code $ quote $ defstruct TransitionIntent (:key 'String) (:tween 'quamolit.motion/ScalarTween)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'empty-events $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-events () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.transition/TransitionEvent
+        'first-event $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-event (events)
+            -> (first events) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.transition/TransitionEvent)
+            :args $ [] $ :: 'List 'quamolit.transition/TransitionEvent
+        'interrupt-transition $ %{} 'CodeEntry (:doc "|在打断时间采样旧意图，并以该值作为新意图的 from。")
+          :code $ quote $ defn interrupt-transition (intent to at duration easing)
+            if
+              < at $ :start $ :tween intent
+              raise |retroactive-transition-event
+              start-transition (:key intent) (sample-transition intent at) to at duration easing
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.transition/TransitionIntent)
+            :args $ [] 'quamolit.transition/TransitionIntent 'Number 'Number 'Number 'quamolit.motion/Easing
+          :tests $ [] $ %{} 'TestEntry (:name |interrupt-continuity-quarter-half-three-quarter)
+            :code $ quote $ let
+                easing $ motion/Easing :linear
+                initial $ start-transition |badge 0 100 0 1 easing
+                at-quarter $ interrupt-transition initial 200 0.25 1 easing
+                at-half $ interrupt-transition initial 200 0.5 1 easing
+                at-three-quarter $ interrupt-transition initial 200 0.75 1 easing
+                again $ interrupt-transition at-quarter -20 0.5 1 easing
+                instant $ interrupt-transition initial 20 0.5 0 easing
+              is= 25 $ sample-transition at-quarter 0.25
+              is= 50 $ sample-transition at-half 0.5
+              is= 75 $ sample-transition at-three-quarter 0.75
+              is= 68.75 $ sample-transition at-quarter 0.5
+              is= 87.5 $ sample-transition at-half 0.75
+              is= 106.25 $ sample-transition at-three-quarter 1
+              is= 68.75 $ sample-transition again 0.5
+              is= 46.5625 $ sample-transition again 0.75
+              is= 50 $ sample-transition instant 0.499
+              is= 20 $ sample-transition instant 0.5
+              is= true $ transition-active? initial 0.5
+              is= false $ transition-active? initial 1
+              is= false $ transition-active? instant 0.5
+            :tags $ #{} :transition :unit
+        'replay-active? $ %{} 'CodeEntry (:doc "|重放到给定时间后判断是否仍需连续过渡帧。")
+          :code $ quote $ defn replay-active? (initial events time)
+            do (replay-transition initial events)
+              transition-active? (replay-prefix-until initial events time) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.transition/TransitionIntent (:: 'List 'quamolit.transition/TransitionEvent) 'Number
+        'replay-prefix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn replay-prefix (intent events)
+            if (empty? events) intent $ let
+                event $ first-event events
+                next $ interrupt-transition intent (:to event) (:at event) (:duration event) (:easing event)
+              recur next $ rest events
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.transition/TransitionIntent)
+            :args $ [] 'quamolit.transition/TransitionIntent $ :: 'List 'quamolit.transition/TransitionEvent
+        'replay-prefix-until $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn replay-prefix-until (intent events time)
+            if (empty? events) intent $ let
+                event $ first-event events
+              if
+                > (:at event) time
+                , intent $ recur
+                  interrupt-transition intent (:to event) (:at event) (:duration event) (:easing event)
+                  rest events
+                  , time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.transition/TransitionIntent)
+            :args $ [] 'quamolit.transition/TransitionIntent (:: 'List 'quamolit.transition/TransitionEvent) 'Number
+        'replay-transition $ %{} 'CodeEntry (:doc "|按非降序事件序列重建最终过渡意图。")
+          :code $ quote $ defn replay-transition (initial events) (replay-prefix initial events)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.transition/TransitionIntent)
+            :args $ [] 'quamolit.transition/TransitionIntent $ :: 'List 'quamolit.transition/TransitionEvent
+          :tests $ [] $ %{} 'TestEntry (:name |fixed-events-and-invalid-input)
+            :code $ quote $ let
+                easing $ motion/Easing :linear
+                initial $ start-transition |badge 0 100 0 1 easing
+                first-event $ TransitionEvent :at 0.25 :to 200 :duration 1 :easing easing
+                second-event $ TransitionEvent :at 0.5 :to -20 :duration 1 :easing easing
+                third-event $ TransitionEvent :at 0.5 :to 40 :duration 1 :easing easing
+                events $ append
+                  append
+                    append (empty-events) first-event
+                    , second-event
+                  , third-event
+                final $ replay-transition initial events
+              is= 68.75 $ sample-transition final 0.5
+              is= 61.5625 $ sample-transition final 0.75
+              is= 40 $ sample-transition final 1.5
+              is= 61.5625 $ sample-transition (replay-transition initial events) 0.75
+              is-throws $ replay-transition initial $ append
+                append (empty-events) second-event
+                , first-event
+              is-throws $ interrupt-transition initial 20 -0.1 1 easing
+              is-throws $ interrupt-transition initial 20 0.5 -1 easing
+              is-throws $ interrupt-transition initial (/ 0 0) 0.5 1 easing
+            :tags $ #{} :transition :unit
+        'sample-replay $ %{} 'CodeEntry (:doc "|按固定事件序列在任意绝对时间重放并采样，不依赖上一次绘制帧。")
+          :code $ quote $ defn sample-replay (initial events time)
+            do (replay-transition initial events)
+              sample-transition (replay-prefix-until initial events time) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.transition/TransitionIntent (:: 'List 'quamolit.transition/TransitionEvent) 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |arbitrary-time-replay)
+            :code $ quote $ let
+                easing $ motion/Easing :linear
+                initial $ start-transition |badge 80 120 0 1 easing
+                event-a $ TransitionEvent :at 0.5 :to 40 :duration 0.5 :easing easing
+                event-b $ TransitionEvent :at 0.75 :to 120 :duration 0.5 :easing easing
+                events $ append
+                  append (empty-events) event-a
+                  , event-b
+              is= 80 $ sample-replay initial events 0
+              is= 90 $ sample-replay initial events 0.25
+              is= 100 $ sample-replay initial events 0.5
+              is= 85 $ sample-replay initial events 0.625
+              is= 70 $ sample-replay initial events 0.75
+              is= 95 $ sample-replay initial events 1
+              is= 120 $ sample-replay initial events 1.25
+              is= 90 $ sample-replay initial events 0.25
+              is= true $ replay-active? initial events 1
+              is= false $ replay-active? initial events 1.25
+              is-throws $ sample-replay initial events $ / 0 0
+            :tags $ #{} :transition :unit
+        'sample-transition $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-transition (intent time)
+            if
+              empty? $ :key intent
+              raise |empty-transition-key
+              motion/sample-tween (:tween intent) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.transition/TransitionIntent 'Number
+        'start-transition $ %{} 'CodeEntry (:doc "|构造带 key 的标量过渡意图并验证全部数值。")
+          :code $ quote $ defn start-transition (key from to start duration easing)
+            if (empty? key) (raise |empty-transition-key)
+              let
+                  tween $ motion/ScalarTween :start start :duration duration :from from :to to :easing easing
+                motion/sample-tween tween start
+                TransitionIntent :key key :tween tween
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.transition/TransitionIntent)
+            :args $ [] 'String 'Number 'Number 'Number 'Number 'quamolit.motion/Easing
+        'transition-active? $ %{} 'CodeEntry (:doc "|当前时间段是否需要连续请求过渡帧；终点后为 false。")
+          :code $ quote $ defn transition-active? (intent time)
+            let
+                tween $ :tween intent
+              if
+                not $ motion/finite-number? time
+                raise |invalid-transition-time
+                and
+                  not= (:from tween) (:to tween)
+                  > (:duration tween) 0
+                  >= time $ :start tween
+                  < time $ + (:start tween) (:duration tween)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.transition/TransitionIntent 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.transition
+          :require (quamolit.motion :as motion)
+            calcit.test :refer $ is= is-throws
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit 打断过渡重放验证</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { display: block; border: 1px solid #94a3b8; margin: 16px 0; }
+      button { margin-right: 8px; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>打断过渡与固定事件重放</h1>
+    <p>初始矩形从 80 移到 120；0.5s 改目标为 40，0.75s 再改为 120。可乱序查看绝对时间中间帧。</p>
+    <div id="times"></div>
+    <canvas id="frame" width="240" height="120"></canvas>
+    <output id="status">加载中…</output>
+    <script type="module" src="./transition.mjs"></script>
+  </body>
+</html>

@@ -19,6 +19,7 @@
 | `quamolit.scene-ir/SceneDocument`、`SceneNode`、`validate-scene` | 已实现的实验性可序列化核心切片；非生产绘制入口 | [Scene IR 核心](scene-ir-core.md)；group/rect/实例源、校验和 JSON 夹具；参考变更集见下行 |
 | `quamolit.scene-diff/index-scene`、`diff-scene`、`SceneDelta` | 已实现的逻辑身份与 O(n²) 参考差分；非生产调度器 | [Scene diff](scene-diff.md)；重排保身份、重挂载、分类和时间独立标记；#50 执行计划未完成 |
 | `quamolit.scene-binding/resolve-scene` | 已实现的绝对时间 CPU 标量绑定参考解析；非增量执行入口 | [Scene 绑定解析](scene-binding.md)；精确 ID/version、输出再校验、浏览器中间帧；#50 执行计划未完成 |
+| `quamolit.transition/start-transition`、`interrupt-transition`、`sample-replay` | 已实现的位置连续打断与固定事件重放 CPU 切片；非完整生命周期 | [打断过渡](transition-interruption.md)；25%/50%/75% 打断及浏览器帧；enter/exit 仍属 #49 |
 | 完整 Scene IR / 完整 Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；现有切片不持有 DOM/GPU 句柄 |
 | WebGPU/Canvas2D 双后端、资源表、命中索引 | 拟议、尚未实现 | #40/#33/#51/#34 |
 
@@ -46,7 +47,7 @@
 
 兄弟节点的显式 key 在同一父级作用域内唯一；逻辑身份由父级身份、key 和组件/节点类型共同确定。重排不改变身份；同一父级的重复 key 报可诊断错误；换父级或换类型视为旧节点退出、新节点进入。无 key 的静态单子节点可由实现给局部身份，但可重排列表必须提供稳定 key，不能用当前数组下标代替数据身份。逻辑 key 不等于 GPU buffer slot；后者可以压缩和重用，不改变用户可见生命周期。
 
-过渡 Model 保存 `from/to/start/duration/easing` 等意图。目标在 `t=0.5` 打断时，先按旧意图取 `t=0.5` 的当前值，作为新过渡 `from`，以保证位置连续；速度连续是另一个需明确声明的模式，不能混称。删除节点进入 `exit`，保留其展示数据直到退出结束再释放资源；同 key 重入、父级卸载与重复退出只执行一次的细则由 #49 落实。现有 fade 缓存的 `0.01` 残留 opacity 不应成为新生命周期合同。
+过渡 Model 保存 `from/to/start/duration/easing` 等意图。目标在 `t=0.5` 打断时，先按旧意图取 `t=0.5` 的当前值，作为新过渡 `from`，以保证位置连续；[CPU 参考切片](transition-interruption.md)已实现并由浏览器验证。速度连续是另一个需明确声明的模式，不能混称。删除节点进入 `exit`，保留其展示数据直到退出结束再释放资源；同 key 重入、父级卸载与重复退出只执行一次的细则仍由 #49 落实。现有 fade 缓存的 `0.01` 残留 opacity 不应成为新生命周期合同。
 
 标准 Motion 描述是可检查、可序列化的数据，后端可识别其中明确的 GPU 子集。任意 Calcit 纯函数只能经注册的 CPU 扩展点求值，并显式声明输入依赖、输出类型与失败行为；它不能自动转成 WGSL，也不能塞入需要序列化的 Scene IR。普通组件无需了解 GPU；大量同类数据可用一个 `instances` 逻辑图层表达，数据源通过版本化引用或显式脏范围更新。
 
