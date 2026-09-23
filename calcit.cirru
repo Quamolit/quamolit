@@ -4219,6 +4219,418 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.motion
           :require $ calcit.test :refer $ is= is-throws
+    'quamolit.presence $ %{} 'FileEntry
+      :defs $ {}
+        'PresenceItem $ %{} 'CodeEntry (:doc "|稳定 Scene 路径、保留展示数据、阶段和局部 alpha 意图。")
+          :code $ quote $ defstruct PresenceItem (:entry 'quamolit.scene-diff/SceneEntry) (:phase 'quamolit.presence/PresencePhase) (:alpha 'quamolit.motion/ScalarTween)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PresenceModel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceModel
+            :items $ :: 'List 'quamolit.presence/PresenceItem
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PresencePhase $ %{} 'CodeEntry (:doc "|Scene 逻辑实例的进入、稳定展示与退出阶段。")
+          :code $ quote $ defenum PresencePhase (:enter) (:present) (:exit)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'PresenceSample $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceSample (:entry 'quamolit.scene-diff/SceneEntry) (:alpha 'Number) (:interactive 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PresenceUpdate $ %{} 'CodeEntry (:doc "|返回新纯模型与恰好一次的逻辑释放通知，不持有宿主句柄。")
+          :code $ quote $ defstruct PresenceUpdate (:model 'quamolit.presence/PresenceModel)
+            :released $ :: 'List 'quamolit.scene-diff/SceneEntry
+          :examples $ []
+          :schema $ :: 'StructDef
+        'alpha-active? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn alpha-active? (item time)
+            let
+                tween $ :alpha item
+              and
+                not= (:from tween) (:to tween)
+                > (:duration tween) 0
+                >= time $ :start tween
+                < time $ + (:start tween) (:duration tween)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.presence/PresenceItem 'Number
+        'alpha-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn alpha-at (item time)
+            motion/sample-tween (:alpha item) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.presence/PresenceItem 'Number
+        'alpha-finished? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn alpha-finished? (item time)
+            let
+                tween $ :alpha item
+              >= time $ + (:start tween) (:duration tween)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.presence/PresenceItem 'Number
+        'alpha-tween $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn alpha-tween (from to start duration easing)
+            let
+                tween $ motion/ScalarTween :from from :to to :start start :duration duration :easing easing
+              motion/sample-tween tween start
+              , tween
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarTween)
+            :args $ [] 'Number 'Number 'Number 'Number 'quamolit.motion/Easing
+        'append-exits $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn append-exits (remaining desired items time duration easing)
+            if (empty? remaining) items $ let
+                item $ first-item remaining
+                next $ if
+                  path-in-entries? desired $ :path $ :entry item
+                  , items $ append items (exit-item item time duration easing)
+              recur (rest remaining) desired next time duration easing
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.presence/PresenceItem) (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.presence/PresenceItem) 'Number 'Number 'quamolit.motion/Easing
+            :return $ :: 'List 'quamolit.presence/PresenceItem
+        'desired-prefix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn desired-prefix (remaining earlier items time duration easing)
+            if (empty? remaining) items $ let
+                entry $ first-entry remaining
+                path $ :path entry
+                next $ if (path-in-items? earlier path)
+                  let
+                      old $ item-for-path earlier path
+                    if
+                      = (:phase old) (PresencePhase :exit)
+                      revive-item old entry time duration easing
+                      retain-item old entry
+                  make-enter entry time duration easing
+              recur (rest remaining) earlier (append items next) time duration easing
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.presence/PresenceItem) (:: 'List 'quamolit.presence/PresenceItem) 'Number 'Number 'quamolit.motion/Easing
+            :return $ :: 'List 'quamolit.presence/PresenceItem
+        'empty-items $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-items () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.presence/PresenceItem
+        'empty-released $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-released () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-diff/SceneEntry
+        'empty-samples $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-samples () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.presence/PresenceSample
+        'exit-item $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn exit-item (item time duration easing)
+            if
+              = (:phase item) (PresencePhase :exit)
+              , item $ PresenceItem :entry (:entry item) :phase (PresencePhase :exit) :alpha $ alpha-tween (alpha-at item time) 0 time duration easing
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceItem)
+            :args $ [] 'quamolit.presence/PresenceItem 'Number 'Number 'quamolit.motion/Easing
+        'first-entry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-entry (entries)
+            -> (first entries) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/SceneEntry)
+            :args $ [] $ :: 'List 'quamolit.scene-diff/SceneEntry
+        'first-item $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-item (items)
+            -> (first items) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceItem)
+            :args $ [] $ :: 'List 'quamolit.presence/PresenceItem
+        'initialize-items $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initialize-items (entries items)
+            if (empty? entries) items $ recur (rest entries)
+              append items $ make-present $ first-entry entries
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.presence/PresenceItem)
+            :return $ :: 'List 'quamolit.presence/PresenceItem
+        'item-for-path $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn item-for-path (items path)
+            if (empty? items) (raise |missing-presence-path)
+              let
+                  item $ first-item items
+                if
+                  = path $ :path $ :entry item
+                  , item $ recur (rest items) path
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceItem)
+            :args $ [] (:: 'List 'quamolit.presence/PresenceItem) (:: 'List 'quamolit.scene-diff/IdentitySegment)
+        'make-enter $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-enter (entry time duration easing)
+            PresenceItem :entry entry :phase (PresencePhase :enter) :alpha $ alpha-tween 0 1 time duration easing
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceItem)
+            :args $ [] 'quamolit.scene-diff/SceneEntry 'Number 'Number 'quamolit.motion/Easing
+        'make-present $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-present (entry)
+            PresenceItem :entry entry :phase (PresencePhase :present) :alpha $ alpha-tween 1 1 0 0 $ motion/Easing :linear
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceItem)
+            :args $ [] 'quamolit.scene-diff/SceneEntry
+        'needs-frame-prefix? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn needs-frame-prefix? (items time)
+            if (empty? items) false $ if
+              or
+                alpha-active? (first-item items) time
+                not=
+                  :phase $ first-item items
+                  PresencePhase :present
+              , true $ recur (rest items) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.presence/PresenceItem) 'Number
+        'path-in-entries? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn path-in-entries? (entries path)
+            if (empty? entries) false $ if
+              = path $ :path $ first-entry entries
+              , true $ recur (rest entries) path
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.scene-diff/IdentitySegment)
+        'path-in-items? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn path-in-items? (items path)
+            if (empty? items) false $ if
+              = path $ :path $ :entry (first-item items)
+              , true $ recur (rest items) path
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.presence/PresenceItem) (:: 'List 'quamolit.scene-diff/IdentitySegment)
+        'presence-needs-frame? $ %{} 'CodeEntry (:doc "|活跃或尚待终点结算的生命周期需要后续帧；结算后停止。")
+          :code $ quote $ defn presence-needs-frame? (model time)
+            if
+              not $ motion/finite-number? time
+              raise |invalid-presence-time
+              needs-frame-prefix? (:items model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.presence/PresenceModel 'Number
+        'reconcile-presence $ %{} 'CodeEntry (:doc "|按稳定路径协调声明：重排复用，退出保留，重入取消退出，换父/类型重挂载。")
+          :code $ quote $ defn reconcile-presence (model document time duration easing)
+            if
+              not $ and (motion/finite-number? time) (motion/finite-number? duration) (>= duration 0)
+              raise |invalid-presence-reconcile-time
+              let
+                  desired $ scene-diff/index-scene document
+                  settled $ settle-presence model time
+                  earlier $ :items $ :model settled
+                  retained $ desired-prefix desired earlier (empty-items) time duration easing
+                  items $ append-exits earlier desired retained time duration easing
+                PresenceUpdate :model (PresenceModel :items items) :released $ :released settled
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
+            :args $ [] 'quamolit.presence/PresenceModel 'quamolit.scene-ir/SceneDocument 'Number 'Number 'quamolit.motion/Easing
+          :tests $ []
+            %{} 'TestEntry (:name |reorder-exit-reentry-remount-parent)
+              :code $ quote $ let
+                  matrix $ scene-ir/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                  color $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+                  group-content $ scene-ir/SceneContent :group $ scene-ir/GroupNode :transform matrix :clip (scene-ir/ClipSpec :none) :opacity 1
+                  rect-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 10 :y 20 :width 16 :height 16 :fill color
+                  instance-content $ scene-ir/SceneContent :instances $ scene-ir/InstanceNode :source (scene-ir/InstanceSource :id |points :version 1 :count 10000) :width 2 :height 2 :fill color
+                  root $ scene-ir/SceneNode :id |root :parent | :key |root :content group-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  a $ scene-ir/SceneNode :id |a :parent |root :key |a :content rect-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :target |a-click
+                  b $ scene-ir/SceneNode :id |b :parent |root :key |b :content rect-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :target |b-click
+                  a-instance $ scene-ir/SceneNode :id |a-new :parent |root :key |a :content instance-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  full $ scene-ir/SceneDocument :nodes $ [] root a b
+                  reordered $ scene-ir/SceneDocument :nodes $ [] root b a
+                  b-only $ scene-ir/SceneDocument :nodes $ [] root b
+                  type-changed $ scene-ir/SceneDocument :nodes $ [] root b a-instance
+                  empty-doc $ scene-ir/SceneDocument :nodes $ []
+                  easing $ motion/Easing :linear
+                  initial $ start-presence full
+                  reorder-update $ reconcile-presence initial reordered 0 1 easing
+                  exit-update $ reconcile-presence initial b-only 0.5 1 easing
+                  reenter-update $ reconcile-presence (:model exit-update) full 0.75 1 easing
+                  settled $ settle-presence (:model exit-update) 1.5
+                  settled-again $ settle-presence (:model settled) 2
+                  type-update $ reconcile-presence initial type-changed 0.5 1 easing
+                  parent-exit $ reconcile-presence initial empty-doc 0.5 1 easing
+                  parent-done $ settle-presence (:model parent-exit) 1.5
+                is= 3 $ count $ :items initial
+                is= ([] |root |b |a)
+                  map
+                    :items $ :model reorder-update
+                    fn (item)
+                      :id $ :node $ :entry item
+                is=
+                  [] (PresencePhase :present) (PresencePhase :present) (PresencePhase :present)
+                  map
+                    :items $ :model reorder-update
+                    fn (item) (:phase item)
+                is= ([] 1 1 0.75)
+                  map
+                    sample-presence (:model exit-update) 0.75
+                    fn (sample) (:alpha sample)
+                is= ([] false true false)
+                  map
+                    sample-presence (:model exit-update) 0.75
+                    fn (sample) (:interactive sample)
+                is= 0 $ count $ :released reenter-update
+                is= ([] 1 0.75 1)
+                  map
+                    sample-presence (:model reenter-update) 0.75
+                    fn (sample) (:alpha sample)
+                is= 1 $ count $ :released settled
+                is= |a $ :id $ :node
+                  first-entry $ :released settled
+                is= 0 $ count $ :released settled-again
+                is= 2 $ count $ :items (:model settled)
+                is= 4 $ count $ :items (:model type-update)
+                is= 3 $ count $ :released parent-done
+                is= ([] |b |a |root)
+                  map (:released parent-done)
+                    fn (entry)
+                      :id $ :node entry
+                is= 0 $ count $ :items (:model parent-done)
+                is= false $ presence-needs-frame? (:model parent-done) 1.5
+              :tags $ #{} :presence :unit
+            %{} 'TestEntry (:name |one-hundred-instance-mount-cycles)
+              :code $ quote $ let
+                  matrix $ scene-ir/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                  color $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+                  group-content $ scene-ir/SceneContent :group $ scene-ir/GroupNode :transform matrix :clip (scene-ir/ClipSpec :none) :opacity 1
+                  instance-content $ scene-ir/SceneContent :instances $ scene-ir/InstanceNode :source (scene-ir/InstanceSource :id |batch :version 1 :count 10000) :width 2 :height 2 :fill color
+                  root $ scene-ir/SceneNode :id |root :parent | :key |root :content group-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  batch $ scene-ir/SceneNode :id |batch :parent |root :key |batch :content instance-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :target |tap
+                  duplicate $ scene-ir/SceneNode :id |other :parent |root :key |batch :content instance-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                  root-only $ scene-ir/SceneDocument :nodes $ [] root
+                  full $ scene-ir/SceneDocument :nodes $ [] root batch
+                  bad $ scene-ir/SceneDocument :nodes $ [] root batch duplicate
+                  easing $ motion/Easing :linear
+                  initial $ start-presence root-only
+                  result $ loop
+                      model initial
+                      iteration 0
+                      time 0
+                      released-total 0
+                    if (= iteration 100) released-total $ let
+                        enter $ reconcile-presence model full time 0.25 easing
+                        exit $ reconcile-presence (:model enter) root-only (+ time 1) 0.25 easing
+                        done $ settle-presence (:model exit) (+ time 2)
+                        released $ count $ :released done
+                      is= 1 released
+                      is= 1 $ count $ :items (:model done)
+                      recur (:model done) (+ iteration 1) (+ time 3) (+ released-total released)
+                is= 100 result
+                is-throws $ reconcile-presence initial bad 0 1 easing
+                is-throws $ reconcile-presence initial full (/ 0 0) 1 easing
+                is-throws $ reconcile-presence initial full 0 -1 easing
+              :tags $ #{} :presence :unit
+        'retain-item $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn retain-item (item entry)
+            PresenceItem :entry entry :phase (:phase item) :alpha $ :alpha item
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceItem)
+            :args $ [] 'quamolit.presence/PresenceItem 'quamolit.scene-diff/SceneEntry
+        'revive-item $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn revive-item (item entry time duration easing)
+            PresenceItem :entry entry :phase (PresencePhase :enter) :alpha $ alpha-tween (alpha-at item time) 1 time duration easing
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceItem)
+            :args $ [] 'quamolit.presence/PresenceItem 'quamolit.scene-diff/SceneEntry 'Number 'Number 'quamolit.motion/Easing
+        'sample-item $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-item (item time)
+            let
+                node $ :node $ :entry item
+                interactive $ if
+                  = (:phase item) (PresencePhase :exit)
+                  , false $ match (:interaction node)
+                    (:none) false
+                    (:target target) true
+              PresenceSample :entry (:entry item) :alpha (alpha-at item time) :interactive interactive
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceSample)
+            :args $ [] 'quamolit.presence/PresenceItem 'Number
+        'sample-prefix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-prefix (items samples time)
+            if (empty? items) samples $ recur (rest items)
+              append samples $ sample-item (first-item items) time
+              , time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.presence/PresenceItem) (:: 'List 'quamolit.presence/PresenceSample) 'Number
+            :return $ :: 'List 'quamolit.presence/PresenceSample
+        'sample-presence $ %{} 'CodeEntry (:doc "|在任意有限时间纯采样展示顺序、局部 alpha 与退出禁交互标记。")
+          :code $ quote $ defn sample-presence (model time)
+            if
+              not $ motion/finite-number? time
+              raise |invalid-presence-time
+              sample-prefix (:items model) (empty-samples) time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.presence/PresenceModel 'Number
+            :return $ :: 'List 'quamolit.presence/PresenceSample
+        'settle-prefix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn settle-prefix (remaining retained released time)
+            if (empty? remaining)
+              PresenceUpdate :model (PresenceModel :items retained) :released released
+              let
+                  item $ first-item remaining
+                  phase $ :phase item
+                if
+                  and
+                    = phase $ PresencePhase :exit
+                    alpha-finished? item time
+                  recur (rest remaining) retained
+                    prepend released $ :entry item
+                    , time
+                  if
+                    and
+                      = phase $ PresencePhase :enter
+                      alpha-finished? item time
+                    recur (rest remaining)
+                      append retained $ make-present $ :entry item
+                      , released time
+                    recur (rest remaining) (append retained item) released time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
+            :args $ [] (:: 'List 'quamolit.presence/PresenceItem) (:: 'List 'quamolit.presence/PresenceItem) (:: 'List 'quamolit.scene-diff/SceneEntry) 'Number
+        'settle-presence $ %{} 'CodeEntry (:doc "|在时间终点完成 enter/exit，移除退出项并按子先父后的顺序返回释放通知。")
+          :code $ quote $ defn settle-presence (model time)
+            if
+              not $ motion/finite-number? time
+              raise |invalid-presence-time
+              settle-prefix (:items model) (empty-items) (empty-released) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
+            :args $ [] 'quamolit.presence/PresenceModel 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |terminal-frame-and-once-release)
+            :code $ quote $ let
+                matrix $ scene-ir/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                group-content $ scene-ir/SceneContent :group $ scene-ir/GroupNode :transform matrix :clip (scene-ir/ClipSpec :none) :opacity 1
+                root $ scene-ir/SceneNode :id |root :parent | :key |root :content group-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                full $ scene-ir/SceneDocument :nodes $ [] root
+                empty-doc $ scene-ir/SceneDocument :nodes $ []
+                started $ start-presence full
+                exiting $ reconcile-presence started empty-doc 0 1 $ motion/Easing :linear
+                finished $ settle-presence (:model exiting) 1
+              is= true $ presence-needs-frame? (:model exiting) 0.5
+              is= true $ presence-needs-frame? (:model exiting) 1
+              is= false $ presence-needs-frame? (:model finished) 1
+              is= 1 $ count $ :released finished
+              is= 0 $ count $ :released
+                settle-presence (:model finished) 2
+            :tags $ #{} :presence :unit
+        'start-presence $ %{} 'CodeEntry (:doc "|从已验证 Scene 建立全部为 present 的初始逻辑实例。")
+          :code $ quote $ defn start-presence (document)
+            PresenceModel :items $ initialize-items (scene-diff/index-scene document) (empty-items)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ [] 'quamolit.scene-ir/SceneDocument
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.presence
+          :require (quamolit.scene-diff :as scene-diff) (quamolit.scene-ir :as scene-ir) (quamolit.motion :as motion)
+            calcit.test :refer $ is= is-throws
     'quamolit.render.element $ %{} 'FileEntry
       :defs $ {}
         'alpha $ %{} 'CodeEntry (:doc |)
@@ -5828,6 +6240,13 @@
             quamolit.frame-eval :refer $ initial-frame evaluate-at
     'quamolit.test.motion-fixture $ %{} 'FileEntry
       :defs $ {}
+        'PresenceFixtureFrame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceFixtureFrame
+            :samples $ :: 'List 'quamolit.presence/PresenceSample
+            :released $ :: 'List 'quamolit.scene-diff/SceneEntry
+            :needs-frame 'Bool
+          :examples $ []
+          :schema $ :: 'StructDef
         'bound-scene-document-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn bound-scene-document-at (time)
             let
@@ -5865,6 +6284,60 @@
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'Number
+        'presence-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-document (mode)
+            let
+                matrix $ scene-ir/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                group-content $ scene-ir/SceneContent :group $ scene-ir/GroupNode :transform matrix :clip (scene-ir/ClipSpec :none) :opacity 1
+                blue $ ColorRgba :r 0.11764705882352941 :g 0.5647058823529412 :b 1 :a 1
+                orange $ ColorRgba :r 0.9764705882352941 :g 0.45098039215686275 :b 0.08627450980392157 :a 1
+                b-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 80 :y 40 :width 48 :height 40 :fill blue
+                a-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 100 :y 40 :width 48 :height 40 :fill orange
+                root $ scene-ir/SceneNode :id |root :parent | :key |root :content group-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :none
+                b $ scene-ir/SceneNode :id |b :parent |root :key |b :content b-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :target |b-click
+                a $ scene-ir/SceneNode :id |a :parent |root :key |a :content a-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :target |a-click
+              if (= mode |base)
+                scene-ir/SceneDocument :nodes $ [] root b
+                if (= mode |full)
+                  scene-ir/SceneDocument :nodes $ [] root b a
+                  if (= mode |reordered)
+                    scene-ir/SceneDocument :nodes $ [] root a b
+                    raise |unknown-presence-scene
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'String
+        'presence-frame-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-frame-at (time reenter?)
+            let
+                result $ presence-update-at time reenter?
+                model $ :model result
+              PresenceFixtureFrame :samples (presence/sample-presence model time) :released (:released result) :needs-frame $ presence/presence-needs-frame? model time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.test.motion-fixture/PresenceFixtureFrame
+            :args $ [] 'Number 'Bool
+        'presence-update-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-update-at (time reenter?)
+            let
+                initial $ presence/start-presence $ presence-document |base
+                easing $ Easing :linear
+                entered $ if (>= time 0.25)
+                  :model $ presence/reconcile-presence initial (presence-document |full) 0.25 0.5 easing
+                  , initial
+                reordered $ if (>= time 0.5)
+                  :model $ presence/reconcile-presence entered (presence-document |reordered) 0.5 0.5 easing
+                  , entered
+                exiting $ if (>= time 0.75)
+                  :model $ presence/reconcile-presence reordered (presence-document |base) 0.75 0.5 easing
+                  , reordered
+                revived $ if
+                  and reenter? $ >= time 0.875
+                  :model $ presence/reconcile-presence exiting (presence-document |full) 0.875 0.5 easing
+                  , exiting
+              presence/settle-presence revived time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
+            :args $ [] 'Number 'Bool
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () &unit
           :examples $ []
@@ -6116,6 +6589,7 @@
             quamolit.scene-diff :as scene-diff
             quamolit.scene-binding :as scene-binding
             quamolit.transition :as transition
+            quamolit.presence :as presence
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")
