@@ -6,7 +6,7 @@ const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 
 export default defineConfig({
   testDir: ".",
-  testMatch: ["motion.spec.mjs", "keyframes.spec.mjs", "color.spec.mjs", "composition.spec.mjs", "custom.spec.mjs", "cpu-motion.spec.mjs", "replay-archive.spec.mjs", "simulation.spec.mjs", "direct.spec.mjs", "host-clock.spec.mjs", "playback.spec.mjs", "component.spec.mjs", "fade-migration.spec.mjs", "scene-core.spec.mjs", "instance-sources.spec.mjs", "transition.spec.mjs", "presence.spec.mjs", "presence-resources.spec.mjs"],
+  testMatch: ["motion.spec.mjs", "keyframes.spec.mjs", "color.spec.mjs", "composition.spec.mjs", "custom.spec.mjs", "cpu-motion.spec.mjs", "replay-archive.spec.mjs", "simulation.spec.mjs", "direct.spec.mjs", "host-clock.spec.mjs", "playback.spec.mjs", "component.spec.mjs", "fade-migration.spec.mjs", "scene-core.spec.mjs", "retained-scene.spec.mjs", "instance-sources.spec.mjs", "transition.spec.mjs", "presence.spec.mjs", "presence-resources.spec.mjs"],
   workers: 1,
   retries: 0,
   timeout: 30_000,
