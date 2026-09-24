@@ -295,20 +295,20 @@ Scene IR 表达场景语义及动画绑定，后端执行计划独立承载缓�
 
 ### [#35 M2：建立 js-ffi 的批量宿主边界与能力探测](https://github.com/Quamolit/quamolit/issues/35)
 
-所有新增通用浏览器/WebGPU/TypedArray 能力在 calcit-lang/js-ffi 实现，以版本化接口供 Quamolit 使用。
+可跨项目复用的 JS 生态基础 API 在 calcit-lang/js-ffi 封装，以 Calcit 类型化公共入口和版本化接口供 Quamolit 使用；必要的通用 JS 实现仍属上游。Quamolit 专属的 Scene/Motion 语义及编排留在本仓库，优先用 Calcit 实现。
 
 依赖：[#32](https://github.com/Quamolit/quamolit/issues/32)。
 
 实现范围：
 
-- 盘点 DOM、Canvas2D、GPU、TypedArray、帧调度与资源 API；将通用 FFI PR 提交到解析后的 js-ffi 仓库并发布/引用所需 tag。
+- 盘点 DOM、Canvas2D、GPU、TypedArray、帧调度与资源 API；按是否跨项目复用划分通用封装与 Quamolit 专属策略。通用 FFI PR 提交到解析后的 js-ffi 仓库并发布/引用所需 tag，既可包含 Calcit 类型定义，也可包含必要的通用 JS 实现。
 - 定义按资源/批次调用的 API，避免每个属性或每个实例跨越宿主边界；在关键路径记录调用次数与传输字节。
-- 为能力探测、设备失败、资源释放、无浏览器 native 测试提供明确返回契约；Quamolit 保留场景到后端的薄适配。
+- 为能力探测、设备失败、资源释放、无浏览器 native 测试提供明确返回契约；Quamolit 保留场景到后端的 Calcit 编排和专属适配，不把业务格式交给通用包解释。
 - 采用当前已发布且适用的新版本，保持 Calcit/runtime/deps/lockfile/CI 对齐；版本回退需最小复现和上游问题链接。
 
 验收：
 
-- [ ] 新主路径无散落的直接 JS FFI；模块归属、上游 PR、tag 和调用方依赖可追踪。
+- [ ] 新主路径无散落的直接 JS FFI；通用封装即使使用 JS 仍归上游，Quamolit 专属 JS 只留本仓库；模块归属、上游 PR、tag 和调用方依赖可追踪。
 - [ ] 严格 Calcit 编译、JS runtime 烟测与浏览器 fixture 均通过；不以宽泛 Dynamic 擦除可以表达的类型关系。
 - [ ] 10k 实例路径的 FFI 调用随批次/脏范围变化，给出计数，而非随每个标量字段线性增长。
 
