@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit 保留式 Scene 计划</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { display: block; border: 1px solid #94a3b8; margin: 16px 0; width: 320px; height: 100px; }
+      button { margin: 0 8px 8px 0; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>保留式 Scene 计划与按需帧</h1>
+    <p>声明式 Scene/Motion 描述只编译一次；时间与显式依赖版本触发绑定采样，Canvas 只读保留帧。</p>
+    <div id="times"></div>
+    <button id="model">模型 +5</button><button id="resource">资源 ready</button><button id="viewport">视图 150</button><button id="dpr">DPR 2</button>
+    <button id="pause">暂停</button><button id="resume">恢复</button><button id="inputs">连续输入 +1,+2,+3</button>
+    <canvas id="scene" width="320" height="100"></canvas>
+    <output id="status">等待首帧…</output>
+    <script type="module" src="./retained-scene.mjs"></script>
+  </body>
+</html>

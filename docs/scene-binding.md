@@ -7,3 +7,5 @@
 这是逐节点/逐绑定查找的 CPU **正确性参考**，会产生新文档；不代表生产路径必须每帧重建 Scene、遍历所有绑定或上传所有几何。#50 的保留执行计划需用稳定逻辑身份记录绑定依赖，只重新采样受时间/模型版本影响的字段，并证明静态几何与资源复用。
 
 `yarn test:scene-binding` 检查严格类型、乱序时间、与独立直接采样的手算点、绑定保留、非法描述/输出及 JS JSON 边界。`yarn test:motion-browser` 实际用绑定解析结果绘制 Canvas，并在同一时间与独立参考 Scene 的内容和像素比较。架构约束见 [scene-binding.cirru](architectures/scene-binding.cirru)。当前不包含 GPU lowering、批量绑定表或资源 ready/error 解析；这些属于后续工作项。
+
+宿主侧现有 [保留式 Scene 计划切片](retained-scene-plan.md) 把此逐帧全量参考作为测试基线，按显式依赖版本只更新绑定槽位；不改变本页所述 CPU 参考实现的语义。

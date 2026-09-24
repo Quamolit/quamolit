@@ -1,0 +1,34 @@
+import { expect, test } from "@playwright/test";
+
+test("保留计划按需绘制、乱序时间与同时间依赖更新", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/test/retained-scene.html?time=0.5");
+  const status = page.locator("#status");
+  await expect(status).toContainText("t=0.5s · x=100 · dpr=1 · paints=1 · plan=1 · static=1 · samples=1 · copied=80000");
+  await page.getByRole("button", { name: "1s", exact: true }).click();
+  await expect(status).toContainText("t=1s · x=120 · dpr=1 · paints=2 · plan=1 · static=1 · samples=2 · copied=0");
+  await page.getByRole("button", { name: "0s", exact: true }).click();
+  await expect(status).toContainText("t=0s · x=80 · dpr=1 · paints=3 · plan=1 · static=1 · samples=3 · copied=0");
+  await page.getByRole("button", { name: "模型 +5" }).click();
+  await expect(status).toContainText("plan=1 · static=1 · samples=4 · copied=0");
+  await page.getByRole("button", { name: "资源 ready" }).click();
+  await expect(status).toContainText("plan=1 · static=1 · samples=5 · copied=0");
+  await page.getByRole("button", { name: "视图 150" }).click();
+  await expect(status).toContainText("plan=1 · static=1 · samples=6 · copied=0");
+  await page.getByRole("button", { name: "DPR 2" }).click();
+  await expect(status).toContainText("dpr=2 · paints=7 · plan=1 · static=1 · samples=6 · copied=0");
+  await expect(page.locator("#scene")).toHaveJSProperty("width", 640);
+  await page.getByRole("button", { name: "暂停" }).click();
+  await page.getByRole("button", { name: "连续输入 +1,+2,+3" }).click();
+  await expect(status).toContainText("paints=7");
+  await page.getByRole("button", { name: "恢复" }).click();
+  await expect(status).toContainText("paints=8 · plan=1 · static=1 · samples=7 · copied=0 · inputs=6");
+  const settled = await status.textContent();
+  await page.waitForTimeout(2100);
+  expect(await status.textContent()).toBe(settled, "空闲 2 秒不得持续提交帧");
+  await page.getByRole("button", { name: "0.25s", exact: true }).click();
+  await expect(status).toContainText("t=0.25s");
+  await expect(status).toContainText("plan=1 · static=1 · samples=8 · copied=0 · inputs=6");
+  expect(errors).toEqual([]);
+});
