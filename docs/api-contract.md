@@ -23,7 +23,7 @@
 | `quamolit.scene-ir/SceneDocument`、`SceneNode`、`validate-scene` | 已实现的实验性可序列化核心切片；非生产绘制入口 | [Scene IR 核心](scene-ir-core.md)；group/rect/实例源、校验和 JSON 夹具；参考变更集见下行 |
 | `InstanceSourceRegistry`（JS 宿主适配器） | 已实现的版本化坐标快照边界；非资源表或 GPU 上传器 | [实例数据源边界](instance-sources.md)；js-ffi 0.1.38 保留通用 Float32 快照 |
 | `CanvasInstanceBatches`（JS 薄适配器） | 已实现的 Canvas 实例批次正确性路径；非 GPU/自动合批 | [Canvas 实例批次](canvas-instance-batches.md)；js-ffi 0.1.38 提供通用一次调用的矩形批次，指标区分 FFI 与 `fillRect` |
-| `WebGpuInstanceBatches`（JS 薄适配器） | 已实现的 10k 矩形实例 GPU 切片；非完整 Scene 后端 | [WebGPU 实例切片](webgpu-instances.md)；js-ffi 0.1.40 持有 pipeline/buffer 并一次 instanced draw，强制无 GPU/软件 adapter 时整层 Canvas 回退 |
+| `WebGpuInstanceBatches`（JS 薄适配器） | 已实现的 10k 矩形实例 GPU 切片；非完整 Scene 后端 | [WebGPU 实例切片](webgpu-instances.md)；js-ffi 0.1.41 持有 pipeline/buffer 并一次 instanced draw，支持 [Vec2 时间平移](gpu-vec2-motion.md)，强制无 GPU/软件 adapter 时整层 Canvas 回退 |
 | `quamolit.scene-diff/index-scene`、`diff-scene`、`SceneDelta` | 已实现的逻辑身份与 O(n²) 参考差分；非生产调度器 | [Scene diff](scene-diff.md)；重排保身份、重挂载、分类和时间独立标记；#50 执行计划未完成 |
 | `quamolit.scene-binding/resolve-scene` | 已实现的绝对时间 CPU 标量绑定参考解析；非增量执行入口 | [Scene 绑定解析](scene-binding.md)；精确 ID/version、输出再校验、浏览器中间帧；#50 执行计划未完成 |
 | `quamolit.transition/start-transition`、`interrupt-transition`、`sample-replay` | 已实现的位置连续打断与固定事件重放 CPU 切片；非完整生命周期 | [打断过渡](transition-interruption.md)；25%/50%/75% 打断及浏览器帧；Scene enter/exit 参考见下行 |
