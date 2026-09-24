@@ -66,7 +66,7 @@ yarn bench
 
 `yarn test:fade-migration` 验证[旧 fade 的可编译迁移](fade-migration.md)：显式 Model 中的 0.25 秒进入/退出意图、打断时透明度连续、版本化 Scene opacity 绑定及受限 GPU 候选分类；`yarn test:motion-browser` 在 Chromium 检查单子节点中间帧像素。一般组隔离、真实 GPU 执行与退出资源释放不在此命令覆盖范围。
 
-`yarn test:scene-core` 验证 [Scene IR 核心切片](scene-ir-core.md) 的类型、构造/校验、重复 ID/兄弟 key、错误父级、非法数值/资源/绑定以及 JSON 往返；`yarn test:motion-browser` 额外验证 Scene IR 驱动的 Canvas 中间帧。该命令不等于下方拟议的完整 `yarn test:scene`，目前尚无保留执行计划或双后端验收。
+`yarn test:scene-core` 验证 [Scene IR 核心切片](scene-ir-core.md) 的类型、构造/校验、重复 ID/兄弟 key、错误父级、非法数值/资源/绑定以及 JSON 往返；`calcit analyze check-public --ns quamolit.canvas-reference` 验证新增 Calcit 参考绘制入口。`yarn test:motion-browser` 额外验证 Scene IR 的固定时间 Canvas 中间帧、实色/背景像素及样式恢复。该命令不等于下方拟议的完整 `yarn test:scene`，目前尚无完整组/实例参考后端或双后端验收。
 
 `yarn test:instance-sources` 先严格检查 `quamolit.instance-ffi`，再验证 [实例数据源边界](instance-sources.md) 的 10k 位置、拷贝隔离、严格版本与错误输入；`yarn test:motion-browser` 还核对同一时间切换资源版本的像素。其 Canvas 循环仅是验证夹具，不是生产渲染性能结果。
 

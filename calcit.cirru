@@ -1809,6 +1809,47 @@
             :args $ []
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.bootstrap
+    'quamolit.canvas-reference $ %{} 'FileEntry
+      :defs $ {}
+        'color-css $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn color-css (color)
+            hint-fn $ {}
+              :args $ [] 'quamolit.motion/ColorRgba
+              :return 'String
+            str "|rgba("
+              round $ * 255 $ :r color
+              , |,
+                round $ * 255 $ :g color
+                , |,
+                  round $ * 255 $ :b color
+                  , |, (:a color) "|)"
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.motion/ColorRgba
+        'draw-reference-rects! $ %{} 'CodeEntry
+          :doc "|仅供基础 Scene IR 的纯色矩形参考画面使用；按节点顺序绘制矩形，当前不处理 group 语义或 instances。Quamolit 负责 Scene 遍历，js-ffi 只提供通用 Canvas 方法。"
+          :code $ quote $ defn draw-reference-rects! (context document)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument
+              :return 'Unit
+              :features $ #{} :js-ffi
+            each (:nodes document)
+              fn (node)
+                match (:content node)
+                  (:rect rect)
+                    canvas/fill-solid-rect! context (:x rect) (:y rect) (:width rect) (:height rect)
+                      color-css $ :fill rect
+                  (:group group) &unit
+                  (:instances instances) &unit
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument
+            :features $ #{} :js-ffi
+      :ns $ %{} 'NsEntry
+        :doc "|Calcit 编写的基础 Canvas2D 参考绘制；Scene 解释保留在 Quamolit，不在 js-ffi 宿主层。"
+        :code $ quote $ ns quamolit.canvas-reference
+          :require $ js-ffi.canvas-batches :as canvas
     'quamolit.comp.debug $ %{} 'FileEntry
       :defs $ {}
         'comp-debug $ %{} 'CodeEntry (:doc |)
@@ -7610,6 +7651,18 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ []
+        'draw-reference-scene-at! $ %{} 'CodeEntry
+          :doc "|固定时间浏览器夹具：绑定 Scene 由 Quamolit Calcit 绘制纯色矩形；不表示完整 Scene 后端。"
+          :code $ quote $ defn draw-reference-scene-at! (context time)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number
+              :return 'Unit
+              :features $ #{} :js-ffi
+            canvas-reference/draw-reference-rects! context $ bound-scene-document-at time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number
+            :features $ #{} :js-ffi
         'gpu-fade-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-fade-plan ()
             let
@@ -7987,6 +8040,7 @@
             quamolit.transition :as transition
             quamolit.presence :as presence
             quamolit.motion-gpu :as motion-gpu
+            quamolit.canvas-reference :as canvas-reference
     'quamolit.test.playback-fixture $ %{} 'FileEntry
       :defs $ {}
         'PlaybackFixtureFrame $ %{} 'CodeEntry (:doc |)

@@ -1,7 +1,7 @@
 {
   "version": "0.0.18-alpha.1",
   "dependencies": {
-    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.1.44",
+    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.1.46",
     "@calcit/procs": "0.19.1",
     "@quamolit/touch-control": "^0.0.13"
   },
@@ -19,7 +19,7 @@
     "test:playback": "calcit analyze check-public --ns quamolit.playback --ns quamolit.test.playback-fixture && calcit test --tag playback --require-match && yarn compile:playback && node --test test/playback-smoke.mjs",
     "test:component-sample": "calcit analyze check-public --ns quamolit.component-sample --ns quamolit.test.component-fixture && calcit test --tag component-sample --require-match && yarn compile:component && node --test test/component-smoke.mjs",
     "test:fade-migration": "calcit analyze check-public --ns quamolit.test.fade-migration-fixture && calcit test --tag fade-migration --require-match && yarn compile:fade && node --test test/fade-migration-smoke.mjs",
-    "test:scene-core": "calcit analyze check-public --ns quamolit.scene-ir --ns quamolit.test.motion-fixture && calcit test --tag scene --require-match && yarn compile:motion && node --test test/scene-core-smoke.mjs",
+    "test:scene-core": "calcit analyze check-public --ns quamolit.scene-ir --ns quamolit.canvas-reference --ns quamolit.test.motion-fixture && calcit test --tag scene --require-match && yarn compile:motion && node --test test/scene-core-smoke.mjs",
     "test:instance-sources": "calcit analyze check-public --ns quamolit.instance-ffi && yarn compile:motion && node --test test/instance-sources-smoke.mjs",
     "test:canvas-batches": "calcit analyze check-public --ns quamolit.instance-ffi && yarn compile:motion && node --test test/canvas-instance-batches-smoke.mjs",
     "test:webgpu-instances": "calcit analyze check-public --ns quamolit.instance-ffi --ns quamolit.webgpu-batches --ns quamolit.webgpu-capabilities && yarn compile:motion && node --test test/webgpu-capabilities-smoke.mjs test/webgpu-instance-batches-smoke.mjs test/webgpu-layer-lease-smoke.mjs && playwright test --config test/gpu.playwright.config.mjs",
