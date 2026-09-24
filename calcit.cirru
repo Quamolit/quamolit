@@ -8554,3 +8554,20 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.webgpu-batches
           :require $ js-ffi.webgpu-batches :as batches
+    'quamolit.webgpu-capabilities $ %{} 'FileEntry
+      :defs $ {} $ 'probe!
+        %{} 'CodeEntry (:doc "|获取上游封闭能力结果；调用方只在 ready 分支使用并最终释放设备。")
+          :code $ quote $ defn probe! (navigator-host)
+            hint-fn $ {} (:async true)
+              :args $ [] $ :: 'JsNullish 'js-ffi.webgpu-capabilities/NavigatorHost
+              :return 'js-ffi.webgpu-capabilities/DeviceProbe
+              :features $ #{} :js-ffi
+            js-await $ capabilities/probe-device! navigator-host
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true) (:return 'js-ffi.webgpu-capabilities/DeviceProbe)
+            :args $ [] $ :: 'JsNullish 'js-ffi.webgpu-capabilities/NavigatorHost
+            :features $ #{} :js-ffi
+      :ns $ %{} 'NsEntry
+        :doc "|Quamolit 的 WebGPU 设备探测薄适配；状态、失败与设备所有权由上游 Calcit API 定义。"
+        :code $ quote $ ns quamolit.webgpu-capabilities
+          :require $ js-ffi.webgpu-capabilities :as capabilities

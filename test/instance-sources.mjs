@@ -1,6 +1,6 @@
 import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
 import { scene_document_at as sceneDocumentAt } from "../js-out/quamolit.test.motion-fixture.mjs";
-import { probeWebGpuDevice } from "../.calcit/modules/js-ffi/webgpu-capabilities.mjs";
+import { probeWebGpuDevice } from "../webgpu-capabilities.mjs";
 import { InstanceSourceRegistry } from "../instance-sources.mjs";
 import { CanvasInstanceBatches } from "../canvas-instance-batches.mjs";
 import { WebGpuInstanceBatches } from "../webgpu-instance-batches.mjs";

@@ -72,7 +72,7 @@ yarn bench
 
 `yarn test:canvas-batches` 严格检查 `quamolit.instance-ffi` 并验证 [Canvas 实例批次边界](canvas-instance-batches.md) 的冷/热调用次数、拷贝和读取字节、脏范围及失效；`yarn test:motion-browser` 检查两处 10k 实例页面的像素和指标。Canvas 仍逐实例调用 `fillRect`；调用次数不是 GPU draw-call 数或吞吐证据。
 
-`yarn test:webgpu-instances` 先严格检查 `quamolit.instance-ffi` 与 `quamolit.webgpu-batches` Calcit 公共定义，再验证 [WebGPU 矩形实例同源路径](webgpu-instances.md)、[Presence WebGPU 时间帧](webgpu-presence-time.md)及 [Vec2 GPU 时间采样](gpu-vec2-motion.md)：Node 检查版本切换、空帧后旧源复用的 CPU 副本与 GPU 上传决策；Chromium 专项尝试真实 10k GPU 绘制、固定时间帧像素对照、乱序 seek 的 0 位置上传、完整图层回退和重建，并在 0.37/0.81 秒诊断读取 GPU f32 位移，对照独立线性公式与既定数值阈值。非整数时间只检查数值，不以边缘像素作精确内区断言。只有非软件 adapter 实际完成 GPU 断言才是 GPU 正确性证据；无 adapter/软件 adapter 的 SKIP 仅证明诊断和 Canvas 回退，不满足 #40/#52 验收。常规 `test:motion-browser` 仍覆盖无 GPU/强制禁用时的 Canvas 路径。
+`yarn test:webgpu-instances` 先严格检查 `quamolit.instance-ffi`、`quamolit.webgpu-batches` 与 `quamolit.webgpu-capabilities` Calcit 公共定义，再验证 [WebGPU 矩形实例同源路径](webgpu-instances.md)、[Presence WebGPU 时间帧](webgpu-presence-time.md)及 [Vec2 GPU 时间采样](gpu-vec2-motion.md)：Node 检查能力探测的不可用/失败/ready/loss/release、版本切换、空帧后旧源复用的 CPU 副本与 GPU 上传决策；Chromium 专项尝试真实 10k GPU 绘制、固定时间帧像素对照、乱序 seek 的 0 位置上传、完整图层回退和重建，并在 0.37/0.81 秒诊断读取 GPU f32 位移，对照独立线性公式与既定数值阈值。非整数时间只检查数值，不以边缘像素作精确内区断言。只有非软件 adapter 实际完成 GPU 断言才是 GPU 正确性证据；无 adapter/软件 adapter 的 SKIP 仅证明诊断和 Canvas 回退，不满足 #40/#52 验收。常规 `test:motion-browser` 仍覆盖无 GPU/强制禁用时的 Canvas 路径。
 
 `yarn test:scene-diff` 验证 [逻辑身份与参考差分](scene-diff.md) 的严格类型、变更分类、重排/重挂载、仅时间变化和 JS 序列化；`yarn test:motion-browser` 也会在 Chromium 校验 Scene diff 与 Canvas 中间帧一致。仍未实现 #50 保留执行计划和双后端验收。
 
@@ -86,7 +86,7 @@ yarn bench
 
 `yarn test:presence-resources` 验证 [宿主实例资源跟踪](presence-resources.md)：Calcit 严格类型、100 次 10k Float32 快照挂载/退出、共享源最后引用、重入取消释放及错误输入不破坏现有资源；浏览器还验证退出中间帧与终点像素和停帧。此命令仍不验证 GPU buffer 或指针捕获。
 
-`yarn test:motion-browser` 还验证 [WebGPU 能力探测诊断夹具](webgpu-capability-probe.md)：使用 js-ffi 0.1.41，分别模拟 adapter 失败、ready 和设备丢失，并确认 Canvas 参考时间帧仍可绘制、探测设备被释放。真实浏览器的 `ready` 仅代表可获取 device，不是 GPU 画面或吞吐验收。
+`yarn test:motion-browser` 还验证 [WebGPU 能力探测诊断夹具](webgpu-capability-probe.md)：通过 js-ffi 0.1.44 的 Calcit 公共 API，分别模拟 adapter 失败、ready 和设备丢失，并确认 Canvas 参考时间帧仍可绘制、探测设备被释放。真实浏览器的 `ready` 仅代表可获取 device，不是 GPU 画面或吞吐验收。
 
 ## 待实现的统一命令
 
