@@ -80,6 +80,8 @@ yarn bench
 
 `yarn test:presence-resources` 验证 [宿主实例资源跟踪](presence-resources.md)：Calcit 严格类型、100 次 10k Float32 快照挂载/退出、共享源最后引用、重入取消释放及错误输入不破坏现有资源；浏览器还验证退出中间帧与终点像素和停帧。此命令仍不验证 GPU buffer 或指针捕获。
 
+`yarn test:motion-browser` 还验证 [WebGPU 能力探测诊断夹具](webgpu-capability-probe.md)：使用 js-ffi 0.1.39，分别模拟 adapter 失败、ready 和设备丢失，并确认 Canvas 参考时间帧仍可绘制、探测设备被释放。真实浏览器的 `ready` 仅代表可获取 device，不是 GPU 画面或吞吐验收。
+
 ## 待实现的统一命令
 
 | 命令 | 负责工作项 | 完成条件 |

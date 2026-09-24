@@ -5,12 +5,42 @@ import { InstanceSourceRegistry } from "../instance-sources.mjs";
 import { PresenceInstanceResources } from "../presence-resources.mjs";
 import { CanvasInstanceBatches } from "../canvas-instance-batches.mjs";
 import { instanceGrid } from "./instance-grid.mjs";
+import { probeWebGpuDevice } from "../.calcit/modules/js-ffi/webgpu-capabilities.mjs";
 
 const { model: modelTag } = initTags(["model"]);
 const canvas = document.querySelector("#scene");
 const context = canvas.getContext("2d", { willReadFrequently: true });
 const status = document.querySelector("#status");
+const backendStatus = document.querySelector("#backend");
 const times = [1, 0, 0.875, 0.5, 0.25, 0.75];
+
+const parameters = new URLSearchParams(location.search);
+const mode = parameters.get("gpu") ?? "native";
+let destroyed = 0;
+const testDevice = (lost) => ({ lost, destroy() { destroyed += 1; } });
+const testHost = {
+  gpu: {
+    getPreferredCanvasFormat: () => "bgra8unorm",
+    requestAdapter: async () => ({
+      requestDevice: async () => testDevice(mode === "lost" ? Promise.resolve({ reason: "unknown", message: "test-loss" }) : new Promise(() => {})),
+    }),
+  },
+};
+const deniedHost = {
+  gpu: { getPreferredCanvasFormat: () => "bgra8unorm", requestAdapter: async () => { throw new Error("test-adapter-denied"); } },
+};
+if (!["native", "denied", "ready", "lost"].includes(mode)) throw new RangeError("未知 GPU 探测模式");
+const capability = await probeWebGpuDevice(mode === "native" ? navigator : mode === "denied" ? deniedHost : testHost);
+backendStatus.dataset.kind = capability.kind;
+backendStatus.dataset.stage = capability.stage ?? "";
+if (capability.kind === "ready") {
+  const loss = mode === "lost" ? await capability.lost : null;
+  const beforeRelease = capability.state;
+  capability.release(); // 真实 GPU 渲染器尚未接入，不保留探测设备。
+  backendStatus.textContent = `WebGPU ${mode === "native" ? "native" : "test"} ready → Canvas 参考；state=${beforeRelease}→${capability.state}；destroyed=${mode === "native" ? "host" : destroyed}${loss ? `；loss=${loss.reason}/${loss.message}` : ""}`;
+} else {
+  backendStatus.textContent = `WebGPU ${capability.kind}/${capability.stage} → Canvas 参考${capability.message ? `；${capability.message}` : ""}`;
+}
 
 function replayAt(time) {
   if (!Number.isFinite(time) || time < 0) throw new RangeError("时间必须是非负有限数");
@@ -78,7 +108,7 @@ for (const time of times) {
 }
 try {
   for (const time of times) renderAt(time);
-  renderAt(Number(new URLSearchParams(location.search).get("time") ?? 0.875));
+  renderAt(Number(parameters.get("time") ?? 0.875));
 } catch (error) {
   status.dataset.result = "fail";
   status.textContent = `FAIL · ${error.message}`;
