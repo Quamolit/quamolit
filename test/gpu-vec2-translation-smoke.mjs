@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
-import { gpu_fade_plan as gpuFadePlan, gpu_vec2_plan as gpuVec2Plan, sample_vec2_at as sampleVec2At } from "../js-out/quamolit.test.motion-fixture.mjs";
-import { prepareGpuVec2Translation } from "../gpu-vec2-translation.mjs";
+import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
+import { gpu_fade_plan as gpuFadePlan, gpu_vec2_plan as gpuVec2Plan, sample_vec2_at as sampleVec2At } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import { prepareGpuVec2Translation } from "../src/host/gpu-vec2-translation.mjs";
 
 test("Calcit Vec2 tween 映射为固定参数的 GPU 时间平移，不在 CPU 逐实例采样", () => {
   const motion = prepareGpuVec2Translation(toJsData(gpuVec2Plan()));

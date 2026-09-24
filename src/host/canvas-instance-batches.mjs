@@ -1,5 +1,5 @@
-import { copy_range as float32CopyRange, draw_canvas_$x_ as drawCalcitRectBatch } from "./js-out/quamolit.instance-ffi.mjs";
-import { to_js_data as toJsData } from "./js-out/calcit.core.mjs";
+import { copy_range as float32CopyRange, draw_canvas_$x_ as drawCalcitRectBatch } from "../../target/js/motion/quamolit.instance-ffi.mjs";
+import { to_js_data as toJsData } from "../../target/js/motion/calcit.core.mjs";
 
 function colorStyle(fill) {
   if (fill === null || typeof fill !== "object") throw new TypeError("instance fill color required");

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { WebGpuLayerLease } from "../webgpu-layer-lease.mjs";
+import { WebGpuLayerLease } from "../src/host/webgpu-layer-lease.mjs";
 
 function deferred() {
   let resolve;

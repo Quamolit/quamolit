@@ -1,11 +1,11 @@
-import { copy_range as float32CopyRange } from "./js-out/quamolit.instance-ffi.mjs";
-import { _PCT_none as none, _PCT_some as some, to_js_data as toJsData } from "./js-out/calcit.core.mjs";
+import { copy_range as float32CopyRange } from "../../target/js/motion/quamolit.instance-ffi.mjs";
+import { _PCT_none as none, _PCT_some as some, to_js_data as toJsData } from "../../target/js/motion/calcit.core.mjs";
 import {
   clear_$x_ as clearBatch, color as rectColor, create_$x_ as createBatch,
   dispose_$x_ as disposeBatch, draw_$x_ as drawBatch,
   read_pixel_$x_ as readPixel, translation as rectTranslation,
   read_translation_$x_ as readTranslation, upload_$x_ as uploadBatch,
-} from "./js-out/quamolit.webgpu-batches.mjs";
+} from "../../target/js/motion/quamolit.webgpu-batches.mjs";
 
 function metricsToJs(value) {
   const metrics = toJsData(value);

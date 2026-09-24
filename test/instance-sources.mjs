@@ -1,10 +1,10 @@
-import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
-import { scene_document_at as sceneDocumentAt } from "../js-out/quamolit.test.motion-fixture.mjs";
-import { probeWebGpuDevice } from "../webgpu-capabilities.mjs";
-import { InstanceSourceRegistry } from "../instance-sources.mjs";
-import { CanvasInstanceBatches } from "../canvas-instance-batches.mjs";
-import { WebGpuInstanceBatches } from "../webgpu-instance-batches.mjs";
-import { WebGpuLayerLease } from "../webgpu-layer-lease.mjs";
+import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
+import { scene_document_at as sceneDocumentAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import { probeWebGpuDevice } from "../src/host/webgpu-capabilities.mjs";
+import { InstanceSourceRegistry } from "../src/host/instance-sources.mjs";
+import { CanvasInstanceBatches } from "../src/host/canvas-instance-batches.mjs";
+import { WebGpuInstanceBatches } from "../src/host/webgpu-instance-batches.mjs";
+import { WebGpuLayerLease } from "../src/host/webgpu-layer-lease.mjs";
 import { instanceGrid } from "./instance-grid.mjs";
 
 const canvas = document.querySelector("#scene");

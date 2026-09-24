@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
-import { bound_scene_document_at as boundSceneDocumentAt, sample_direct_x as sampleDirectX } from "../js-out/quamolit.test.motion-fixture.mjs";
-import { RetainedScenePlan } from "../retained-scene-plan.mjs";
-import { DemandFrameScheduler } from "../demand-frame-scheduler.mjs";
+import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
+import { bound_scene_document_at as boundSceneDocumentAt, sample_direct_x as sampleDirectX } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import { RetainedScenePlan } from "../src/host/retained-scene-plan.mjs";
+import { DemandFrameScheduler } from "../src/host/demand-frame-scheduler.mjs";
 
 const revisions = () => ({ model: 0, input: 0, resources: 0, viewport: 0, quality: 0, motion: 0 });
 const values = () => ({ model: 0, input: 0, ready: false, viewport: 100 });

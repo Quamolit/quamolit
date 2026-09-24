@@ -1,4 +1,4 @@
-import { sample_direct_x as sampleAt } from "../js-out/quamolit.test.motion-fixture.mjs";
+import { sample_direct_x as sampleAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#direct");
 const context = canvas.getContext("2d", { willReadFrequently: true });

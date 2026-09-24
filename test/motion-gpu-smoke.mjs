@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
+import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
 import {
   gpu_fade_plan as gpuFadePlan,
   gpu_keyframes_repeat_plan as gpuKeyframesRepeatPlan,
   gpu_vec2_plan as gpuVec2Plan,
   sample_at as sampleAt,
-} from "../js-out/quamolit.test.motion-fixture.mjs";
+} from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 test("GPU-lowerable fade remains a serializable typed plan with CPU reference values", () => {
   const plan = toJsData(gpuFadePlan());

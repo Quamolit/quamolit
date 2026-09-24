@@ -1,13 +1,13 @@
-import { init_tags as initTags, to_js_data as toJsData } from "../js-out/calcit.core.mjs";
-import { instance_presence_document as instanceDocument, instance_presence_reconcile as reconcile } from "../js-out/quamolit.test.motion-fixture.mjs";
-import { presence_needs_frame_$q_ as needsFrame, sample_presence as sample, settle_presence as settle, start_presence as start } from "../js-out/quamolit.presence.mjs";
-import { InstanceSourceRegistry } from "../instance-sources.mjs";
-import { PresenceInstanceResources } from "../presence-resources.mjs";
-import { CanvasInstanceBatches } from "../canvas-instance-batches.mjs";
-import { WebGpuInstanceBatches } from "../webgpu-instance-batches.mjs";
-import { WebGpuLayerLease } from "../webgpu-layer-lease.mjs";
+import { init_tags as initTags, to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
+import { instance_presence_document as instanceDocument, instance_presence_reconcile as reconcile } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import { presence_needs_frame_$q_ as needsFrame, sample_presence as sample, settle_presence as settle, start_presence as start } from "../target/js/motion/quamolit.presence.mjs";
+import { InstanceSourceRegistry } from "../src/host/instance-sources.mjs";
+import { PresenceInstanceResources } from "../src/host/presence-resources.mjs";
+import { CanvasInstanceBatches } from "../src/host/canvas-instance-batches.mjs";
+import { WebGpuInstanceBatches } from "../src/host/webgpu-instance-batches.mjs";
+import { WebGpuLayerLease } from "../src/host/webgpu-layer-lease.mjs";
 import { instanceGrid } from "./instance-grid.mjs";
-import { probeWebGpuDevice } from "../webgpu-capabilities.mjs";
+import { probeWebGpuDevice } from "../src/host/webgpu-capabilities.mjs";
 
 const { model: modelTag } = initTags(["model"]);
 const canvas = document.querySelector("#scene");

@@ -3,8 +3,8 @@ import {
   sample_vec2_x_at as sampleVec2XAt,
   sample_vec2_y_at as sampleVec2YAt,
   gpu_vec2_plan as gpuVec2Plan,
-} from "../js-out/quamolit.test.motion-fixture.mjs";
-import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
+} from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
 
 const canvas = document.querySelector("#frame");
 const context = canvas.getContext("2d", { willReadFrequently: true });

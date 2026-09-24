@@ -1,4 +1,4 @@
-import { sample_composition_at as sampleAt } from "../js-out/quamolit.test.motion-fixture.mjs";
+import { sample_composition_at as sampleAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#composition");
 const context = canvas.getContext("2d", { willReadFrequently: true });

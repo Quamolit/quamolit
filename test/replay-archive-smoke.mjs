@@ -7,9 +7,9 @@ import {
   make_archive as makeArchive,
   sample_at as sampleAt,
   update_state as updateState,
-} from "../js-out-replay/quamolit.test.replay-archive-fixture.mjs";
-import { start_clock as startClock, pause_clock as pauseClock, seek_clock as seekClock } from "../js-out-replay/quamolit.host-clock.mjs";
-import { sample_archive_at_host as sampleArchiveAtHost } from "../js-out-replay/quamolit.playback.mjs";
+} from "../target/js/replay/quamolit.test.replay-archive-fixture.mjs";
+import { start_clock as startClock, pause_clock as pauseClock, seek_clock as seekClock } from "../target/js/replay/quamolit.host-clock.mjs";
+import { sample_archive_at_host as sampleArchiveAtHost } from "../target/js/replay/quamolit.playback.mjs";
 
 test("有界检查点与完整输入日志支持旧 tick 重放", () => {
   assert.equal(checkpointCount(), 2);

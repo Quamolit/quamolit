@@ -8,8 +8,8 @@ import {
   set_clock_speed as setClockSpeed,
   seek_clock as seekClock,
   simulation_tick_at as simulationTickAt,
-} from "../js-out/quamolit.host-clock.mjs";
-import { sample_clock_x as sampleClockX } from "../js-out/quamolit.test.motion-fixture.mjs";
+} from "../target/js/motion/quamolit.host-clock.mjs";
+import { sample_clock_x as sampleClockX } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 test("host clock reanchors pause, resume, speed, reverse and seek", () => {
   const start = startClock(10, 0, 1);

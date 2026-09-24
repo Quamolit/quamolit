@@ -1,4 +1,4 @@
-import { length as float32Length, snapshot as snapshotFloat32 } from "./js-out/quamolit.instance-ffi.mjs";
+import { length as float32Length, snapshot as snapshotFloat32 } from "../../target/js/motion/quamolit.instance-ffi.mjs";
 
 function validateDescriptor(source) {
   if (source === null || typeof source !== "object" || Array.isArray(source)) {

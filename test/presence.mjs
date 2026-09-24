@@ -1,5 +1,5 @@
-import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
-import { presence_frame_at as presenceFrameAt } from "../js-out/quamolit.test.motion-fixture.mjs";
+import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
+import { presence_frame_at as presenceFrameAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#frame");
 const context = canvas.getContext("2d", { willReadFrequently: true });

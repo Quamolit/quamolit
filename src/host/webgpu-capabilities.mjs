@@ -1,5 +1,5 @@
-import { probe_$x_ as probeCalcit } from "./js-out/quamolit.webgpu-capabilities.mjs";
-import { to_js_data as toJsData } from "./js-out/calcit.core.mjs";
+import { probe_$x_ as probeCalcit } from "../../target/js/motion/quamolit.webgpu-capabilities.mjs";
+import { to_js_data as toJsData } from "../../target/js/motion/calcit.core.mjs";
 
 /** Adapt the upstream Calcit enum to the existing fixture/backend host shape. */
 export async function probeWebGpuDevice(navigatorHost) {

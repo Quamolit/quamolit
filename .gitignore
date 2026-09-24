@@ -5,6 +5,8 @@
 .yarn/
 .DS_Store
 
+target/
+# 旧版编译产物仅供既有工作树过渡；新脚本不再写入这些目录。
 js-out/
 js-out-playback/
 js-out-component/

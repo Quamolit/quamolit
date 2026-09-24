@@ -8,4 +8,4 @@
 
 旧组件的退出缓存与 `0.01` 残留不属于新语义。逻辑退出期间保留与终点卸载由 [presence 生命周期](presence-lifecycle.md)处理；本夹具仅证明 Motion 描述和 Scene 绑定可表达原渐变以及打断连续性，不声称完成宿主资源释放或指针捕获。
 
-运行 `yarn test:fade-migration` 检查 19 个公共定义的严格类型、4 项原生手算、2 项 JS 数值与序列化；`yarn test:motion-browser` 检查[交互页面](../test/fade-migration.html)的固定时间、乱序/重载和 Canvas 内区像素。该页面的 Calcit 产物隔离在 `js-out-fade/`，不覆盖 Motion/Scene 其他入口。
+运行 `yarn test:fade-migration` 检查 19 个公共定义的严格类型、4 项原生手算、2 项 JS 数值与序列化；`yarn test:motion-browser` 检查[交互页面](../test/fade-migration.html)的固定时间、乱序/重载和 Canvas 内区像素。该页面的 Calcit 产物隔离在 `target/js/fade/`，不覆盖 Motion/Scene 其他入口。
