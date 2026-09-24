@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
 import { scene_document_at as sceneDocumentAt } from "../js-out/quamolit.test.motion-fixture.mjs";
-import { float32At, float32CopyRange, float32Length } from "../.calcit/modules/js-ffi/typed-arrays.mjs";
+import { at as float32At, copy_range as float32CopyRange, length as float32Length } from "../js-out/quamolit.instance-ffi.mjs";
 import { InstanceSourceRegistry } from "../instance-sources.mjs";
 
 function sceneSource() {

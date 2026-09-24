@@ -1,5 +1,5 @@
-import { drawFloat32RectBatch } from "./.calcit/modules/js-ffi/canvas-rect-batches.mjs";
-import { float32CopyRange } from "./.calcit/modules/js-ffi/typed-arrays.mjs";
+import { copy_range as float32CopyRange, draw_canvas_$x_ as drawCalcitRectBatch } from "./js-out/quamolit.instance-ffi.mjs";
+import { to_js_data as toJsData } from "./js-out/calcit.core.mjs";
 
 function colorStyle(fill) {
   if (fill === null || typeof fill !== "object") throw new TypeError("instance fill color required");
@@ -32,7 +32,12 @@ export class CanvasInstanceBatches {
       this.#copies.set(token, positions);
       positionBytesCopied = positions.byteLength;
     }
-    const metrics = drawFloat32RectBatch(context, positions, start, count, instance.width, instance.height, fillStyle, alpha);
+    const typedMetrics = drawCalcitRectBatch(context, positions, start, count, instance.width, instance.height, fillStyle, alpha);
+    const result = toJsData(typedMetrics);
+    const metrics = {
+      boundaryCalls: result["boundary-calls"], canvasCalls: result["canvas-calls"],
+      instances: result.instances, positionBytesRead: result["position-bytes-read"],
+    };
     return Object.freeze({
       ...metrics,
       frameBoundaryCalls: metrics.boundaryCalls + (positionBytesCopied > 0 ? 1 : 0),

@@ -1,4 +1,4 @@
-import { float32CopyRange } from "./.calcit/modules/js-ffi/typed-arrays.mjs";
+import { copy_range as float32CopyRange } from "./js-out/quamolit.instance-ffi.mjs";
 import { _PCT_none as none, _PCT_some as some, to_js_data as toJsData } from "./js-out/calcit.core.mjs";
 import {
   clear_$x_ as clearBatch, color as rectColor, create_$x_ as createBatch,
