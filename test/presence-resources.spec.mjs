@@ -8,7 +8,7 @@ test("退出期间保留实例快照，终点只释放一次且可乱序重放",
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/test/presence-resources.html?time=0.875");
   const status = page.locator("#status");
-  await expect(page.locator("#backend")).toContainText("→ Canvas 参考");
+  await expect(page.locator("#backend")).toContainText(/WebGPU PASS|Canvas 参考/);
   await expect(status).toContainText("t=0.875s · alpha=0.5 · live=1 · released=0 · active=true · ffi=2 · canvas=10000");
   await page.getByRole("button", { name: "1s", exact: true }).click();
   await expect(status).toContainText("t=1s · alpha=none · live=0 · released=1 · active=false · ffi=0 · canvas=0 · pixel=255,255,255,255");
@@ -44,3 +44,14 @@ for (const mode of ["denied", "ready", "lost"]) {
     expect(errors).toEqual([]);
   });
 }
+
+test("强制禁用 GPU 时仍可乱序绘制 Presence 时间帧", async ({ page }) => {
+  await page.goto("/test/presence-resources.html?time=0.875&gpu=off");
+  await expect(page.locator("#backend")).toContainText("GPU 已强制禁用");
+  await expect(page.locator("#gpu-scene")).toBeHidden();
+  await expect(page.locator("#status")).toContainText("t=0.875s · alpha=0.5");
+  await page.getByRole("button", { name: "1s", exact: true }).click();
+  await expect(page.locator("#status")).toContainText("t=1s · alpha=none · live=0 · released=1");
+  await page.getByRole("button", { name: "0.875s", exact: true }).click();
+  await expect(page.locator("#status")).toContainText("t=0.875s · alpha=0.5 · live=1");
+});

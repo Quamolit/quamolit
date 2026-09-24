@@ -34,6 +34,11 @@ test("WebGPU thin adapter reuses immutable source copies and only uploads change
   assert.equal(layer.draw(shape(source1), 0.5).positionBytesCopied, 0);
   assert.equal(uploads.length, 1);
   assert.equal(draws[1].alpha, 0.5);
+  layer.clear();
+  assert.equal(draws.at(-1).count, 0);
+  assert.equal(uploads.length, 1);
+  assert.equal(layer.draw(shape(source1), 0.5).positionBytesCopied, 0);
+  assert.equal(uploads.length, 1);
   assert.equal(layer.draw(shape(source2)).positionBytesCopied, 80000);
   assert.equal(uploads[1][0], 60);
   assert.equal(layer.draw(shape(source1)).positionBytesCopied, 0);

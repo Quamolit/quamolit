@@ -6,7 +6,7 @@ const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 
 export default defineConfig({
   testDir: ".",
-  testMatch: ["webgpu-instances.spec.mjs"],
+  testMatch: ["webgpu-instances.spec.mjs", "webgpu-presence.spec.mjs"],
   workers: 1,
   retries: 0,
   timeout: 30_000,
