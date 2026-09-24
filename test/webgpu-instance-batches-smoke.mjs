@@ -17,13 +17,17 @@ test("WebGPU thin adapter reuses immutable source copies and only uploads change
   const draws = [];
   let disposed = 0;
   const backend = {
-    upload(positions) {
+    upload(positions, start, count) {
+      assert.equal(start, 0);
+      assert.equal(count, 10000);
       uploads.push(positions);
       return { positionBytesUploaded: positions.byteLength };
     },
     draw(options) {
       draws.push(options);
-      return { drawCalls: 1, instances: uploads.at(-1).length / 2, positionBytesUploaded: draws.length === 1 ? 80000 : 0 };
+      return { drawCalls: 1, instances: options.count ?? uploads.at(-1).length / 2,
+        positionBytesUploaded: draws.length === 1 ? 80000 : 0,
+        uniformBytesUploaded: 64, pipelinesCreated: 1, buffersCreated: 2 };
     },
     dispose() { disposed++; return disposed === 1; },
   };
@@ -35,7 +39,7 @@ test("WebGPU thin adapter reuses immutable source copies and only uploads change
   assert.equal(layer.draw(shape(source1), 0.5, translated).positionBytesCopied, 0);
   assert.equal(uploads.length, 1);
   assert.equal(draws[1].alpha, 0.5);
-  assert.equal(draws[1].translation, translated);
+  assert.deepEqual(draws[1].translation, translated);
   layer.clear();
   assert.equal(draws.at(-1).count, 0);
   assert.equal(uploads.length, 1);

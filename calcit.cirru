@@ -8379,3 +8379,117 @@
             :args $ []
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.util.time
+    'quamolit.webgpu-batches $ %{} 'FileEntry
+      :defs $ {}
+        'clear! $ %{} 'CodeEntry (:doc "|提交零实例帧，在完整图层边界清屏。")
+          :code $ quote $ defn clear! (batch)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
+              :return 'js-ffi.webgpu-batches/RectMetrics
+              :features $ #{} :js-ffi
+            draw! batch 0 0 (color 1 1 1 1) 1 (%none) (%some 0)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.webgpu-batches/RectMetrics)
+            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
+            :features $ #{} :js-ffi
+        'color $ %{} 'CodeEntry (:doc "|把 Scene 颜色数值构造成 js-ffi 的类型化 RGBA。")
+          :code $ quote $ defn color (r g b a)
+            hint-fn $ {}
+              :args $ [] 'Number 'Number 'Number 'Number
+              :return 'js-ffi.webgpu-batches/RectColor
+            batches/RectColor :r r :g g :b b :a a
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.webgpu-batches/RectColor)
+            :args $ [] 'Number 'Number 'Number 'Number
+        'create! $ %{} 'CodeEntry (:doc "|创建保留式 GPU 实例图层，所有权留给调用者。")
+          :code $ quote $ defn create! (canvas device format capacity)
+            hint-fn $ {} (:async true)
+              :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'Number
+              :return 'js-ffi.webgpu-batches/RectBatchHost
+              :features $ #{} :js-ffi
+            js-await $ batches/create-rect-batch! canvas device format capacity
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+          :schema $ :: 'Fn $ {} (:async true) (:return 'js-ffi.webgpu-batches/RectBatchHost)
+            :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'Number
+            :features $ #{} :js-ffi
+        'dispose! $ %{} 'CodeEntry (:doc "|幂等释放图层宿主资源，不释放调用者持有的 device。")
+          :code $ quote $ defn dispose! (batch)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
+              :return 'Bool
+              :features $ #{} :js-ffi
+            batches/dispose-batch! batch
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
+            :features $ #{} :js-ffi
+        'draw! $ %{} 'CodeEntry (:doc "|提交一个实例图层帧；缺省 count 复用活跃实例，count=0 清空画布。")
+          :code $ quote $ defn draw! (batch width height fill alpha motion instance-count)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'Number 'Number 'js-ffi.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'js-ffi.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number)
+              :return 'js-ffi.webgpu-batches/RectMetrics
+              :features $ #{} :js-ffi
+            let
+                frame $ batches/RectFrame :width width :height height :fill fill :alpha alpha :translation motion :count instance-count
+              batches/draw-rects! batch frame
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.webgpu-batches/RectMetrics)
+            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'Number 'Number 'js-ffi.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'js-ffi.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number)
+            :features $ #{} :js-ffi
+        'read-pixel! $ %{} 'CodeEntry (:doc "|测试诊断读回；生产帧不得调用。")
+          :code $ quote $ defn read-pixel! (batch x y)
+            hint-fn $ {} (:async true)
+              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'Number 'Number
+              :return 'js-ffi.webgpu-batches/RectPixel
+              :features $ #{} :js-ffi
+            js-await $ batches/read-pixel! batch x y
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+          :schema $ :: 'Fn $ {} (:async true) (:return 'js-ffi.webgpu-batches/RectPixel)
+            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'Number 'Number
+            :features $ #{} :js-ffi
+        'read-translation! $ %{} 'CodeEntry (:doc "|测试诊断 GPU f32 时间位移；生产帧不得调用。")
+          :code $ quote $ defn read-translation! (batch)
+            hint-fn $ {} (:async true)
+              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
+              :return 'js-ffi.webgpu-batches/RectTranslationSample
+              :features $ #{} :js-ffi
+            js-await $ batches/read-translation! batch
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+          :schema $ :: 'Fn $ {} (:async true) (:return 'js-ffi.webgpu-batches/RectTranslationSample)
+            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
+            :features $ #{} :js-ffi
+        'translation $ %{} 'CodeEntry (:doc "|把已验证的 Vec2 tween 参数构造成绝对时间 GPU 位移。")
+          :code $ quote $ defn translation (from-x from-y to-x to-y time start duration easing)
+            hint-fn $ {}
+              :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'String
+              :return 'js-ffi.webgpu-batches/RectTranslation
+            let
+                from $ batches/RectVec2 :x from-x :y from-y
+                to $ batches/RectVec2 :x to-x :y to-y
+              batches/RectTranslation :from from :to to :time time :start start :duration duration :easing easing
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.webgpu-batches/RectTranslation)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'String
+        'upload! $ %{} 'CodeEntry (:doc "|上传当前版本实例位置，调用次数按资源版本而非帧数增长。")
+          :code $ quote $ defn upload! (batch positions instance-count)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'js-ffi.webgpu-batches/Float32PositionsHost 'Number
+              :return 'Number
+              :features $ #{} :js-ffi
+            batches/upload-positions! batch positions 0 instance-count
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'js-ffi.webgpu-batches/Float32PositionsHost 'Number
+            :features $ #{} :js-ffi
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.webgpu-batches
+          :require $ js-ffi.webgpu-batches :as batches
