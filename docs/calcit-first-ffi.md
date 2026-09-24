@@ -15,7 +15,7 @@ Quamolit 的目标是增强 Calcit 动画生态：声明式组件与显式时间
 
 ## 当前债务与迁移顺序
 
-`js-ffi` 的 0.1.45 曾加入 Canvas Scene 的 JS 命令解释器。这是与上述方向不符的实验接口，Quamolit 已回到 0.1.44，不再继续消费它；已发布 tag 不改写历史。后续上游 PR 应新增基础 Canvas2D/WebGPU 的 Calcit 类型化原语，明确哪些调用必须留 JS，再考虑废弃该实验接口。
+`js-ffi` 的 0.1.45 曾加入 Canvas Scene 的 JS 命令解释器。这是与上述方向不符的实验接口，Quamolit 已回到 0.1.44，不再继续消费它；已发布 tag 不改写历史。[上游 #112](https://github.com/calcit-lang/js-ffi/issues/112) 跟踪基础 Canvas2D/WebGPU 的 Calcit 类型化原语、必须保留 JS 的调用与该实验接口的废弃迁移；[Quamolit #35](https://github.com/Quamolit/quamolit/issues/35) 跟踪消费与本仓库逻辑迁移。
 
 本仓库 `src/host/` 目前仍有 JS 实现，并非架构目标。优先迁移纯逻辑：`gpu-vec2-translation`、`retained-scene-plan`、`demand-frame-scheduler`、`presence-resources`；然后迁移实例源/画布批次的决策逻辑。WebGPU device、buffer、pipeline 的原生句柄与浏览器事件桥保留最窄 JS 边界。每迁移一项，删除对应的宿主业务代码，而不是保留 Calcit 转发层；同一测试应继续检验乱序时间、资源版本、DPR、失败与释放。切换到生产入口之前，不把现有 JS 夹具称作最终 Calcit API。
 
