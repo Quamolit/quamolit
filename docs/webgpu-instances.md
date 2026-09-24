@@ -12,4 +12,4 @@
 
 同一矩形图层已接入固定 Presence 时间帧；生命周期、乱序 seek 和退出 alpha 的双后端检验见 [Presence WebGPU 时间帧](webgpu-presence-time.md)。
 
-js-ffi 0.1.41 为批次加入通用绝对时间平移 uniform，0.1.42 将批次操作公开为 Calcit FFI，并加入诊断数值读回；0.1.43 进一步公开 Float32 快照与 Canvas 批次的 Calcit API。Quamolit 的标准 Vec2 Motion 映射与 10k 双后端验证见 [Vec2 GPU 时间采样](gpu-vec2-motion.md)。生产批次路径已不直接导入这两类上游 `.mjs`；设备能力探测仍由测试夹具直接调用上游底层 JS，尚需后续 Calcit API 迁移，因此 #35 仍未完成。
+js-ffi 0.1.41 为批次加入通用绝对时间平移 uniform，0.1.42 将批次操作公开为 Calcit FFI，并加入诊断数值读回；0.1.43 进一步公开 Float32 快照与 Canvas 批次的 Calcit API；0.1.44 公开类型化 WebGPU 能力探测。Quamolit 的标准 Vec2 Motion 映射与 10k 双后端验证见 [Vec2 GPU 时间采样](gpu-vec2-motion.md)。三个 GPU 测试页面现在通过 `quamolit.webgpu-capabilities` 的编译产物调用探测，不再直接导入上游底层 `.mjs`。#35 的整个新主路径与 FFI 盘点仍须另行审查，不能仅凭此切片关闭。

@@ -5,7 +5,7 @@ import { InstanceSourceRegistry } from "../instance-sources.mjs";
 import { CanvasInstanceBatches } from "../canvas-instance-batches.mjs";
 import { WebGpuInstanceBatches } from "../webgpu-instance-batches.mjs";
 import { instanceGrid } from "./instance-grid.mjs";
-import { probeWebGpuDevice } from "../.calcit/modules/js-ffi/webgpu-capabilities.mjs";
+import { probeWebGpuDevice } from "../webgpu-capabilities.mjs";
 
 const canvas = document.querySelector("#scene");
 const context = canvas.getContext("2d", { willReadFrequently: true });
