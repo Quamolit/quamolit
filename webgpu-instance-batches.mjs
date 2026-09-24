@@ -41,6 +41,10 @@ export class WebGpuInstanceBatches {
     return Object.freeze({ ...metrics, positionBytesCopied });
   }
 
+  clear() {
+    return this.#batch.draw({ count: 0, width: 0, height: 0, fill: { r: 1, g: 1, b: 1, a: 1 } });
+  }
+
   readPixel(x, y) {
     if (typeof this.#batch.readPixel !== "function") throw new TypeError("WebGPU diagnostic readback unavailable");
     return this.#batch.readPixel(x, y);

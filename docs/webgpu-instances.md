@@ -9,3 +9,5 @@
 本机应用内浏览器观察到 `adapter=apple/false`，两张 10k 画布可见一致，GPU 四个采样像素与 Canvas 精确一致；重复帧上传 0，禁用后 Canvas 继续绘制，重试重新建立 GPU 图层。该观察证明这台浏览器上的矩形实例画面正确，不是 60 FPS、跨设备或正式吞吐证据。本机 headless Chromium 启用 WebGPU 后只提供 `google/true` 软件 adapter，其读回曾返回透明零值或 `mapAsync` 设备失效；因此默认选择 Canvas，并保留诊断记录。是否有底层驱动/SwiftShader 问题尚未判定，不能把软件失败说成硬件通过。
 
 未覆盖 #40 的圆/图片、基础 transform/clip、跨层混合顺序、resize/DPR、完整资源恢复、Use.GPU 对比及 #39 性能报告。当前普通 `yarn compile`/`yarn release` 仍是 bootstrap 入口；本页面是可运行的真实 GPU 实例切片，不是完整生产渲染器。WebGPU 的 standard Motion shader 采样另归 #52。
+
+同一矩形图层已接入固定 Presence 时间帧；生命周期、乱序 seek 和退出 alpha 的双后端检验见 [Presence WebGPU 时间帧](webgpu-presence-time.md)。

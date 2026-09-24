@@ -7,3 +7,5 @@
 `PresenceUpdate.released` 提供逻辑 SceneEntry，交互层 #34 后续应按逻辑路径/target 在卸载时撤销指针捕获。退出中的 `PresenceSample.interactive=false` 已由 CPU 参考模型定义；当前 tracker 不接管 DOM Pointer Events，也不声称已验证指针捕获。
 
 验证：`yarn test:presence-resources` 使用严格类型的 Calcit fixture，重复 100 次 10k 实例挂载/退出，确认每次结算仅释放一次、模型/宿主 live 数回到基线；另测退出重入、未登记源失败不破坏旧资源、共享源最后引用才释放。`yarn test:motion-browser` 以固定事件日志重放 0/0.25/0.5/0.75/0.875/1 秒，检查退出中间帧像素、资源存活及终点白像素/停帧。Canvas 仅作正确性参考，不是性能数据。
+
+WebGPU 时间帧对照与可重建的归档缓存见 [Presence WebGPU 时间帧](webgpu-presence-time.md)。归档缓存不计入实时 Presence `live`，不能据此延后逻辑资源释放。

@@ -6,6 +6,7 @@
     <style>
       body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
       canvas { border: 1px solid #94a3b8; display: block; margin: 16px 0; }
+      canvas[hidden] { display: none; }
       button { margin-right: 8px; margin-bottom: 8px; padding: 6px 10px; }
       #status[data-result="pass"] { color: #166534; }
       #status[data-result="fail"] { color: #b91c1c; }
@@ -13,11 +14,13 @@
   </head>
   <body>
     <h1>退出动画与实例资源生命周期</h1>
-    <p>固定事件日志独立重放；Canvas 仅用于验证中间帧，不是生产后端。</p>
+    <p>固定事件日志独立重放；同一 Presence 中间帧由 Canvas 参考与可用时的 WebGPU 实例图层对照。</p>
     <p><output id="backend">WebGPU 能力探测中…</output></p>
     <div id="times"></div>
+    <button id="disable-gpu">禁用 GPU</button><button id="retry-gpu">重试 GPU</button>
     <canvas id="scene" width="320" height="100"></canvas>
     <output id="status">加载中…</output>
+    <canvas id="gpu-scene" width="320" height="100" hidden></canvas>
     <script type="module" src="./presence-resources.mjs"></script>
   </body>
 </html>
