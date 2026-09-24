@@ -23,13 +23,14 @@
 | `quamolit.scene-ir/SceneDocument`、`SceneNode`、`validate-scene` | 已实现的实验性可序列化核心切片；非生产绘制入口 | [Scene IR 核心](scene-ir-core.md)；group/rect/实例源、校验和 JSON 夹具；参考变更集见下行 |
 | `InstanceSourceRegistry`（JS 宿主适配器） | 已实现的版本化坐标快照边界；非资源表或 GPU 上传器 | [实例数据源边界](instance-sources.md)；js-ffi 0.1.38 保留通用 Float32 快照 |
 | `CanvasInstanceBatches`（JS 薄适配器） | 已实现的 Canvas 实例批次正确性路径；非 GPU/自动合批 | [Canvas 实例批次](canvas-instance-batches.md)；js-ffi 0.1.38 提供通用一次调用的矩形批次，指标区分 FFI 与 `fillRect` |
+| `WebGpuInstanceBatches`（JS 薄适配器） | 已实现的 10k 矩形实例 GPU 切片；非完整 Scene 后端 | [WebGPU 实例切片](webgpu-instances.md)；js-ffi 0.1.40 持有 pipeline/buffer 并一次 instanced draw，强制无 GPU/软件 adapter 时整层 Canvas 回退 |
 | `quamolit.scene-diff/index-scene`、`diff-scene`、`SceneDelta` | 已实现的逻辑身份与 O(n²) 参考差分；非生产调度器 | [Scene diff](scene-diff.md)；重排保身份、重挂载、分类和时间独立标记；#50 执行计划未完成 |
 | `quamolit.scene-binding/resolve-scene` | 已实现的绝对时间 CPU 标量绑定参考解析；非增量执行入口 | [Scene 绑定解析](scene-binding.md)；精确 ID/version、输出再校验、浏览器中间帧；#50 执行计划未完成 |
 | `quamolit.transition/start-transition`、`interrupt-transition`、`sample-replay` | 已实现的位置连续打断与固定事件重放 CPU 切片；非完整生命周期 | [打断过渡](transition-interruption.md)；25%/50%/75% 打断及浏览器帧；Scene enter/exit 参考见下行 |
 | `quamolit.presence/start-presence`、`reconcile-presence`、`sample-presence`、`settle-presence` | 已实现的 Scene 逻辑实例生命周期参考；非宿主资源管理器 | [进入退出](presence-lifecycle.md)；重排、fade、重入、一次性逻辑释放通知；#34/#51 宿主清理未完成 |
 | `PresenceInstanceResources`（JS 宿主适配器） | 已实现的 instances Float32 快照所有权；非通用资源表 | [Presence 宿主资源跟踪](presence-resources.md)；退出期间保留、终点最后引用释放、100 次装卸计数回基线；GPU/指针捕获未覆盖 |
 | 完整 Scene IR / 完整 Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；现有切片不持有 DOM/GPU 句柄 |
-| WebGPU/Canvas2D 双后端、资源表、命中索引 | 拟议、尚未实现 | #40/#33/#51/#34 |
+| 完整 WebGPU/Canvas2D 双后端、资源表、命中索引 | 仅矩形实例切片可运行；完整能力尚未实现 | #40/#33/#51/#34 |
 
 `evaluate-at` 不是新的 `quamolit.direct-frame/sample-at`：前者从上一帧按非倒退时间更新模型，相同时间直接复用旧场景；它既不能任意乱序求值，也不会在相同时间但资源/模型改变时自动刷新。新的 Calcit CPU 切片可以直接乱序求值，并通过显式版本使相同时间的依赖变更失效，但还不是组件公共入口。应用不得用“先把历史跑一遍”的隐藏全局状态伪装成直接采样。
 

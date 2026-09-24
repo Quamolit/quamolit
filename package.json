@@ -21,6 +21,7 @@
     "test:scene-core": "calcit analyze check-public --ns quamolit.scene-ir --ns quamolit.test.motion-fixture && calcit test --tag scene --require-match && yarn compile:motion && node --test test/scene-core-smoke.mjs",
     "test:instance-sources": "yarn compile:motion && node --test test/instance-sources-smoke.mjs",
     "test:canvas-batches": "yarn compile:motion && node --test test/canvas-instance-batches-smoke.mjs",
+    "test:webgpu-instances": "yarn compile:motion && node --test test/webgpu-instance-batches-smoke.mjs && playwright test --config test/gpu.playwright.config.mjs",
     "test:scene-diff": "calcit analyze check-public --ns quamolit.scene-diff --ns quamolit.test.motion-fixture && calcit test --tag scene-diff --require-match && yarn compile:motion && node --test test/scene-diff-smoke.mjs",
     "test:scene-binding": "calcit analyze check-public --ns quamolit.scene-binding --ns quamolit.test.motion-fixture && calcit test --tag scene-binding --require-match && yarn compile:motion && node --test test/scene-binding-smoke.mjs",
     "test:transition": "calcit analyze check-public --ns quamolit.transition --ns quamolit.test.motion-fixture && calcit test --tag transition --require-match && yarn compile:motion && node --test test/transition-smoke.mjs",
