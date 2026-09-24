@@ -4,6 +4,7 @@ import { probeWebGpuDevice } from "../webgpu-capabilities.mjs";
 import { InstanceSourceRegistry } from "../instance-sources.mjs";
 import { CanvasInstanceBatches } from "../canvas-instance-batches.mjs";
 import { WebGpuInstanceBatches } from "../webgpu-instance-batches.mjs";
+import { WebGpuLayerLease } from "../webgpu-layer-lease.mjs";
 import { instanceGrid } from "./instance-grid.mjs";
 
 const canvas = document.querySelector("#scene");
@@ -18,10 +19,18 @@ const source = documentAt(0.5).nodes.find((node) => node.content[0] === "instanc
 const versions = [source, { ...source, version: source.version + 1 }];
 const gpuMode = new URLSearchParams(location.search).get("gpu") ?? "native";
 if (!["native", "off"].includes(gpuMode)) throw new RangeError("未知 GPU 模式");
-let gpuCapability;
-let gpuLayer;
-let gpuGeneration = 0;
 let currentVersion = 1;
+const gpuLease = new WebGpuLayerLease({
+  probe: probeWebGpuDevice,
+  create: (candidate) => WebGpuInstanceBatches.create(gpuCanvas, candidate, registry, source.count),
+  onLost(info) {
+    gpuCanvas.hidden = true;
+    gpuStatus.dataset.result = "fallback";
+    gpuStatus.dataset.liveLayers = `${gpuLease.metrics.live}`;
+    gpuStatus.textContent = `Canvas 回退：device lost ${info.reason}: ${info.message}`;
+    void render(currentVersion).catch(reportError);
+  },
+});
 
 for (const [index, x] of [40, 60].entries()) {
   const positions = instanceGrid(source.count, x);
@@ -34,69 +43,39 @@ function pixelAt(x, y) {
 }
 
 function closeGpu(reason) {
-  gpuGeneration++;
-  const layer = gpuLayer;
-  const capability = gpuCapability;
-  gpuLayer = undefined;
-  gpuCapability = undefined;
+  const cleanup = gpuLease.close();
   gpuCanvas.hidden = true;
-  let cleanupError;
-  try { layer?.dispose(); }
-  catch (error) { cleanupError = error.message; }
-  try { capability?.release(); }
-  catch (error) { cleanupError = cleanupError ? `${cleanupError}; ${error.message}` : error.message; }
   gpuStatus.dataset.result = "fallback";
-  gpuStatus.textContent = `Canvas 回退：${reason}${cleanupError ? `；释放错误：${cleanupError}` : ""}`;
+  gpuStatus.dataset.liveLayers = `${cleanup.live}`;
+  gpuStatus.textContent = `Canvas 回退：${reason}${cleanup.errors.length ? `；释放错误：${cleanup.errors.join("; ")}` : ""}`;
 }
 
 async function openGpu() {
-  if (gpuLayer) return;
   if (gpuMode === "off") {
     gpuStatus.dataset.result = "fallback";
     gpuStatus.textContent = "Canvas 回退：GPU 已强制禁用";
     return;
   }
-  const generation = ++gpuGeneration;
-  const candidate = await probeWebGpuDevice(navigator);
-  if (generation !== gpuGeneration) {
-    if (candidate.kind === "ready") candidate.release();
-    return;
-  }
-  if (candidate.kind !== "ready") {
-    gpuStatus.dataset.result = "fallback";
-    gpuStatus.textContent = `Canvas 回退：WebGPU ${candidate.kind}/${candidate.stage}${candidate.message ? ` · ${candidate.message}` : ""}`;
-    return;
-  }
-  const adapterInfo = candidate.adapter.info ?? {};
-  gpuStatus.dataset.adapterFallback = `${adapterInfo.isFallbackAdapter ?? "unknown"}`;
-  gpuStatus.dataset.adapterVendor = adapterInfo.vendor ?? "unknown";
-  gpuStatus.dataset.adapterDescription = adapterInfo.description ?? "unknown";
-  if (adapterInfo.isFallbackAdapter === true) {
-    candidate.release();
+  const result = await gpuLease.open(navigator);
+  if (result.kind === "cancelled") return;
+  gpuStatus.dataset.liveLayers = `${gpuLease.metrics.live}`;
+  if (result.kind === "fallback") {
+    gpuStatus.dataset.adapterVendor = result.adapterInfo.vendor ?? "unknown";
+    gpuStatus.dataset.adapterFallback = "true";
     gpuStatus.dataset.result = "fallback";
     gpuStatus.textContent = `Canvas 回退：WebGPU 软件 adapter (${gpuStatus.dataset.adapterVendor})`;
     return;
   }
-  try {
-    const layer = await WebGpuInstanceBatches.create(gpuCanvas, candidate, registry, source.count);
-    if (generation !== gpuGeneration) {
-      layer.dispose();
-      candidate.release();
-      return;
-    }
-    gpuCapability = candidate;
-    gpuLayer = layer;
-    gpuCanvas.hidden = false;
-    candidate.lost.then((info) => {
-      if (generation !== gpuGeneration || gpuLayer !== layer) return;
-      closeGpu(`device lost ${info.reason}: ${info.message}`);
-      void render(currentVersion).catch(reportError);
-    });
-  } catch (error) {
-    candidate.release();
-    gpuStatus.dataset.result = "failed";
-    gpuStatus.textContent = `WebGPU 初始化失败：${error.message}`;
+  if (result.kind !== "ready") {
+    gpuStatus.dataset.result = result.kind === "failed" ? "failed" : "fallback";
+    gpuStatus.textContent = `Canvas 回退：WebGPU ${result.kind}/${result.stage}${result.message ? ` · ${result.message}` : ""}`;
+    return;
   }
+  const adapterInfo = result.adapterInfo;
+  gpuStatus.dataset.adapterFallback = `${adapterInfo.isFallbackAdapter ?? "unknown"}`;
+  gpuStatus.dataset.adapterVendor = adapterInfo.vendor ?? "unknown";
+  gpuStatus.dataset.adapterDescription = adapterInfo.description ?? "unknown";
+  gpuCanvas.hidden = false;
 }
 
 function reportError(error) {
@@ -124,8 +103,9 @@ async function render(version, time = 0.5) {
   if (active !== "234,88,12,255" || inactive !== "255,255,255,255" || grid !== active || gap !== "255,255,255,255") {
     throw new Error(`版本 ${version} Canvas 像素错误: ${active} / ${inactive}`);
   }
-  if (gpuLayer && gpuCapability?.state === "ready") {
+  if (gpuLease.layer && gpuLease.capability?.state === "ready") {
     try {
+      const gpuLayer = gpuLease.layer;
       const gpuMetrics = gpuLayer.draw(shape);
       const pixels = await Promise.all([
         gpuLayer.readPixel(x, 50), gpuLayer.readPixel(version === 1 ? 60 : 40, 50),
@@ -137,10 +117,11 @@ async function render(version, time = 0.5) {
       }
       gpuStatus.dataset.result = "ready";
       gpuStatus.dataset.version = `${version}`;
+      gpuStatus.dataset.liveLayers = `${gpuLease.metrics.live}`;
       gpuStatus.textContent = `WebGPU PASS · version=${version} · draw=${gpuMetrics.drawCalls} · instances=${gpuMetrics.instances} · upload=${gpuMetrics.positionBytesUploaded} · copied=${gpuMetrics.positionBytesCopied} · pipeline=${gpuMetrics.pipelinesCreated} · buffers=${gpuMetrics.buffersCreated} · pixel=${actual[0]} · adapter=${gpuStatus.dataset.adapterVendor}/${gpuStatus.dataset.adapterFallback}`;
     } catch (error) {
-      if (gpuLayer) {
-        const lost = gpuCapability?.state === "lost";
+      if (gpuLease.layer) {
+        const lost = gpuLease.capability?.state === "lost";
         closeGpu(`${lost ? "device lost" : "WebGPU 绘制失败"}：${error.message}`);
         if (!lost) gpuStatus.dataset.result = "failed";
       }

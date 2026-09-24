@@ -5,6 +5,7 @@ import { InstanceSourceRegistry } from "../instance-sources.mjs";
 import { PresenceInstanceResources } from "../presence-resources.mjs";
 import { CanvasInstanceBatches } from "../canvas-instance-batches.mjs";
 import { WebGpuInstanceBatches } from "../webgpu-instance-batches.mjs";
+import { WebGpuLayerLease } from "../webgpu-layer-lease.mjs";
 import { instanceGrid } from "./instance-grid.mjs";
 import { probeWebGpuDevice } from "../webgpu-capabilities.mjs";
 
@@ -24,9 +25,6 @@ if (!["native", "off", "denied", "ready", "lost"].includes(mode)) throw new Rang
 const archivedSource = toJsData(instanceDocument(1, true)).nodes[1].content[1].source;
 const archiveRegistry = new InstanceSourceRegistry();
 archiveRegistry.register(archivedSource, instanceGrid(archivedSource.count, 40));
-let gpuCapability;
-let gpuLayer;
-let gpuGeneration = 0;
 const initialTime = Number(parameters.get("time") ?? 0.875);
 let currentTime = initialTime;
 let renderTail = Promise.resolve();
@@ -42,39 +40,36 @@ const deniedHost = { gpu: {
   getPreferredCanvasFormat: () => "bgra8unorm",
   requestAdapter: async () => { throw new Error("test-adapter-denied"); },
 } };
+const gpuLease = new WebGpuLayerLease({
+  probe: probeWebGpuDevice,
+  create: (candidate) => WebGpuInstanceBatches.create(gpuCanvas, candidate, archiveRegistry, archivedSource.count),
+  onLost(info) {
+    gpuCanvas.hidden = true;
+    backendStatus.dataset.kind = "fallback";
+    backendStatus.dataset.liveLayers = `${gpuLease.metrics.live}`;
+    backendStatus.textContent = `Canvas 参考：device lost ${info.reason}: ${info.message}`;
+    void scheduleRender(currentTime).catch(reportError);
+  },
+});
 
 function closeGpu(reason) {
-  gpuGeneration++;
-  const layer = gpuLayer;
-  const capability = gpuCapability;
-  gpuLayer = undefined;
-  gpuCapability = undefined;
+  const cleanup = gpuLease.close();
   gpuCanvas.hidden = true;
-  let cleanupError;
-  try { layer?.dispose(); }
-  catch (error) { cleanupError = error.message; }
-  try { capability?.release(); }
-  catch (error) { cleanupError = cleanupError ? `${cleanupError}; ${error.message}` : error.message; }
   backendStatus.dataset.kind = "fallback";
-  backendStatus.textContent = `Canvas 参考：${reason}${cleanupError ? `；释放错误：${cleanupError}` : ""}`;
+  backendStatus.dataset.liveLayers = `${cleanup.live}`;
+  backendStatus.textContent = `Canvas 参考：${reason}${cleanup.errors.length ? `；释放错误：${cleanup.errors.join("; ")}` : ""}`;
 }
 
 async function openGpu() {
-  if (gpuLayer) return;
   if (mode === "off") {
     backendStatus.dataset.kind = "fallback";
     backendStatus.textContent = "Canvas 参考：GPU 已强制禁用";
     return;
   }
-  const generation = ++gpuGeneration;
-  const candidate = await probeWebGpuDevice(mode === "native" ? navigator : mode === "denied" ? deniedHost : testHost);
-  if (generation !== gpuGeneration) {
-    if (candidate.kind === "ready") candidate.release();
-    return;
-  }
-  backendStatus.dataset.kind = candidate.kind;
-  backendStatus.dataset.stage = candidate.stage ?? "";
   if (mode !== "native") {
+    const candidate = await probeWebGpuDevice(mode === "denied" ? deniedHost : testHost);
+    backendStatus.dataset.kind = candidate.kind;
+    backendStatus.dataset.stage = candidate.stage ?? "";
     if (candidate.kind === "ready") {
       const loss = mode === "lost" ? await candidate.lost : null;
       const beforeRelease = candidate.state;
@@ -85,39 +80,25 @@ async function openGpu() {
     }
     return;
   }
-  if (candidate.kind !== "ready") {
-    backendStatus.textContent = `WebGPU ${candidate.kind}/${candidate.stage} → Canvas 参考${candidate.message ? `；${candidate.message}` : ""}`;
-    return;
-  }
-  const adapterInfo = candidate.adapter.info ?? {};
-  backendStatus.dataset.adapterFallback = `${adapterInfo.isFallbackAdapter ?? "unknown"}`;
-  backendStatus.dataset.adapterVendor = adapterInfo.vendor ?? "unknown";
-  if (adapterInfo.isFallbackAdapter === true) {
-    candidate.release();
-    backendStatus.dataset.kind = "fallback";
+  const result = await gpuLease.open(navigator);
+  if (result.kind === "cancelled") return;
+  backendStatus.dataset.liveLayers = `${gpuLease.metrics.live}`;
+  backendStatus.dataset.kind = result.kind;
+  backendStatus.dataset.stage = result.stage ?? "";
+  if (result.kind === "fallback") {
+    backendStatus.dataset.adapterFallback = "true";
+    backendStatus.dataset.adapterVendor = result.adapterInfo.vendor ?? "unknown";
     backendStatus.textContent = `Canvas 参考：WebGPU 软件 adapter (${backendStatus.dataset.adapterVendor})`;
     return;
   }
-  try {
-    const layer = await WebGpuInstanceBatches.create(gpuCanvas, candidate, archiveRegistry, archivedSource.count);
-    if (generation !== gpuGeneration) {
-      layer.dispose();
-      candidate.release();
-      return;
-    }
-    gpuCapability = candidate;
-    gpuLayer = layer;
-    gpuCanvas.hidden = false;
-    candidate.lost.then((info) => {
-      if (generation !== gpuGeneration || gpuLayer !== layer) return;
-      closeGpu(`device lost ${info.reason}: ${info.message}`);
-      void scheduleRender(currentTime).catch(reportError);
-    });
-  } catch (error) {
-    candidate.release();
-    backendStatus.dataset.kind = "failed";
-    backendStatus.textContent = `WebGPU 初始化失败：${error.message} → Canvas 参考`;
+  if (result.kind !== "ready") {
+    backendStatus.textContent = `WebGPU ${result.kind}/${result.stage} → Canvas 参考${result.message ? `；${result.message}` : ""}`;
+    return;
   }
+  const adapterInfo = result.adapterInfo;
+  backendStatus.dataset.adapterFallback = `${adapterInfo.isFallbackAdapter ?? "unknown"}`;
+  backendStatus.dataset.adapterVendor = adapterInfo.vendor ?? "unknown";
+  gpuCanvas.hidden = false;
 }
 
 function replayAt(time) {
@@ -179,8 +160,9 @@ async function renderAt(time) {
   if (time === 0.875 && (instance?.alpha !== 0.5 || frame.registry.liveCount !== 1)) {
     throw new Error("退出中间帧未保留实例资源");
   }
-  if (gpuLayer && gpuCapability?.state === "ready") {
+  if (gpuLease.layer && gpuLease.capability?.state === "ready") {
     try {
+      const gpuLayer = gpuLease.layer;
       const metrics = instance ? gpuLayer.draw(instance.entry.node.content[1], instance.alpha) : gpuLayer.clear();
       // Acquire all readbacks before awaiting; they must address the same canvas texture.
       const actual = await Promise.all([
@@ -194,11 +176,12 @@ async function renderAt(time) {
         }
       }
       backendStatus.dataset.kind = "ready";
+      backendStatus.dataset.liveLayers = `${gpuLease.metrics.live}`;
       backendStatus.dataset.result = "pass";
       backendStatus.dataset.time = `${time}`;
       backendStatus.textContent = `WebGPU PASS · t=${time}s · alpha=${instance?.alpha ?? "none"} · draw=${metrics.drawCalls} · upload=${metrics.positionBytesUploaded} · copied=${metrics.positionBytesCopied ?? 0} · pipeline=${metrics.pipelinesCreated} · buffers=${metrics.buffersCreated} · pixel=${pixelText(actual[0])} · adapter=${backendStatus.dataset.adapterVendor}/${backendStatus.dataset.adapterFallback}`;
     } catch (error) {
-      const lost = gpuCapability?.state === "lost";
+      const lost = gpuLease.capability?.state === "lost";
       closeGpu(`${lost ? "device lost" : "WebGPU 绘制失败"}：${error.message}`);
       if (!lost) backendStatus.dataset.kind = "failed";
     }
