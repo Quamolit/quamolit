@@ -13,5 +13,8 @@ test("Calcit Vec2 Motion 在 Canvas 参考路径乱序绘制 10k 实例", async 
   }
   await page.reload();
   await expect(status).toContainText("t=0.5s · x=128 · y=100");
+  await page.getByRole("button", { name: "0.37s", exact: true }).click();
+  await expect(status).toContainText("t=0.37s · x=");
+  await expect(status).toContainText("pixel=numeric-only");
   expect(errors).toEqual([]);
 });

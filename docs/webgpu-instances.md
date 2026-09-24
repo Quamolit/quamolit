@@ -1,6 +1,6 @@
 # WebGPU 矩形实例同源路径：M2 #40 切片
 
-`test/instance-sources.html` 从同一份编译后的 Scene IR 取一个 10k `:instances` 逻辑节点、同一 `(id,version,count)` 位置源与同一颜色/尺寸，分别交给 Canvas 参考路径和 `WebGpuInstanceBatches`。后者只负责从 `InstanceSourceRegistry` 解析不可变 token、缓存 CPU 私有副本、在源版本变化时上传；通用 GPU pipeline、buffer、shader、instanced draw 和诊断像素读回全部由已发布的 js-ffi 0.1.41 维护。Scene IR 不保存 DOM/GPU 句柄。
+`test/instance-sources.html` 从同一份编译后的 Scene IR 取一个 10k `:instances` 逻辑节点、同一 `(id,version,count)` 位置源与同一颜色/尺寸，分别交给 Canvas 参考路径和 `WebGpuInstanceBatches`。后者只负责从 `InstanceSourceRegistry` 解析不可变 token、缓存 CPU 私有副本、在源版本变化时上传；通用 GPU pipeline、buffer、shader、instanced draw 和诊断读回由已发布的 js-ffi 0.1.42 维护。Quamolit 的 `quamolit.webgpu-batches` Calcit 命名空间引用 `js-ffi.webgpu-batches`，宿主适配器消费其编译产物，不再直接导入 WebGPU 批次 `.mjs`。Scene IR 不保存 DOM/GPU 句柄。
 
 当前实测切片为 320×100 实际像素、DPR=1、`t=0.5` 的橙色矩形网格。切换源版本时上传 80,000 字节位置数据、一个逻辑实例图层绘制 10,000 个实例、一次 GPU draw；重复同版本绘制时位置上传和 CPU 再复制均为 0，pipeline/常驻 buffer 数保持 1/2。Canvas 参考仍执行 10,000 次 `fillRect`。页面同时读取两后端的锚点、非活动锚点、网格和白色间隔四个像素；GPU 读回是每帧临时诊断资源，不属于稳态性能路径。
 
@@ -12,4 +12,4 @@
 
 同一矩形图层已接入固定 Presence 时间帧；生命周期、乱序 seek 和退出 alpha 的双后端检验见 [Presence WebGPU 时间帧](webgpu-presence-time.md)。
 
-js-ffi 0.1.41 又为这个批次加入通用绝对时间平移 uniform；Quamolit 的标准 Vec2 Motion 映射与 10k 双后端验证见 [Vec2 GPU 时间采样](gpu-vec2-motion.md)。
+js-ffi 0.1.41 为批次加入通用绝对时间平移 uniform，0.1.42 将批次操作公开为 Calcit FFI，并加入诊断数值读回；Quamolit 的标准 Vec2 Motion 映射与 10k 双后端验证见 [Vec2 GPU 时间采样](gpu-vec2-motion.md)。当前 `float32CopyRange` 和设备能力探测仍由 js-ffi 的底层 JS 宿主文件直接调用，尚需后续 Calcit API 迁移；因此 #35 的“新主路径无散落直接 JS FFI”不能据此视为完成。

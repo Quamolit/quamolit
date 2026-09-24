@@ -93,6 +93,7 @@ async function openGpu() {
 }
 
 const pixelAt = (x, y) => Array.from(context.getImageData(x, y, 1, 1).data).join(",");
+const closeF32 = (actual, expected) => Math.abs(actual - expected) <= 1e-5 + 1e-5 * Math.abs(expected);
 
 async function renderAt(time) {
   if (!Number.isFinite(time)) throw new RangeError("时间必须有限");
@@ -114,23 +115,30 @@ async function renderAt(time) {
   context.restore();
   const anchorX = 40 + Math.round(sampled.x);
   const anchorY = 50 + Math.round(sampled.y);
+  const exactPixel = Number.isInteger(sampled.x) && Number.isInteger(sampled.y);
   const pixel = pixelAt(anchorX, anchorY);
   const gap = pixelAt(40, 50);
-  if (pixel !== "234,88,12,255" || gap !== "255,255,255,255") {
+  if ((exactPixel && pixel !== "234,88,12,255") || gap !== "255,255,255,255") {
     throw new Error(`Canvas Vec2 帧像素错误：${pixel}/${gap}`);
   }
   if (gpuLayer && gpuCapability?.state === "ready") {
     try {
       const gpuMetrics = gpuLayer.draw(source, 1, translation);
-      const [gpuPixel, gpuGap] = await Promise.all([
-        gpuLayer.readPixel(anchorX, anchorY), gpuLayer.readPixel(40, 50),
+      const [gpuSample, gpuPixel, gpuGap] = await Promise.all([
+        gpuLayer.readTranslation(),
+        ...(exactPixel ? [gpuLayer.readPixel(anchorX, anchorY), gpuLayer.readPixel(40, 50)] : []),
       ]);
-      if (gpuPixel.join(",") !== pixel || gpuGap.join(",") !== gap) {
+      if (!closeF32(gpuSample.x, sampled.x) || !closeF32(gpuSample.y, sampled.y)) {
+        throw new Error(`GPU/Calcit f32 位移不一致：${gpuSample.x},${gpuSample.y} vs ${sampled.x},${sampled.y}`);
+      }
+      if (exactPixel && (gpuPixel.join(",") !== pixel || gpuGap.join(",") !== gap)) {
         throw new Error(`GPU/Canvas 像素不一致：${gpuPixel}/${gpuGap} vs ${pixel}/${gap}`);
       }
       backend.dataset.kind = "ready";
       backend.dataset.time = `${time}`;
-      backend.textContent = `WebGPU PASS · t=${time}s · motion=${motion.id}@${motion.version} · draw=${gpuMetrics.drawCalls} · upload=${gpuMetrics.positionBytesUploaded} · copied=${gpuMetrics.positionBytesCopied} · uniform=${gpuMetrics.uniformBytesUploaded} · pipeline=${gpuMetrics.pipelinesCreated} · buffers=${gpuMetrics.buffersCreated} · pixel=${gpuPixel.join(",")} · adapter=${backend.dataset.adapter}`;
+      backend.dataset.sampleX = `${gpuSample.x}`;
+      backend.dataset.sampleY = `${gpuSample.y}`;
+      backend.textContent = `WebGPU PASS · t=${time}s · motion=${motion.id}@${motion.version} · draw=${gpuMetrics.drawCalls} · upload=${gpuMetrics.positionBytesUploaded} · copied=${gpuMetrics.positionBytesCopied} · uniform=${gpuMetrics.uniformBytesUploaded} · pipeline=${gpuMetrics.pipelinesCreated} · buffers=${gpuMetrics.buffersCreated} · pixel=${exactPixel ? gpuPixel.join(",") : "numeric-only"} · sample=${gpuSample.x},${gpuSample.y} · adapter=${backend.dataset.adapter}`;
     } catch (error) {
       const lost = gpuCapability?.state === "lost";
       closeGpu(`${lost ? "device lost" : "WebGPU 绘制失败"}：${error.message}`);
@@ -138,7 +146,7 @@ async function renderAt(time) {
     }
   }
   status.dataset.result = "pass";
-  status.textContent = `PASS · t=${time}s · x=${sampled.x} · y=${sampled.y} · instances=${source.source.count} · canvas=${canvasMetrics.canvasCalls} · copied=${canvasMetrics.positionBytesCopied} · pixel=${pixel}`;
+  status.textContent = `PASS · t=${time}s · x=${sampled.x} · y=${sampled.y} · instances=${source.source.count} · canvas=${canvasMetrics.canvasCalls} · copied=${canvasMetrics.positionBytesCopied} · pixel=${exactPixel ? pixel : "numeric-only"}`;
 }
 
 function scheduleRender(time) {
@@ -150,7 +158,7 @@ function reportError(error) {
   status.textContent = `FAIL · ${error.message}`;
   throw error;
 }
-for (const time of [0, 0.25, 0.5, 0.75, 1]) {
+for (const time of [0, 0.25, 0.37, 0.5, 0.75, 0.81, 1]) {
   const button = document.createElement("button");
   button.textContent = `${time}s`;
   button.addEventListener("click", () => void scheduleRender(time).catch(reportError));

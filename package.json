@@ -1,6 +1,7 @@
 {
   "version": "0.0.18-alpha.1",
   "dependencies": {
+    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.1.42",
     "@calcit/procs": "0.19.1",
     "@quamolit/touch-control": "^0.0.13"
   },
@@ -21,7 +22,7 @@
     "test:scene-core": "calcit analyze check-public --ns quamolit.scene-ir --ns quamolit.test.motion-fixture && calcit test --tag scene --require-match && yarn compile:motion && node --test test/scene-core-smoke.mjs",
     "test:instance-sources": "yarn compile:motion && node --test test/instance-sources-smoke.mjs",
     "test:canvas-batches": "yarn compile:motion && node --test test/canvas-instance-batches-smoke.mjs",
-    "test:webgpu-instances": "yarn compile:motion && node --test test/webgpu-instance-batches-smoke.mjs && playwright test --config test/gpu.playwright.config.mjs",
+    "test:webgpu-instances": "calcit analyze check-public --ns quamolit.webgpu-batches && yarn compile:motion && node --test test/webgpu-instance-batches-smoke.mjs && playwright test --config test/gpu.playwright.config.mjs",
     "test:scene-diff": "calcit analyze check-public --ns quamolit.scene-diff --ns quamolit.test.motion-fixture && calcit test --tag scene-diff --require-match && yarn compile:motion && node --test test/scene-diff-smoke.mjs",
     "test:scene-binding": "calcit analyze check-public --ns quamolit.scene-binding --ns quamolit.test.motion-fixture && calcit test --tag scene-binding --require-match && yarn compile:motion && node --test test/scene-binding-smoke.mjs",
     "test:retained-scene": "yarn compile:motion && node --test test/retained-scene-plan-smoke.mjs && playwright test --config test/motion.playwright.config.mjs test/retained-scene.spec.mjs",
