@@ -21,6 +21,7 @@ yarn test:fade-migration
 yarn test:scene-core
 yarn test:instance-sources
 yarn test:canvas-batches
+yarn test:webgpu-instances
 yarn test:scene-diff
 yarn test:scene-binding
 yarn test:transition
@@ -69,6 +70,8 @@ yarn bench
 `yarn test:instance-sources` 验证 [实例数据源边界](instance-sources.md) 的 10k 位置、拷贝隔离、严格版本与错误输入；`yarn test:motion-browser` 还核对同一时间切换资源版本的像素。其 Canvas 循环仅是验证夹具，不是生产渲染性能结果。
 
 `yarn test:canvas-batches` 验证 [Canvas 实例批次边界](canvas-instance-batches.md) 的冷/热调用次数、拷贝和读取字节、脏范围及失效；`yarn test:motion-browser` 检查两处 10k 实例页面的像素和指标。Canvas 仍逐实例调用 `fillRect`；调用次数不是 GPU draw-call 数或吞吐证据。
+
+`yarn test:webgpu-instances` 验证 [WebGPU 矩形实例同源路径](webgpu-instances.md)：Node 检查版本切换的 CPU 副本与 GPU 上传决策，Chromium 尝试真实 10k GPU 绘制、四像素对照、热帧 0 位置上传、完整图层回退和重建。只有非软件 adapter 实际完成 GPU 断言才是 GPU 正确性证据；无 adapter/软件 adapter 的 SKIP 仅证明诊断和 Canvas 回退，不满足 #40 验收。常规 `test:motion-browser` 仍覆盖无 GPU/强制禁用时的 Canvas 路径。
 
 `yarn test:scene-diff` 验证 [逻辑身份与参考差分](scene-diff.md) 的严格类型、变更分类、重排/重挂载、仅时间变化和 JS 序列化；`yarn test:motion-browser` 也会在 Chromium 校验 Scene diff 与 Canvas 中间帧一致。仍未实现 #50 保留执行计划和双后端验收。
 

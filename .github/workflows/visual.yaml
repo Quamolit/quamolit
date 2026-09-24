@@ -110,6 +110,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check WebGPU instance contract and explicit fallback
+        if: inputs.mutation != 'color'
+        run: yarn test:webgpu-instances
+        env:
+          CI: "true"
+
       - name: Check logical Scene diff and dirty classifications
         if: inputs.mutation != 'color'
         run: yarn test:scene-diff
