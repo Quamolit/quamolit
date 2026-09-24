@@ -17,7 +17,7 @@ Quamolit 的目标是增强 Calcit 动画生态：声明式组件与显式时间
 
 ## 当前债务与迁移顺序
 
-`js-ffi` 的 0.1.45 曾加入 Canvas Scene 的 JS 命令解释器。问题不在于它使用 JS，而在于其命令格式与整场景解释是否承担了 Quamolit 专属语义。Quamolit 暂用 0.1.44，不继续消费该接口；已发布 tag 不改写历史。[上游 #112](https://github.com/calcit-lang/js-ffi/issues/112) 跟踪对 0.1.45 的拆分审查：可复用的通用 Canvas 能力保留或改进，Quamolit 专属的 Scene 编排迁回本仓库；只有无法合理拆分的旧接口才标为实验/废弃。[Quamolit #35](https://github.com/Quamolit/quamolit/issues/35) 跟踪消费与本仓库逻辑迁移。
+`js-ffi` 的 0.1.45 曾加入 Canvas Scene 的 JS 命令解释器。问题不在于它使用 JS，而在于其命令格式与整场景解释是否承担了 Quamolit 专属语义；已发布 tag 不改写历史。[上游 #112](https://github.com/calcit-lang/js-ffi/issues/112) 跟踪拆分审查。[上游 #113](https://github.com/calcit-lang/js-ffi/pull/113) 已在 0.1.46 添加 Calcit 类型化的 `save/restore/fillRect/fillStyle` 与 Calcit `fill-solid-rect!`；Quamolit 改用该 tag，但不消费旧的整场景命令解释器。首个纯色矩形参考遍历位于 Quamolit 的 `quamolit.canvas-reference`。组语义、实例和批次性能仍未因此完成。[Quamolit #35](https://github.com/Quamolit/quamolit/issues/35) 跟踪后续能力与本仓库逻辑迁移。
 
 本仓库 `src/host/` 目前仍混有纯逻辑与宿主适配，并非最终归属。优先把 `gpu-vec2-translation`、`retained-scene-plan`、`demand-frame-scheduler`、`presence-resources` 中的 Quamolit 逻辑迁到 Calcit；逐项审查实例源与画布批次：通用 typed array、WebGPU device/buffer/pipeline 及可复用批量调用归 `js-ffi`，Quamolit 的资源版本和图层策略归本仓库。每迁移一项，删除对应的重复业务 JS，而不是保留 Calcit 空壳转发层；同一测试继续检验乱序时间、资源版本、DPR、失败与释放。
 

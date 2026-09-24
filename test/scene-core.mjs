@@ -1,5 +1,5 @@
 import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
-import { bound_scene_document_at as boundSceneDocumentAt, scene_document_at as sceneDocumentAt, scene_delta_at as sceneDeltaAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import { bound_scene_document_at as boundSceneDocumentAt, draw_reference_scene_at_$x_ as drawReferenceSceneAt, scene_document_at as sceneDocumentAt, scene_delta_at as sceneDeltaAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#scene");
 const context = canvas.getContext("2d", { willReadFrequently: true });
@@ -22,18 +22,15 @@ function renderAt(time) {
   if (instances.content[1].source.count !== 10000) throw new Error("实例图层计数错误");
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
-  let centerX;
-  for (const node of wire.nodes) {
-    const [kind, value] = node.content;
-    if (kind !== "rect") continue;
-    const { r, g, b, a } = value.fill;
-    context.fillStyle = `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a})`;
-    context.fillRect(value.x, value.y, value.width, value.height);
-    centerX = value.x + value.width / 2;
-  }
-  if (centerX === undefined) throw new Error("缺失矩形节点");
+  drawReferenceSceneAt(context, time);
+  if (context.fillStyle !== "#ffffff") throw new Error("参考绘制污染 Canvas 样式");
+  const rect = wire.nodes.find((node) => node.content[0] === "rect")?.content[1];
+  if (!rect) throw new Error("缺失矩形节点");
+  const centerX = rect.x + rect.width / 2;
   const pixel = Array.from(context.getImageData(centerX, 50, 1, 1).data).join(",");
   if (pixel !== "234,88,12,255") throw new Error(`Scene IR 中间帧像素错误：${pixel}`);
+  const background = Array.from(context.getImageData(0, 0, 1, 1).data).join(",");
+  if (background !== "255,255,255,255") throw new Error(`Scene IR 背景像素错误：${background}`);
   status.dataset.result = "pass";
   status.textContent = `PASS · t=${time}s · rect-center=${centerX} · nodes=${wire.nodes.length} · instances=${instances.content[1].source.count} · pixel=${pixel} · bound=pass`;
   return { centerX, wire };
