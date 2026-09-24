@@ -1,4 +1,4 @@
-import { float32Length, snapshotFloat32 } from "./.calcit/modules/js-ffi/typed-arrays.mjs";
+import { length as float32Length, snapshot as snapshotFloat32 } from "./js-out/quamolit.instance-ffi.mjs";
 
 function validateDescriptor(source) {
   if (source === null || typeof source !== "object" || Array.isArray(source)) {

@@ -3361,6 +3361,67 @@
             :args $ []
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.hud-logs
+    'quamolit.instance-ffi $ %{} 'FileEntry
+      :defs $ {}
+        'at $ %{} 'CodeEntry (:doc "|诊断用有界读取；热帧不得逐实例调用。")
+          :code $ quote $ defn at (snapshot index)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.typed-arrays/Float32SnapshotHost 'Number
+              :return 'Number
+              :features $ #{} :js-ffi
+            arrays/float32-at snapshot index
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'js-ffi.typed-arrays/Float32SnapshotHost 'Number
+            :features $ #{} :js-ffi
+        'copy-range $ %{} 'CodeEntry (:doc "|只在源版本首次被宿主消费时复制范围，并缓存返回数组。")
+          :code $ quote $ defn copy-range (snapshot start amount)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.typed-arrays/Float32SnapshotHost 'Number 'Number
+              :return 'js-ffi.typed-arrays/Float32ArrayHost
+              :features $ #{} :js-ffi
+            arrays/float32-copy-range snapshot start amount
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.typed-arrays/Float32ArrayHost)
+            :args $ [] 'js-ffi.typed-arrays/Float32SnapshotHost 'Number 'Number
+            :features $ #{} :js-ffi
+        'draw-canvas! $ %{} 'CodeEntry (:doc "|Scene 矩形数据一次提交 js-ffi Canvas 批次，并返回类型化调用计数。")
+          :code $ quote $ defn draw-canvas! (context positions start amount width height fill-style alpha)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number 'Number 'Number 'String 'Number
+              :return 'js-ffi.canvas-batches/CanvasRectMetrics
+              :features $ #{} :js-ffi
+            canvas/draw-rects! context positions start amount width height fill-style alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.canvas-batches/CanvasRectMetrics)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number 'Number 'Number 'String 'Number
+            :features $ #{} :js-ffi
+        'length $ %{} 'CodeEntry (:doc "|读取实例源快照元素数。")
+          :code $ quote $ defn length (snapshot)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.typed-arrays/Float32SnapshotHost
+              :return 'Number
+              :features $ #{} :js-ffi
+            arrays/float32-length snapshot
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'js-ffi.typed-arrays/Float32SnapshotHost
+            :features $ #{} :js-ffi
+        'snapshot $ %{} 'CodeEntry (:doc "|登记前一次复制并校验 Float32 交错位置；ID/version 由上层持有。")
+          :code $ quote $ defn snapshot (positions)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.typed-arrays/Float32ArrayHost
+              :return 'js-ffi.typed-arrays/Float32SnapshotHost
+              :features $ #{} :js-ffi
+            arrays/snapshot-float32 positions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.typed-arrays/Float32SnapshotHost)
+            :args $ [] 'js-ffi.typed-arrays/Float32ArrayHost
+            :features $ #{} :js-ffi
+      :ns $ %{} 'NsEntry
+        :doc "|Scene 实例源到 js-ffi Calcit API 的薄适配；版本与缓存仍由 Quamolit 宿主层管理。"
+        :code $ quote $ ns quamolit.instance-ffi
+          :require (js-ffi.typed-arrays :as arrays) (js-ffi.canvas-batches :as canvas)
     'quamolit.math $ %{} 'FileEntry
       :defs $ {}
         'bound-01 $ %{} 'CodeEntry (:doc |)
