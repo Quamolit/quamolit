@@ -50,7 +50,7 @@ yarn bench
 
 `yarn test:cpu-motion` 验证[泛型 CPU Motion 扩展](cpu-motion-extension.md)的 `Vec2` 输出类型、显式依赖、版本失效、非法请求、输出校验及 JS 数值；`yarn test:motion-browser` 追加固定 Chromium 的位置与实色像素验证。CPU 回调不可自动转 WGSL。
 
-`yarn test:motion-gpu` 验证[受限 GPU 候选计划](motion-gpu-contract.md)的类型、容量边界、显式回退和 JS 数据序列化；浏览器 Motion 页面也显示与 CPU 绘图共用描述符的候选分类。此处的“候选”不代表已在 GPU 执行，真实 WGSL 数值等价与硬件测量仍待 #52。
+`yarn test:motion-gpu` 验证[受限 GPU 候选计划](motion-gpu-contract.md)的类型、容量边界、显式回退和 JS 数据序列化；追加 [Vec2 GPU 时间采样](gpu-vec2-motion.md)的薄映射和 CPU 数值对照。Vec2 tween 以外的“候选”仍不代表已在 GPU 执行；真实 WGSL 高精度数值等价与性能测量仍待 #52。
 
 `yarn test:simulation` 验证 [固定步长 CPU 状态推进](fixed-step-simulation.md) 的类型、手算数值、不同显示帧节奏、检查点/重置、追帧预算和非法 tick；`yarn test:motion-browser` 同时运行固定 tick 的 Canvas 画面测试。该切片没有 host time 变换或资源版本失效，不能据此关闭 #31。
 
@@ -72,7 +72,7 @@ yarn bench
 
 `yarn test:canvas-batches` 验证 [Canvas 实例批次边界](canvas-instance-batches.md) 的冷/热调用次数、拷贝和读取字节、脏范围及失效；`yarn test:motion-browser` 检查两处 10k 实例页面的像素和指标。Canvas 仍逐实例调用 `fillRect`；调用次数不是 GPU draw-call 数或吞吐证据。
 
-`yarn test:webgpu-instances` 验证 [WebGPU 矩形实例同源路径](webgpu-instances.md)及 [Presence WebGPU 时间帧](webgpu-presence-time.md)：Node 检查版本切换、空帧后旧源复用的 CPU 副本与 GPU 上传决策；Chromium 专项尝试真实 10k GPU 绘制、固定时间帧像素对照、乱序 seek 的 0 位置上传、完整图层回退和重建。只有非软件 adapter 实际完成 GPU 断言才是 GPU 正确性证据；无 adapter/软件 adapter 的 SKIP 仅证明诊断和 Canvas 回退，不满足 #40 验收。常规 `test:motion-browser` 仍覆盖无 GPU/强制禁用时的 Canvas 路径。
+`yarn test:webgpu-instances` 验证 [WebGPU 矩形实例同源路径](webgpu-instances.md)、[Presence WebGPU 时间帧](webgpu-presence-time.md)及 [Vec2 GPU 时间采样](gpu-vec2-motion.md)：Node 检查版本切换、空帧后旧源复用的 CPU 副本与 GPU 上传决策；Chromium 专项尝试真实 10k GPU 绘制、固定时间帧像素对照、乱序 seek 的 0 位置上传、完整图层回退和重建。只有非软件 adapter 实际完成 GPU 断言才是 GPU 正确性证据；无 adapter/软件 adapter 的 SKIP 仅证明诊断和 Canvas 回退，不满足 #40/#52 验收。常规 `test:motion-browser` 仍覆盖无 GPU/强制禁用时的 Canvas 路径。
 
 `yarn test:scene-diff` 验证 [逻辑身份与参考差分](scene-diff.md) 的严格类型、变更分类、重排/重挂载、仅时间变化和 JS 序列化；`yarn test:motion-browser` 也会在 Chromium 校验 Scene diff 与 Canvas 中间帧一致。仍未实现 #50 保留执行计划和双后端验收。
 
@@ -86,7 +86,7 @@ yarn bench
 
 `yarn test:presence-resources` 验证 [宿主实例资源跟踪](presence-resources.md)：Calcit 严格类型、100 次 10k Float32 快照挂载/退出、共享源最后引用、重入取消释放及错误输入不破坏现有资源；浏览器还验证退出中间帧与终点像素和停帧。此命令仍不验证 GPU buffer 或指针捕获。
 
-`yarn test:motion-browser` 还验证 [WebGPU 能力探测诊断夹具](webgpu-capability-probe.md)：使用 js-ffi 0.1.40，分别模拟 adapter 失败、ready 和设备丢失，并确认 Canvas 参考时间帧仍可绘制、探测设备被释放。真实浏览器的 `ready` 仅代表可获取 device，不是 GPU 画面或吞吐验收。
+`yarn test:motion-browser` 还验证 [WebGPU 能力探测诊断夹具](webgpu-capability-probe.md)：使用 js-ffi 0.1.41，分别模拟 adapter 失败、ready 和设备丢失，并确认 Canvas 参考时间帧仍可绘制、探测设备被释放。真实浏览器的 `ready` 仅代表可获取 device，不是 GPU 画面或吞吐验收。
 
 ## 待实现的统一命令
 

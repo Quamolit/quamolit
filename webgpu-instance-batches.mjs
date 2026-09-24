@@ -23,7 +23,7 @@ export class WebGpuInstanceBatches {
     this.#batch = batch;
   }
 
-  draw(instance, alpha = 1) {
+  draw(instance, alpha = 1, translation) {
     const source = instance?.source;
     const token = this.#registry.resolve(source);
     let positions = this.#copies.get(token);
@@ -37,7 +37,7 @@ export class WebGpuInstanceBatches {
       this.#batch.upload(positions);
       this.#activeToken = token;
     }
-    const metrics = this.#batch.draw({ width: instance.width, height: instance.height, fill: instance.fill, alpha });
+    const metrics = this.#batch.draw({ width: instance.width, height: instance.height, fill: instance.fill, alpha, translation });
     return Object.freeze({ ...metrics, positionBytesCopied });
   }
 

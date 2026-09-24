@@ -31,9 +31,11 @@ test("WebGPU thin adapter reuses immutable source copies and only uploads change
   const shape = (source) => ({ source, width: 1, height: 1, fill: { r: 1, g: 0, b: 0, a: 1 } });
   assert.equal(layer.draw(shape(source1)).positionBytesCopied, 80000);
   assert.equal(uploads[0][0], 40);
-  assert.equal(layer.draw(shape(source1), 0.5).positionBytesCopied, 0);
+  const translated = { from: { x: 0, y: 0 }, to: { x: 10, y: 0 }, time: 0.5, start: 0, duration: 1, easing: "linear" };
+  assert.equal(layer.draw(shape(source1), 0.5, translated).positionBytesCopied, 0);
   assert.equal(uploads.length, 1);
   assert.equal(draws[1].alpha, 0.5);
+  assert.equal(draws[1].translation, translated);
   layer.clear();
   assert.equal(draws.at(-1).count, 0);
   assert.equal(uploads.length, 1);

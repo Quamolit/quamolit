@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Quamolit Vec2 Motion GPU 时间采样</title>
+    <style>
+      body { margin: 24px; font: 14px system-ui, sans-serif; color: #172033; }
+      canvas { display: block; border: 1px solid #94a3b8; margin: 16px 0; }
+      canvas[hidden] { display: none; }
+      button { margin: 0 8px 8px 0; padding: 6px 10px; }
+      #status[data-result="pass"] { color: #166534; }
+      #status[data-result="fail"], #backend[data-kind="failed"] { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>10k 实例的 Vec2 Motion GPU 采样</h1>
+    <p>同一 Calcit Motion 描述：Canvas 每帧 CPU 采样作为参考；WebGPU 保留位置数据，在 vertex shader 按绝对时间移动。</p>
+    <div id="times"></div>
+    <button id="disable-gpu">禁用 GPU</button><button id="retry-gpu">重试 GPU</button>
+    <output id="backend">WebGPU 能力探测中…</output>
+    <canvas id="scene" width="400" height="220"></canvas>
+    <output id="status">加载中…</output>
+    <canvas id="gpu-scene" width="400" height="220" hidden></canvas>
+    <script type="module" src="./gpu-vec2.mjs"></script>
+  </body>
+</html>
