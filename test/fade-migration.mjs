@@ -1,10 +1,10 @@
-import { to_js_data as toJsData } from "../js-out-fade/calcit.core.mjs";
+import { to_js_data as toJsData } from "../target/js/fade/calcit.core.mjs";
 import {
   enter_scene_at as enterSceneAt,
   exit_scene_at as exitSceneAt,
   interrupt_scene_at as interruptSceneAt,
   gpu_enter_plan as gpuEnterPlan,
-} from "../js-out-fade/quamolit.test.fade-migration-fixture.mjs";
+} from "../target/js/fade/quamolit.test.fade-migration-fixture.mjs";
 
 const canvas = document.querySelector("#frame");
 const context = canvas.getContext("2d", { willReadFrequently: true });

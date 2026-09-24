@@ -2,7 +2,7 @@ import {
   sample_color_r_at as redAt,
   sample_color_b_at as blueAt,
   sample_color_a_at as alphaAt,
-} from "../js-out/quamolit.test.motion-fixture.mjs";
+} from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#color");
 const context = canvas.getContext("2d", { willReadFrequently: true });

@@ -1,4 +1,4 @@
-import { sample_simulation_direct as directAt, sample_simulation_staged as stagedAt } from "../js-out/quamolit.test.motion-fixture.mjs";
+import { sample_simulation_direct as directAt, sample_simulation_staged as stagedAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#simulation");
 const context = canvas.getContext("2d", { willReadFrequently: true });

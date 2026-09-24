@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { init_tags as initTags, to_js_data as toJsData } from "../js-out/calcit.core.mjs";
-import { instance_presence_document as instanceDocument, instance_presence_reconcile as reconcile } from "../js-out/quamolit.test.motion-fixture.mjs";
-import { presence_needs_frame_$q_ as needsFrame, settle_presence as settle, start_presence as start } from "../js-out/quamolit.presence.mjs";
-import { InstanceSourceRegistry } from "../instance-sources.mjs";
-import { PresenceInstanceResources } from "../presence-resources.mjs";
+import { init_tags as initTags, to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
+import { instance_presence_document as instanceDocument, instance_presence_reconcile as reconcile } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import { presence_needs_frame_$q_ as needsFrame, settle_presence as settle, start_presence as start } from "../target/js/motion/quamolit.presence.mjs";
+import { InstanceSourceRegistry } from "../src/host/instance-sources.mjs";
+import { PresenceInstanceResources } from "../src/host/presence-resources.mjs";
 
 const { model: modelTag } = initTags(["model"]);
 const sourceAt = (version) => toJsData(instanceDocument(version, true)).nodes[1].content[1].source;

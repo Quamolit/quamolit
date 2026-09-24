@@ -1,4 +1,4 @@
-import { sample_cpu_at as sampleAt, cpu_gpu_reason as gpuReason } from "../js-out/quamolit.test.motion-fixture.mjs";
+import { sample_cpu_at as sampleAt, cpu_gpu_reason as gpuReason } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#custom");
 const context = canvas.getContext("2d", { willReadFrequently: true });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { to_js_data as toJsData } from "../js-out-fade/calcit.core.mjs";
+import { to_js_data as toJsData } from "../target/js/fade/calcit.core.mjs";
 import {
   enter_opacity_at as enterOpacityAt,
   exit_opacity_at as exitOpacityAt,
@@ -8,7 +8,7 @@ import {
   enter_scene_at as enterSceneAt,
   exit_scene_at as exitSceneAt,
   gpu_enter_plan as gpuEnterPlan,
-} from "../js-out-fade/quamolit.test.fade-migration-fixture.mjs";
+} from "../target/js/fade/quamolit.test.fade-migration-fixture.mjs";
 
 test("旧 fade 的 v=4 对应显式 0.25 秒进入、退出和打断连续性", () => {
   for (const [time, value] of [[0, 0], [0.0625, 0.25], [0.125, 0.5], [0.25, 1], [1, 1]]) {

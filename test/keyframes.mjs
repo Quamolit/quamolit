@@ -3,8 +3,8 @@ import {
   sample_keyframes_repeat_at as repeatAt,
   sample_keyframes_mirror_at as mirrorAt,
   gpu_keyframes_repeat_plan as gpuKeyframesRepeatPlan,
-} from "../js-out/quamolit.test.motion-fixture.mjs";
-import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
+} from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
 
 const canvas = document.querySelector("#tracks");
 const context = canvas.getContext("2d", { willReadFrequently: true });

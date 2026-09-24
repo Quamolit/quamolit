@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { to_js_data as toJsData } from "../js-out-component/calcit.core.mjs";
-import { scene_at as sceneAt } from "../js-out-component/quamolit.test.component-fixture.mjs";
+import { to_js_data as toJsData } from "../target/js/component/calcit.core.mjs";
+import { scene_at as sceneAt } from "../target/js/component/quamolit.test.component-fixture.mjs";
 
 function rectAt(time, model = 40, ready = false, viewport = 100) {
   const scene = toJsData(sceneAt(time, model, ready, viewport));

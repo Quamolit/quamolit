@@ -1,4 +1,4 @@
-import { frame_at as frameAt, resample_at as resampleAt, unsupported_reason as unsupportedReason } from "../js-out-cpu/quamolit.test.cpu-motion-fixture.mjs";
+import { frame_at as frameAt, resample_at as resampleAt, unsupported_reason as unsupportedReason } from "../target/js/cpu/quamolit.test.cpu-motion-fixture.mjs";
 
 const canvas = document.querySelector("#frame");
 const context = canvas.getContext("2d", { willReadFrequently: true });

@@ -1,5 +1,5 @@
-import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
-import { bound_scene_document_at as boundSceneDocumentAt, scene_document_at as sceneDocumentAt, scene_delta_at as sceneDeltaAt } from "../js-out/quamolit.test.motion-fixture.mjs";
+import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
+import { bound_scene_document_at as boundSceneDocumentAt, scene_document_at as sceneDocumentAt, scene_delta_at as sceneDeltaAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#scene");
 const context = canvas.getContext("2d", { willReadFrequently: true });

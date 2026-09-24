@@ -1,5 +1,5 @@
-import { to_js_data as toJsData } from "../js-out-component/calcit.core.mjs";
-import { scene_at as sceneAt } from "../js-out-component/quamolit.test.component-fixture.mjs";
+import { to_js_data as toJsData } from "../target/js/component/calcit.core.mjs";
+import { scene_at as sceneAt } from "../target/js/component/quamolit.test.component-fixture.mjs";
 
 const canvas = document.querySelector("#scene");
 const context = canvas.getContext("2d", { willReadFrequently: true });

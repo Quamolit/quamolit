@@ -1,7 +1,7 @@
 import {
   transition_active_at_$q_ as transitionActiveAt,
   transition_x_at as transitionXAt,
-} from "../js-out/quamolit.test.motion-fixture.mjs";
+} from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#frame");
 const context = canvas.getContext("2d", { willReadFrequently: true });

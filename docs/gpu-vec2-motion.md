@@ -1,6 +1,6 @@
 # Vec2 Motion 的真实 GPU 时间采样：M2 #52 切片
 
-`quamolit.motion-gpu/lower-vec2` 产生的可序列化 `:supported GpuVec2Plan` 仍是逻辑描述。`gpu-vec2-translation.mjs` 只接受其中的 Vec2 tween（linear/smoothstep），验证 ID/version 与有界 f32 参数，映射成通用 `translation` uniform；非 Vec2、关键帧或 CPU 自定义计划显式返回 `unsupported`，不伪称 GPU 执行。Quamolit 不维护 WebGPU shader 或直接的通用 FFI 实现；底层位移见 [js-ffi PR #107](https://github.com/calcit-lang/js-ffi/pull/107)，类型化 Calcit 入口与诊断见 [js-ffi PR #108](https://github.com/calcit-lang/js-ffi/pull/108) 和 tag `0.1.42`。
+`quamolit.motion-gpu/lower-vec2` 产生的可序列化 `:supported GpuVec2Plan` 仍是逻辑描述。`src/host/gpu-vec2-translation.mjs` 只接受其中的 Vec2 tween（linear/smoothstep），验证 ID/version 与有界 f32 参数，映射成通用 `translation` uniform；非 Vec2、关键帧或 CPU 自定义计划显式返回 `unsupported`，不伪称 GPU 执行。Quamolit 不维护 WebGPU shader 或直接的通用 FFI 实现；底层位移见 [js-ffi PR #107](https://github.com/calcit-lang/js-ffi/pull/107)，类型化 Calcit 入口与诊断见 [js-ffi PR #108](https://github.com/calcit-lang/js-ffi/pull/108) 和 tag `0.1.42`。
 
 `test/gpu-vec2.html` 从同一份 Calcit Scene IR 获取 10k 实例源，从同一 Vec2 Motion 描述分别得到 CPU 参考采样和 GPU 参数。Canvas 逐实例 `fillRect`，WebGPU 在 vertex shader 使用绝对时间平移整个保留式位置 buffer。固定实际像素 400×220、DPR=1，t=0/0.25/0.5/0.75/1 的锚点和背景像素须与 CPU 精确一致；页面初始化及按钮乱序重放，禁用后整图层回退 Canvas，重试重建资源。
 

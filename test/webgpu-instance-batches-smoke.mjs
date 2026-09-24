@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { InstanceSourceRegistry } from "../instance-sources.mjs";
-import { WebGpuInstanceBatches } from "../webgpu-instance-batches.mjs";
+import { InstanceSourceRegistry } from "../src/host/instance-sources.mjs";
+import { WebGpuInstanceBatches } from "../src/host/webgpu-instance-batches.mjs";
 import { instanceGrid } from "./instance-grid.mjs";
 
 test("WebGPU thin adapter reuses immutable source copies and only uploads changed versions", () => {

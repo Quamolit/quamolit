@@ -3,7 +3,7 @@ import {
   redraw_fixture_$x_ as redraw,
   reset_fixture_$x_ as reset,
   step_fixture_$x_ as step,
-} from "../js-out/quamolit.test.frame-fixture.mjs";
+} from "../target/js/motion/quamolit.test.frame-fixture.mjs";
 
 const canvas = document.querySelector("#frame");
 const context = canvas.getContext("2d", { willReadFrequently: true });

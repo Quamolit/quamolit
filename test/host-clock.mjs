@@ -5,8 +5,8 @@ import {
   resume_clock as resumeClock,
   set_clock_speed as setClockSpeed,
   seek_clock as seekClock,
-} from "../js-out/quamolit.host-clock.mjs";
-import { sample_clock_x as sampleClockX } from "../js-out/quamolit.test.motion-fixture.mjs";
+} from "../target/js/motion/quamolit.host-clock.mjs";
+import { sample_clock_x as sampleClockX } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#host-clock");
 const context = canvas.getContext("2d", { willReadFrequently: true });

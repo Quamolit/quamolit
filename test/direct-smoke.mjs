@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { sample_direct_x as sampleAt } from "../js-out/quamolit.test.motion-fixture.mjs";
+import { sample_direct_x as sampleAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 test("typed direct frame evaluates the same arbitrary times in any order", () => {
   for (const [time, value] of [[1, 30], [0, 20], [0.5, 25], [0.25, 22.5], [1, 30], [-0.25, 20], [1.25, 30]]) {

@@ -16,4 +16,4 @@ yarn vite
 
 测试夹具以 `evaluate-at` 计算下一份模型和场景，再把结果中的 `scene` 交给 `paint-tree-only-with` 和真实的矩形绘制器。重绘直接消费已保存的场景，不重新求值。旧版 tick 遍历仍由单元测试覆盖。其他绘制分支暂未覆盖，因为其旧版严格类型诊断仍会阻止可视化入口编译。完成这些分支的迁移后，应为文本、变换、路径、图片、透明度和事件区域增加专项夹具，并在固定版本的浏览器环境中建立图像基线。目前的浏览器检查是确定性像素与截图测试工具，还不是完整的视觉回归 CI 测试套件。
 
-`yarn compile:visual` 只修改被忽略的 `js-out/` 产物。构建普通 bootstrap 入口前，应重新运行 `yarn compile`。
+`yarn compile:visual` 只修改被忽略的 `target/js/motion/` 产物。普通 bootstrap 入口位于独立的 `target/js/app/`，运行 `yarn compile` 构建。

@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { valid_motion_version_$q_ as validMotionVersion } from "../js-out/quamolit.motion.mjs";
+import { valid_motion_version_$q_ as validMotionVersion } from "../target/js/motion/quamolit.motion.mjs";
 import {
   main_$x_, sample_at, sample_vec2_at, sample_vec2_x_at, sample_vec2_y_at,
   sample_keyframes_clamp_at, sample_keyframes_repeat_at, sample_keyframes_mirror_at,
   sample_color_r_at, sample_color_b_at, sample_color_a_at,
   sample_composition_at,
   sample_cpu_at, cpu_gpu_reason,
-} from "../js-out/quamolit.test.motion-fixture.mjs";
+} from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 test("Motion 描述版本在 JS 侧只接受有限非负整数", () => {
   for (const version of [0, 1, 24]) assert.equal(validMotionVersion(version), true);

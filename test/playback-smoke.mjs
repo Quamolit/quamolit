@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { to_js_data as toJsData } from "../js-out-playback/calcit.core.mjs";
-import { start_clock as startClock, pause_clock as pauseClock, seek_clock as seekClock } from "../js-out-playback/quamolit.host-clock.mjs";
-import { sample_scalar as sampleScalar } from "../js-out-playback/quamolit.motion.mjs";
-import { sample_at_host as sampleAtHost, resample_at_host as resampleAtHost } from "../js-out-playback/quamolit.playback.mjs";
-import { make_playback_request as makePlaybackRequest, playback_frame_at as playbackFrameAt } from "../js-out-playback/quamolit.test.playback-fixture.mjs";
+import { to_js_data as toJsData } from "../target/js/playback/calcit.core.mjs";
+import { start_clock as startClock, pause_clock as pauseClock, seek_clock as seekClock } from "../target/js/playback/quamolit.host-clock.mjs";
+import { sample_scalar as sampleScalar } from "../target/js/playback/quamolit.motion.mjs";
+import { sample_at_host as sampleAtHost, resample_at_host as resampleAtHost } from "../target/js/playback/quamolit.playback.mjs";
+import { make_playback_request as makePlaybackRequest, playback_frame_at as playbackFrameAt } from "../target/js/playback/quamolit.test.playback-fixture.mjs";
 
 const running = startClock(10, 0, 1);
 const paused = pauseClock(running, 10.5);

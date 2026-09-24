@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { to_js_data as toJsData } from "../js-out/calcit.core.mjs";
-import { scene_document_at as sceneDocumentAt } from "../js-out/quamolit.test.motion-fixture.mjs";
-import { validate_scene as validateScene } from "../js-out/quamolit.scene-ir.mjs";
+import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
+import { scene_document_at as sceneDocumentAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import { validate_scene as validateScene } from "../target/js/motion/quamolit.scene-ir.mjs";
 
 test("typed Scene IR is valid and JSON-serializable without host handles", () => {
   for (const [time, x] of [[1, 120], [0, 80], [0.5, 100], [0.25, 90], [1, 120]]) {

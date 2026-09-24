@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { probeWebGpuDevice } from "../webgpu-capabilities.mjs";
+import { probeWebGpuDevice } from "../src/host/webgpu-capabilities.mjs";
 
 test("Calcit probe preserves unavailable and failed diagnostics", async () => {
   assert.deepEqual(await probeWebGpuDevice(null), { kind: "unavailable", stage: "gpu" });

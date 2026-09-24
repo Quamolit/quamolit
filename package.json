@@ -11,7 +11,7 @@
     "vite": "^8.0.12"
   },
   "scripts": {
-    "compile": "caps --ci && calcit calcit.cirru js",
+    "compile": "caps --ci && mkdir -p target/js/app && calcit --emit-path target/js/app/ calcit.cirru js",
     "test:clock": "calcit test --tag frame-clock --require-match",
     "test:simulation": "calcit analyze check-public --ns quamolit.fixed-step --ns quamolit.test.motion-fixture && calcit test --tag simulation --require-match && yarn compile:motion && node --test test/simulation-smoke.mjs",
     "test:direct": "calcit analyze check-public --ns quamolit.direct-frame --ns quamolit.test.motion-fixture && calcit test --tag direct-frame --require-match && yarn compile:motion && node --test test/direct-smoke.mjs",
@@ -29,12 +29,12 @@
     "test:transition": "calcit analyze check-public --ns quamolit.transition --ns quamolit.test.motion-fixture && calcit test --tag transition --require-match && yarn compile:motion && node --test test/transition-smoke.mjs",
     "test:presence": "calcit analyze check-public --ns quamolit.presence --ns quamolit.test.motion-fixture && calcit test --tag presence --require-match && yarn compile:motion && node --test test/presence-smoke.mjs",
     "test:presence-resources": "calcit analyze check-public --ns quamolit.presence --ns quamolit.test.motion-fixture && yarn compile:motion && node --test test/presence-resources-smoke.mjs",
-    "compile:motion": "calcit --init-fn quamolit.test.motion-fixture/main! --reload-fn quamolit.test.motion-fixture/reload! calcit.cirru js",
-    "compile:playback": "calcit --emit-path js-out-playback/ --init-fn quamolit.test.playback-fixture/main! --reload-fn quamolit.test.playback-fixture/reload! calcit.cirru js",
-    "compile:component": "calcit --emit-path js-out-component/ --init-fn quamolit.test.component-fixture/main! --reload-fn quamolit.test.component-fixture/reload! calcit.cirru js",
-    "compile:fade": "calcit --emit-path js-out-fade/ --init-fn quamolit.test.fade-migration-fixture/main! --reload-fn quamolit.test.fade-migration-fixture/reload! calcit.cirru js",
-    "compile:cpu-motion": "calcit --emit-path js-out-cpu/ --init-fn quamolit.test.cpu-motion-fixture/main! --reload-fn quamolit.test.cpu-motion-fixture/reload! calcit.cirru js",
-    "compile:replay-archive": "calcit --emit-path js-out-replay/ --init-fn quamolit.test.replay-archive-fixture/main! --reload-fn quamolit.test.replay-archive-fixture/reload! calcit.cirru js",
+    "compile:motion": "mkdir -p target/js/motion && calcit --emit-path target/js/motion/ --init-fn quamolit.test.motion-fixture/main! --reload-fn quamolit.test.motion-fixture/reload! calcit.cirru js",
+    "compile:playback": "mkdir -p target/js/playback && calcit --emit-path target/js/playback/ --init-fn quamolit.test.playback-fixture/main! --reload-fn quamolit.test.playback-fixture/reload! calcit.cirru js",
+    "compile:component": "mkdir -p target/js/component && calcit --emit-path target/js/component/ --init-fn quamolit.test.component-fixture/main! --reload-fn quamolit.test.component-fixture/reload! calcit.cirru js",
+    "compile:fade": "mkdir -p target/js/fade && calcit --emit-path target/js/fade/ --init-fn quamolit.test.fade-migration-fixture/main! --reload-fn quamolit.test.fade-migration-fixture/reload! calcit.cirru js",
+    "compile:cpu-motion": "mkdir -p target/js/cpu && calcit --emit-path target/js/cpu/ --init-fn quamolit.test.cpu-motion-fixture/main! --reload-fn quamolit.test.cpu-motion-fixture/reload! calcit.cirru js",
+    "compile:replay-archive": "mkdir -p target/js/replay && calcit --emit-path target/js/replay/ --init-fn quamolit.test.replay-archive-fixture/main! --reload-fn quamolit.test.replay-archive-fixture/reload! calcit.cirru js",
     "test:replay-archive": "calcit analyze check-public --ns quamolit.replay-archive --ns quamolit.playback --ns quamolit.test.replay-archive-fixture && calcit test --tag replay-archive --require-match && yarn compile:replay-archive && node --test test/replay-archive-smoke.mjs",
     "test:cpu-motion": "calcit analyze check-public --ns quamolit.motion-cpu --ns quamolit.test.cpu-motion-fixture && calcit test --tag motion-cpu --require-match && yarn compile:cpu-motion && node --test test/cpu-motion-smoke.mjs",
     "test:motion": "calcit analyze check-public --ns quamolit.motion --ns quamolit.test.motion-fixture && calcit test --tag motion --require-match && yarn compile:motion && node --test test/motion-smoke.mjs",
@@ -45,7 +45,7 @@
     "test:bench": "node --test test/m0/bench-metrics.test.mjs",
     "bench": "node test/m0/bench.mjs",
     "test:visual": "caps --ci && yarn compile:visual && playwright test --config test/m0/playwright.config.mjs",
-    "compile:visual": "calcit --init-fn quamolit.test.frame-fixture/main! --reload-fn quamolit.test.frame-fixture/reload! calcit.cirru js",
+    "compile:visual": "mkdir -p target/js/motion && calcit --emit-path target/js/motion/ --init-fn quamolit.test.frame-fixture/main! --reload-fn quamolit.test.frame-fixture/reload! calcit.cirru js",
     "release": "yarn vite build --base=./"
   },
   "packageManager": "yarn@4.12.0"
