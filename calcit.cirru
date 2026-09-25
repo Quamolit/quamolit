@@ -3556,7 +3556,17 @@
               :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number 'Number 'Number 'String 'Number
               :return 'js-ffi.canvas-batches/CanvasRectMetrics
               :features $ #{} :js-ffi
-            canvas/draw-rects! context positions start amount width height fill-style alpha
+            let
+                draw-batch $ unsafe-coerce drawFloat32RectBatch $ :: 'Fn
+                  {}
+                    :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number 'Number 'Number 'String 'Number
+                    :return 'JsObject
+                result $ draw-batch context positions start amount width height fill-style alpha
+                boundary-calls $ contract/expect-number |CanvasRect.boundaryCalls $ contract/object-field |CanvasRect.draw result |boundaryCalls
+                canvas-calls $ contract/expect-number |CanvasRect.canvasCalls $ contract/object-field |CanvasRect.draw result |canvasCalls
+                instances $ contract/expect-number |CanvasRect.instances $ contract/object-field |CanvasRect.draw result |instances
+                bytes-read $ contract/expect-number |CanvasRect.positionBytesRead $ contract/object-field |CanvasRect.draw result |positionBytesRead
+              canvas/CanvasRectMetrics :boundary-calls boundary-calls :canvas-calls canvas-calls :instances instances :position-bytes-read bytes-read
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'js-ffi.canvas-batches/CanvasRectMetrics)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number 'Number 'Number 'String 'Number
@@ -3587,6 +3597,8 @@
         :doc "|Scene 实例源到 js-ffi Calcit API 的薄适配；版本与缓存仍由 Quamolit 宿主层管理。"
         :code $ quote $ ns quamolit.instance-ffi
           :require (js-ffi.typed-arrays :as arrays) (js-ffi.canvas-batches :as canvas)
+            |../../../src/host/canvas-rect-batches.mjs :refer $ drawFloat32RectBatch
+            js-ffi.contract :as contract
     'quamolit.math $ %{} 'FileEntry
       :defs $ {}
         'bound-01 $ %{} 'CodeEntry (:doc |)
@@ -8659,7 +8671,12 @@
               :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'Number
               :return 'js-ffi.webgpu-batches/RectBatchHost
               :features $ #{} :js-ffi
-            js-await $ batches/create-rect-batch! canvas device format capacity
+            let
+                create $ unsafe-coerce createFloat32RectBatch $ :: 'Fn
+                  {} (:async true)
+                    :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'Number
+                    :return 'js-ffi.webgpu-batches/RectBatchHost
+              js-await $ create canvas device format capacity
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:async true) (:return 'js-ffi.webgpu-batches/RectBatchHost)
@@ -8671,7 +8688,7 @@
               :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
               :return 'Bool
               :features $ #{} :js-ffi
-            batches/dispose-batch! batch
+            batch .dispose
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -8684,8 +8701,41 @@
               :return 'js-ffi.webgpu-batches/RectMetrics
               :features $ #{} :js-ffi
             let
-                frame $ batches/RectFrame :width width :height height :fill fill :alpha alpha :translation motion :count instance-count
-              batches/draw-rects! batch frame
+                translation $ if (option:some? motion)
+                  let
+                      tween $ option:unwrap motion
+                      from $ :from tween
+                      to $ :to tween
+                    js-object
+                      :from $ js-object
+                        :x $ :x from
+                        :y $ :y from
+                      :to $ js-object
+                        :x $ :x to
+                        :y $ :y to
+                      :time $ :time tween
+                      :start $ :start tween
+                      :duration $ :duration tween
+                      :easing $ :easing tween
+                  , js/undefined
+                draw-count $ if (option:some? instance-count) (option:unwrap instance-count) js/undefined
+                options $ js-object (:width width) (:height height)
+                  :fill $ js-object
+                    :r $ :r fill
+                    :g $ :g fill
+                    :b $ :b fill
+                    :a $ :a fill
+                  :alpha alpha
+                  :translation translation
+                  :count draw-count
+                result $ batch .draw options
+                draws $ contract/expect-number |RectBatch.drawCalls $ contract/object-field |RectBatch.draw result |drawCalls
+                instances $ contract/expect-number |RectBatch.instances $ contract/object-field |RectBatch.draw result |instances
+                uploaded $ contract/expect-number |RectBatch.positionBytesUploaded $ contract/object-field |RectBatch.draw result |positionBytesUploaded
+                uniform $ contract/expect-number |RectBatch.uniformBytesUploaded $ contract/object-field |RectBatch.draw result |uniformBytesUploaded
+                pipelines $ contract/expect-number |RectBatch.pipelinesCreated $ contract/object-field |RectBatch.draw result |pipelinesCreated
+                buffers $ contract/expect-number |RectBatch.buffersCreated $ contract/object-field |RectBatch.draw result |buffersCreated
+              batches/RectMetrics :draw-calls draws :instances instances :position-bytes-uploaded uploaded :uniform-bytes-uploaded uniform :pipelines-created pipelines :buffers-created buffers
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:return 'js-ffi.webgpu-batches/RectMetrics)
@@ -8697,7 +8747,13 @@
               :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'Number 'Number
               :return 'js-ffi.webgpu-batches/RectPixel
               :features $ #{} :js-ffi
-            js-await $ batches/read-pixel! batch x y
+            let
+                raw $ js-await $ batch .read-pixel x y
+                r $ contract/expect-number |RectBatch.pixel.r $ contract/object-field |RectBatch.pixel raw |0
+                g $ contract/expect-number |RectBatch.pixel.g $ contract/object-field |RectBatch.pixel raw |1
+                b $ contract/expect-number |RectBatch.pixel.b $ contract/object-field |RectBatch.pixel raw |2
+                a $ contract/expect-number |RectBatch.pixel.a $ contract/object-field |RectBatch.pixel raw |3
+              batches/RectPixel :r r :g g :b b :a a
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:async true) (:return 'js-ffi.webgpu-batches/RectPixel)
@@ -8709,7 +8765,11 @@
               :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
               :return 'js-ffi.webgpu-batches/RectTranslationSample
               :features $ #{} :js-ffi
-            js-await $ batches/read-translation! batch
+            let
+                raw $ js-await $ batch .read-translation
+                x $ contract/expect-number |RectBatch.translation.x $ contract/object-field |RectBatch.translation raw |x
+                y $ contract/expect-number |RectBatch.translation.y $ contract/object-field |RectBatch.translation raw |y
+              batches/RectTranslationSample :x x :y y
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:async true) (:return 'js-ffi.webgpu-batches/RectTranslationSample)
@@ -8734,7 +8794,9 @@
               :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'js-ffi.webgpu-batches/Float32PositionsHost 'Number
               :return 'Number
               :features $ #{} :js-ffi
-            batches/upload-positions! batch positions 0 instance-count
+            let
+                result $ batch .upload positions 0 instance-count
+              contract/expect-number |RectBatch.positionBytesUploaded $ contract/object-field |RectBatch.upload result |positionBytesUploaded
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:return 'Number)
@@ -8742,7 +8804,9 @@
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.webgpu-batches
-          :require $ js-ffi.webgpu-batches :as batches
+          :require (js-ffi.webgpu-batches :as batches)
+            |../../../src/host/webgpu-rect-batches.mjs :refer $ createFloat32RectBatch
+            js-ffi.contract :as contract
     'quamolit.webgpu-capabilities $ %{} 'FileEntry
       :defs $ {} $ 'probe!
         %{} 'CodeEntry (:doc "|获取上游封闭能力结果；调用方只在 ready 分支使用并最终释放设备。")
