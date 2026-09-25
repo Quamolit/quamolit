@@ -3528,6 +3528,11 @@
         :code $ quote $ ns quamolit.hud-logs
     'quamolit.instance-ffi $ %{} 'FileEntry
       :defs $ {}
+        'CanvasRectMetrics $ %{} 'CodeEntry
+          :doc "|Canvas2D 矩形实例批次的边界调用、fillRect 调用、实例数和读取字节计数；不是 GPU 上传量。"
+          :code $ quote $ defstruct CanvasRectMetrics (:boundary-calls 'Number) (:canvas-calls 'Number) (:instances 'Number) (:position-bytes-read 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
         'at $ %{} 'CodeEntry (:doc "|诊断用有界读取；热帧不得逐实例调用。")
           :code $ quote $ defn at (snapshot index)
             hint-fn $ {}
@@ -3554,7 +3559,7 @@
           :code $ quote $ defn draw-canvas! (context positions start amount width height fill-style alpha)
             hint-fn $ {}
               :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number 'Number 'Number 'String 'Number
-              :return 'js-ffi.canvas-batches/CanvasRectMetrics
+              :return 'quamolit.instance-ffi/CanvasRectMetrics
               :features $ #{} :js-ffi
             let
                 draw-batch $ unsafe-coerce drawFloat32RectBatch $ :: 'Fn
@@ -3566,9 +3571,9 @@
                 canvas-calls $ contract/expect-number |CanvasRect.canvasCalls $ contract/object-field |CanvasRect.draw result |canvasCalls
                 instances $ contract/expect-number |CanvasRect.instances $ contract/object-field |CanvasRect.draw result |instances
                 bytes-read $ contract/expect-number |CanvasRect.positionBytesRead $ contract/object-field |CanvasRect.draw result |positionBytesRead
-              canvas/CanvasRectMetrics :boundary-calls boundary-calls :canvas-calls canvas-calls :instances instances :position-bytes-read bytes-read
+              CanvasRectMetrics :boundary-calls boundary-calls :canvas-calls canvas-calls :instances instances :position-bytes-read bytes-read
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'js-ffi.canvas-batches/CanvasRectMetrics)
+          :schema $ :: 'Fn $ {} (:return 'quamolit.instance-ffi/CanvasRectMetrics)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number 'Number 'Number 'String 'Number
             :features $ #{} :js-ffi
         'length $ %{} 'CodeEntry (:doc "|读取实例源快照元素数。")
@@ -3596,7 +3601,7 @@
       :ns $ %{} 'NsEntry
         :doc "|Scene 实例源到 js-ffi Calcit API 的薄适配；版本与缓存仍由 Quamolit 宿主层管理。"
         :code $ quote $ ns quamolit.instance-ffi
-          :require (js-ffi.typed-arrays :as arrays) (js-ffi.canvas-batches :as canvas)
+          :require (js-ffi.typed-arrays :as arrays)
             |../../../src/host/canvas-rect-batches.mjs :refer $ drawFloat32RectBatch
             js-ffi.contract :as contract
     'quamolit.math $ %{} 'FileEntry
@@ -8643,62 +8648,107 @@
         :code $ quote $ ns quamolit.util.time
     'quamolit.webgpu-batches $ %{} 'FileEntry
       :defs $ {}
+        'RectBatchHost $ %{} 'CodeEntry
+          :doc "|Quamolit 矩形图层的 WebGPU 宿主句柄；只由本仓库 create! 创建，调用方负责 dispose!。"
+          :code $ quote $ deftrait RectBatchHost
+            .upload $ :: 'Fn $ {}
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number
+              :return 'JsObject
+            .draw $ :: 'Fn $ {}
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'JsObject
+              :return 'JsObject
+            .read-translation $ :: 'Fn $ {}
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost
+              :return 'JsObject
+            .read-pixel $ :: 'Fn $ {}
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number
+              :return 'JsObject
+            .dispose $ :: 'Fn $ {}
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost
+              :return 'Bool
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+          :schema $ :: 'Trait
+        'RectColor $ %{} 'CodeEntry (:doc "|矩形图层的 RGBA 直通道颜色；shader 输出时转预乘 alpha。")
+          :code $ quote $ defstruct RectColor (:r 'Number) (:g 'Number) (:b 'Number) (:a 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RectMetrics $ %{} 'CodeEntry (:doc "|单次矩形图层绘制的批次、实例、上传及资源创建指标。")
+          :code $ quote $ defstruct RectMetrics (:draw-calls 'Number) (:instances 'Number) (:position-bytes-uploaded 'Number) (:uniform-bytes-uploaded 'Number) (:pipelines-created 'Number) (:buffers-created 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RectPixel $ %{} 'CodeEntry (:doc "|测试诊断读回的单个 RGBA 像素。")
+          :code $ quote $ defstruct RectPixel (:r 'Number) (:g 'Number) (:b 'Number) (:a 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RectTranslation $ %{} 'CodeEntry (:doc "|Quamolit 矩形图层共享的 Vec2 绝对时间位移参数。")
+          :code $ quote $ defstruct RectTranslation (:from 'quamolit.webgpu-batches/RectVec2) (:to 'quamolit.webgpu-batches/RectVec2) (:time 'Number) (:start 'Number) (:duration 'Number) (:easing 'String)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RectTranslationSample $ %{} 'CodeEntry (:doc "|GPU 诊断读回的单个 f32 Vec2 位移样本。")
+          :code $ quote $ defstruct RectTranslationSample (:x 'Number) (:y 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RectVec2 $ %{} 'CodeEntry (:doc "|Quamolit 矩形图层的实际像素坐标二维向量。")
+          :code $ quote $ defstruct RectVec2 (:x 'Number) (:y 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
         'clear! $ %{} 'CodeEntry (:doc "|提交零实例帧，在完整图层边界清屏。")
           :code $ quote $ defn clear! (batch)
             hint-fn $ {}
-              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
-              :return 'js-ffi.webgpu-batches/RectMetrics
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost
+              :return 'quamolit.webgpu-batches/RectMetrics
               :features $ #{} :js-ffi
             draw! batch 0 0 (color 1 1 1 1) 1 (%none) (%some 0)
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-          :schema $ :: 'Fn $ {} (:return 'js-ffi.webgpu-batches/RectMetrics)
-            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost
             :features $ #{} :js-ffi
-        'color $ %{} 'CodeEntry (:doc "|把 Scene 颜色数值构造成 js-ffi 的类型化 RGBA。")
+        'color $ %{} 'CodeEntry (:doc "|把 Scene 颜色数值构造成 Quamolit 的类型化 RGBA。")
           :code $ quote $ defn color (r g b a)
             hint-fn $ {}
               :args $ [] 'Number 'Number 'Number 'Number
-              :return 'js-ffi.webgpu-batches/RectColor
-            batches/RectColor :r r :g g :b b :a a
+              :return 'quamolit.webgpu-batches/RectColor
+            RectColor :r r :g g :b b :a a
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-          :schema $ :: 'Fn $ {} (:return 'js-ffi.webgpu-batches/RectColor)
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectColor)
             :args $ [] 'Number 'Number 'Number 'Number
         'create! $ %{} 'CodeEntry (:doc "|创建保留式 GPU 实例图层，所有权留给调用者。")
           :code $ quote $ defn create! (canvas device format capacity)
             hint-fn $ {} (:async true)
               :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'Number
-              :return 'js-ffi.webgpu-batches/RectBatchHost
+              :return 'quamolit.webgpu-batches/RectBatchHost
               :features $ #{} :js-ffi
             let
                 create $ unsafe-coerce createFloat32RectBatch $ :: 'Fn
                   {} (:async true)
                     :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'Number
-                    :return 'js-ffi.webgpu-batches/RectBatchHost
+                    :return 'quamolit.webgpu-batches/RectBatchHost
               js-await $ create canvas device format capacity
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-          :schema $ :: 'Fn $ {} (:async true) (:return 'js-ffi.webgpu-batches/RectBatchHost)
+          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.webgpu-batches/RectBatchHost)
             :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'Number
             :features $ #{} :js-ffi
         'dispose! $ %{} 'CodeEntry (:doc "|幂等释放图层宿主资源，不释放调用者持有的 device。")
           :code $ quote $ defn dispose! (batch)
             hint-fn $ {}
-              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost
               :return 'Bool
               :features $ #{} :js-ffi
             batch .dispose
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost
             :features $ #{} :js-ffi
         'draw! $ %{} 'CodeEntry (:doc "|提交一个实例图层帧；缺省 count 复用活跃实例，count=0 清空画布。")
           :code $ quote $ defn draw! (batch width height fill alpha motion instance-count)
             hint-fn $ {}
-              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'Number 'Number 'js-ffi.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'js-ffi.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number)
-              :return 'js-ffi.webgpu-batches/RectMetrics
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number 'quamolit.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'quamolit.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number)
+              :return 'quamolit.webgpu-batches/RectMetrics
               :features $ #{} :js-ffi
             let
                 translation $ if (option:some? motion)
@@ -8735,17 +8785,17 @@
                 uniform $ contract/expect-number |RectBatch.uniformBytesUploaded $ contract/object-field |RectBatch.draw result |uniformBytesUploaded
                 pipelines $ contract/expect-number |RectBatch.pipelinesCreated $ contract/object-field |RectBatch.draw result |pipelinesCreated
                 buffers $ contract/expect-number |RectBatch.buffersCreated $ contract/object-field |RectBatch.draw result |buffersCreated
-              batches/RectMetrics :draw-calls draws :instances instances :position-bytes-uploaded uploaded :uniform-bytes-uploaded uniform :pipelines-created pipelines :buffers-created buffers
+              RectMetrics :draw-calls draws :instances instances :position-bytes-uploaded uploaded :uniform-bytes-uploaded uniform :pipelines-created pipelines :buffers-created buffers
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-          :schema $ :: 'Fn $ {} (:return 'js-ffi.webgpu-batches/RectMetrics)
-            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'Number 'Number 'js-ffi.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'js-ffi.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number)
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number 'quamolit.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'quamolit.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number)
             :features $ #{} :js-ffi
         'read-pixel! $ %{} 'CodeEntry (:doc "|测试诊断读回；生产帧不得调用。")
           :code $ quote $ defn read-pixel! (batch x y)
             hint-fn $ {} (:async true)
-              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'Number 'Number
-              :return 'js-ffi.webgpu-batches/RectPixel
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number
+              :return 'quamolit.webgpu-batches/RectPixel
               :features $ #{} :js-ffi
             let
                 raw $ js-await $ batch .read-pixel x y
@@ -8753,45 +8803,45 @@
                 g $ contract/expect-number |RectBatch.pixel.g $ contract/object-field |RectBatch.pixel raw |1
                 b $ contract/expect-number |RectBatch.pixel.b $ contract/object-field |RectBatch.pixel raw |2
                 a $ contract/expect-number |RectBatch.pixel.a $ contract/object-field |RectBatch.pixel raw |3
-              batches/RectPixel :r r :g g :b b :a a
+              RectPixel :r r :g g :b b :a a
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-          :schema $ :: 'Fn $ {} (:async true) (:return 'js-ffi.webgpu-batches/RectPixel)
-            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'Number 'Number
+          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.webgpu-batches/RectPixel)
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number
             :features $ #{} :js-ffi
         'read-translation! $ %{} 'CodeEntry (:doc "|测试诊断 GPU f32 时间位移；生产帧不得调用。")
           :code $ quote $ defn read-translation! (batch)
             hint-fn $ {} (:async true)
-              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
-              :return 'js-ffi.webgpu-batches/RectTranslationSample
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost
+              :return 'quamolit.webgpu-batches/RectTranslationSample
               :features $ #{} :js-ffi
             let
                 raw $ js-await $ batch .read-translation
                 x $ contract/expect-number |RectBatch.translation.x $ contract/object-field |RectBatch.translation raw |x
                 y $ contract/expect-number |RectBatch.translation.y $ contract/object-field |RectBatch.translation raw |y
-              batches/RectTranslationSample :x x :y y
+              RectTranslationSample :x x :y y
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-          :schema $ :: 'Fn $ {} (:async true) (:return 'js-ffi.webgpu-batches/RectTranslationSample)
-            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost
+          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.webgpu-batches/RectTranslationSample)
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost
             :features $ #{} :js-ffi
         'translation $ %{} 'CodeEntry (:doc "|把已验证的 Vec2 tween 参数构造成绝对时间 GPU 位移。")
           :code $ quote $ defn translation (from-x from-y to-x to-y time start duration easing)
             hint-fn $ {}
               :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'String
-              :return 'js-ffi.webgpu-batches/RectTranslation
+              :return 'quamolit.webgpu-batches/RectTranslation
             let
-                from $ batches/RectVec2 :x from-x :y from-y
-                to $ batches/RectVec2 :x to-x :y to-y
-              batches/RectTranslation :from from :to to :time time :start start :duration duration :easing easing
+                from $ RectVec2 :x from-x :y from-y
+                to $ RectVec2 :x to-x :y to-y
+              RectTranslation :from from :to to :time time :start start :duration duration :easing easing
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-          :schema $ :: 'Fn $ {} (:return 'js-ffi.webgpu-batches/RectTranslation)
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectTranslation)
             :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'String
         'upload! $ %{} 'CodeEntry (:doc "|上传当前版本实例位置，调用次数按资源版本而非帧数增长。")
           :code $ quote $ defn upload! (batch positions instance-count)
             hint-fn $ {}
-              :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'js-ffi.webgpu-batches/Float32PositionsHost 'Number
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number
               :return 'Number
               :features $ #{} :js-ffi
             let
@@ -8800,11 +8850,11 @@
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:return 'Number)
-            :args $ [] 'js-ffi.webgpu-batches/RectBatchHost 'js-ffi.webgpu-batches/Float32PositionsHost 'Number
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.webgpu-batches
-          :require (js-ffi.webgpu-batches :as batches)
+          :require
             |../../../src/host/webgpu-rect-batches.mjs :refer $ createFloat32RectBatch
             js-ffi.contract :as contract
     'quamolit.webgpu-capabilities $ %{} 'FileEntry

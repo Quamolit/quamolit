@@ -12,4 +12,4 @@
 
 同一矩形图层已接入固定 Presence 时间帧；生命周期、乱序 seek 和退出 alpha 的双后端检验见 [Presence WebGPU 时间帧](webgpu-presence-time.md)。
 
-历史上 js-ffi 0.1.41 为矩形批次加入绝对时间平移 uniform，0.1.42 将批次操作公开为 Calcit FFI，并加入诊断数值读回；0.1.43 进一步公开 Float32 快照与 Canvas 批次的 Calcit API；0.1.44 公开类型化 WebGPU 能力探测。0.2.0-alpha.1 将矩形 renderer 移回 Quamolit，保留上游原生能力和暂时兼容的 Calcit 批次类型。Quamolit 的标准 Vec2 Motion 映射与 10k 双后端验证见 [Vec2 GPU 时间采样](gpu-vec2-motion.md)。三个 GPU 测试页面现在通过 `quamolit.webgpu-capabilities` 的编译产物调用探测，不再直接导入上游底层 `.mjs`。#35 的整个新主路径与 FFI 盘点仍须另行审查，不能仅凭此切片关闭。
+历史上 js-ffi 0.1.41 为矩形批次加入绝对时间平移 uniform，0.1.42 将批次操作公开为 Calcit FFI，并加入诊断数值读回；0.1.43 进一步公开 Float32 快照与 Canvas 批次的 Calcit API；0.1.44 公开类型化 WebGPU 能力探测。0.2.0-alpha.1 将矩形 renderer 移回 Quamolit；0.2.0-alpha.2 把 `RectBatchHost`、颜色、位移、读回和指标的 Calcit Struct/Trait 也收回 `quamolit.webgpu-batches`，上游仅保留原生平台能力。Quamolit 的标准 Vec2 Motion 映射与 10k 双后端验证见 [Vec2 GPU 时间采样](gpu-vec2-motion.md)。三个 GPU 测试页面现在通过 `quamolit.webgpu-capabilities` 的编译产物调用探测，不再直接导入上游底层 `.mjs`。#35 的整个新主路径与 FFI 盘点仍须另行审查，不能仅凭此切片关闭。
