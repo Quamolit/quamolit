@@ -5,12 +5,12 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
-"@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#tag=0.2.0-alpha.1":
-  version: 0.2.0-alpha.1
-  resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=217d1913ed3be3cd4d5085f5e4875f98b9224eef"
+"@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#tag=0.2.0-alpha.2":
+  version: 0.2.0-alpha.2
+  resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=6b632d7d2522092dd14d64f151e5871c4e7b255f"
   dependencies:
     "@calcit/procs": "npm:0.19.1"
-  checksum: 10c0/021d1d09421c54e3e8a7dfd5de263e995e845384092f38d494f4b69b72523fca29823da7fc91325d0d1da8419c951026bef7f3d4b9f009109a919de7f953ce1a
+  checksum: 10c0/b83b0a52eebaa9e95b7835b3b131ca35846209110dca3f75ca3a39c5467ccd8bf198c1889121156acfd1865e6419bb6ca6805cb6fab0b5bd9fd2b574e5958645
   languageName: node
   linkType: hard
 
@@ -669,7 +669,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
-    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.0-alpha.1"
+    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.0-alpha.2"
     "@calcit/procs": "npm:0.19.1"
     "@playwright/test": "npm:1.63.0"
     "@quamolit/touch-control": "npm:^0.0.13"
