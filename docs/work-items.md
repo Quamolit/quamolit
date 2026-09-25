@@ -301,7 +301,7 @@ Scene IR 表达场景语义及动画绑定，后端执行计划独立承载缓�
 
 实现范围：
 
-- 盘点 DOM、Canvas2D、GPU、TypedArray、帧调度与资源 API；按是否跨项目复用划分通用封装与 Quamolit 专属策略。通用 FFI PR 提交到解析后的 js-ffi 仓库并发布/引用所需 tag，既可包含 Calcit 类型定义，也可包含必要的通用 JS 实现。
+- 盘点 DOM、Canvas2D、GPU、TypedArray、帧调度与资源 API；按是否跨项目复用划分通用封装与 Quamolit 专属策略。通用 FFI PR 提交到解析后的 js-ffi 仓库并发布/引用所需 tag，既可包含 Calcit 类型定义，也可包含必要的通用 JS 实现。同步、无状态、原始 ABI 的小适配器优先用 Calcit 0.22 起定义级 `:ffi :js :inline/:file` 嵌入；有状态/async/shader/trait/Struct 宿主才保留独立 `.mjs`，测试夹具桥接放 `test/host/`；约束见 [Calcit 优先的 FFI 边界](calcit-first-ffi.md)。
 - 定义按资源/批次调用的 API，避免每个属性或每个实例跨越宿主边界；在关键路径记录调用次数与传输字节。
 - 为能力探测、设备失败、资源释放、无浏览器 native 测试提供明确返回契约；Quamolit 保留场景到后端的 Calcit 编排和专属适配，不把业务格式交给通用包解释。
 - 采用当前已发布且适用的新版本，保持 Calcit/runtime/deps/lockfile/CI 对齐；版本回退需最小复现和上游问题链接。

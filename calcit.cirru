@@ -5184,6 +5184,18 @@
             quamolit.replay-archive :as archive
     'quamolit.presence $ %{} 'FileEntry
       :defs $ {}
+        'InstanceResourcePlan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct InstanceResourcePlan
+            :references $ :: 'List 'quamolit.presence/InstanceResourceRef
+            :release $ :: 'List 'quamolit.scene-ir/InstanceSource
+            :live-references 'Number
+            :live-sources 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'InstanceResourceRef $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct InstanceResourceRef (:key 'String) (:source 'quamolit.scene-ir/InstanceSource) (:count 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
         'PresenceItem $ %{} 'CodeEntry (:doc "|稳定 Scene 路径、保留展示数据、阶段和局部 alpha 意图。")
           :code $ quote $ defstruct PresenceItem (:entry 'quamolit.scene-diff/SceneEntry) (:phase 'quamolit.presence/PresencePhase) (:alpha 'quamolit.motion/ScalarTween)
           :examples $ []
@@ -5253,6 +5265,35 @@
           :schema $ :: 'Fn $ {}
             :args $ [] (:: 'List 'quamolit.presence/PresenceItem) (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.presence/PresenceItem) 'Number 'Number 'quamolit.motion/Easing
             :return $ :: 'List 'quamolit.presence/PresenceItem
+        'bump-all-resource-refs $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn bump-all-resource-refs (sources)
+            if (empty? sources) (empty-resource-refs)
+              bump-resource-ref
+                bump-all-resource-refs $ rest sources
+                first-source sources
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] $ :: 'List 'quamolit.scene-ir/InstanceSource
+            :return $ :: 'List 'quamolit.presence/InstanceResourceRef
+        'bump-resource-ref $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn bump-resource-ref (refs source)
+            let
+                key $ instance-source-key source
+              if (resource-ref-present? refs key) (increment-ref-in-list refs key source)
+                append refs $ InstanceResourceRef :key key :source source :count 1
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.scene-ir/InstanceSource
+            :return $ :: 'List 'quamolit.presence/InstanceResourceRef
+          :tests $ [] $ %{} 'TestEntry (:name |shared-source-count)
+            :code $ quote $ let
+                source $ scene-ir/InstanceSource :id |shared :version 1 :count 2
+                refs $ bump-resource-ref
+                  bump-resource-ref (empty-resource-refs) source
+                  , source
+              is= 1 $ count refs
+              is= 2 $ :count $ first-resource-ref refs
+            :tags $ #{} :presence :unit
         'desired-prefix $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn desired-prefix (remaining earlier items time duration easing)
             if (empty? remaining) items $ let
@@ -5271,18 +5312,42 @@
           :schema $ :: 'Fn $ {}
             :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.presence/PresenceItem) (:: 'List 'quamolit.presence/PresenceItem) 'Number 'Number 'quamolit.motion/Easing
             :return $ :: 'List 'quamolit.presence/PresenceItem
+        'empty-instance-resource-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-instance-resource-plan ()
+            InstanceResourcePlan :references (empty-resource-refs) :release (empty-instance-sources) :live-references 0 :live-sources 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/InstanceResourcePlan)
+            :args $ []
+        'empty-instance-sources $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-instance-sources () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/InstanceSource
         'empty-items $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-items () ([])
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'quamolit.presence/PresenceItem
+        'empty-presence-model $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-presence-model ()
+            PresenceModel :items $ empty-items
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ []
         'empty-released $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-released () ([])
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'quamolit.scene-diff/SceneEntry
+        'empty-resource-refs $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-resource-refs () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.presence/InstanceResourceRef
         'empty-samples $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-samples () ([])
           :examples $ []
@@ -5309,6 +5374,51 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceItem)
             :args $ [] $ :: 'List 'quamolit.presence/PresenceItem
+        'first-resource-ref $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-resource-ref (refs)
+            -> (first refs) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/InstanceResourceRef)
+            :args $ [] $ :: 'List 'quamolit.presence/InstanceResourceRef
+        'first-source $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-source (sources)
+            -> (first sources) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/InstanceSource)
+            :args $ [] $ :: 'List 'quamolit.scene-ir/InstanceSource
+        'gather-instance-sources $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gather-instance-sources (items)
+            if (empty? items) (empty-instance-sources)
+              let
+                  item $ first-item items
+                match (item-instance-source item)
+                  (:some source)
+                    append
+                      gather-instance-sources $ rest items
+                      , source
+                  (:none)
+                    gather-instance-sources $ rest items
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] $ :: 'List 'quamolit.presence/PresenceItem
+            :return $ :: 'List 'quamolit.scene-ir/InstanceSource
+        'increment-ref-in-list $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn increment-ref-in-list (refs key source)
+            if (empty? refs) (empty-resource-refs)
+              let
+                  head $ first-resource-ref refs
+                if
+                  = key $ :key head
+                  prepend
+                    increment-ref-in-list (rest refs) key source
+                    InstanceResourceRef :key key :source (:source head) :count $ + 1 $ :count head
+                  prepend
+                    increment-ref-in-list (rest refs) key source
+                    , head
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.presence/InstanceResourceRef) 'String 'quamolit.scene-ir/InstanceSource
+            :return $ :: 'List 'quamolit.presence/InstanceResourceRef
         'initialize-items $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initialize-items (entries items)
             if (empty? entries) items $ recur (rest entries)
@@ -5317,6 +5427,20 @@
           :schema $ :: 'Fn $ {}
             :args $ [] (:: 'List 'quamolit.scene-diff/SceneEntry) (:: 'List 'quamolit.presence/PresenceItem)
             :return $ :: 'List 'quamolit.presence/PresenceItem
+        'instance-resource-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-resource-plan (model previous)
+            let
+                references $ bump-all-resource-refs $ gather-instance-sources (:items model)
+              InstanceResourcePlan :references references :release (plan-release-sources references previous) :live-references (foldl references 0 total-ref-count) :live-sources $ count references
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/InstanceResourcePlan)
+            :args $ [] 'quamolit.presence/PresenceModel 'quamolit.presence/InstanceResourcePlan
+        'instance-source-key $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-source-key (source)
+            str (:id source) |@ (:version source) |@ $ :count source
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.scene-ir/InstanceSource
         'item-for-path $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn item-for-path (items path)
             if (empty? items) (raise |missing-presence-path)
@@ -5328,6 +5452,19 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceItem)
             :args $ [] (:: 'List 'quamolit.presence/PresenceItem) (:: 'List 'quamolit.scene-diff/IdentitySegment)
+        'item-instance-source $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn item-instance-source (item)
+            let
+                content $ :content $ :node (:entry item)
+              match content
+                (:instances instances)
+                  %some $ :source instances
+                (:group group) (%none)
+                (:rect rect) (%none)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.presence/PresenceItem
+            :return $ :: 'Option 'quamolit.scene-ir/InstanceSource
         'make-enter $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn make-enter (entry time duration easing)
             PresenceItem :entry entry :phase (PresencePhase :enter) :alpha $ alpha-tween 0 1 time duration easing
@@ -5368,6 +5505,32 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] (:: 'List 'quamolit.presence/PresenceItem) (:: 'List 'quamolit.scene-diff/IdentitySegment)
+        'plan-release-loop $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn plan-release-loop (remaining references acc)
+            if (empty? remaining) acc $ let
+                ref $ first-resource-ref remaining
+              recur (rest remaining) references $ if
+                resource-ref-present? references $ :key ref
+                , acc $ append acc (:source ref)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.presence/InstanceResourceRef) (:: 'List 'quamolit.presence/InstanceResourceRef) (:: 'List 'quamolit.scene-ir/InstanceSource)
+            :return $ :: 'List 'quamolit.scene-ir/InstanceSource
+        'plan-release-sources $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn plan-release-sources (references previous)
+            plan-release-loop (:references previous) references $ empty-instance-sources
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence/InstanceResourcePlan
+            :return $ :: 'List 'quamolit.scene-ir/InstanceSource
+          :tests $ [] $ %{} 'TestEntry (:name |release-only-when-absent)
+            :code $ quote $ let
+                source $ scene-ir/InstanceSource :id |shared :version 1 :count 2
+                refs $ bump-resource-ref (empty-resource-refs) source
+                previous $ InstanceResourcePlan :references refs :release (empty-instance-sources) :live-references 1 :live-sources 1
+              is= 0 $ count $ plan-release-sources refs previous
+              is= 1 $ count $ plan-release-sources (empty-resource-refs) previous
+            :tags $ #{} :presence :unit
         'presence-needs-frame? $ %{} 'CodeEntry (:doc "|活跃或尚待终点结算的生命周期需要后续帧；结算后停止。")
           :code $ quote $ defn presence-needs-frame? (model time)
             if
@@ -5489,6 +5652,14 @@
                 is-throws $ reconcile-presence initial full (/ 0 0) 1 easing
                 is-throws $ reconcile-presence initial full 0 -1 easing
               :tags $ #{} :presence :unit
+        'resource-ref-present? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resource-ref-present? (refs key)
+            if (empty? refs) false $ if
+              = key $ :key $ first-resource-ref refs
+              , true $ recur (rest refs) key
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.presence/InstanceResourceRef) 'String
         'retain-item $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn retain-item (item entry)
             PresenceItem :entry entry :phase (:phase item) :alpha $ :alpha item
@@ -5590,6 +5761,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
             :args $ [] 'quamolit.scene-ir/SceneDocument
+        'total-ref-count $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn total-ref-count (acc ref)
+            + acc $ :count ref
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'quamolit.presence/InstanceResourceRef
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.presence
           :require (quamolit.scene-diff :as scene-diff) (quamolit.scene-ir :as scene-ir) (quamolit.motion :as motion)
@@ -6239,6 +6416,79 @@
         :code $ quote $ ns quamolit.replay-archive
           :require (quamolit.fixed-step :as fixed) (quamolit.motion :as motion)
             calcit.test :refer $ is= is-throws
+    'quamolit.retained-scene $ %{} 'FileEntry
+      :defs $ {}
+        'append-changed-revisions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn append-changed-revisions (remain lasts currents acc)
+            if (empty? remain) acc $ let
+                key $ -> (first remain) .unwrap
+                prev $ -> (first lasts) .unwrap
+                curr $ -> (first currents) .unwrap
+              recur (rest remain) (rest lasts) (rest currents)
+                if (= prev curr) acc $ append acc key
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'String) (:: 'List 'Number) (:: 'List 'Number) (:: 'List 'String)
+            :return $ :: 'List 'String
+        'revision-keys $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn revision-keys () ([] |model |input |resources |viewport |quality |motion)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'String
+        'revision-reasons $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn revision-reasons (initial? time last-time last-values current-values)
+            if initial? ([] |initial)
+              let
+                  base $ if (= time last-time) ([]) ([] |time)
+                append-changed-revisions (revision-keys) last-values current-values base
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Bool 'Number 'Number (:: 'List 'Number) (:: 'List 'Number)
+            :return $ :: 'List 'String
+          :tests $ [] $ %{} 'TestEntry (:name |reasons-classification)
+            :code $ quote $ let
+                current $ [] 0 0 0 0 0 0
+                next $ [] 0 2 0 0 0 0
+              assert= ([] |initial)
+                revision-reasons true 0 0 ([]) ([])
+              assert= ([] |time) (revision-reasons false 1 0 current current)
+              assert= ([] |input) (revision-reasons false 0.5 0.5 current next)
+              assert= ([] |time |input) (revision-reasons false 1 0 current next)
+            :tags $ #{} :retained-scene :unit
+        'sampled-value-valid? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sampled-value-valid? (kind field value)
+            and
+              = 0 $ - value value
+              if
+                or (= field |width) (= field |height)
+                >= value 0
+                , true
+              if (= kind |group)
+                and (>= value 0) (<= value 1)
+                , true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'String 'String 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |value-validation-rules)
+            :code $ quote $ do
+              assert= true $ sampled-value-valid? |rect |x 3
+              assert= false $ sampled-value-valid? |rect |width -1
+              assert= false $ sampled-value-valid? |group |opacity 1.5
+              assert= false $ sampled-value-valid? |rect |x $ sqrt -1
+              assert= true $ sampled-value-valid? |group |opacity 0.5
+            :tags $ #{} :retained-scene :unit
+        'supported-target-field? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn supported-target-field? (kind field)
+            if (= kind |rect)
+              or (= field |x) (= field |y) (= field |width) (= field |height)
+              if (= kind |group) (= field |opacity) false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'String 'String
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.retained-scene
+          :require $ quamolit.motion :as motion
     'quamolit.scene-binding $ %{} 'FileEntry
       :defs $ {}
         'apply-group-scalar $ %{} 'CodeEntry (:doc |)

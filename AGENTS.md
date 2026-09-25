@@ -23,7 +23,7 @@
 - 写入 Snapshot 前运行 `calcit docs agents --contract`，按其要求核对 CLI、`deps.cirru` 和 `calcit query config`；首次使用或契约变化时读取完整指南。
 - `calcit.cirru` 只能通过 `calcit edit/tree/cursor/config` 修改，禁止文本 patch 或正则改写。目标与替换内容来自查询结果；多步写入使用 transaction、dry-run 和 revision 检查。
 - `calcit.cirru` 是项目主要源码，不得重新加上 `linguist-generated` 或 `-diff` 属性。
-- 手写 JS 宿主适配只放 `src/host/`（入口/构建配置除外）；多入口 Calcit 编译产物放被忽略的 `target/js/<entry>/`，不得在根目录新建 `js-out-*`。
+- 手写 JS 宿主适配只放 `src/host/`（入口/构建配置除外），测试夹具桥接放 `test/host/`；同步、无状态、原始 ABI 的小适配器优先用定义级 `:ffi :js :inline/:file` 嵌入 Calcit 定义，不新增独立 `.mjs`；归属细则见 [Calcit 优先的 FFI 边界](docs/calcit-first-ffi.md)。多入口 Calcit 编译产物放被忽略的 `target/js/<entry>/`，不得在根目录新建 `js-out-*`。
 - 优先采用当前已发布且适用的新方案；升级时同步 Calcit CLI、runtime、依赖、lockfile 与 CI。不要未经核对机械升级所有依赖；若回退，给出可复现回归和上游 issue。
 - 用泛型/Struct/Enum 保留能够表达的类型关系；不要用 Dynamic 或兼容模式掩盖新代码的类型错误。
 

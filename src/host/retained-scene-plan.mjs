@@ -1,5 +1,11 @@
+import { CalcitSliceList, to_js_data as toJsData } from "../../target/js/motion/calcit.core.mjs";
+import {
+  revision_reasons as revisionReasons,
+  sampled_value_valid_$q_ as sampledValueValid,
+  supported_target_field_$q_ as supportedTargetField,
+} from "../../target/js/motion/quamolit.retained-scene.mjs";
+
 const REVISION_KEYS = ["model", "input", "resources", "viewport", "quality", "motion"];
-const TARGETS = { rect: new Set(["x", "y", "width", "height"]), group: new Set(["opacity"]) };
 
 function validatedRevisions(revisions) {
   if (revisions === null || typeof revisions !== "object") throw new TypeError("explicit revisions required");
@@ -24,7 +30,7 @@ function compileDocument(document, samplers) {
     for (const binding of node.bindings) {
       const target = binding.target;
       const field = Array.isArray(target) && target.length === 1 ? target[0] : undefined;
-      if (!TARGETS[kind]?.has(field)) throw new TypeError(`unsupported ${kind} Motion target ${field}`);
+      if (typeof field !== "string" || !supportedTargetField(kind, field)) throw new TypeError(`unsupported ${kind} Motion target ${field}`);
       const id = binding["motion-id"];
       const version = binding.version;
       if (typeof id !== "string" || id.length === 0 || !Number.isSafeInteger(version) || version < 0) {
@@ -42,7 +48,14 @@ function compileDocument(document, samplers) {
   return { nodes, slots };
 }
 
-/** Host execution cache for a serialized, already validated SceneDocument. */
+const revisionValues = (revisions) => new CalcitSliceList(REVISION_KEYS.map((key) => revisions[key]));
+
+/**
+ * Host execution cache for a serialized, already validated SceneDocument.
+ * Revision classification, resample selection and sampled-value rules come
+ * from Calcit `quamolit.retained-scene`; this host keeps the mutable frame,
+ * the sampler closures and the static scene copy.
+ */
 export class RetainedScenePlan {
   #nodes;
   #slots;
@@ -78,12 +91,14 @@ export class RetainedScenePlan {
   update(time, revisions, values) {
     if (!Number.isFinite(time)) throw new RangeError("time must be finite");
     const current = validatedRevisions(revisions);
-    const reasons = [];
-    if (this.#lastRevisions === undefined) reasons.push("initial");
-    else {
-      if (time !== this.#lastTime) reasons.push("time");
-      for (const key of REVISION_KEYS) if (current[key] !== this.#lastRevisions[key]) reasons.push(key);
-    }
+    const initial = this.#lastRevisions === undefined;
+    const reasons = toJsData(revisionReasons(
+      initial,
+      time,
+      initial ? 0 : this.#lastTime,
+      initial ? new CalcitSliceList([]) : revisionValues(this.#lastRevisions),
+      revisionValues(current),
+    ));
     if (reasons.length === 0) {
       this.#metrics.skippedUpdates++;
       return Object.freeze({ changed: false, reasons: Object.freeze([]), ...this.metrics });
@@ -93,8 +108,7 @@ export class RetainedScenePlan {
       || reasons.some((reason) => dependencies.has(reason))).map((slot) => {
       const { sample, kind, field } = slot;
       const value = sample(time, values);
-      if (!Number.isFinite(value) || ((field === "width" || field === "height") && value < 0)
-        || (kind === "group" && (value < 0 || value > 1))) {
+      if (typeof value !== "number" || !sampledValueValid(kind, field, value)) {
         throw new RangeError(`invalid sampled ${kind}.${field}`);
       }
       return { slot, value };

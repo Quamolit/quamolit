@@ -1,13 +1,13 @@
 import { init_tags as initTags, to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
 import { instance_presence_document as instanceDocument, instance_presence_reconcile as reconcile } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 import { presence_needs_frame_$q_ as needsFrame, sample_presence as sample, settle_presence as settle, start_presence as start } from "../target/js/motion/quamolit.presence.mjs";
-import { InstanceSourceRegistry } from "../src/host/instance-sources.mjs";
-import { PresenceInstanceResources } from "../src/host/presence-resources.mjs";
-import { CanvasInstanceBatches } from "../src/host/canvas-instance-batches.mjs";
-import { WebGpuInstanceBatches } from "../src/host/webgpu-instance-batches.mjs";
-import { WebGpuLayerLease } from "../src/host/webgpu-layer-lease.mjs";
+import { InstanceSourceRegistry } from "./host/instance-sources.mjs";
+import { PresenceInstanceResources } from "./host/presence-resources.mjs";
+import { CanvasInstanceBatches } from "./host/canvas-instance-batches.mjs";
+import { WebGpuInstanceBatches } from "./host/webgpu-instance-batches.mjs";
+import { WebGpuLayerLease } from "./host/webgpu-layer-lease.mjs";
 import { instanceGrid } from "./instance-grid.mjs";
-import { probeWebGpuDevice } from "../src/host/webgpu-capabilities.mjs";
+import { probeWebGpuDevice } from "./host/webgpu-capabilities.mjs";
 
 const { model: modelTag } = initTags(["model"]);
 const canvas = document.querySelector("#scene");
@@ -107,20 +107,20 @@ function replayAt(time) {
   const resources = new PresenceInstanceResources(registry);
   const batches = new CanvasInstanceBatches(registry);
   let model = start(instanceDocument(1, false));
-  resources.sync(toJsData(model));
+  resources.sync(model);
   if (time >= 0.25) {
     const positions = instanceGrid(archivedSource.count, 40);
     registry.register(archivedSource, positions);
     model = reconcile(model, 1, 0.25, true).nthAt(0, modelTag);
-    resources.sync(toJsData(model));
+    resources.sync(model);
   }
   if (time >= 0.75) {
     model = reconcile(model, 1, 0.75, false).nthAt(0, modelTag);
-    resources.sync(toJsData(model));
+    resources.sync(model);
   }
   const completed = settle(model, time);
   model = completed.nthAt(0, modelTag);
-  resources.sync(toJsData(model));
+  resources.sync(model);
   return { samples: toJsData(sample(model, time)), registry, batches, released: toJsData(completed).released.length, active: needsFrame(model, time) };
 }
 

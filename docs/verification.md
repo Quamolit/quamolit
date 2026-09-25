@@ -4,7 +4,7 @@
 
 ## 当前可执行门禁
 
-使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。文档中的 0.19.1 是本次整理时的版本，并非禁止后续采用新版本。
+使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前 `deps.cirru` 声明 Calcit `0.22.0` 与 js-ffi `0.2.0-alpha.5`；该版本支持定义级 `:ffi :js :inline/:file`，但后续仍可随证据升级。
 
 ```sh
 yarn install --immutable
