@@ -3235,6 +3235,130 @@
           :schema $ :: 'Ref $ :: 'List (:: 'Map 'Tag 'Dynamic)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.global
+    'quamolit.gpu-vec2-translation $ %{} 'FileEntry
+      :defs $ {}
+        'GpuVec2TranslationFrame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct GpuVec2TranslationFrame (:from 'quamolit.motion/Vec2) (:to 'quamolit.motion/Vec2) (:time 'Number) (:start 'Number) (:duration 'Number) (:easing 'String)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'GpuVec2TranslationLowering $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum GpuVec2TranslationLowering
+            :ready 'quamolit.gpu-vec2-translation/GpuVec2TranslationPlan
+            :unsupported 'String
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'GpuVec2TranslationPlan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct GpuVec2TranslationPlan (:id 'String) (:version 'Number) (:from 'quamolit.motion/Vec2) (:to 'quamolit.motion/Vec2) (:start 'Number) (:duration 'Number) (:easing 'String)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'finite-f32? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn finite-f32? (value)
+            hint-fn $ {}
+              :args $ [] 'Number
+              :return 'Bool
+            and (motion/finite-number? value)
+              <= (abs value) 3.4028234663852886e38
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number
+        'frame-at $ %{} 'CodeEntry (:doc "|给已准备的位移计划附加绝对时间；WebGPU 宿主仍负责 f32 和资源契约的最终校验。")
+          :code $ quote $ defn frame-at (plan time)
+            hint-fn $ {}
+              :args $ [] 'quamolit.gpu-vec2-translation/GpuVec2TranslationPlan 'Number
+              :return 'quamolit.gpu-vec2-translation/GpuVec2TranslationFrame
+            assert |gpu-translation-time-must-be-finite-f32 $ finite-f32? time
+            GpuVec2TranslationFrame :from (:from plan) :to (:to plan) :time time :start (:start plan) :duration (:duration plan) :easing $ :easing plan
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.gpu-vec2-translation/GpuVec2TranslationFrame
+            :args $ [] 'quamolit.gpu-vec2-translation/GpuVec2TranslationPlan 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |time-validation)
+            :code $ quote $ let
+                from $ motion/Vec2 :x 48 :y 80
+                to $ motion/Vec2 :x 208 :y 120
+                plan $ GpuVec2TranslationPlan :id |moving :version 1 :from from :to to :start 0 :duration 1 :easing |linear
+              is=
+                GpuVec2TranslationFrame :from from :to to :time 0.5 :start 0 :duration 1 :easing |linear
+                frame-at plan 0.5
+              is-throws $ frame-at plan 1e100
+            :tags $ #{} :motion-gpu :unit
+        'prepare $ %{} 'CodeEntry
+          :doc "|将类型化 Vec2 Motion 计划转换为 WebGPU 位移参数；只处理 tween，不解释序列化 JS 对象。"
+          :code $ quote $ defn prepare (lowering)
+            hint-fn $ {}
+              :args $ [] 'quamolit.motion-gpu/GpuVec2Lowering
+              :return 'quamolit.gpu-vec2-translation/GpuVec2TranslationLowering
+            match lowering
+              (:unsupported reason) (GpuVec2TranslationLowering :unsupported reason)
+              (:supported descriptor)
+                match (:kernel descriptor)
+                  (:constant value) (GpuVec2TranslationLowering :unsupported |vec2-tween-required)
+                  (:tween tween)
+                    if
+                      and
+                        finite-f32? $ :x $ :from tween
+                        finite-f32? $ :y $ :from tween
+                        finite-f32? $ :x $ :to tween
+                        finite-f32? $ :y $ :to tween
+                        finite-f32? $ :start tween
+                        finite-f32? $ :duration tween
+                        >= (:duration tween) 0
+                      GpuVec2TranslationLowering :ready $ GpuVec2TranslationPlan :id (:id descriptor) :version (:version descriptor) :from (:from tween) :to (:to tween) :start (:start tween) :duration (:duration tween) :easing $ match (:easing tween)
+                        (:linear) |linear
+                        (:smoothstep) |smoothstep
+                      GpuVec2TranslationLowering :unsupported |valid-vec2-tween-required
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.gpu-vec2-translation/GpuVec2TranslationLowering
+            :args $ [] 'quamolit.motion-gpu/GpuVec2Lowering
+          :tests $ []
+            %{} 'TestEntry (:name |typed-gpu-translation)
+              :code $ quote $ let
+                  from $ motion/Vec2 :x 48 :y 80
+                  to $ motion/Vec2 :x 208 :y 120
+                  tween $ motion/Vec2Tween :start 0 :duration 1 :from from :to to :easing $ motion/Easing :smoothstep
+                  descriptor $ motion-gpu/GpuVec2Plan :id |moving :version 1 :kernel $ motion-gpu/GpuVec2Kernel :tween tween
+                  constant $ motion-gpu/GpuVec2Plan :id |fixed :version 1 :kernel $ motion-gpu/GpuVec2Kernel :constant from
+                  too-large $ motion/Vec2Tween :start 0 :duration 1 :from (motion/Vec2 :x 1e100 :y 0) :to to :easing $ motion/Easing :linear
+                  overflow $ motion-gpu/GpuVec2Plan :id |huge :version 1 :kernel $ motion-gpu/GpuVec2Kernel :tween too-large
+                is=
+                  GpuVec2TranslationLowering :ready $ GpuVec2TranslationPlan :id |moving :version 1 :from from :to to :start 0 :duration 1 :easing |smoothstep
+                  prepare $ motion-gpu/GpuVec2Lowering :supported descriptor
+                is= (GpuVec2TranslationLowering :unsupported |cpu-custom)
+                  prepare $ motion-gpu/GpuVec2Lowering :unsupported |cpu-custom
+                is= (GpuVec2TranslationLowering :unsupported |vec2-tween-required)
+                  prepare $ motion-gpu/GpuVec2Lowering :supported constant
+                is= (GpuVec2TranslationLowering :unsupported |valid-vec2-tween-required)
+                  prepare $ motion-gpu/GpuVec2Lowering :supported overflow
+              :tags $ #{} :motion-gpu :unit
+            %{} 'TestEntry (:name |negative-duration)
+              :code $ quote $ let
+                  from $ motion/Vec2 :x 0 :y 0
+                  to $ motion/Vec2 :x 10 :y 10
+                  tween $ motion/Vec2Tween :start 0 :duration -1 :from from :to to :easing $ motion/Easing :linear
+                  descriptor $ motion-gpu/GpuVec2Plan :id |invalid :version 1 :kernel $ motion-gpu/GpuVec2Kernel :tween tween
+                is= (GpuVec2TranslationLowering :unsupported |valid-vec2-tween-required)
+                  prepare $ motion-gpu/GpuVec2Lowering :supported descriptor
+              :tags $ #{} :motion-gpu :unit
+        'require-ready $ %{} 'CodeEntry
+          :doc "|调用方要求 GPU tween 时提取已准备计划；失败保留诊断。可把计划缓存，逐帧只调用 frame-at。"
+          :code $ quote $ defn require-ready (lowering)
+            hint-fn $ {}
+              :args $ [] 'quamolit.gpu-vec2-translation/GpuVec2TranslationLowering
+              :return 'quamolit.gpu-vec2-translation/GpuVec2TranslationPlan
+            match lowering
+              (:ready plan) plan
+              (:unsupported reason)
+                raise $ str |unexpected-gpu-translation-plan: reason
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.gpu-vec2-translation/GpuVec2TranslationPlan
+            :args $ [] 'quamolit.gpu-vec2-translation/GpuVec2TranslationLowering
+      :ns $ %{} 'NsEntry
+        :doc "|Quamolit 专属 GPU Vec2 Motion 参数解释；通用 WebGPU buffer 与绘制能力仍由 js-ffi 提供。"
+        :code $ quote $ ns quamolit.gpu-vec2-translation
+          :require (quamolit.motion :as motion) (quamolit.motion-gpu :as motion-gpu)
+            calcit.test :refer $ is= is-throws
     'quamolit.host-clock $ %{} 'FileEntry
       :defs $ {}
         'HostClock $ %{} 'CodeEntry
@@ -7684,6 +7808,16 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuScalarLowering)
             :args $ []
+        'gpu-translation-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-translation-plan ()
+            hint-fn $ {}
+              :args $ []
+              :return 'quamolit.gpu-vec2-translation/GpuVec2TranslationLowering
+            gpu-translation/prepare $ gpu-vec2-plan
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.gpu-vec2-translation/GpuVec2TranslationLowering
+            :args $ []
         'gpu-vec2-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-vec2-plan ()
             motion-gpu/lower-vec2 $ vec2-descriptor
@@ -8041,6 +8175,7 @@
             quamolit.presence :as presence
             quamolit.motion-gpu :as motion-gpu
             quamolit.canvas-reference :as canvas-reference
+            quamolit.gpu-vec2-translation :as gpu-translation
     'quamolit.test.playback-fixture $ %{} 'FileEntry
       :defs $ {}
         'PlaybackFixtureFrame $ %{} 'CodeEntry (:doc |)

@@ -50,7 +50,7 @@ yarn bench
 
 `yarn test:cpu-motion` 验证[泛型 CPU Motion 扩展](cpu-motion-extension.md)的 `Vec2` 输出类型、显式依赖、版本失效、非法请求、输出校验及 JS 数值；`yarn test:motion-browser` 追加固定 Chromium 的位置与实色像素验证。CPU 回调不可自动转 WGSL。
 
-`yarn test:motion-gpu` 验证[受限 GPU 候选计划](motion-gpu-contract.md)的类型、容量边界、显式回退和 JS 数据序列化；追加 [Vec2 GPU 时间采样](gpu-vec2-motion.md)的薄映射和 CPU 数值对照。Vec2 tween 以外的“候选”仍不代表已在 GPU 执行；真实 WGSL 高精度数值等价与性能测量仍待 #52。
+`yarn test:motion-gpu` 验证[受限 GPU 候选计划](motion-gpu-contract.md)的类型、容量边界、显式回退和 JS 数据序列化；追加 [Vec2 GPU 时间采样](gpu-vec2-motion.md)的 Calcit 参数准备、时间帧、异常/越界诊断和 CPU 数值对照。Vec2 tween 以外的“候选”仍不代表已在 GPU 执行；真实 WGSL 高精度数值等价与性能测量仍待 #52。
 
 `yarn test:simulation` 验证 [固定步长 CPU 状态推进](fixed-step-simulation.md) 的类型、手算数值、不同显示帧节奏、检查点/重置、追帧预算和非法 tick；`yarn test:motion-browser` 同时运行固定 tick 的 Canvas 画面测试。该切片没有 host time 变换或资源版本失效，不能据此关闭 #31。
 

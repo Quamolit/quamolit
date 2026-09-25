@@ -1,6 +1,6 @@
 import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
-import { gpu_vec2_plan as gpuVec2Plan, sample_vec2_at as sampleVec2At, scene_document_at as sceneDocumentAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
-import { prepareGpuVec2Translation } from "../src/host/gpu-vec2-translation.mjs";
+import { gpu_translation_plan as gpuTranslationPlan, sample_vec2_at as sampleVec2At, scene_document_at as sceneDocumentAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import { frame_at as gpuTranslationFrameAt, require_ready as requireGpuTranslation } from "../target/js/motion/quamolit.gpu-vec2-translation.mjs";
 import { InstanceSourceRegistry } from "../src/host/instance-sources.mjs";
 import { CanvasInstanceBatches } from "../src/host/canvas-instance-batches.mjs";
 import { WebGpuInstanceBatches } from "../src/host/webgpu-instance-batches.mjs";
@@ -16,8 +16,11 @@ const backend = document.querySelector("#backend");
 const parameters = new URLSearchParams(location.search);
 const mode = parameters.get("gpu") ?? "native";
 if (!["native", "off"].includes(mode)) throw new RangeError("未知 GPU 模式");
-const motion = prepareGpuVec2Translation(toJsData(gpuVec2Plan()));
-if (motion.kind !== "ready") throw new Error(`Vec2 GPU 计划不可用：${motion.reason}`);
+const prepared = gpuTranslationPlan();
+const [motionStatus, motionValue] = toJsData(prepared);
+if (motionStatus !== "ready") throw new Error(`Vec2 GPU 计划不可用：${motionValue}`);
+const motionPlan = requireGpuTranslation(prepared);
+const motion = toJsData(motionPlan);
 const source = toJsData(sceneDocumentAt(0)).nodes.find((node) => node.content[0] === "instances").content[1];
 const registry = new InstanceSourceRegistry();
 registry.register(source.source, instanceGrid(source.source.count, 40));
@@ -77,7 +80,7 @@ async function renderAt(time) {
   if (!Number.isFinite(time)) throw new RangeError("时间必须有限");
   currentTime = time;
   const sampled = toJsData(sampleVec2At(time));
-  const translation = motion.at(time);
+  const translation = toJsData(gpuTranslationFrameAt(motionPlan, time));
   const progress = translation.duration === 0 ? Number(time >= translation.start)
     : Math.min(Math.max((time - translation.start) / translation.duration, 0), 1);
   const expectedX = translation.from.x + (translation.to.x - translation.from.x) * progress;
