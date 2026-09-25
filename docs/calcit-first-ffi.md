@@ -13,13 +13,13 @@ Quamolit 的目标是增强 Calcit 动画生态：声明式组件与显式时间
 
 归属依据是 API 的语义与复用边界，不是 JS 代码行数。通用 buffer 上传、资源生命周期或绘制批次可以在 `js-ffi` 由 JS 实现，同时用 Calcit 定义公共类型与调用入口；Quamolit 的 Scene IR 结构、动画模型和失效决策不因此进入上游。若逐图元跨边界调用太贵，先用 Calcit 编排 retained plan 与脏范围，再设计不依赖 Quamolit IR 的通用批量提交 API。比较记录帧时间、复制字节、调用次数、画面语义与设备。
 
-现有接口初步归类：`js-ffi.typed-arrays`、`js-ffi.canvas-batches`、`js-ffi.webgpu-capabilities` 以及通用矩形批次/WebGPU 资源操作继续属于上游，即使内部使用 JS。`js-ffi.canvas-scene` 同时含 Canvas 原生操作和整场景命令格式，先按下节拆分审查，不预设整包迁走。`src/host/retained-scene-plan.mjs` 的绑定失效和 `src/host/gpu-vec2-translation.mjs` 的 Motion 解释明显属于 Quamolit；其中若调用通用 GPU/typed-array API，应复用上游而非复制实现。这是归属清单，不表示这些代码已经完成 Calcit 迁移。
+现有接口初步归类：`js-ffi.typed-arrays`、`js-ffi.canvas-batches`、`js-ffi.webgpu-capabilities` 以及通用矩形批次/WebGPU 资源操作继续属于上游，即使内部使用 JS。`js-ffi.canvas-scene` 同时含 Canvas 原生操作和整场景命令格式，先按下节拆分审查，不预设整包迁走。`src/host/retained-scene-plan.mjs` 的绑定失效仍属于 Quamolit，尚需迁移；原 `gpu-vec2-translation.mjs` 的 Motion 解释已迁到 `quamolit.gpu-vec2-translation` Calcit 模块并删除专属 JS 文件。这是归属清单，不表示其他宿主模块均已完成迁移。
 
 ## 当前债务与迁移顺序
 
 `js-ffi` 的 0.1.45 曾加入 Canvas Scene 的 JS 命令解释器。问题不在于它使用 JS，而在于其命令格式与整场景解释是否承担了 Quamolit 专属语义；已发布 tag 不改写历史。[上游 #112](https://github.com/calcit-lang/js-ffi/issues/112) 跟踪拆分审查。[上游 #113](https://github.com/calcit-lang/js-ffi/pull/113) 已在 0.1.46 添加 Calcit 类型化的 `save/restore/fillRect/fillStyle` 与 Calcit `fill-solid-rect!`；Quamolit 改用该 tag，但不消费旧的整场景命令解释器。首个纯色矩形参考遍历位于 Quamolit 的 `quamolit.canvas-reference`。组语义、实例和批次性能仍未因此完成。[Quamolit #35](https://github.com/Quamolit/quamolit/issues/35) 跟踪后续能力与本仓库逻辑迁移。
 
-本仓库 `src/host/` 目前仍混有纯逻辑与宿主适配，并非最终归属。优先把 `gpu-vec2-translation`、`retained-scene-plan`、`demand-frame-scheduler`、`presence-resources` 中的 Quamolit 逻辑迁到 Calcit；逐项审查实例源与画布批次：通用 typed array、WebGPU device/buffer/pipeline 及可复用批量调用归 `js-ffi`，Quamolit 的资源版本和图层策略归本仓库。每迁移一项，删除对应的重复业务 JS，而不是保留 Calcit 空壳转发层；同一测试继续检验乱序时间、资源版本、DPR、失败与释放。
+本仓库 `src/host/` 目前仍混有纯逻辑与宿主适配，并非最终归属。下一步优先把 `retained-scene-plan`、`demand-frame-scheduler`、`presence-resources` 中的 Quamolit 逻辑迁到 Calcit；逐项审查实例源与画布批次：通用 typed array、WebGPU device/buffer/pipeline 及可复用批量调用归 `js-ffi`，Quamolit 的资源版本和图层策略归本仓库。每迁移一项，删除对应的重复业务 JS，而不是保留 Calcit 空壳转发层；同一测试继续检验乱序时间、资源版本、DPR、失败与释放。
 
 ## PR 退出检查
 
