@@ -14,9 +14,9 @@
 - 声明式组件与执行计划分离。结构不变时应复用结构/几何/资源，时间变化只更新必要绑定；普通组件自动合批，大量同类对象可以使用 instances。
 - Scene/Motion IR 不含 DOM/GPU 句柄。CPU 自定义函数单独注册，不能声称任意 Calcit 闭包可自动转成 WGSL。
 - WebGPU 在 M2 建立可运行主路径；Canvas2D 提供基础语义参考与声明过的回退。保持层叠、裁剪、颜色和组透明度语义，不能为合批随意重排透明节点。
-- `js-ffi` 是 Calcit 使用 JS 生态的通用基础 API 封装：通用 DOM/Canvas2D/WebGPU/TypedArray 能力在上游提供 Calcit 类型化公共入口，必要的 JS 实现可以留在上游包内，不因使用 JS 就下沉到 Quamolit。归属以可复用的 API 语义为准，而不是以文件语言或行数为准。
+- `js-ffi` 是 Calcit 使用 JS 生态的通用基础 API 封装：DOM/Canvas2D/WebGPU/TypedArray 原生能力在上游提供 Calcit 类型化公共入口，必要的原生宿主 JS 可以留在上游包内。对只有 Quamolit 实际使用、且不是原始浏览器 API 封装的 JS 文件，迁回 Quamolit；不能只靠“未来可能复用”保留专属 renderer。归属不以 JS 行数决定。
 - Quamolit 专属的 Scene/Motion 遍历、动画采样、执行计划、批次/资源策略与后端选择优先写在本仓库 Calcit 源码；确实需要 JS 的专属宿主适配放 `src/host/`。不得把 Quamolit 的场景命令解释器搬到 `js-ffi` 再用 Calcit 空壳转发。通用批量提交或资源原语可以在 `js-ffi` 实现；具体判定见 `docs/calcit-first-ffi.md`。
-- 修改上游 `js-ffi` 前先检查实际路径和 remote，再提交上游变更并引用版本化 tag。对已发布接口先审查通用部分与专属部分，不能仅因其 JS 实现就整体否定或迁出。
+- 修改上游 `js-ffi` 前先检查实际路径和 remote，再提交上游变更并引用版本化 tag。对已发布接口先审查真实消费者、原生平台边界与专属逻辑；破坏性迁移使用新版本并保留历史 tag，不改写已发布版本。
 
 ## Calcit 文件和版本
 
