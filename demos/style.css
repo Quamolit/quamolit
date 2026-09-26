@@ -1,0 +1,31 @@
+:root { font: 16px/1.6 system-ui,sans-serif; color: #172e43; background: #eef3f6; color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+header, main, footer { max-width: 1180px; margin: auto; padding: 28px; }
+header { padding-top: 58px; }
+.eyebrow { font-size: 12px; letter-spacing: .16em; color: #527386; }
+h1 { font-size: clamp(30px,4vw,48px); line-height: 1.25; letter-spacing: -.03em; margin: 20px 0; }
+header p { max-width: 780px; color: #546979; }
+a { color: #146079; text-underline-offset: 4px; }
+.links { display: flex; flex-wrap: wrap; gap: 24px; }
+aside { background: #dceaf0; border-left: 4px solid #28748b; padding: 18px 22px; border-radius: 0 8px 8px 0; }
+aside strong { display: block; }
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 20px; margin: 28px 0; }
+label { display: grid; gap: 6px; font-size: 14px; }
+input, select { font: inherit; border: 1px solid #a8becb; border-radius: 7px; padding: 10px 12px; background: white; }
+input { width: min(360px,80vw); }
+output { color: #546979; padding: 10px 0; }
+section { margin: 32px 0; }
+h2 { font-size: 23px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,310px),1fr)); gap: 16px; }
+article { background: white; padding: 22px; border: 1px solid #d4e0e7; border-radius: 12px; display: flex; flex-direction: column; align-items: start; }
+.badge { font-size: 12px; padding: 3px 9px; border-radius: 20px; background: #edf2f6; color: #547081; }
+article[data-group="public"] { border-top: 4px solid #277a85; }
+article[data-group="gpu"] .badge { color: #7a571e; background: #fbf0d7; }
+h3 { margin: 14px 0 6px; font-size: 20px; }
+article p { font-size: 14px; color: #526978; margin: 0 0 22px; flex: 1; }
+.card-links { display: flex; gap: 20px; font-size: 14px; }
+.open { font-weight: 650; }
+a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #2e859b; outline-offset: 4px; }
+footer { color: #607987; font-size: 13px; padding-bottom: 48px; }
+@media(max-width:600px) { header,main,footer { padding: 20px; } header { padding-top: 34px; } .filters { align-items: stretch; } }

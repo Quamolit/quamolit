@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Quamolit · 演示导航</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header>
+    <span class="eyebrow">QUAMOLIT / 动画实验室</span>
+    <h1>从声明到中间帧，<br>把每一步都打开看看。</h1>
+    <p>公共 Calcit 路径、生命周期、可控时间与 GPU 实验的统一入口。各卡片标注当前实现性质；参考夹具通过不代表整个 milestone 已完成。</p>
+    <div class="links"><a href="https://github.com/Quamolit/quamolit/blob/main/docs/roadmap.md">技术路线</a><a href="https://github.com/Quamolit/quamolit/milestones">Milestones</a><a href="https://github.com/Quamolit/quamolit/blob/main/docs/verification.md">检验规则</a></div>
+  </header>
+  <main>
+    <aside><strong>建议从这里开始</strong> 公共保留组件 → 独立消费者 → 目标打断与生命周期。GPU 实验会报告实际后端；回退成功不等于真实 GPU 验收。</aside>
+    <div class="filters">
+      <label>查找演示 <input id="search" type="search" placeholder="例如：重入、时间、GPU" autocomplete="off"></label>
+      <label>分类 <select id="group" aria-label="分类"><option value="">全部分类</option></select></label>
+      <output id="count" aria-live="polite"></output>
+    </div>
+    <div id="gallery"></div>
+    <p id="empty" hidden>没有匹配的演示。试试清空筛选。</p>
+    <noscript>此导航需要 JavaScript。也可查看仓库 demos/catalog.json 中的完整页面清单。</noscript>
+  </main>
+  <footer>本地运行 <code>yarn demo</code> · 静态构建 <code>yarn release:demos</code> · 新演示必须登记并通过导航门禁。</footer>
+  <script type="module" src="./main.mjs"></script>
+</body>
+</html>

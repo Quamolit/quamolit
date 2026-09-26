@@ -11,6 +11,10 @@
     "vite": "^8.0.12"
   },
   "scripts": {
+    "compile:demos": "node scripts/prepare-demos.mjs",
+    "demo": "yarn compile:demos && vite --host 127.0.0.1 --open /demos/index.html",
+    "release:demos": "yarn compile:demos && vite build --config demos/vite.config.mjs --base=./",
+    "test:demo-nav": "node --test test/demo-catalog.test.mjs && yarn release:demos && playwright test --config test/demo-nav.playwright.config.mjs",
     "test:consumer": "node test/isolated-consumer.mjs",
     "compile:retained-component": "calcit --emit-path target/js/retained-component/ --init-fn quamolit.test.retained-component-fixture/main! --reload-fn quamolit.test.retained-component-fixture/reload! calcit.cirru js",
     "test:retained-component": "calcit analyze check-public --ns quamolit.retained-component --ns quamolit.test.retained-component-fixture && calcit test quamolit.test.retained-component-fixture/main! --require-match && yarn compile:retained-component && node --test test/retained-component-smoke.mjs && playwright test --config test/retained-component.playwright.config.mjs",

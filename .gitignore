@@ -15,5 +15,6 @@ js-out-cpu/
 js-out-replay/
 node_modules/
 dist/
+dist-demos/
 test-results/
 playwright-report/

@@ -150,6 +150,23 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Check demo catalog and published navigation
+        if: inputs.mutation != 'color'
+        run: yarn test:demo-nav
+        env:
+          CI: "true"
+
+      - name: Upload demo site and navigation evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-demos-${{ github.run_id }}
+          path: |
+            dist-demos/
+            test-results/demo-nav/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload retained component demonstration
         if: always() && inputs.mutation != 'color'
         uses: actions/upload-artifact@v4

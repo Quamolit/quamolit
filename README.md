@@ -4,6 +4,8 @@ Quamolit in calcit-js / Calcit 版 Quamolit
 
 Quamolit 是用 Calcit 编写的声明式 Canvas 动画库。组件描述画面，应用模型保存动画状态；框架提供绘制与帧更新能力。
 
+**查看演示：** 运行 `yarn demo` 打开[统一演示导航](demos/README.md)。现有 26 个入口按能力分类，支持搜索和返回导航；`yarn release:demos` 构建可部署的完整演示站点。
+
 后续开发以 [技术路线与 milestones](docs/roadmap.md)、[工作项规格](docs/work-items.md) 和 [检验规则](docs/verification.md) 为准。计划分为 M0 基线、M1 动画函数、M2 增量执行与 WebGPU、M3 完整应用、M4 性能发布；性能目标均需实测，不能把编译成功当作功能或性能验收。接手编码前请阅读 [AGENTS.md](AGENTS.md)。
 
 当前 vNext 迁移仍在进行中：[设计草案](docs/vnext-design.md) 说明目标 API 与渲染边界，[确定性帧测试](test/README.md) 说明固定时间截图的使用方式。要在本地编译和运行，需要 Calcit 0.22.0 与 Node.js 24：
@@ -28,6 +30,8 @@ yarn release
 ---
 
 English documentation and legacy API examples follow.
+
+Run `yarn demo` for the [demo gallery](demos/README.md): all 26 current entry pages, searchable by capability with return links. `yarn release:demos` builds a separate static demo site; experimental fixtures are clearly distinguished from the public Calcit integration.
 
 > what if we describe UI transitions in React's way? Previously written in [ClojureScript](https://github.com/Quamolit/quamolit.cljs).
 

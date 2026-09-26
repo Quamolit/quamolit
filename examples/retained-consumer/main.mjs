@@ -4,6 +4,12 @@ import { init_tags, to_js_data } from "./target/js/app/calcit.core.mjs";
 
 const tags = init_tags(["declarations", "plan-builds", "binding-samples", "scene"]);
 const context = document.querySelector("canvas").getContext("2d");
+// 单独复制/搬移时没有导航站点；仓库多页面部署时才使用相对返回链接。
+if (/\/examples\/retained-consumer\/(?:index.html)?$/.test(location.pathname)) {
+  const nav = document.querySelector("#demo-nav");
+  nav.href = "../../demos/index.html";
+  nav.textContent = "← 所有演示";
+}
 let time = 0, model = 40, ready = false, viewport = 100;
 let plan = start(time, model, ready, viewport);
 function snapshot() {
