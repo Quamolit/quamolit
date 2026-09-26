@@ -1,0 +1,12 @@
+{
+  "name": "quamolit-retained-consumer",
+  "private": true,
+  "type": "module",
+  "packageManager": "yarn@4.12.0",
+  "dependencies": {
+    "@calcit/procs": "0.22.0"
+  },
+  "scripts": {
+    "compile": "caps --ci && calcit --emit-path target/js/app/ js"
+  }
+}

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quamolit · 独立 Calcit 消费者</title>
+<style>
+  body { margin: 60px auto; max-width: 760px; padding: 24px; font: 17px system-ui; color: #213449; background: #eef3f8; }
+  canvas { background: white; border: 1px solid #bccbd9; width: 640px; max-width: 100%; image-rendering: pixelated; }
+  button { padding: 9px 14px; margin: 10px 4px 10px 0; }
+  pre { padding: 20px; background: #172b42; color: #d7efff; border-radius: 12px; }
+</style>
+<h1>组件写在 Calcit，时间由你控制</h1>
+<p>独立安装 Quamolit · 公共保留计划 → Canvas2D</p>
+<canvas id="scene" width="320" height="180"></canvas>
+<div><button data-time="0">起点 0</button><button data-time="0.25">¼ 帧</button><button data-time="0.5">中间帧</button><button data-time="1">终点 1</button><button id="model">Model + 1</button><button id="ready">资源 ready</button><button id="viewport">宽度版本 + 100</button></div>
+<pre id="status"></pre>
+<p>动画声明、时间采样、版本失效、Scene 遍历均来自 Calcit；JavaScript 仅连接页面控件。</p>
+<script type="module" src="./main.mjs"></script>
+</html>
