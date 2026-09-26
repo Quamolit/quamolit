@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quamolit · Calcit 保留组件</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #eef1f6; color: #192b40; font: 16px/1.6 system-ui, sans-serif; }
+    main { max-width: 1050px; margin: 40px auto; padding: 0 24px; }
+    .eyebrow { color: #517086; font-size: 12px; letter-spacing: .14em; }
+    h1 { margin: 8px 0; font-size: 32px; }
+    .intro { margin: 0 0 24px; color: #526479; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    article, .controls { padding: 20px; background: white; border-radius: 14px; border: 1px solid #dce3eb; }
+    h2 { margin: 0; font-size: 18px; }
+    .caption { color: #65778c; font-size: 13px; margin: 4px 0 12px; }
+    canvas { display: block; width: 100%; aspect-ratio: 16/9; background: white; }
+    .controls { margin-top: 20px; }
+    input[type=range] { width: 65%; vertical-align: middle; accent-color: #346eac; }
+    button { padding: 8px 14px; border: 1px solid #cbd7e5; border-radius: 7px; margin: 6px 6px 0 0; background: #f5f8fc; color: #244563; cursor: pointer; }
+    button:hover { background: #e6effa; }
+    #counts { font: 14px/1.8 ui-monospace, monospace; color: #1e5e59; }
+    #status { white-space: pre-wrap; font-size: 13px; }
+    [data-result=fail] { color: #ad253b; }
+    footer { font-size: 13px; color: #687a8c; margin-top: 18px; }
+  </style>
+</head>
+<body><main>
+  <div class="eyebrow">QUAMOLIT / M2 · 组件执行集成</div>
+  <h1>同一份 Calcit 声明，按时间生成动画帧</h1>
+  <p class="intro">拖动时间或乱序跳转。右侧复用 64 个静态节点；修改输入后，两侧同时产生新画面。</p>
+  <div class="grid">
+    <article><h2>全量参考</h2><p class="caption">重新声明组件并解析全部绑定</p><canvas id="reference" width="320" height="180"></canvas></article>
+    <article><h2>Calcit 保留计划</h2><p class="caption">复用声明与绑定槽位，仅更新动画节点</p><canvas id="retained" width="320" height="180"></canvas></article>
+  </div>
+  <section class="controls">
+    <label>绝对时间 <input id="time" aria-label="绝对时间" type="range" min="0" max="1" step="0.01" value="0.5" /> <output id="time-label">0.50 s</output></label>
+    <div id="times"></div>
+    <div><button id="model">Model +1</button><button id="resource">资源 ready 切换</button><button id="viewport">视口版本切换</button><button id="run">验证 1000 帧</button><button id="reset">重置</button></div>
+    <p id="counts"></p><div id="status" role="status">加载 Calcit 模块…</div>
+  </section>
+  <footer>本切片验证标量绑定与结构复用。计数是实际逻辑操作次数，不代表 FPS 或 WebGPU 性能；完整进入/退出、增量拓扑和 GPU 集成仍在推进。</footer>
+</main><script type="module" src="./retained-component.mjs"></script></body>
+</html>
