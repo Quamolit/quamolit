@@ -134,6 +134,22 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check isolated Calcit consumer installation and relocated output
+        if: inputs.mutation != 'color'
+        run: yarn test:consumer
+        env:
+          CI: "true"
+          QUAMOLIT_CONSUMER_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Upload isolated consumer evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-consumer-${{ github.run_id }}
+          path: test-results/consumer/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload retained component demonstration
         if: always() && inputs.mutation != 'color'
         uses: actions/upload-artifact@v4
