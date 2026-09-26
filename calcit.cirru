@@ -5387,10 +5387,28 @@
           :require (js-ffi.typed-arrays :as arrays) (js-ffi.contract :as contract)
     'quamolit.instance-gpu $ %{} 'FileEntry
       :defs $ {}
+        'SourceDraw $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct SourceDraw (:version 'Number) (:uploaded? 'Bool) (:upload-bytes 'Number) (:instances 'Number) (:draw-calls 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
         'SourceUpload $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct SourceUpload (:version 'Number) (:bytes 'Number) (:uploaded? 'Bool)
           :examples $ []
           :schema $ :: 'StructDef
+        'draw-source! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-source! (previous batch table instances)
+            let
+                source $ :source instances
+                fill $ :fill instances
+                upload $ upload-source! previous batch table source
+                draw $ gpu/draw! batch (:width instances) (:height instances)
+                  gpu/color (:r fill) (:g fill) (:b fill) (:a fill)
+                  , 1 (%none)
+                    %some $ :count source
+              SourceDraw :version (:version source) :uploaded? (:uploaded? upload) :upload-bytes (:bytes upload) :instances (:instances draw) :draw-calls $ :draw-calls draw
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.instance-gpu/SourceDraw)
+            :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'JsObject 'quamolit.scene-ir/InstanceNode
         'upload-source! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn upload-source! (previous batch table source)
             let
