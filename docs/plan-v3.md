@@ -111,6 +111,7 @@
 
 - #104 同一组件输入对照 Canvas/实例路径，保持透明层序；10k instances 不物化 10k 组件。
 - 报告批次、调用、分配、复制/上传及阶段耗时；新 FFI 按 #35 的 inline/file 优先规则。
+- 已落地公共 [版本化实例源 GPU 上传绑定](instance-gpu-upload.md)（`upload-source!` 按 `(id,version)` 只上传一次）；10k 实例的顶点/参数常驻与整链路随后。
 
 ### #40：让同源消费者实际运行 WebGPU
 

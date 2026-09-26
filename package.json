@@ -39,6 +39,7 @@
     "test:canvas-batches": "calcit analyze check-public --ns quamolit.instance-ffi && yarn compile:motion && node --test test/canvas-instance-batches-smoke.mjs",
     "test:canvas-instances-reference": "calcit analyze check-public --ns quamolit.canvas-reference && yarn compile:motion && node --test test/canvas-instances-reference-smoke.mjs",
     "test:instance-resource": "calcit analyze check-public --ns quamolit.instance-resource && yarn compile:motion && node --test test/instance-resource-smoke.mjs",
+    "test:instance-gpu": "calcit analyze check-public --ns quamolit.instance-gpu --ns quamolit.instance-resource && yarn compile:motion && node --test test/instance-gpu-smoke.mjs",
     "test:webgpu-instances": "calcit analyze check-public --ns quamolit.instance-ffi --ns quamolit.webgpu-batches --ns quamolit.webgpu-capabilities && yarn compile:motion && node --test test/webgpu-capabilities-smoke.mjs test/webgpu-instance-batches-smoke.mjs test/webgpu-layer-lease-smoke.mjs test/relocated-webgpu-rect-batches.test.mjs && playwright test --config test/gpu.playwright.config.mjs",
     "test:scene-diff": "calcit analyze check-public --ns quamolit.scene-diff --ns quamolit.test.motion-fixture && calcit test --tag scene-diff --require-match && yarn compile:motion && node --test test/scene-diff-smoke.mjs",
     "test:scene-binding": "calcit analyze check-public --ns quamolit.scene-binding --ns quamolit.test.motion-fixture && calcit test --tag scene-binding --require-match && yarn compile:motion && node --test test/scene-binding-smoke.mjs",

@@ -5385,6 +5385,29 @@
         :doc "|Scene 实例源到 js-ffi Calcit API 的薄适配；版本与缓存仍由 Quamolit 宿主层管理。"
         :code $ quote $ ns quamolit.instance-ffi
           :require (js-ffi.typed-arrays :as arrays) (js-ffi.contract :as contract)
+    'quamolit.instance-gpu $ %{} 'FileEntry
+      :defs $ {}
+        'SourceUpload $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct SourceUpload (:version 'Number) (:bytes 'Number) (:uploaded? 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'upload-source! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn upload-source! (previous batch table source)
+            let
+                version $ :version source
+              if (= previous version) (SourceUpload :version version :bytes 0 :uploaded? false)
+                SourceUpload :version version :bytes
+                  gpu/upload! batch
+                    unsafe-coerce (resource/resolve table source) js-ffi.typed-arrays/Float32ArrayHost
+                    :count source
+                  , :uploaded? true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.instance-gpu/SourceUpload)
+            :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'JsObject 'quamolit.scene-ir/InstanceSource
+            :features $ #{} :js-ffi
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.instance-gpu
+          :require (quamolit.instance-resource :as resource) (quamolit.webgpu-batches :as gpu) (js-ffi.typed-arrays :as arrays)
     'quamolit.instance-resource $ %{} 'FileEntry
       :defs $ {}
         'create-table! $ %{} 'CodeEntry (:doc |)
