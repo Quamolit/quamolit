@@ -3526,6 +3526,102 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.curve
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.solar $ %{} 'FileEntry
+      :defs $ {}
+        'build-circle $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-circle (index cx cy radius acc)
+            if (> index 48) acc $ let
+                angle $ if (= index 48) 0 $ / (* 2 &PI index) 48
+                point $ motion/Vec2 :x
+                  + cx $ * radius $ cos angle
+                  , :y $ + cy
+                    * radius $ sin angle
+              recur (inc index) cx cy radius $ conj acc point
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number 'Number $ :: 'List 'quamolit.motion/Vec2
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'build-solar $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-solar (level x y ratio angle time acc)
+            if (> level 4) acc $ let
+                rotation $ + angle $ * (* 100 time) (/ &PI 180)
+                c $ cos rotation
+                s $ sin rotation
+                small-x $ + x $ * ratio
+                  + (* 100 c) (* 40 s)
+                small-y $ + y $ * ratio
+                  - (* 100 s) (* 40 c)
+                next-x $ + x $ * (* ratio 0.6)
+                  - (* 260 c) (* 40 s)
+                next-y $ + y $ * (* ratio 0.6)
+                  + (* 260 s) (* 40 c)
+                large $ circle-node (str |solar-large- level) x y (* 60 ratio)
+                  motion/ColorRgba :r 0.55 :g 0.78 :b 0.5 :a 1
+                small $ circle-node (str |solar-small- level) small-x small-y (* 30 ratio)
+                  motion/ColorRgba :r 0.4 :g 0.76 :b 0.94 :a 1
+              recur (inc level) next-x next-y (* ratio 0.6) rotation time $ conj (conj acc large) small
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'circle-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn circle-node (id cx cy radius color)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline $ scene/PolylineNode :points (circle-points cx cy radius) :width 2 :stroke color
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+        'circle-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn circle-points (cx cy radius)
+            build-circle 0 cx cy radius $ empty-points
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number
+            :return $ :: 'List 'quamolit.motion/Vec2
+          :tests $ [] $ %{} 'TestEntry (:name |closed-ring)
+            :code $ quote $ assert= 49
+              count $ circle-points 0 0 60
+            :tags $ #{} :solar :unit
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context time)
+            reference/draw-reference! context $ scene-at time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number
+        'empty-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-nodes () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'empty-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-points () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (time)
+            scene/SceneDocument :nodes $ build-solar 0 0 0 1 0 time $ empty-nodes
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |five-recursive-levels)
+            :code $ quote $ assert= 10
+              count $ :nodes $ scene-at 0
+            :tags $ #{} :solar :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.solar
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
     'quamolit.examples.todolist $ %{} 'FileEntry
       :defs $ {}
         'Event $ %{} 'CodeEntry (:doc |)

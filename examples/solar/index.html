@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Solar · Quamolit 原有动画</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <canvas id="scene" aria-label="五层递归旋转轨道"></canvas>
+  <nav aria-label="演示导航"><a href="../../demos/index.html?group=originals">← 所有演示</a></nav>
+  <button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起面板</button>
+  <aside id="panel" aria-label="动画控制">
+    <span class="eyebrow">QUAMOLIT / ORIGINAL 04</span>
+    <h1>Solar<br><small>五层相互旋转的轨道</small></h1>
+    <p>保留原示例的递归层级：大圆环、小圆环、偏移与 0.6 倍缩放。几何与轨道位置由 Calcit 根据绝对时间生成。</p>
+    <div class="buttons"><button id="play">播放</button><button id="reset">回到起点</button><button id="share">复制当前时间链接</button></div>
+    <label>时间（秒） <input id="time" type="range" min="0" max="120" step="0.01" value="0"></label>
+    <div class="buttons"><button data-time="0">0 s</button><button data-time="1">1 s</button><button data-time="3">3 s</button><button data-time="10">10 s</button></div>
+    <output id="status" aria-live="off"></output>
+    <p class="note">Canvas2D · 绝对时间采样，可乱序截图。当前圆弧由闭合折线近似；每帧重建几何，GPU 与保留缓存仍待完成。</p>
+    <a href="https://github.com/Quamolit/quamolit/blob/main/docs/solar-restoration.md">行为依据与检验规则</a>
+  </aside>
+  <script type="module" src="./main.mjs"></script>
+</body>
+</html>

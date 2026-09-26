@@ -31,7 +31,6 @@
     }
   ],
   "planned": [
-    { "id": "solar", "title": "Solar · 轨道", "group": "originals", "summary": "递归旋转、缩放与圆弧组成的轨道动画。" },
     { "id": "table", "title": "Table · 编辑表格", "group": "originals", "summary": "3 × 3 文本格子的编辑交互；不是持续运动作品。" },
     { "id": "finder", "title": "Finder · 文件卡片", "group": "originals", "summary": "文件夹和卡片展开、居中缩放、淡出与返回。" },
     { "id": "raining", "title": "Raining · 雨滴", "group": "originals", "summary": "雨滴生成、下落、落地消散；恢复时加入固定随机种子。" },
@@ -79,6 +78,16 @@
       "status": "恢复切片 · Canvas",
       "docs": "docs/curve-restoration.md",
       "compile": "compile:curve"
+    },
+    {
+      "id": "solar",
+      "path": "examples/solar/index.html",
+      "title": "Solar · 递归轨道",
+      "group": "originals",
+      "summary": "五层递归旋转、偏移与缩放轨道；Calcit 绝对时间生成圆环几何，可乱序截图。",
+      "status": "恢复切片 · Canvas",
+      "docs": "docs/solar-restoration.md",
+      "compile": "compile:solar"
     },
     {
       "path": "test/retained-component.html",
