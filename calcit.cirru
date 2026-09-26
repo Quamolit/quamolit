@@ -2967,6 +2967,14 @@
             calcit.test :refer $ is= is-throws
     'quamolit.examples.binary-tree $ %{} 'FileEntry
       :defs $ {}
+        'BranchPose $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct BranchPose (:x 'Number) (:y 'Number) (:angle 'Number) (:scale 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'BranchSlot $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct BranchSlot (:parent 'Number) (:left? 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
         'branches $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn branches (time depth id x y angle scale)
             let
@@ -2993,6 +3001,41 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number 'Number 'String 'Number 'Number 'Number 'Number
             :return $ :: 'List 'quamolit.canvas-strokes/RoundPolyline
+        'build-plan $ %{} 'CodeEntry (:doc "|声明一次树拓扑与共享局部几何；绝对时间仅采样姿态/仿射矩阵。深度变化显式重新构建。")
+          :code $ quote $ defn build-plan (time depth)
+            let
+                source $ scene-at time depth
+                geometry $ scene/PolylineNode :width 4 :stroke
+                  motion/ColorRgba :r 0.1 :g (/ 19 30) :b 0.9 :a 1
+                  , :points $ [] (motion/Vec2 :x 80 :y -220) (motion/Vec2 :x 0 :y 0) (motion/Vec2 :x -140 :y -100)
+                document $ scene/SceneDocument :nodes $ map (:nodes source)
+                  fn (node)
+                    struct-with node $ :content $ scene/SceneContent :polyline geometry
+                slots $ build-slots depth -1 false $ empty-branch-slots
+              retained/build-plan document slots time sample-transforms
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number
+            :return $ :: 'quamolit.retained-path/PathPlan $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
+          :tests $ [] $ %{} 'TestEntry (:name |retained-path-replay)
+            :code $ quote $ let
+                initial $ build-plan 0 5
+                middle $ retained/sample-plan-at initial 2.5
+              is= 63 $ count $ :transforms middle
+              is= (:scene initial) (:scene middle)
+              is= 2 $ :samples middle
+              is= 2 $ :samples $ retained/sample-plan-at middle 2.5
+            :tags $ #{} :retained-path :unit
+        'build-slots $ %{} 'CodeEntry (:doc "|前序父索引拓扑；父索引 -1 是根。内部调用须先验证深度。")
+          :code $ quote $ defn build-slots (depth parent left? slots)
+            let
+                index $ count slots
+                next $ conj slots $ BranchSlot :parent parent :left? left?
+              if (= depth 0) next $ build-slots (dec depth) index false $ build-slots (dec depth) index true next
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Bool $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
+            :return $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context time depth)
             reference/draw-reference! context $ scene-at time depth
@@ -3000,6 +3043,18 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number 'Number
             :features $ #{} :js-ffi
+        'empty-branch-slots $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-branch-slots () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
+        'empty-poses $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-poses () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.examples.binary-tree/BranchPose
         'evaluate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn evaluate (depth model input resources viewport time) (branches time depth |root 0 240 0 1)
           :examples $ []
@@ -3038,6 +3093,61 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
+        'sample-poses $ %{} 'CodeEntry (:doc "|按保留父索引求解世界姿态；摆动频率每帧各求值一次，仍分配每分支姿态。")
+          :code $ quote $ defn sample-poses (slots time)
+            let
+                sa $ * 0.0206 $ sin
+                  / (* 10 time) 17.9
+                sb $ * 0.0315 $ sin
+                  / (* 10 time) 16.6
+                degree $ / &PI 180
+              foldl slots (empty-poses)
+                fn (poses slot)
+                  hint-fn $ {}
+                    :args $ [] (:: 'List BranchPose) BranchSlot
+                    :return $ :: 'List BranchPose
+                  conj poses $ if
+                    = -1 $ :parent slot
+                    BranchPose :x 0 :y 240 :angle 0 :scale 1
+                    let
+                        p $ &list:nth poses $ :parent slot
+                        dx $ if (:left? slot) 80 -140
+                        dy $ if (:left? slot) -220 -100
+                        c $ cos $ :angle p
+                        s $ sin $ :angle p
+                      BranchPose :x
+                        + (:x p)
+                          * (:scale p)
+                            - (* c dx) (* s dy)
+                        , :y
+                          + (:y p)
+                            * (:scale p)
+                              + (* s dx) (* c dy)
+                          , :angle
+                            + (:angle p)
+                              * degree $ + 10 $ if (:left? slot) (* 30 sa) (* 20 sb)
+                            , :scale $ * (:scale p)
+                              if (:left? slot)
+                                + 0.6 $ * 1.3 sa
+                                + 0.73 $ * 2 sb
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.examples.binary-tree/BranchSlot) 'Number
+            :return $ :: 'List 'quamolit.examples.binary-tree/BranchPose
+        'sample-transforms $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-transforms (slots time)
+            map (sample-poses slots time)
+              fn (pose)
+                let
+                    c $ * (:scale pose)
+                      cos $ :angle pose
+                    s $ * (:scale pose)
+                      sin $ :angle pose
+                  scene/Matrix2D :a c :b s :c (- 0 s) :d c :e (:x pose) :f $ :y pose
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.examples.binary-tree/BranchSlot) 'Number
+            :return $ :: 'List 'quamolit.scene-ir/Matrix2D
         'scene-at $ %{} 'CodeEntry
           :doc "|绝对时间全量采样为正式 SceneDocument；保持旧 frame-at 的身份、顺序和几何，不承诺跨帧结构复用。"
           :code $ quote $ defn scene-at (time depth)
@@ -3067,6 +3177,7 @@
             calcit.test :refer $ is=
             quamolit.scene-ir :as scene
             quamolit.canvas-reference :as reference
+            quamolit.retained-path :as retained
     'quamolit.fixed-step $ %{} 'FileEntry
       :defs $ {}
         'SimulationState $ %{} 'CodeEntry
@@ -6796,6 +6907,112 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.retained-component
           :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.scene-binding :as binding) (quamolit.motion :as motion)
+    'quamolit.retained-path $ %{} 'FileEntry
+      :defs $ {}
+        'PathPlan $ %{} 'CodeEntry
+          :doc "|静态折线 Scene 与自定义 CPU 变换采样器的不可变计划。Scene 不保存闭包；运行计划可以。更换任何输入需重建。"
+          :code $ quote $ defstruct PathPlan ([] 'P) (:scene 'quamolit.scene-ir/SceneDocument) (:props 'P)
+            :sample $ :: 'Fn $ {}
+              :args $ [] 'P 'Number
+              :return $ :: 'List 'quamolit.scene-ir/Matrix2D
+            :time 'Number
+            :transforms $ :: 'List 'quamolit.scene-ir/Matrix2D
+            :samples 'Number
+            :skipped 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'build-plan $ %{} 'CodeEntry
+          :doc "|验证静态 Scene 并采样首帧，仅支持顶层、无绑定的折线；props 或采样器改变必须重新构建。"
+          :code $ quote $ defn build-plan (document props time sample)
+            assert |invalid-path-time $ motion/finite-number? time
+            scene/validate-scene document
+            assert |unsupported-retained-path-scene $ every? (:nodes document) path-node?
+            let
+                transforms $ sample props time
+              assert |invalid-path-transforms $ and
+                = (count transforms)
+                  count $ :nodes document
+                every? transforms valid-transform?
+              PathPlan :scene document :props props :sample sample :time time :transforms transforms :samples 1 :skipped 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'P 'Number $ :: 'Fn
+              {}
+                :args $ [] 'P 'Number
+                :return $ :: 'List 'quamolit.scene-ir/Matrix2D
+            :generics $ [] 'P
+            :return $ :: 'quamolit.retained-path/PathPlan 'P
+        'draw-plan! $ %{} 'CodeEntry (:doc "|消费已验证计划，按原层序复合调用者变换并绘制；不负责清屏/DPR，不修改逻辑状态。")
+          :code $ quote $ defn draw-plan! (context plan)
+            each
+              range $ count $ :transforms plan
+              fn (index)
+                let
+                    node $ &list:nth
+                      :nodes $ :scene plan
+                      , index
+                    m $ &list:nth (:transforms plan) index
+                  context .save!
+                  context .transform! (:a m) (:b m) (:c m) (:d m) (:e m) (:f m)
+                  match (:content node)
+                    (:polyline path) (canvas/draw-round-path! context path)
+                    (:rect rect) (raise |unsupported-retained-path-scene)
+                    (:group group) (raise |unsupported-retained-path-scene)
+                    (:instances instances) (raise |unsupported-retained-path-scene)
+                  context .restore!
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost $ :: 'quamolit.retained-path/PathPlan 'P
+            :features $ #{} :js-ffi
+            :generics $ [] 'P
+        'path-node? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn path-node? (node)
+            and
+              empty? $ :parent node
+              empty? $ :bindings node
+              match (:content node)
+                (:polyline path) true
+                (:rect rect) false
+                (:group group) false
+                (:instances instances) false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneNode
+        'sample-plan-at $ %{} 'CodeEntry
+          :doc "|仅更新时间；同时间跳过，保留静态 Scene/props 身份。采样器必须是纯函数，不读取外部可变状态。"
+          :code $ quote $ defn sample-plan-at (plan time)
+            assert |invalid-path-time $ motion/finite-number? time
+            if
+              = time $ :time plan
+              struct-with plan $ :skipped $ inc (:skipped plan)
+              let
+                  transforms $
+                    :sample plan
+                    :props plan
+                    , time
+                assert |invalid-path-transforms $ and
+                  = (count transforms)
+                    count $ :nodes $ :scene plan
+                  every? transforms valid-transform?
+                struct-with plan (:time time) (:transforms transforms)
+                  :samples $ inc $ :samples plan
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'quamolit.retained-path/PathPlan 'P) 'Number
+            :generics $ [] 'P
+            :return $ :: 'quamolit.retained-path/PathPlan 'P
+        'valid-transform? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-transform? (m)
+            every?
+              [] (:a m) (:b m) (:c m) (:d m) (:e m) (:f m)
+              , motion/finite-number?
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/Matrix2D
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.retained-path
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as canvas)
     'quamolit.retained-scene $ %{} 'FileEntry
       :defs $ {}
         'append-changed-revisions $ %{} 'CodeEntry (:doc |)
