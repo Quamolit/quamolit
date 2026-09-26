@@ -110,6 +110,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check public Canvas instances draw boundary
+        if: inputs.mutation != 'color'
+        run: yarn test:canvas-instances-reference
+        env:
+          CI: "true"
+
       - name: Check WebGPU instance contract and explicit fallback
         if: inputs.mutation != 'color'
         run: yarn test:webgpu-instances

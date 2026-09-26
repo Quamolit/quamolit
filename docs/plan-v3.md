@@ -95,6 +95,7 @@
 
 - 基础范围和不支持节点明确诊断；Scene 遍历与动画绑定优先 Calcit，原生 Canvas 能力来自 js-ffi。
 - 同一输入/时间与全量参考画面一致，覆盖中间帧、打断与同时间失效；不再为每个页面单写 renderer。
+- 已落地公共 [Canvas 实例绘制入口](canvas-instances-reference.md)（`draw-instances!`，10k 单层一次边界调用）；消费者/bench 接入与资源表随后。
 
 ### #51：先接真实消费者需要的资源生命周期
 

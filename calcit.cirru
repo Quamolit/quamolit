@@ -1811,6 +1811,10 @@
         :code $ quote $ ns quamolit.bootstrap
     'quamolit.canvas-reference $ %{} 'FileEntry
       :defs $ {}
+        'InstancesMetrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct InstancesMetrics (:boundary-calls 'Number) (:canvas-calls 'Number) (:instances 'Number) (:position-bytes-read 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
         'color-css $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn color-css (color)
             hint-fn $ {}
@@ -1840,6 +1844,28 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneContent
+            :features $ #{} :js-ffi
+        'draw-instances! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-instances! (context instances positions)
+            hint-fn $ {}
+              :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/InstanceNode 'JsObject
+              :return 'quamolit.canvas-reference/InstancesMetrics
+              :features $ #{} :js-ffi
+            let
+                result $ raw-draw-instances! (unsafe-coerce context JsObject) positions 0
+                  :count $ :source instances
+                  :width instances
+                  :height instances
+                  color-css $ :fill instances
+                  , 1
+                boundary-calls $ contract/expect-number |InstancesMetrics.boundaryCalls $ contract/object-field |InstancesMetrics.draw result |boundaryCalls
+                canvas-calls $ contract/expect-number |InstancesMetrics.canvasCalls $ contract/object-field |InstancesMetrics.draw result |canvasCalls
+                instances-count $ contract/expect-number |InstancesMetrics.instances $ contract/object-field |InstancesMetrics.draw result |instances
+                bytes-read $ contract/expect-number |InstancesMetrics.positionBytesRead $ contract/object-field |InstancesMetrics.draw result |positionBytesRead
+              InstancesMetrics :boundary-calls boundary-calls :canvas-calls canvas-calls :instances instances-count :position-bytes-read bytes-read
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/InstanceNode 'JsObject
             :features $ #{} :js-ffi
         'draw-reference! $ %{} 'CodeEntry
           :doc "|整场景预检后按声明顺序绘制顶层 rect/polyline；group、子节点和 instances 明确拒绝。调用方负责清屏、视口与绑定求值。"
@@ -1911,6 +1937,14 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/TextNode
             :features $ #{} :js-ffi
+        'raw-draw-instances! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-draw-instances! (context positions start amount width height fill-style alpha) (raise |js-only-canvas-instances)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :file |src/host/canvas-rect-batches.mjs
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'JsObject 'Number 'Number 'Number 'Number 'String 'Number
+            :features $ #{} :js-ffi
         'raw-fill-text! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-fill-text! (context text x y size color) &unit
           :examples $ []
@@ -1935,7 +1969,7 @@
       :ns $ %{} 'NsEntry
         :doc "|Calcit 编写的基础 Canvas2D 参考绘制；Scene 解释保留在 Quamolit，不在 js-ffi 宿主层。"
         :code $ quote $ ns quamolit.canvas-reference
-          :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene)
+          :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
     'quamolit.canvas-strokes $ %{} 'FileEntry
       :defs $ {}
         'RoundPolyline $ %{} 'CodeEntry (:doc |)
@@ -5307,11 +5341,7 @@
               :return 'quamolit.instance-ffi/CanvasRectMetrics
               :features $ #{} :js-ffi
             let
-                draw-batch $ unsafe-coerce drawFloat32RectBatch $ :: 'Fn
-                  {}
-                    :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number 'Number 'Number 'String 'Number
-                    :return 'JsObject
-                result $ draw-batch context positions start amount width height fill-style alpha
+                result $ raw-draw-canvas! (unsafe-coerce context JsObject) (unsafe-coerce positions JsObject) start amount width height fill-style alpha
                 boundary-calls $ contract/expect-number |CanvasRect.boundaryCalls $ contract/object-field |CanvasRect.draw result |boundaryCalls
                 canvas-calls $ contract/expect-number |CanvasRect.canvasCalls $ contract/object-field |CanvasRect.draw result |canvasCalls
                 instances $ contract/expect-number |CanvasRect.instances $ contract/object-field |CanvasRect.draw result |instances
@@ -5332,6 +5362,14 @@
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'js-ffi.typed-arrays/Float32SnapshotHost
             :features $ #{} :js-ffi
+        'raw-draw-canvas! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-draw-canvas! (context positions start amount width height fill-style alpha) (raise |js-only-instance-canvas)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :file |src/host/canvas-rect-batches.mjs
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'JsObject 'Number 'Number 'Number 'Number 'String 'Number
+            :features $ #{} :js-ffi
         'snapshot $ %{} 'CodeEntry (:doc "|登记前一次复制并校验 Float32 交错位置；ID/version 由上层持有。")
           :code $ quote $ defn snapshot (positions)
             hint-fn $ {}
@@ -5346,9 +5384,7 @@
       :ns $ %{} 'NsEntry
         :doc "|Scene 实例源到 js-ffi Calcit API 的薄适配；版本与缓存仍由 Quamolit 宿主层管理。"
         :code $ quote $ ns quamolit.instance-ffi
-          :require (js-ffi.typed-arrays :as arrays)
-            |../../../src/host/canvas-rect-batches.mjs :refer $ drawFloat32RectBatch
-            js-ffi.contract :as contract
+          :require (js-ffi.typed-arrays :as arrays) (js-ffi.contract :as contract)
     'quamolit.math $ %{} 'FileEntry
       :defs $ {}
         'bound-01 $ %{} 'CodeEntry (:doc |)
