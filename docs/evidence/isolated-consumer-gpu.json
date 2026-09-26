@@ -1,0 +1,165 @@
+{
+  "candidate": "533b50b39ca0f2abb6bee28b7e5f0107b097eb3f",
+  "command": "QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer",
+  "calcit": "0.22.0",
+  "node": "v24.19.0",
+  "browser": "153.0.8010.12",
+  "modules": [
+    "app.main.mjs",
+    "calcit.core.mjs",
+    "calcit.internal.mjs",
+    "js-ffi.browser.mjs",
+    "js-ffi.canvas-batches.mjs",
+    "js-ffi.contract.mjs",
+    "js-ffi.shared.mjs",
+    "quamolit.canvas-reference.mjs",
+    "quamolit.component-sample.mjs",
+    "quamolit.direct-frame.mjs",
+    "quamolit.fixed-step.mjs",
+    "quamolit.gpu-component.mjs",
+    "quamolit.gpu-scalar-program.mjs",
+    "quamolit.gpu-vec2-translation.mjs",
+    "quamolit.host-clock.mjs",
+    "quamolit.motion-gpu.mjs",
+    "quamolit.motion.mjs",
+    "quamolit.playback.mjs",
+    "quamolit.replay-archive.mjs",
+    "quamolit.retained-component.mjs",
+    "quamolit.scene-binding.mjs",
+    "quamolit.scene-ir.mjs"
+  ],
+  "counts": {
+    "frames": 1000,
+    "declarations": 1,
+    "builds": 1,
+    "samples": 1001,
+    "transformSamples": 1001
+  },
+  "gpuCounts": {
+    "backend": "native-device-mock",
+    "frames": 1000,
+    "coldRecordsBytes": 128,
+    "coldParametersBytes": 160,
+    "hotRecordsBytes": 0,
+    "hotParametersBytes": 0,
+    "hotUniformBytes": 16000,
+    "pipelines": 1,
+    "buffers": 3,
+    "hardware": "未验证"
+  },
+  "gpuBrowser": {
+    "result": "PASS",
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": ""
+    },
+    "frames": [
+      {
+        "time": 1,
+        "model": 40,
+        "ready": false,
+        "viewport": 100,
+        "reused": true,
+        "differences": 0,
+        "uploadedBytes": 0,
+        "parameterBytes": 0,
+        "actualPng": "gpu-frame-0-gpu.png",
+        "expectedPng": "gpu-frame-0-canvas.png"
+      },
+      {
+        "time": 0,
+        "model": 40,
+        "ready": false,
+        "viewport": 100,
+        "reused": true,
+        "differences": 0,
+        "uploadedBytes": 0,
+        "parameterBytes": 0,
+        "actualPng": "gpu-frame-1-gpu.png",
+        "expectedPng": "gpu-frame-1-canvas.png"
+      },
+      {
+        "time": 0.5,
+        "model": 40,
+        "ready": false,
+        "viewport": 100,
+        "reused": true,
+        "differences": 0,
+        "uploadedBytes": 0,
+        "parameterBytes": 0,
+        "actualPng": "gpu-frame-2-gpu.png",
+        "expectedPng": "gpu-frame-2-canvas.png"
+      },
+      {
+        "time": 0.25,
+        "model": 40,
+        "ready": false,
+        "viewport": 100,
+        "reused": true,
+        "differences": 0,
+        "uploadedBytes": 0,
+        "parameterBytes": 0,
+        "actualPng": "gpu-frame-3-gpu.png",
+        "expectedPng": "gpu-frame-3-canvas.png"
+      },
+      {
+        "time": 1,
+        "model": 40,
+        "ready": false,
+        "viewport": 100,
+        "reused": true,
+        "differences": 0,
+        "uploadedBytes": 0,
+        "parameterBytes": 0,
+        "actualPng": "gpu-frame-4-gpu.png",
+        "expectedPng": "gpu-frame-4-canvas.png"
+      },
+      {
+        "time": 1,
+        "model": 41,
+        "ready": false,
+        "viewport": 100,
+        "reused": false,
+        "differences": 0,
+        "uploadedBytes": 128,
+        "parameterBytes": 160,
+        "actualPng": "gpu-frame-5-gpu.png",
+        "expectedPng": "gpu-frame-5-canvas.png"
+      },
+      {
+        "time": 1,
+        "model": 41,
+        "ready": true,
+        "viewport": 100,
+        "reused": false,
+        "differences": 0,
+        "uploadedBytes": 128,
+        "parameterBytes": 160,
+        "actualPng": "gpu-frame-6-gpu.png",
+        "expectedPng": "gpu-frame-6-canvas.png"
+      },
+      {
+        "time": 1,
+        "model": 41,
+        "ready": true,
+        "viewport": 200,
+        "reused": false,
+        "differences": 0,
+        "uploadedBytes": 128,
+        "parameterBytes": 160,
+        "actualPng": "gpu-frame-7-gpu.png",
+        "expectedPng": "gpu-frame-7-canvas.png"
+      }
+    ],
+    "errors": [],
+    "channelsPerFrame": 230400
+  },
+  "limitations": [
+    "GPU 硬件结果独立见 gpuBrowser；设备 mock 不是硬件证据",
+    "尚未验证逻辑生命周期集成、真实资源表释放与端到端性能",
+    "模块缓存可复用；消费者目录和运行产物目录独立",
+    "尚未验证仅 JS 片段修改后的显式重编译"
+  ]
+}

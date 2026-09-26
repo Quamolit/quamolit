@@ -44,6 +44,8 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 ## 未完成验收与下一步
 
+固定提交 `533b50b` 的[硬件运行报告](evidence/isolated-consumer-gpu.json)保存实际 adapter、8 帧差异/上传量与 mock 计数，二者分别标注。报告中的 PNG 文件名相对于该次 `test-results/consumer`；重跑会更新本地 artifact，不将这些文件名视为永久图片链接。
+
 新增硬件专项在桌面 Chromium 153 / Apple `metal-3` 通过：8 帧各 230400 通道零差异，前 5 个时间帧 records/parameters 上传都是 0 B，后 3 个版本失效帧各重新上传 128/160 B。GPU 现有合同是白色清屏，测试将透明 Canvas 参考以 destination-over 合成相同白底，不改变任何几何或像素容差；首次背景未对齐被断言检出。`gpu-frame-<序号>-gpu.png` / `-canvas.png` 保存实际/参考画面。headless 在本机无 adapter，报告仍明确 SKIP。
 
 - #104 尚未完整满足：进入/退出、目标打断、稳定 key 重排与真实资源表释放未接入此消费者；已测矩形 GPU 像素和上传计数，尚未测完整 CPU/GPU 阶段耗时与端到端性能。
