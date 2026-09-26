@@ -51,7 +51,7 @@
       :kind :data
       :doc "|Closed primitive/group/instance-layer union, independent from execution plans."
       :schema $ :: 'EnumDef
-      :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode)
+      :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode)
     'quamolit.scene-ir/ScalarTarget $ {}
       :mode :ensure
       :kind :data

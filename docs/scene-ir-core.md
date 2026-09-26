@@ -13,3 +13,11 @@
 编译后的 [场景夹具](../test/scene-core.html) 在 `t=[1,0,0.5,0.25,1]` 逐次构造并校验相同结构的 Scene IR。`quamolit.canvas-reference/draw-reference-rects!` 在 Calcit 中按原顺序读取 `SceneDocument` 的矩形节点，使用 `js-ffi.canvas-batches/fill-solid-rect!` 绘制；测试 JS 只准备白色画布、核对 JSON/像素和状态，不再解释矩形绘制。该窄参考路径暂不执行 group 变换、裁剪、隔离透明度或实例图层，不能算完整 Canvas2D 后端。独立的 [实例数据夹具](../test/instance-sources.html) 用 [版本化宿主边界](instance-sources.md) 登记并绘制 10k 个位置，检查同一时间的版本切换。`yarn test:scene-core` 验证严格公共类型、Calcit 原生反例以及编译后 JS 的 JSON 往返；`yarn test:motion-browser` 验证 Chromium 中间帧、像素、背景、样式恢复和刷新重放。架构 scaffold 见 [scene-ir-core.cirru](architectures/scene-ir-core.cirru)，Snapshot `calcit.cirru` 由 Calcit CLI 维护。
 
 Scene 标量绑定已有 [CPU 参考解析器](scene-binding.md)。实例 typed-array 的版本化引用和宿主快照边界已有实现；资源表、批量绑定执行与上传优化仍待后续里程碑。执行计划与增量调度属于 #50；完整裁剪、透明组和绘制由后续后端 issue 验收。
+
+## #53 路径前置：正式开放折线
+
+`SceneContent :polyline` 新增 `PolylineNode { points: List<Vec2>, width: Number, stroke: ColorRgba }`。至少两点，坐标有限、宽度有限且非负、颜色遵守现有约束。仅支持开放折线、圆头和圆连接；不代表任意曲线、闭合填充、dash 或完整 SVG Path。零宽不绘制。点与宽度变化是 geometry diff，颜色变化是 properties diff；没有外部资源签名。当前不接受路径标量绑定，直接调用绑定解析器也会明确拒绝。
+
+新的 `quamolit.canvas-reference/draw-reference!` 按声明顺序混合绘制**顶层 rect/polyline**。先校验整个文档和能力集，group、子节点和 instances 均在任何绘制前报错，避免静默丢图。它不执行 group 的 transform/clip/opacity，也不支持 WebGPU。坐标使用调用方当前 Canvas 坐标系，调用方负责视口/DPR/清屏；每个图元保存与恢复绘图状态，当前 path 不恢复，宿主异常不保证事务回滚。旧 `draw-reference-rects!` 仅保留历史矩形夹具行为，遇到新 polyline 明确报错，不应作为新场景通用入口。
+
+树的 `scene-at(time, depth)` 与浏览器入口现已消费该正式 IR；旧 `RoundPolyline` API 委托同一 `draw-round-path!` 原语，没有另建 JS renderer。`yarn test:binary-tree` 验证序列化、身份、几何/属性失效、非法与不支持场景的零副作用；`test/scene-core.spec.mjs` 用原生 Canvas 独立像素参考验证半透明矩形/折线层序，并以倒序绘制作为负例。仍是全量参考实现，不能用这项集成声称跨帧缓存或 GPU 提速。下一步为 #50 的路径保留计划及同源全量/保留对照。

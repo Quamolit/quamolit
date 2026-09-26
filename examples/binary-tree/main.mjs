@@ -1,15 +1,14 @@
 // 页面入口只管理时钟/视口/DOM；递归、三角函数与绘制在 Calcit。
-import { frame_at } from "../../target/js/binary-tree/quamolit.examples.binary-tree.mjs";
-import { draw_polylines_$x_ } from "../../target/js/binary-tree/quamolit.canvas-strokes.mjs";
-import { init_tags, to_js_data } from "../../target/js/binary-tree/calcit.core.mjs";
-const tags = init_tags(["scene"]);
+import { scene_at } from "../../target/js/binary-tree/quamolit.examples.binary-tree.mjs";
+import { draw_reference_$x_ } from "../../target/js/binary-tree/quamolit.canvas-reference.mjs";
+import { to_js_data } from "../../target/js/binary-tree/calcit.core.mjs";
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), slider = document.querySelector("#time");
 const play = document.querySelector("#play"), panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
 const params = new URLSearchParams(location.search);
 const parsed = Number(params.get("t") || 0);
 let time = Number.isFinite(parsed) && parsed >= 0 && parsed <= 60 ? parsed : 0;
-let frame = frame_at(time, 5), playing = false, raf = null, anchor = 0, started = 0;
+let scene = scene_at(time, 5), playing = false, raf = null, anchor = 0, started = 0;
 let paints = 0, samples = 1;
 function draw() {
   const rect = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
@@ -20,15 +19,15 @@ function draw() {
   // 原构图的固定逻辑视窗，不随浮层宽度挤压。输出为真实 DPR 像素。
   const scale = Math.min(w / 1000, h / 800);
   context.setTransform(scale, 0, 0, scale, w / 2, h / 2 + 70 * scale);
-  draw_polylines_$x_(context, frame.get(tags.scene));
+  draw_reference_$x_(context, scene);
   paints++;
   slider.value = String(time);
-  status.textContent = `t = ${time.toFixed(2)} s\n63 paths / 126 segments · round cap + join\n采样 ${samples} / 绘制 ${paints}`;
+  status.textContent = `t = ${time.toFixed(2)} s\n63 Scene polylines · Calcit → Canvas2D\n采样 ${samples} / 绘制 ${paints}`;
   status.dataset.result = "pass";
 }
 function sample(t) {
   if (!Number.isFinite(t) || t < 0 || t > 60) throw new RangeError("演示时间必须在 0–60 秒内");
-  time = t; frame = frame_at(time, 5); samples++; draw();
+  time = t; scene = scene_at(time, 5); samples++; draw();
 }
 function stop() {
   playing = false;
@@ -49,7 +48,7 @@ function start() {
   raf = requestAnimationFrame(tick);
 }
 function seek(t) { stop(); sample(t); return snapshot(); }
-function snapshot() { return { time, playing, samples, paints, paths: to_js_data(frame.get(tags.scene)), width: canvas.width, height: canvas.height }; }
+function snapshot() { return { time, playing, samples, paints, scene: to_js_data(scene), width: canvas.width, height: canvas.height }; }
 play.onclick = () => playing ? stop() : start();
 document.querySelector("#reset").onclick = () => seek(0);
 slider.oninput = () => seek(Number(slider.value));
