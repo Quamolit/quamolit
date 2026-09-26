@@ -8,13 +8,27 @@
   canvas { background: white; border: 1px solid #bccbd9; width: 640px; max-width: 100%; image-rendering: pixelated; }
   button { padding: 9px 14px; margin: 10px 4px 10px 0; }
   pre { padding: 20px; background: #172b42; color: #d7efff; border-radius: 12px; }
+  body.stage { margin: 0; padding: 0; max-width: none; overflow: hidden; }
+  .stage canvas { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; border: 0; image-rendering: auto; }
+  .stage #panel { position: fixed; z-index: 2; top: 64px; left: 16px; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 88px); overflow: auto; box-sizing: border-box; padding: 20px; background: #eef3f8ed; border: 1px solid #bccbd9; border-radius: 16px; box-shadow: 0 12px 40px #172b421a; }
+  .stage #panel h1 { font-size: 24px; margin-top: 0; }
+  @media (min-width: 800px) { .stage #panel { left: auto; right: 16px; } }
+  .stage nav { z-index: 3; border-radius: 8px; }
+  #panel-toggle { position: fixed; z-index: 3; left: 16px; top: 8px; margin: 0; }
+  body:not(.stage) #panel-toggle { display: none; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  button:focus-visible, a:focus-visible { outline: 3px solid #28748b; outline-offset: 3px; }
 </style>
 <nav aria-label="演示导航" style="position:fixed;top:10px;right:12px;background:white;padding:6px 12px;font:14px system-ui"><a id="demo-nav" href="https://github.com/Quamolit/quamolit/blob/main/demos/README.md">演示导航说明</a></nav>
+<canvas id="scene" width="320" height="180" aria-label="Calcit 动画画布"></canvas>
+<button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起控制面板</button>
+<section id="panel" aria-label="动画控制面板">
 <h1>组件写在 Calcit，时间由你控制</h1>
 <p>独立安装 Quamolit · 公共保留计划 → Canvas2D</p>
-<canvas id="scene" width="320" height="180"></canvas>
 <div><button data-time="0">起点 0</button><button data-time="0.25">¼ 帧</button><button data-time="0.5">中间帧</button><button data-time="1">终点 1</button><button id="model">Model + 1</button><button id="ready">资源 ready</button><button id="viewport">宽度版本 + 100</button></div>
 <pre id="status"></pre>
 <p>动画声明、时间采样、版本失效、Scene 遍历均来自 Calcit；JavaScript 仅连接页面控件。</p>
+<p>这是公共 API 的最小示例，不是已恢复的旧动画或艺术作品。全屏舞台按比例呈现 320 × 180 逻辑构图。</p>
+</section>
 <script type="module" src="./main.mjs"></script>
 </html>
