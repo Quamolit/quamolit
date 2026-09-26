@@ -1,14 +1,14 @@
 # Binary Tree：首个原有动画恢复切片
 
-推进 #36/#37，消费 #31 的 `direct-frame` 公共入口、#35 的 js-ffi 0.2.0 类型化 Canvas 原语及 #109 的全屏约定。入口：`examples/binary-tree/index.html`，从导航“原有动画”可打开。
+推进 #36/#37/#53，消费 #31 的 `direct-frame` 公共入口、#35 的 js-ffi 0.2.1-alpha.1 类型化 Canvas 原生路径及 #109 的全屏约定。入口：`examples/binary-tree/index.html`，从导航“原有动画”可打开。
 
 ## 恢复内容与行为依据
 
 历史提交 `9b5bcdd7f7157404fb96f96a042de91085e52652` 中 `quamolit.app.comp.binary-tree`：`comp-tree-waving` 把经过秒数乘以 10，再以深度 5 声明树；每层包含 `(80,-220) → (0,0) → (-140,-100)`，递归两条分支。复用原位移、缩放、角度、频率、青蓝色和 4 像素基础宽度。
 
-新 `quamolit.examples.binary-tree/frame-at(time, depth)` 返回 `DirectFrame<List<StrokeSegment>>`，支持乱序、重复和负时间直接采样。深度限定整数 0–8（最大 1022 条线段），演示 UI 展示深度 5 的 126 条线段，时间控件限定 0–60 秒。不读取系统墙钟、不使用随机、不依赖上一帧。新的平头线段参考替代旧路径的圆头/圆连接，因此**递归动画可运行，但描边语义尚未完全还原**，#36 对应项暂不勾选完成。
+`quamolit.examples.binary-tree/frame-at(time, depth)` 现在返回 `DirectFrame<List<RoundPolyline>>`，支持乱序、重复和负时间直接采样。深度限定整数 0–8（最大 511 条路径）；深度 5 为 63 条三点路径、126 条边，UI 时间为 0–60 秒。不读取系统墙钟、不使用随机、不依赖上一帧。每个分叉一次 stroke，恢复圆头与圆连接，不是给两条边分别加圆头。帧消费者需从旧 StrokeSegment 改读 points；旧独立线段绘制 API 保留。结构复用尚未完成，#36 对应项暂不勾选。
 
-绘制使用 `quamolit.canvas-strokes`：类型化线段经 Calcit 计算变换，再调用 `js-ffi.canvas-batches` 的原生 `save/transform/fillRect/restore`。没有新 JS 渲染模块，没有把 Quamolit 动画逻辑放进 js-ffi。CSS/DOM、rAF 时钟及视口适配属于页面胶水。
+绘制使用 `quamolit.canvas-strokes/RoundPolyline` 与 `draw-polylines!`，仅承诺开放圆头/圆连接折线。整批先验证至少两点、有限坐标、有限非负宽度与有效颜色；零宽显式跳过，避免 Canvas 忽略 lineWidth=0 后误用旧宽度。保持列表绘制顺序，每条路径一次原生 stroke。save/restore 恢复样式与变换，但当前 path 不恢复；合法原生调用之外的宿主异常不提供事务保证。类型化取首点使用已通过长度预检的 `&list:nth`，不用通用 nth/first 的 Dynamic 返回。没有新 JS 渲染模块，动画和遍历仍在 Quamolit Calcit 中。
 
 ## 画布与控制
 
@@ -24,12 +24,12 @@ yarn test:binary-tree
 yarn test:demo-nav
 ```
 
-第一条严格检查 11 个 Calcit 定义、原生测试和 3 项 Node 合同；独立 oracle 用旧版矩阵组合，不复制被测角度累加算法，对每一条分支的端点、宽度、ID 和颜色逐项核对（坐标误差 < 1e-10）。故意偏移分支的负例必须失败。拒绝非法深度/时间，核对 126 次宿主矩形调用与状态恢复。这是调用计数，不是性能测量。
+第一条严格检查 15 个 Calcit 定义、原生测试和 3 项 Node 合同；独立 oracle 用旧版矩阵组合，不复制被测角度累加算法，对 126 条边的端点、宽度、ID 和颜色逐项核对（误差 < 1e-10）。偏移分支负例必须失败。拒绝非法深度/时间，核对 63 次 stroke、状态恢复、整批非法输入无宿主副作用及零宽跳过。这是调用计数，不是性能测量。
 
-导航门禁在真实静态产物上加入本页往返和动画用例：乱序时间画面对照、清空画布负例、播放暂停、分享链接刷新、reduced-motion、移动端/resize/浮层操作。画面对照使用独立 oracle 生成世界坐标四边形，以原生 path fill 绘制，不复用被测的局部 transform + fillRect；仅在两者实际覆盖像素内统计 alpha 误差（均值 < 4/255），禁止用大片空白稀释误差。原生 stroke 与 fill 的抗锯齿策略不同（初次对照均值 4.61/255），故改用相同平头几何的独立多边形参考，而非提高阈值。该对照不验证旧版圆头描边。截图与 CI artifact 随演示站点保存。
+导航门禁包含乱序时间 `[5,0,2.5,10,5]`、清空画布负例、播放暂停、分享刷新、reduced-motion、DPR 1/2、移动端/resize/浮层操作。现在参考由历史独立矩阵生成每个分叉的三点路径，以原生 round stroke 绘制。alpha 误差仍仅统计覆盖像素（均值 < 4/255），实色 RGB 容差仍为 1，未放宽阈值。保存固定时间、浮层与移动端截图；2.5 秒另附 `tree-old`（上一版平头矩形近似）和 `tree-diff`（alpha 差异放大 4 倍，橙色）PNG，旧近似须有超过 100 个差异像素。
 
 ## 未完成与下一步
 
-这不是 Scene IR path 的完整实现：当前每次时间采样会全量生成 126 个线段结构；暂停 resize 复用帧，但连续动画不具备保留式几何优化。不是 WebGPU，不提供加速结论。圆头/圆连接、通用 Path IR、拓扑保留和 GPU 路径由 #53/#50/#40 承接；不能据此关闭这些 issue 或 M2/M3。其他 10 个原有示例仍待恢复。下一切片应补原生路径类型化能力和同源 Scene 集成，不持续扩大旁路示例集合。
+这不是完整 Scene IR path：每次采样全量构造 63 条路径；暂停 resize 复用帧不等于连续动画保留式优化。不是 WebGPU，不提供加速结论。通用 Path IR、拓扑保留和 GPU 由 #53/#50/#40 承接；不关闭这些 issue 或 M2/M3。其他 10 个原有示例待恢复。下一切片把同一动画接入 Scene/保留计划，不持续扩大旁路 renderer。
 
-已向 [js-ffi #112 补充原生路径接口需求](https://github.com/calcit-lang/js-ffi/issues/112#issuecomment-5843758607)。待发布类型化 moveTo/lineTo/stroke 和 round 样式接口后重新验证，替换当前平头矩形近似；Quamolit 的动画与 Scene 遍历不迁往上游。此次不新增 Calcit 核心 issue，因为没有发现语言缺陷。
+上游接口见 [js-ffi #122](https://github.com/calcit-lang/js-ffi/pull/122) 与 [0.2.1-alpha.1](https://github.com/calcit-lang/js-ffi/releases/tag/0.2.1-alpha.1)。安装沿用 `caps --ci`：touch-control 仍请求 js-ffi 0.1.35，根项目选择新版本，存在明确版本冲突警告，`caps --strict` 因此不通过；这是传递版本债务，未通过放宽 Calcit 类型检查处理。Yarn 引用和 lockfile 同步更新。

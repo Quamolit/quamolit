@@ -1,6 +1,6 @@
 // 页面入口只管理时钟/视口/DOM；递归、三角函数与绘制在 Calcit。
 import { frame_at } from "../../target/js/binary-tree/quamolit.examples.binary-tree.mjs";
-import { draw_segments_$x_ } from "../../target/js/binary-tree/quamolit.canvas-strokes.mjs";
+import { draw_polylines_$x_ } from "../../target/js/binary-tree/quamolit.canvas-strokes.mjs";
 import { init_tags, to_js_data } from "../../target/js/binary-tree/calcit.core.mjs";
 const tags = init_tags(["scene"]);
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
@@ -20,10 +20,10 @@ function draw() {
   // 原构图的固定逻辑视窗，不随浮层宽度挤压。输出为真实 DPR 像素。
   const scale = Math.min(w / 1000, h / 800);
   context.setTransform(scale, 0, 0, scale, w / 2, h / 2 + 70 * scale);
-  draw_segments_$x_(context, frame.get(tags.scene));
+  draw_polylines_$x_(context, frame.get(tags.scene));
   paints++;
   slider.value = String(time);
-  status.textContent = `t = ${time.toFixed(2)} s\n126 segments · Calcit → Canvas2D\n采样 ${samples} / 绘制 ${paints}`;
+  status.textContent = `t = ${time.toFixed(2)} s\n63 paths / 126 segments · round cap + join\n采样 ${samples} / 绘制 ${paints}`;
   status.dataset.result = "pass";
 }
 function sample(t) {
@@ -49,7 +49,7 @@ function start() {
   raf = requestAnimationFrame(tick);
 }
 function seek(t) { stop(); sample(t); return snapshot(); }
-function snapshot() { return { time, playing, samples, paints, segments: to_js_data(frame.get(tags.scene)), width: canvas.width, height: canvas.height }; }
+function snapshot() { return { time, playing, samples, paints, paths: to_js_data(frame.get(tags.scene)), width: canvas.width, height: canvas.height }; }
 play.onclick = () => playing ? stop() : start();
 document.querySelector("#reset").onclick = () => seek(0);
 slider.oninput = () => seek(Number(slider.value));
