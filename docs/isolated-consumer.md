@@ -35,6 +35,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | GPU 反例与失效 | 停止时间 uniform 写入会失败；同时间 Model/资源/视口变化不能复用旧程序；无效时间没有上传副作用；原混合折线场景明确返回 `cpu-transform-required`，不静默漏绘 |
 | GPU 浏览器专项 | 搬移后的同一矩形声明在非软件 adapter 比较 8 帧 × 230400 通道，默认精确像素；覆盖乱序/重复及同时间三类失效和上传量。无 GPU/软件 adapter 明确 SKIP，单独写入报告 |
 | 画面 | 实际画布 320×180、DPR=1；矩形内部粉色/绿色、静态横条灰色、变换折线蓝色与外部透明像素精确比较；初始/中间/终点截图 |
+| 公共 10k 实例 Canvas | 消费者 `instances-declaration` 声明 10000 实例，`draw-instances!` 走公共 [Canvas 实例入口](canvas-instances-reference.md)；Node 合同断言 1 次边界调用、10000 次 `fillRect`、80000 字节，非 Float32 源抛错；反例伪造计数被检出 |
 
 本地首次通过环境：Node 24.19.0、Calcit 0.22.0、Chromium 153.0.8010.12。加入 GPU 消费后可达编译闭包 22 个模块，唯一 npm 直接依赖是 Calcit runtime；并不声称这是最小体积，namespace 级依赖仍可能引入未使用的函数。
 

@@ -124,6 +124,12 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarProgram 'Number
             :features $ #{} :js-ffi
+        'draw-instances! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-instances! (context positions)
+            canvas/draw-instances! context (instances-declaration) positions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject
         'gpu-reusable? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-reusable? (program plan) (gpu/reusable? program plan)
           :examples $ []
@@ -135,6 +141,12 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarProgram
             :features $ #{} :js-ffi
+        'instances-declaration $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instances-declaration ()
+            scene/InstanceNode :source (scene/InstanceSource :id |consumer-particles :version 1 :count 10000) :width 3 :height 3 :fill $ motion/ColorRgba :r 0.917 :g 0.345 :b 0.047 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/InstanceNode)
+            :args $ []
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () &unit
           :examples $ []
@@ -209,4 +221,4 @@
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.main
-          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch)
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas)

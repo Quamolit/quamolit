@@ -33,6 +33,6 @@ perm $ canvas/draw-instances! context instances positions
 
 ## 尚未完成
 
+- **消费者接入**：`examples/retained-consumer` 的 `deps.cirru` 已提升到包含本入口的已推送提交，并新增 `instances-declaration` 与 `draw-instances!`；`yarn test:consumer` 的 Node 合同断言 10k 实例 1 次边界调用、10000 次 `fillRect`、80000 字节与非法源失败，反例伪造计数被检出。页面模式与三路径 bench 仍未接入。
 - **资源表**：`InstanceSource` 的 `id/version` 到宿主快照（GPU buffer、图片、字体）仍由 #51 负责；本入口要求调用方提供同步 Float32 位置。
 - **GPU 实例与标准动画采样**：实例顶点/参数常驻与时间采样归 #38/#40/#52。
-- **消费者与 bench 接入**：独立消费者 `examples/retained-consumer` 的 `deps.cirru` 固定的是已推送候选；使用本 API 前需把该 pin 提升到包含本入口的已推送提交，再声明 instances 并加入 Canvas 路径与三路径测量。框架 API 先行，消费者改动属于紧随其后的一笔，不能据此关闭 #104 或 M2。
