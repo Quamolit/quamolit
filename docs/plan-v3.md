@@ -4,6 +4,8 @@
 
 ## 当前事实与下一项交付
 
+#104 独立消费者已补 GPU 公共 Calcit 调用与 `:file` 分发/产物搬移门禁：两个矩形冷启动后 1000 时间帧只写 uniform，设备 mock 验证释放与版本失效；桌面 Chromium 在 Apple/Metal-3 实际验证搬移后的 8 帧同源像素，全部零差异。headless 无 adapter 仍单列 SKIP，不能替代硬件证据。后续继续 GPU 子集、生命周期和端到端测量，不关闭 M2。
+
 #118 后续切片已接入[标准标量 GPU 采样](gpu-scalar-program.md)：Calcit 准备参数、判断复用与精度预算，vertex shader 采样 x/y constant/tween；已有 Apple/Metal 固定时间像素与线性非整数读回。它仍不代表 #52 或 M2 完成，接下来扩展硬件覆盖、独立消费与同源端到端测量。
 
 后续 GPU 集成分支已经将公共 ComponentPlan 接到有序矩形批次，并补齐纯标量时间帧的静态批次缓存，见 [实现与边界](gpu-component-plan.md)。它是 #38/#40 的 CPU 采样→GPU 绘制切片，不等于 #52 标准动画已在 GPU 采样；接下来补标准 Motion 参数、独立消费者与同源阶段耗时。局部 CPU 微基准和 GPU 硬件像素成功不能替代资源恢复或端到端性能验收。

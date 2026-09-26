@@ -12,7 +12,7 @@ calcit query def app.main/declare --raw
 calcit query def app.main/update-plan --raw
 ```
 
-`deps.cirru` 固定已经合并的 #114 提交 `7de9d2edcc12617883702f45a3200d385feabcfd`，便于立即复现；没有引用不存在的新 tag。要验证另一已推送提交或发布 tag，使用 `caps --ci add Quamolit/quamolit -r <完整 SHA 或 tag>`，再编译。不需要 npm 的 Quamolit 包或 `@calcit/js-ffi` 包；当前路径唯一 npm 直接依赖是 `@calcit/procs`。
+`deps.cirru` 固定 #118 已推送的候选提交 `12edc27020adf7f9ed55a4ad7adaa7d9e4c123fb`，用于 GPU 公共 API 验证；它不是发布 tag。要验证另一已推送提交或发布 tag，使用 `caps --ci add Quamolit/quamolit -r <完整 SHA 或 tag>`，再编译。不需要 npm 的 Quamolit 包或 `@calcit/js-ffi` 包；当前路径唯一 npm 直接依赖是 `@calcit/procs`。
 
 从 Quamolit 根目录可运行 `yarn vite examples/retained-consumer --host 127.0.0.1 --port 5183` 查看页面。Vite 只是开发服务器，不是 Calcit 消费者的运行时依赖。点击时间按钮可乱序查看中间帧，在相同时间修改 Model、资源 ready 与宽度版本，观察声明次数及画面更新。
 
@@ -28,4 +28,6 @@ calcit query def app.main/update-plan --raw
 
 从仓库根目录运行 `yarn test:consumer`，或 `QUAMOLIT_CONSUMER_REF=<已推送 SHA 或 tag> yarn test:consumer`。完整流程与验收边界见 [独立消费检验](../../docs/isolated-consumer.md)。该命令会新建系统临时目录，联网安装、编译并搬移可达产物；成功/失败都保留临时目录供排查，路径写入报告。模块缓存可以复用，不声称验证冷缓存下载性能。
 
-当前示例验证顶层矩形/折线、CPU 标量与变换的统一计划及版本失效，不含进入/退出/重排、真实资源释放、完整调度器或 WebGPU；不能据此关闭 #104 或 M2。
+GPU 消费使用同一个 `declare` 的两个矩形：`start-rects` → `prepare-gpu`，成功分支得到参数程序，调用 `create-gpu!` / `install-gpu!` 后，热帧只调用 `draw-gpu! host program time`，不逐帧 CPU 采样。程序必须与 host 当前安装的程序一致；同时间输入变化由 `update-rects` 和 `gpu-reusable?` 判断，不可复用时重新准备和安装；结束调用 `dispose-gpu!`。这些应用函数只导入 Quamolit Calcit 模块，宿主片段在编译时内嵌，没有额外 JS 文件供使用者手动导入。
+
+现有页面仍展示完整混合 Canvas 场景，不因 GPU 支持范围删除折线。门禁额外验证矩形 GPU 子集和完整混合场景的明确回退；浏览器硬件专项无非软件 adapter 时标记 SKIP。独立消费者尚不含进入/退出/重排、真实资源表释放、完整调度器或硬件性能验收，不能据此关闭 #104 或 M2。

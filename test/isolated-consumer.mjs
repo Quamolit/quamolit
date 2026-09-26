@@ -7,6 +7,8 @@ import { spawnSync } from "node:child_process";
 import { createServer } from "vite";
 import { chromium } from "@playwright/test";
 import { verifyConsumer } from "./consumer-contract.mjs";
+import { verifyGpuConsumer } from "./consumer-gpu-contract.mjs";
+import { verifyGpuConsumerBrowser } from "./consumer-gpu-browser.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const fixture = join(root, "examples/retained-consumer");
@@ -63,6 +65,9 @@ try {
   const asset = join(source, ".calcit/modules/js-ffi/js-ffi-assets/document-available.js");
   assert.match(await readFile(asset, "utf8"), /typeof document/);
   assert.match(await readFile(join(runtime, "target/js/app/js-ffi.browser.mjs"), "utf8"), /typeof document/);
+  const gpuAsset = join(resolvedModule, "src/host/gpu-component-create.mjs");
+  assert.match(await readFile(gpuAsset, "utf8"), /sampleMotion/);
+  assert.match(await readFile(join(runtime, "target/js/app/quamolit.gpu-scalar-program.mjs"), "utf8"), /sampleMotion/);
   for (const file of ["package.json", "yarn.lock", ".yarnrc.yml", "index.html", "main.mjs", "node_modules"]) {
     await rename(join(source, file), join(runtime, file));
   }
@@ -71,12 +76,15 @@ try {
   const moduleUrl = name => pathToFileURL(join(runtime, "target/js/app", name)).href;
   const app = await import(moduleUrl("app.main.mjs")), core = await import(moduleUrl("calcit.core.mjs"));
   const counts = verifyConsumer(app, core);
+  const gpuCounts = verifyGpuConsumer(app, core);
+  assert.throws(() => verifyGpuConsumer({ ...app, draw_gpu_$x_: () => {} }, core), /AssertionError/,
+    "反例：停止 GPU 时间 uniform 写入必须失败");
   assert.throws(() => verifyConsumer({ ...app, update_plan: plan => plan }, core), /AssertionError/, "反例：停掉时间采样必须失败");
   const errors = [], requests = [];
   server = await createServer({ configFile: false, root: runtime, server: { host: "127.0.0.1", port: 0, fs: { strict: true, allow: [runtime] } } });
   await server.listen();
   const url = server.resolvedUrls.local[0];
-  browser = await chromium.launch();
+  browser = await chromium.launch({ headless: process.env.QUAMOLIT_CONSUMER_HEADED !== "1" });
   page = await browser.newPage({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 1 });
   page.on("pageerror", error => errors.push(error.message));
   page.on("requestfailed", request => errors.push(`${request.url()} ${request.failure()?.errorText}`));
@@ -107,15 +115,19 @@ try {
   assert.equal(changed.scene.nodes[1].content[1].width, 20);
   assert.equal(changed.declarations, 4);
   assert.deepEqual(await page.evaluate(() => Array.from(document.querySelector("canvas").getContext("2d").getImageData(138, 64, 1, 1).data)), [0, 179, 102, 255]);
+  const gpuBrowser = await verifyGpuConsumerBrowser(page, artifacts);
+  if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") {
+    assert.equal(gpuBrowser.result, "PASS", `要求真实 GPU，但专项未运行：${JSON.stringify(gpuBrowser)}`);
+  }
   assert.deepEqual(errors, []);
   assert.ok(requests.every(url => !/test\/host|quamolit\.test|js-ffi-assets|source-retired/.test(url)));
-  const report = { result: "PASS", candidate, temporary, resolvedModule, modules: [...modules].sort(), counts,
-    negativeControl: "停止时间采样被断言检出",
+  const report = { result: "PASS", candidate, temporary, resolvedModule, modules: [...modules].sort(), counts, gpuCounts, gpuBrowser,
+    negativeControl: ["停止 CPU 时间采样被断言检出", "停止 GPU uniform 写入被断言检出"],
     browser: await browser.version(), node: process.version, calcit: run("calcit", ["-v"], runtime).trim(),
     times: [1, 0, 0.5, 0.25, 1], sameTimeInvalidations: ["model", "resources", "viewport"], requests,
-    limitations: ["尚未验证真实 GPU、逻辑生命周期集成、实际资源释放与端到端性能", "模块缓存可复用；消费者目录和运行产物目录独立", "尚未验证仅 JS 片段修改后的显式重编译"] };
+    limitations: ["GPU 硬件结果独立见 gpuBrowser；设备 mock 不是硬件证据", "尚未验证逻辑生命周期集成、真实资源表释放与端到端性能", "模块缓存可复用；消费者目录和运行产物目录独立", "尚未验证仅 JS 片段修改后的显式重编译"] };
   await writeFile(join(artifacts, "report.json"), JSON.stringify(report, null, 2));
-  console.log(JSON.stringify({ result: "PASS", candidate, counts, modules: modules.size, artifacts, runtime }, null, 2));
+  console.log(JSON.stringify({ result: "PASS", candidate, counts, gpuCounts, gpuBrowser, modules: modules.size, artifacts, runtime }, null, 2));
 } catch (error) {
   await writeFile(join(artifacts, "report.json"), JSON.stringify({ result: "FAIL", candidate, temporary, error: error.stack }, null, 2));
   if (page) await page.screenshot({ path: join(artifacts, "failure.png"), fullPage: true }).catch(() => {});
