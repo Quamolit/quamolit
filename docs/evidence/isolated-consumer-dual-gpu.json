@@ -1,0 +1,224 @@
+{
+  "candidate": "b4811cef1154d7563dfe54e5e7dce95ded0d7b93",
+  "harness": {
+    "revision": "b4811cef1154d7563dfe54e5e7dce95ded0d7b93",
+    "dirty": true,
+    "sha256": {
+      "examples/retained-consumer/calcit.cirru": "85cbb7f248614ffade7d5ca0568fc2366edbe49778a1db8f644b60c424770539",
+      "examples/retained-consumer/main.mjs": "a3402cb788eb9f16d86739dfe24a727712972664dab9e6ba3c927ddfdc851cad",
+      "examples/retained-consumer/index.html": "ed7d827f05971a2799b9d5f56442bf9bda97d55e44c08eefbb31352e5d3d5fdc",
+      "test/isolated-consumer.mjs": "f5390ab3ab95fa8972496fdacab411005a51ab5b63a02ace46df003023067a64",
+      "test/consumer-gpu-contract.mjs": "fe73b50bf41f309814109cc0b15884fe37092aa22387f67fde2feb570e08279b",
+      "test/consumer-gpu-browser.mjs": "ffa6360bcc3132a5636c47b152d9e482550780759514b1ae9da468f37aaaba59",
+      "test/host/gpu-scalar-readback.mjs": "00592a5c095d52b128adbcdedbe627e37a3488a59528379be7093ef38e55624d"
+    }
+  },
+  "command": "QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer",
+  "calcit": "0.22.0",
+  "node": "v24.19.0",
+  "browser": "153.0.8010.12",
+  "gpuDualCounts": {
+    "backend": "native-device-mock",
+    "mode": "smoothstep-xy",
+    "frames": 1000,
+    "coldParametersBytes": 192,
+    "hotParametersBytes": 0,
+    "hotUniformBytes": 16000,
+    "buffers": 3
+  },
+  "gpuDualBrowser": {
+    "result": "PASS",
+    "mode": "smoothstep-xy",
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": ""
+    },
+    "frames": [
+      {
+        "time": 1,
+        "model": 40,
+        "ready": false,
+        "viewport": 100,
+        "reused": true,
+        "differences": 0,
+        "uploadedBytes": 0,
+        "parameterBytes": 0,
+        "actualPng": "gpu-dual-frame-0-gpu.png",
+        "expectedPng": "gpu-dual-frame-0-canvas.png"
+      },
+      {
+        "time": 0,
+        "model": 40,
+        "ready": false,
+        "viewport": 100,
+        "reused": true,
+        "differences": 0,
+        "uploadedBytes": 0,
+        "parameterBytes": 0,
+        "actualPng": "gpu-dual-frame-1-gpu.png",
+        "expectedPng": "gpu-dual-frame-1-canvas.png"
+      },
+      {
+        "time": 0.5,
+        "model": 40,
+        "ready": false,
+        "viewport": 100,
+        "reused": true,
+        "differences": 0,
+        "uploadedBytes": 0,
+        "parameterBytes": 0,
+        "actualPng": "gpu-dual-frame-2-gpu.png",
+        "expectedPng": "gpu-dual-frame-2-canvas.png"
+      },
+      {
+        "time": 0.25,
+        "model": 40,
+        "ready": false,
+        "viewport": 100,
+        "reused": true,
+        "differences": 0,
+        "uploadedBytes": 0,
+        "parameterBytes": 0,
+        "actualPng": "gpu-dual-frame-3-gpu.png",
+        "expectedPng": "gpu-dual-frame-3-canvas.png"
+      },
+      {
+        "time": 1,
+        "model": 40,
+        "ready": false,
+        "viewport": 100,
+        "reused": true,
+        "differences": 0,
+        "uploadedBytes": 0,
+        "parameterBytes": 0,
+        "actualPng": "gpu-dual-frame-4-gpu.png",
+        "expectedPng": "gpu-dual-frame-4-canvas.png"
+      },
+      {
+        "time": 1,
+        "model": 41,
+        "ready": false,
+        "viewport": 100,
+        "reused": false,
+        "differences": 0,
+        "uploadedBytes": 128,
+        "parameterBytes": 192,
+        "actualPng": "gpu-dual-frame-5-gpu.png",
+        "expectedPng": "gpu-dual-frame-5-canvas.png"
+      },
+      {
+        "time": 1,
+        "model": 41,
+        "ready": true,
+        "viewport": 100,
+        "reused": false,
+        "differences": 0,
+        "uploadedBytes": 128,
+        "parameterBytes": 192,
+        "actualPng": "gpu-dual-frame-6-gpu.png",
+        "expectedPng": "gpu-dual-frame-6-canvas.png"
+      },
+      {
+        "time": 1,
+        "model": 41,
+        "ready": true,
+        "viewport": 200,
+        "reused": false,
+        "differences": 0,
+        "uploadedBytes": 128,
+        "parameterBytes": 192,
+        "actualPng": "gpu-dual-frame-7-gpu.png",
+        "expectedPng": "gpu-dual-frame-7-canvas.png"
+      }
+    ],
+    "numericSamples": [
+      {
+        "time": 0.37,
+        "actual": [
+          99.80121612548828,
+          72.90060424804688
+        ],
+        "expected": [
+          99.801216,
+          72.900608
+        ]
+      },
+      {
+        "time": 0.81,
+        "actual": [
+          137.94674682617188,
+          91.97337341308594
+        ],
+        "expected": [
+          137.946752,
+          91.973376
+        ]
+      },
+      {
+        "time": 0.4999999,
+        "actual": [
+          111.99999237060547,
+          79
+        ],
+        "expected": [
+          111.9999904,
+          78.9999952
+        ]
+      },
+      {
+        "time": -0.1,
+        "actual": [
+          80,
+          63
+        ],
+        "expected": [
+          80,
+          63
+        ]
+      },
+      {
+        "time": 1.1,
+        "actual": [
+          144,
+          95
+        ],
+        "expected": [
+          144,
+          95
+        ]
+      },
+      {
+        "time": 0,
+        "actual": [
+          80,
+          63
+        ],
+        "expected": [
+          80,
+          63
+        ]
+      },
+      {
+        "time": 1,
+        "actual": [
+          144,
+          95
+        ],
+        "expected": [
+          144,
+          95
+        ]
+      }
+    ],
+    "diagnosticReadbackBytes": 56,
+    "errors": [],
+    "channelsPerFrame": 230400
+  },
+  "limitations": [
+    "库候选版本与测试/消费者源码不同；harness 记录本次未提交源码的 SHA256，后续可定位相同文件。",
+    "只验证此双轴 smoothstep 参数域，不证明完整精度包络、恢复或吞吐。",
+    "PNG 文件名相对于本次 test-results/consumer，重跑会更新本地 artifact。"
+  ]
+}

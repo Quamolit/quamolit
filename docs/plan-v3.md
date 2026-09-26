@@ -4,6 +4,8 @@
 
 ## 当前事实与下一项交付
 
+#52/#104 双轴扩展沿用独立消费者：Calcit 声明 smoothstep x/y，页面可切换 Canvas 参考；Apple/Metal-3 的 8 帧像素及 7 个时间点实际 xy 读回通过，诊断共读回 56 B。独立 mock 的 1000 时间帧仍仅更新 uniform，不新增运行时 JS 依赖。下一步重点转入同源端到端阶段测量与 10k 公共实例，不以更多小样本代替性能交付；精度/资源恢复仍保留最终验收。
+
 #104 独立消费者已补 GPU 公共 Calcit 调用与 `:file` 分发/产物搬移门禁：两个矩形冷启动后 1000 时间帧只写 uniform，设备 mock 验证释放与版本失效；桌面 Chromium 在 Apple/Metal-3 实际验证搬移后的 8 帧同源像素，全部零差异。headless 无 adapter 仍单列 SKIP，不能替代硬件证据。后续继续 GPU 子集、生命周期和端到端测量，不关闭 M2。
 
 #118 后续切片已接入[标准标量 GPU 采样](gpu-scalar-program.md)：Calcit 准备参数、判断复用与精度预算，vertex shader 采样 x/y constant/tween；已有 Apple/Metal 固定时间像素与线性非整数读回。它仍不代表 #52 或 M2 完成，接下来扩展硬件覆盖、独立消费与同源端到端测量。

@@ -26,6 +26,8 @@ calcit query def app.main/update-plan --raw
 
 ## 隔离门禁
 
+页面可在“线性矩形 + 折线”与“双轴 smoothstep”之间切换，后者也可通过 `?motion=dual` 直接进入。双轴声明仍由 Calcit 的 `declare-dual` 创建，同一参数供 `start-dual` / `update-dual` 的 Canvas 参考和 GPU 程序使用。切换声明时重建计划，保留当前显式时间/Model，不在旧声明的相同版本上错误复用结构。
+
 从仓库根目录运行 `yarn test:consumer`，或 `QUAMOLIT_CONSUMER_REF=<已推送 SHA 或 tag> yarn test:consumer`。完整流程与验收边界见 [独立消费检验](../../docs/isolated-consumer.md)。该命令会新建系统临时目录，联网安装、编译并搬移可达产物；成功/失败都保留临时目录供排查，路径写入报告。模块缓存可以复用，不声称验证冷缓存下载性能。
 
 GPU 消费使用同一个 `declare` 的两个矩形：`start-rects` → `prepare-gpu`，成功分支得到参数程序，调用 `create-gpu!` / `install-gpu!` 后，热帧只调用 `draw-gpu! host program time`，不逐帧 CPU 采样。程序必须与 host 当前安装的程序一致；同时间输入变化由 `update-rects` 和 `gpu-reusable?` 判断，不可复用时重新准备和安装；结束调用 `dispose-gpu!`。这些应用函数只导入 Quamolit Calcit 模块，宿主片段在编译时内嵌，没有额外 JS 文件供使用者手动导入。

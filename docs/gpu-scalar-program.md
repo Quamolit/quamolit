@@ -1,6 +1,6 @@
 # 标量 Motion 到公共 GPU 计划（开发中）
 
-推进 #52，消费 #118 的 ComponentPlan/矩形批次候选，不另造组件或 Scene。已接入参数常驻和 vertex shader 采样；固定整数时间帧已有真实 GPU 像素证据。精度域、非整数数值读回及独立消费者等验收仍在开发，不以这些诊断帧代表完整数值等价。
+推进 #52，消费 #118 的 ComponentPlan/矩形批次候选，不另造组件或 Scene。已接入参数常驻和 vertex shader 采样；已有真实 GPU 像素、线性及双轴 smoothstep 非整数读回，以及独立消费者分发验证。完整精度域与性能验收仍在开发，不以这些诊断帧代表完整数值等价。
 
 `quamolit.gpu-scalar-program/prepare-program(plan)` 返回 `ProgramResult :ready ScalarProgram` 或 `:fallback reason`。ready 保存同一来源计划、矩形帧和 ScalarParameter 列表。通过既有 `motion-gpu/lower-scalar` 检查描述符，再将明确支持的矩形 x/y constant 或 linear/smoothstep tween 转成参数。CPU 自定义变换、其他目标/算子以及不支持的节点整层回退，不返回部分有效绑定。
 
@@ -24,4 +24,6 @@ Apple/Metal-3（software=false）实际验证 t=1→0→0.5→0.25→1，每帧 
 
 `yarn test:gpu-component` 纳入新命名空间严格检查及 `test/gpu-scalar-program-smoke.mjs`：公共计划参数、乱序时间不变、constant/smoothstep/零时长、CPU/算子/目标回退、重复目标、起点有效终点越界。测试调用编译后的 Calcit，而不是 JS 重写 lowering。
 
-下一步增加 smoothstep、双轴、精度回退和重建的硬件证据；再接独立消费者与端到端报告。保守预算尚未由这些硬件样本全面验证，不作为完成的 #52 交付。任意 Calcit 函数仍保留 CPU 路径，#52/M2 不因此关闭。
+独立消费者另以公共 Calcit 声明双轴 smoothstep，Apple/Metal-3 上 8 帧各 230400 通道零差异；非整数 .37/.81/.4999999 与区间外/端点共 7 次 xy 读回满足既定数值阈值。两个绑定常驻同一节点的两个参数槽，1000 时间帧 mock 仍只有每帧 16 B uniform；测试含切回单轴后的旧槽清理。详见 [独立消费检验](isolated-consumer.md)。页面可切换线性混合/双轴 Canvas 参考，GPU 对照由硬件门禁执行。
+
+下一步扩大精度回退与重建证据，并接同源端到端报告和 10k 实例。保守预算尚未由这些硬件样本全面验证，不作为完成的 #52 交付。任意 Calcit 函数仍保留 CPU 路径，#52/M2 不因此关闭。

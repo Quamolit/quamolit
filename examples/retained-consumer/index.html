@@ -25,9 +25,11 @@
 <section id="panel" aria-label="动画控制面板">
 <h1>组件写在 Calcit，时间由你控制</h1>
 <p>独立安装 Quamolit · 统一组件计划：标量矩形 + 变换折线 → Canvas2D</p>
+<div><button data-mode="mixed">线性矩形 + 折线</button><button data-mode="dual">双轴 smoothstep</button></div>
 <div><button data-time="0">起点 0</button><button data-time="0.25">¼ 帧</button><button data-time="0.5">中间帧</button><button data-time="1">终点 1</button><button id="model">Model + 1</button><button id="ready">资源 ready</button><button id="viewport">宽度版本 + 100</button></div>
 <pre id="status"></pre>
 <p>动画声明、时间采样、版本失效、Scene 遍历均来自 Calcit；JavaScript 仅连接页面控件。</p>
+<p>此页显示 Canvas 参考。双轴矩形的同源 GPU 绘制、非整数数值和上传量由独立消费者硬件门禁验证；混合折线目前明确回退，不会被静默删除。</p>
 <p>这是公共 API 的最小示例，不是已恢复的旧动画或艺术作品。全屏舞台按比例呈现 320 × 180 逻辑构图。</p>
 </section>
 <script type="module" src="./main.mjs"></script>

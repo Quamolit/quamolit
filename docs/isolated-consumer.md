@@ -18,7 +18,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 1. 在系统临时目录创建独立消费者，只复制示例的源码/配置/锁文件，不复制作者 `.calcit`、`node_modules` 或编译输出。
 2. 使用 `caps --ci add` 安装指定候选提交及递归依赖，`caps verify` 验证存储，Yarn immutable + node-modules 安装唯一直接 npm 依赖 `@calcit/procs`。
-3. 对消费者 `app.main` 全部 17 个定义严格检查并编译。它不引用 `quamolit.test.*`、手写框架 JS 或 JS sampler Map；GPU 切片依赖 #118 中已推送的 `12edc27` 公共接口，不能用更早版本运行本门禁。
+3. 对消费者 `app.main` 全部 20 个定义严格检查并编译。它不引用 `quamolit.test.*`、手写框架 JS 或 JS sampler Map；GPU 切片依赖 #118 中已推送的 `12edc27` 公共接口，不能用更早版本运行本门禁。
 4. 根据 Calcit 0.22 单行静态 ESM import/export 收集入口可达文件；门禁拒绝动态 import、测试 namespace、原始文件路径与额外 npm 包。把这个闭包与标准 runtime 移到同级运行目录，原编译目录改名；运行目录不含 Calcit 源码、模块链接或 `src/host`。这不是通用 JS bundler，生成器格式变化时需更新并重新验证门禁。
 5. 从搬移目录执行 Node 合同和 Chromium 页面，检查固定时间、同时间失效、像素及页面按钮。Vite/Playwright 由测试工程提供，仅用于驱动，不进入消费模块；请求记录中 Vite 开发客户端来自测试工具是预期行为。
 
@@ -43,6 +43,12 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 `test-results/consumer/report.json` 保存 PASS/FAIL、候选版本、模块路径、可达文件、计数、环境、请求日志与限制；`commands.json` 保存安装/编译日志。截图为 `frame-0.png`、`frame-0.5.png`、`frame-1.png`，失败时尽可能保存 `failure.png`。CI 上传 `quamolit-consumer-<run>` artifact。临时目录保留用于排查，不影响仓库目录层级。
 
 ## 未完成验收与下一步
+
+双轴硬件原始结果见 [smoothstep xy 报告](evidence/isolated-consumer-dual-gpu.json)。候选库版本与测试源码版本分别记录；后者包含 revision、dirty 标记与 SHA256，不能误认为候选库提交已包含当时未提交的消费者扩展。
+
+双轴扩展：`declare-dual` 以 Calcit 声明 x=80→144、y=(22+Model)→(54+Model)，两轴均为 smoothstep；页面新增模式按钮及 `?motion=dual` 入口，仍显示 Canvas 参考，不伪装为 GPU 展示。独立 Node 参考用 `t*t*(3-2*t)` 核对两轴；mock 检查 64/96 B 参数偏移、192 B 冷参数、1000 时间帧仅 uniform，以及双轴切回单轴清除旧 y 槽。
+
+非软件 GPU 专项同时运行线性/双轴两套 8 帧，各帧零容差；双轴在 .37/.81/.4999999/-.1/1.1/0/1 另外读回实际 WGSL 的 xy，对照独立公式与既定 `1e-5+1e-5*abs(expected)`，共 56 B。测试驱动注入自包含的现有 probe 函数，只在测试中访问真实 shader/参数；消费者 runtime 不安装测试文件、不增加其文件请求，常规绘制不读回。该证据覆盖此 smoothstep 参数范围，不外推整个精度域。
 
 固定提交 `533b50b` 的[硬件运行报告](evidence/isolated-consumer-gpu.json)保存实际 adapter、8 帧差异/上传量与 mock 计数，二者分别标注。报告中的 PNG 文件名相对于该次 `test-results/consumer`；重跑会更新本地 artifact，不将这些文件名视为永久图片链接。
 

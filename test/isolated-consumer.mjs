@@ -4,10 +4,11 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createServer } from "vite";
 import { chromium } from "@playwright/test";
 import { verifyConsumer } from "./consumer-contract.mjs";
-import { verifyGpuConsumer } from "./consumer-gpu-contract.mjs";
+import { verifyGpuConsumer, verifyDualGpuConsumer } from "./consumer-gpu-contract.mjs";
 import { verifyGpuConsumerBrowser } from "./consumer-gpu-browser.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -16,6 +17,16 @@ const artifacts = join(root, "test-results/consumer");
 const temporary = await mkdtemp(join(tmpdir(), "quamolit-consumer-"));
 const source = join(temporary, "source"), runtime = join(temporary, "runtime");
 const candidate = process.env.QUAMOLIT_CONSUMER_REF || spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim();
+// 候选库版本不等于本地消费者/测试源码版本；二者分别记录，防止误认旧 SHA 已包含新 fixture。
+const harness = {
+  revision: spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim(),
+  dirty: spawnSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).stdout.trim().length > 0,
+  sha256: {},
+};
+for (const name of ["examples/retained-consumer/calcit.cirru", "examples/retained-consumer/main.mjs", "examples/retained-consumer/index.html",
+  "test/isolated-consumer.mjs", "test/consumer-gpu-contract.mjs", "test/consumer-gpu-browser.mjs", "test/host/gpu-scalar-readback.mjs"]) {
+  harness.sha256[name] = createHash("sha256").update(await readFile(join(root, name))).digest("hex");
+}
 assert.match(candidate, /^[A-Za-z0-9][A-Za-z0-9._/-]*$/, "候选提交或 tag 必须是安全 Git ref");
 await mkdir(artifacts, { recursive: true });
 const log = [];
@@ -77,6 +88,9 @@ try {
   const app = await import(moduleUrl("app.main.mjs")), core = await import(moduleUrl("calcit.core.mjs"));
   const counts = verifyConsumer(app, core);
   const gpuCounts = verifyGpuConsumer(app, core);
+  const gpuDualCounts = verifyDualGpuConsumer(app, core);
+  assert.throws(() => verifyDualGpuConsumer({ ...app, update_dual: plan => plan }, core), /AssertionError/,
+    "反例：停止双轴 CPU 参考更新必须失败");
   assert.throws(() => verifyGpuConsumer({ ...app, draw_gpu_$x_: () => {} }, core), /AssertionError/,
     "反例：停止 GPU 时间 uniform 写入必须失败");
   assert.throws(() => verifyConsumer({ ...app, update_plan: plan => plan }, core), /AssertionError/, "反例：停掉时间采样必须失败");
@@ -115,19 +129,32 @@ try {
   assert.equal(changed.scene.nodes[1].content[1].width, 20);
   assert.equal(changed.declarations, 4);
   assert.deepEqual(await page.evaluate(() => Array.from(document.querySelector("canvas").getContext("2d").getImageData(138, 64, 1, 1).data)), [0, 179, 102, 255]);
+  await page.click('[data-mode="dual"]');
+  await page.click('[data-time="0.5"]');
+  const dual = await page.evaluate(() => window.consumer.snapshot());
+  assert.equal(dual.mode, "dual");
+  assert.equal(dual.scene.nodes.length, 2);
+  assert.equal(dual.scene.nodes[1].content[1].x, 112);
+  assert.equal(dual.scene.nodes[1].content[1].y, 79);
+  assert.deepEqual(await page.evaluate(() => Array.from(document.querySelector("canvas").getContext("2d").getImageData(114, 81, 1, 1).data)), [0, 179, 102, 255]);
+  await page.screenshot({ path: join(artifacts, "dual-frame-0.5.png"), fullPage: true });
+  await page.click('[data-mode="mixed"]');
+  assert.equal(await page.evaluate(() => window.consumer.snapshot().scene.nodes[2].content[0]), "polyline");
   const gpuBrowser = await verifyGpuConsumerBrowser(page, artifacts);
+  const gpuDualBrowser = await verifyGpuConsumerBrowser(page, artifacts, true);
   if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") {
     assert.equal(gpuBrowser.result, "PASS", `要求真实 GPU，但专项未运行：${JSON.stringify(gpuBrowser)}`);
+    assert.equal(gpuDualBrowser.result, "PASS", `要求双轴真实 GPU，但专项未运行：${JSON.stringify(gpuDualBrowser)}`);
   }
   assert.deepEqual(errors, []);
   assert.ok(requests.every(url => !/test\/host|quamolit\.test|js-ffi-assets|source-retired/.test(url)));
-  const report = { result: "PASS", candidate, temporary, resolvedModule, modules: [...modules].sort(), counts, gpuCounts, gpuBrowser,
-    negativeControl: ["停止 CPU 时间采样被断言检出", "停止 GPU uniform 写入被断言检出"],
+  const report = { result: "PASS", candidate, harness, temporary, resolvedModule, modules: [...modules].sort(), counts, gpuCounts, gpuDualCounts, gpuBrowser, gpuDualBrowser,
+    negativeControl: ["停止 CPU 时间采样被断言检出", "停止 GPU uniform 写入被断言检出", "停止双轴 CPU 参考更新被断言检出"],
     browser: await browser.version(), node: process.version, calcit: run("calcit", ["-v"], runtime).trim(),
     times: [1, 0, 0.5, 0.25, 1], sameTimeInvalidations: ["model", "resources", "viewport"], requests,
     limitations: ["GPU 硬件结果独立见 gpuBrowser；设备 mock 不是硬件证据", "尚未验证逻辑生命周期集成、真实资源表释放与端到端性能", "模块缓存可复用；消费者目录和运行产物目录独立", "尚未验证仅 JS 片段修改后的显式重编译"] };
   await writeFile(join(artifacts, "report.json"), JSON.stringify(report, null, 2));
-  console.log(JSON.stringify({ result: "PASS", candidate, counts, gpuCounts, gpuBrowser, modules: modules.size, artifacts, runtime }, null, 2));
+  console.log(JSON.stringify({ result: "PASS", candidate, counts, gpuCounts, gpuBrowser, gpuDualBrowser, modules: modules.size, artifacts, runtime }, null, 2));
 } catch (error) {
   await writeFile(join(artifacts, "report.json"), JSON.stringify({ result: "FAIL", candidate, temporary, error: error.stack }, null, 2));
   if (page) await page.screenshot({ path: join(artifacts, "failure.png"), fullPage: true }).catch(() => {});
