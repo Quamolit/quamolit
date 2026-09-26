@@ -16,6 +16,17 @@
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ []
             :features $ #{} :js-ffi
+        'build-batch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-batch (plan) (batch/build-batch plan)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/BatchPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan
+        'create-batch-gpu! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create-batch-gpu! (canvas device format capacity) (batch/create-renderer! canvas device format capacity)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'js-ffi.webgpu/DeviceHost 'String 'Number
+            :features $ #{} :js-ffi
         'create-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-gpu! (canvas device format capacity) (gpu/create-renderer! canvas device format capacity)
           :examples $ []
@@ -166,6 +177,18 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'submit-batch! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn submit-batch! (host prepared)
+            batch/submit-update! host $ :delta prepared
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'quamolit.gpu-component/BatchPlan
+            :features $ #{} :js-ffi
+        'update-batch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-batch (previous plan) (batch/update-batch previous plan)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/BatchPlan)
+            :args $ [] 'quamolit.gpu-component/BatchPlan 'quamolit.retained-component/ComponentPlan
         'update-dual $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-dual (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare-dual

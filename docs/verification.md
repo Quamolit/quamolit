@@ -6,6 +6,8 @@
 
 ## 当前可执行门禁
 
+`yarn bench:consumer` 将[同源三路径帧测量](consumer-performance.md)接到独立安装/搬移消费者，默认桌面真实 GPU、预热 5 秒/采样 30 秒/3 次，比较 Canvas、CPU 采样→GPU、GPU 标准采样。当前只有两个矩形，不能当作 10k 或完整帧呈现性能验收。CI 的 `test:consumer` 短时模式仅检查 Canvas 链路/格式/计数，GPU 缺失单独 SKIP。`test:bench` 包含异常上传、热帧资源增长、未释放和结构重建的负例。
+
 `yarn test:gpu-component` 验证[公共计划 GPU 连接](gpu-component-plan.md)：严格类型、原生差量、Node 编译后 file/inline 调用、1000 时间帧缓存身份及六类版本失效、浏览器整层回退、异步 GPU 初始化期间的输入与非软件 GPU 专项。初始化竞态使用 mock，不算硬件验证。硬件不可用时专项明确 skip，不能记为通过；当前不测吞吐或标准动画 shader 采样。`yarn bench:gpu-component` 仅测 CPU 批次准备阶段，不能代替正式端到端验收。
 
 `yarn test:todolist` 验证 [TodoList 恢复](todolist-restoration.md)：严格类型、原生日志合同、Node 的重排打断/重入/错峰/100 次装卸/1000 时间帧共享，以及 Chromium 全像素文字参考、实际 Canvas 操作、导入失败隔离、两秒空闲停帧、DPR 1/2 和暂停 resize。文字为基础 monospace，未验证 GPU。
