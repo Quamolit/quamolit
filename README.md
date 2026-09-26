@@ -4,9 +4,9 @@ Quamolit in calcit-js / Calcit 版 Quamolit
 
 Quamolit 是用 Calcit 编写的声明式 Canvas 动画库。组件描述画面，应用模型保存动画状态；框架提供绘制与帧更新能力。
 
-**查看演示：** 运行 `yarn demo` 打开[统一演示导航](demos/README.md)。现有 26 个入口按能力分类，支持搜索和返回导航；`yarn release:demos` 构建可部署的完整演示站点。
+**查看演示：** 运行 `yarn demo` 打开[统一演示导航](demos/README.md)。现有 27 个入口按能力分类，支持搜索和返回导航；`yarn release:demos` 构建可部署的完整演示站点。
 
-原有 11 个示例已列入[完整恢复清单](docs/demo-restoration.md)，目前仍待恢复，不计入现有入口。导航预留艺术动画分类；独立消费者已采用全屏 Canvas 与可收起 DOM 浮层。
+原有 11 个示例已列入[完整恢复清单](docs/demo-restoration.md)。[Binary Tree](docs/binary-tree-restoration.md) 的递归运动已可全屏播放和可控时间验证，圆角描边与 Scene 集成仍待补齐；其余 10 项待恢复。导航预留艺术动画分类，动画页面采用全屏 Canvas 与可收起 DOM 浮层。
 
 后续开发以 [技术路线与 milestones](docs/roadmap.md)、[工作项规格](docs/work-items.md) 和 [检验规则](docs/verification.md) 为准。计划分为 M0 基线、M1 动画函数、M2 增量执行与 WebGPU、M3 完整应用、M4 性能发布；性能目标均需实测，不能把编译成功当作功能或性能验收。接手编码前请阅读 [AGENTS.md](AGENTS.md)。
 
@@ -33,9 +33,9 @@ yarn release
 
 English documentation and legacy API examples follow.
 
-Run `yarn demo` for the [demo gallery](demos/README.md): all 26 current entry pages, searchable by capability with return links. `yarn release:demos` builds a separate static demo site; experimental fixtures are clearly distinguished from the public Calcit integration.
+Run `yarn demo` for the [demo gallery](demos/README.md): all 27 current entry pages, searchable by capability with return links. `yarn release:demos` builds a separate static demo site; experimental fixtures are clearly distinguished from the public Calcit integration.
 
-All 11 original demos are tracked for restoration, not counted as working entries yet. An art category is reserved for future animations. The independent consumer now presents a viewport-filling Canvas with a collapsible DOM overlay; fixed-size diagnostics remain available.
+All 11 original demos are tracked for restoration. Binary Tree now runs with explicit-time Calcit geometry and a full-viewport Canvas; rounded strokes and Scene integration remain unfinished, and the other 10 demos are pending. An art category is reserved for future animations. Controls use collapsible DOM overlays; fixed-size diagnostics remain available.
 
 > what if we describe UI transitions in React's way? Previously written in [ClojureScript](https://github.com/Quamolit/quamolit.cljs).
 

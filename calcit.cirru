@@ -1850,6 +1850,61 @@
         :doc "|Calcit 编写的基础 Canvas2D 参考绘制；Scene 解释保留在 Quamolit，不在 js-ffi 宿主层。"
         :code $ quote $ ns quamolit.canvas-reference
           :require $ js-ffi.canvas-batches :as canvas
+    'quamolit.canvas-strokes $ %{} 'FileEntry
+      :defs $ {}
+        'StrokeSegment $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct StrokeSegment (:id 'String) (:x0 'Number) (:y0 'Number) (:x1 'Number) (:y1 'Number) (:width 'Number) (:color 'quamolit.motion/ColorRgba)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'draw-segment! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-segment! (context segment)
+            let
+                dx $ - (:x1 segment) (:x0 segment)
+                dy $ - (:y1 segment) (:y0 segment)
+                length $ sqrt $ + (* dx dx) (* dy dy)
+              when (> length 0) (context .save!)
+                context .transform! (/ dx length) (/ dy length)
+                  - 0 $ / dy length
+                  / dx length
+                  :x0 segment
+                  :y0 segment
+                canvas/fill-solid-rect! context 0
+                  - 0 $ / (:width segment) 2
+                  , length (:width segment)
+                    color-css $ :color segment
+                context .restore!
+              , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.canvas-strokes/StrokeSegment
+            :features $ #{} :js-ffi
+        'draw-segments! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-segments! (context segments)
+            assert |invalid-stroke-segment $ every? segments valid-segment?
+            each segments $ fn (segment) (draw-segment! context segment)
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost $ :: 'List 'quamolit.canvas-strokes/StrokeSegment
+            :features $ #{} :js-ffi
+        'valid-segment? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-segment? (segment)
+            and
+              motion/finite-number? $ :x0 segment
+              motion/finite-number? $ :y0 segment
+              motion/finite-number? $ :x1 segment
+              motion/finite-number? $ :y1 segment
+              motion/finite-number? $ :width segment
+              >= (:width segment) 0
+              motion/valid-color? $ :color segment
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.canvas-strokes/StrokeSegment
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.canvas-strokes
+          :require (js-ffi.canvas-batches :as canvas)
+            quamolit.canvas-reference :refer $ color-css
+            quamolit.motion :as motion
     'quamolit.comp.debug $ %{} 'FileEntry
       :defs $ {}
         'comp-debug $ %{} 'CodeEntry (:doc |)
@@ -2814,6 +2869,92 @@
           :require
             quamolit.motion :refer $ finite-number? Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar
             calcit.test :refer $ is= is-throws
+    'quamolit.examples.binary-tree $ %{} 'FileEntry
+      :defs $ {}
+        'branches $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn branches (time depth id x y angle scale)
+            let
+                left $ segment (str id |L) x y angle scale 80 -220
+                right $ segment (str id |R) x y angle scale -140 -100
+                shift-a $ * 0.0206 $ sin
+                  / (* 10 time) 17.9
+                shift-b $ * 0.0315 $ sin
+                  / (* 10 time) 16.6
+                degree $ / &PI 180
+              if (= depth 0) ([] left right)
+                concat ([] left right)
+                  branches time (dec depth) (str id |L) (:x1 left) (:y1 left)
+                    + angle $ * degree $ + 10 (* 30 shift-a)
+                    * scale $ + 0.6 $ * 1.3 shift-a
+                  branches time (dec depth) (str id |R) (:x1 right) (:y1 right)
+                    + angle $ * degree $ + 10 (* 20 shift-b)
+                    * scale $ + 0.73 $ * 2 shift-b
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'String 'Number 'Number 'Number 'Number
+            :return $ :: 'List 'quamolit.canvas-strokes/StrokeSegment
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context time depth)
+            strokes/draw-segments! context $ :scene $ frame-at time depth
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number 'Number
+            :features $ #{} :js-ffi
+        'evaluate $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn evaluate (depth model input resources viewport time) (branches time depth |root 0 240 0 1)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number
+            :return $ :: 'List 'quamolit.canvas-strokes/StrokeSegment
+        'frame-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn frame-at (time depth)
+            assert |invalid-tree-depth $ and (motion/finite-number? depth)
+              = depth $ floor depth
+              >= depth 0
+              <= depth 8
+            direct/sample-at
+              direct/DirectRequest :id |binary-tree :time time :versions
+                direct/FrameVersions :component 0 :motion depth :model 0 :input 0 :resources 0 :viewport 0
+                , :motion depth :model 0 :input 0 :resources 0 :viewport 0
+              , evaluate
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number
+            :return $ :: 'quamolit.direct-frame/DirectFrame $ :: 'List 'quamolit.canvas-strokes/StrokeSegment
+          :tests $ [] $ %{} 'TestEntry (:name |original-depth-and-replay)
+            :code $ quote $ do
+              is= 126 $ count $ :scene (frame-at 0 5)
+              is=
+                :scene $ frame-at 1 5
+                :scene $ frame-at 1 5
+              is= 2 $ count $ :scene (frame-at 0 0)
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'segment $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn segment (id x y angle scale dx dy)
+            let
+                c $ cos angle
+                s $ sin angle
+              strokes/StrokeSegment :id id :x0 x :y0 y :x1
+                + x $ * scale $ - (* c dx) (* s dy)
+                , :y1
+                  + y $ * scale $ + (* s dx) (* c dy)
+                  , :width (* 4 scale) :color $ motion/ColorRgba :r 0.1 :g (/ 19 30) :b 0.9 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-strokes/StrokeSegment)
+            :args $ [] 'String 'Number 'Number 'Number 'Number 'Number 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.binary-tree
+          :require (quamolit.canvas-strokes :as strokes) (quamolit.motion :as motion) (quamolit.direct-frame :as direct)
+            calcit.test :refer $ is=
     'quamolit.fixed-step $ %{} 'FileEntry
       :defs $ {}
         'SimulationState $ %{} 'CodeEntry

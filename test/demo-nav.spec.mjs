@@ -25,7 +25,7 @@ test("导航分类、搜索、刷新与移动端可用", async ({ page }, testIn
 test("恢复清单可搜索但不能假装打开，艺术分类有空状态", async ({ page }) => {
   await page.goto("demos/index.html?group=originals");
   await expect(page.locator("[data-planned]")).toHaveCount(catalog.planned.length);
-  await expect(page.locator("a[data-demo]")).toHaveCount(0);
+  await expect(page.locator("a[data-demo]")).toHaveCount(catalog.entries.filter(e => e.group === "originals").length);
   await page.getByLabel("查找演示").fill("折扇");
   await expect(page.locator("[data-planned]")).toHaveCount(1);
   await page.reload();
@@ -92,6 +92,7 @@ for (const entry of catalog.entries) {
     expect(errors).toEqual([]);
     await testInfo.attach("entry", { body: JSON.stringify({ ...entry, url: page.url(), browser: page.context().browser().version(), gpu: "forced-unavailable; fallback only", errors }, null, 2), contentType: "application/json" });
     await page.getByRole("navigation", { name: "演示导航" }).getByRole("link").click();
+    await page.getByLabel("分类", { exact: true }).selectOption("");
     await expect(page.locator("a[data-demo]")).toHaveCount(catalog.entries.length);
     expect(errors).toEqual([]);
   });
