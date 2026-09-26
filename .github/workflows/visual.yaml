@@ -227,6 +227,21 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Check restored Icons interruptions and paths
+        if: inputs.mutation != 'color'
+        run: yarn test:icons-demo
+        env:
+          CI: "true"
+
+      - name: Upload Icons fixed-time evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-icons-${{ github.run_id }}
+          path: test-results/icons/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Check restored TodoList lifecycle and Canvas interaction
         if: inputs.mutation != 'color'
         run: yarn test:todolist
