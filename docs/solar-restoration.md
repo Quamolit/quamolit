@@ -19,4 +19,4 @@ yarn test:demo-nav
 
 - 现有 Scene IR 尚无圆弧图元，以 48 段闭合折线近似原 Canvas arc；当前是描边轨道，旧版实心填充及细节配色未完整恢复。
 - 每次采样重建 490 个顶点。保留几何、分段画质策略、GPU 路径与真实设备性能尚未实现。
-- 其余六个原 demo（table、finder、raining、icons、folding-fan、drag-demo）仍待恢复；本切片不关闭 #36 或 M3。
+- Icons 已有独立恢复切片；其余五个原 demo（table、finder、raining、folding-fan、drag-demo）仍待恢复。本切片不关闭 #36 或 M3。

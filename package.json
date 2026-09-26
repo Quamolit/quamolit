@@ -23,6 +23,8 @@
     "test:curve-demo": "calcit analyze check-public --ns quamolit.examples.curve && calcit test --tag curve --require-match && yarn compile:curve && node --test test/curve-smoke.mjs && playwright test --config test/curve.playwright.config.mjs",
     "compile:solar": "calcit --emit-path target/js/solar/ --init-fn quamolit.examples.solar/main! --reload-fn quamolit.examples.solar/reload! calcit.cirru js",
     "test:solar-demo": "calcit analyze check-public --ns quamolit.examples.solar && calcit test --tag solar --require-match && yarn compile:solar && node --test test/solar-smoke.mjs && playwright test --config test/solar.playwright.config.mjs",
+    "compile:icons": "calcit --emit-path target/js/icons/ --init-fn quamolit.examples.icons/main! --reload-fn quamolit.examples.icons/reload! calcit.cirru js",
+    "test:icons-demo": "calcit analyze check-public --ns quamolit.examples.icons && calcit test --tag icons --require-match && yarn compile:icons && node --test test/icons-smoke.mjs && playwright test --config test/icons.playwright.config.mjs",
     "test:binary-tree": "calcit analyze check-public --ns quamolit.scene-ir --ns quamolit.scene-diff --ns quamolit.scene-binding --ns quamolit.presence --ns quamolit.canvas-reference --ns quamolit.canvas-strokes --ns quamolit.retained-path --ns quamolit.examples.binary-tree && calcit test quamolit.examples.binary-tree/frame-at --require-match && calcit test --tag retained-path --require-match && yarn compile:binary-tree && node --test test/binary-tree-smoke.mjs test/scene-polyline-smoke.mjs test/retained-path-smoke.mjs",
     "compile:demos": "node scripts/prepare-demos.mjs",
     "demo": "yarn compile:demos && vite --host 127.0.0.1 --open /demos/index.html",

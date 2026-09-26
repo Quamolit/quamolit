@@ -3526,6 +3526,189 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.curve
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.icons $ %{} 'FileEntry
+      :defs $ {}
+        'IconModel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct IconModel (:count 'Number) (:increase 'quamolit.transition/TransitionIntent) (:playing 'Bool) (:play 'quamolit.transition/TransitionIntent) (:at 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'count-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn count-value (model time)
+            transition/sample-transition (:increase model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.icons/IconModel 'Number
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context model time)
+            reference/draw-reference! context $ scene-at model time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.examples.icons/IconModel 'Number
+        'increase $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn increase (model at)
+            assert |retroactive-icon-event $ >= at $ :at model
+            let
+                next $ inc $ :count model
+              struct-with model (:count next)
+                :increase $ transition/interrupt-transition (:increase model) next at 0.28 $ motion/Easing :smoothstep
+                :at at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.icons/IconModel)
+            :args $ [] 'quamolit.examples.icons/IconModel 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |interrupted-count-continuity)
+            :code $ quote $ let
+                initial-event $ increase (initial) 0
+                before $ count-value initial-event 0.1
+                interrupted $ increase initial-event 0.1
+              assert= before $ count-value interrupted 0.1
+            :tags $ #{} :icons :unit
+        'initial $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial ()
+            IconModel :count 0 :increase
+              transition/start-transition |increase 0 0 0 0.28 $ motion/Easing :smoothstep
+              , :playing false :play
+                transition/start-transition |play 0 0 0 0.18 $ motion/Easing :smoothstep
+                , :at 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.icons/IconModel)
+            :args $ []
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'mix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn mix (from to progress)
+            + from $ * (- to from) progress
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number
+        'play-left $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn play-left (progress)
+            let
+                a $ motion/Vec2 :x 180 :y -20
+                b $ motion/Vec2 :x 180 :y 20
+                c $ motion/Vec2 :x
+                  + 200 $ mix -5 0 progress
+                  , :y $ mix 20 10 progress
+                d $ motion/Vec2 :x
+                  + 200 $ mix -5 0 progress
+                  , :y $ mix -20 -10 progress
+              poly-node |play-left ([] a b c d a) 4 $ motion/ColorRgba :r 0.62 :g 0.89 :b 0.51 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'Number
+        'play-right $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn play-right (progress)
+            let
+                a $ motion/Vec2 :x
+                  + 200 $ mix 5 0 progress
+                  , :y $ mix -20 -10 progress
+                b $ motion/Vec2 :x 220 :y $ mix -20 0 progress
+                c $ motion/Vec2 :x 220 :y $ mix 20 0 progress
+                d $ motion/Vec2 :x
+                  + 200 $ mix 5 0 progress
+                  , :y $ mix 20 10 progress
+              poly-node |play-right ([] a b c d a) 4 $ motion/ColorRgba :r 0.62 :g 0.89 :b 0.51 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'Number
+        'play-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn play-value (model time)
+            transition/sample-transition (:play model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.icons/IconModel 'Number
+        'plus-line $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn plus-line (id ax ay bx by angle)
+            poly-node id
+              [] (rotated-point -200 0 ax ay angle) (rotated-point -200 0 bx by angle)
+              , 5 $ motion/ColorRgba :r 0.28 :g 0.83 :b 0.9 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'Number 'Number 'Number 'Number 'Number
+        'poly-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn poly-node (id points width color)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline $ scene/PolylineNode :points points :width width :stroke color
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String (:: 'List 'quamolit.motion/Vec2) 'Number 'quamolit.motion/ColorRgba
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'rotated-point $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rotated-point (cx cy x y angle)
+            motion/Vec2 :x
+              + cx $ -
+                * x $ cos angle
+                * y $ sin angle
+              , :y $ + cy $ +
+                * x $ sin angle
+                * y $ cos angle
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (model time)
+            let
+                count-now $ count-value model time
+                play-now $ play-value model time
+                angle $ * (* 90 count-now) (/ &PI 180)
+                age $ - time $ :start
+                  :tween $ :increase model
+                phase $ if (< age 0) 0 $ if (> age 0.28) 1 (/ age 0.28)
+                old-count $ if
+                  > (:count model) 0
+                  - (:count model) 1
+                  , 0
+              scene/SceneDocument :nodes $ [] (plus-line |plus-h -20 0 20 0 angle) (plus-line |plus-v 0 -20 0 20 angle)
+                text-node |count-old (str old-count)
+                  - 10 $ * 18 phase
+                  - 1 phase
+                text-node |count-new
+                  str $ :count model
+                  + 28 $ * -18 phase
+                  , phase
+                play-left play-now
+                play-right play-now
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.examples.icons/IconModel 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |six-icon-paths)
+            :code $ quote $ assert= 6
+              count $ :nodes $ scene-at (initial) 0
+            :tags $ #{} :icons :unit
+        'text-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn text-node (id value y alpha)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x -138 :y y :size 42 :text value :fill
+              motion/ColorRgba :r 0.9 :g 0.96 :b 1 :a alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'String 'Number 'Number
+        'toggle-play $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn toggle-play (model at)
+            assert |retroactive-icon-event $ >= at $ :at model
+            let
+                next $ not $ :playing model
+                target $ if next 1 0
+              struct-with model (:playing next)
+                :play $ transition/interrupt-transition (:play model) target at 0.18 $ motion/Easing :smoothstep
+                :at at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.icons/IconModel)
+            :args $ [] 'quamolit.examples.icons/IconModel 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |interrupted-shape-continuity)
+            :code $ quote $ let
+                initial-event $ toggle-play (initial) 0
+                before $ play-value initial-event 0.1
+                interrupted $ toggle-play initial-event 0.1
+              assert= before $ play-value interrupted 0.1
+            :tags $ #{} :icons :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.icons
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference)
     'quamolit.examples.solar $ %{} 'FileEntry
       :defs $ {}
         'build-circle $ %{} 'CodeEntry (:doc |)

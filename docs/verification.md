@@ -14,7 +14,7 @@
 
 `yarn test:binary-tree` 严格检查 Calcit 线段参考与原有摆动树，执行原生和 3 项 Node 合同；浏览器验证原有递归运动的独立矩阵/画面对照、负例和全屏播放控制。见 [Binary Tree 恢复边界](binary-tree-restoration.md)；不能据此宣称完整 Path IR 或 GPU 已实现。
 
-全屏与恢复导航：`test:demo-nav` 当前为 3 项 Node + 39 项浏览器检查；包括原有 11 项不可遗漏、待恢复不显示运行链接、艺术分类空状态，以及 DPR 1/2、桌面/窄屏、暂停 resize 后状态不变、像素和浮层键盘操作。跨物理显示器 DPR 切换、旧 11 个动画的完整验收与真实 GPU 尚未完成。见[恢复清单](demo-restoration.md)。
+全屏与恢复导航：`test:demo-nav` 当前为 3 项 Node + 40 项浏览器检查；包括原有 11 项不可遗漏、待恢复不显示运行链接、艺术分类空状态，以及 DPR 1/2、桌面/窄屏、暂停 resize 后状态不变、像素和浮层键盘操作。跨物理显示器 DPR 切换、旧 11 个动画的完整验收与真实 GPU 尚未完成。见[恢复清单](demo-restoration.md)。
 
 `yarn test:demo-nav` 验证[完整演示导航](../demos/README.md)：清单无遗漏、统一编译、全部页面静态构建后在子路径部署、所有已实现入口初始化与导航往返、搜索/分类/刷新/移动端。仅验证 GPU 不可用时的回退，不替代真实 GPU 画面或吞吐；CI 保存站点、导航截图与失败 trace。
 

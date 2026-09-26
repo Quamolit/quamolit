@@ -31,4 +31,4 @@ yarn test:clock-demo
 - **未恢复随机散开**：旧 `comp-stroke` 在透明度过渡时给线段端点加 `rand-shift` 偏移；本切片用确定性渐变替换，保证乱序/重复采样可复现。这是有意的简化，需在后续切片单独引入固定 seed 才能恢复随机效果。
 - **颜色**：旧实现按透明度在两条 `hsl` 间切换；当前使用固定蓝色描边加透明度。颜色语义待补。
 - **后端**：仅 Canvas 参考；GPU 路径与真实硬件证据未涉。
-- **其余 demo**：Solar 与 Curve 已有独立恢复切片；table、finder、raining、icons、folding-fan、drag-demo 仍待恢复。不能据此关闭 #36 或 M3。
+- **其余 demo**：Solar、Curve 与 Icons 已有独立恢复切片；table、finder、raining、folding-fan、drag-demo 仍待恢复。不能据此关闭 #36 或 M3。
