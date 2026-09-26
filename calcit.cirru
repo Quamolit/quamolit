@@ -1826,6 +1826,25 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.motion/ColorRgba
+        'draw-reference! $ %{} 'CodeEntry
+          :doc "|整场景预检后按声明顺序绘制顶层 rect/polyline；group、子节点和 instances 明确拒绝。调用方负责清屏、视口与绑定求值。"
+          :code $ quote $ defn draw-reference! (context document)
+            assert |invalid-reference-scene $ scene/validate-scene document
+            assert |unsupported-reference-scene $ every? (:nodes document) supported-flat-node?
+            each (:nodes document)
+              fn (node)
+                match (:content node)
+                  (:rect rect)
+                    canvas/fill-solid-rect! context (:x rect) (:y rect) (:width rect) (:height rect)
+                      color-css $ :fill rect
+                  (:polyline path) (draw-round-path! context path)
+                  (:group group) (raise |unsupported-reference-group)
+                  (:instances instances) (raise |unsupported-reference-instances)
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument
+            :features $ #{} :js-ffi
         'draw-reference-rects! $ %{} 'CodeEntry
           :doc "|仅供基础 Scene IR 的纯色矩形参考画面使用；按节点顺序绘制矩形，当前不处理 group 语义或 instances。Quamolit 负责 Scene 遍历，js-ffi 只提供通用 Canvas 方法。"
           :code $ quote $ defn draw-reference-rects! (context document)
@@ -1841,15 +1860,53 @@
                       color-css $ :fill rect
                   (:group group) &unit
                   (:instances instances) &unit
+                  (:polyline path) (raise |polyline-requires-draw-reference)
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument
             :features $ #{} :js-ffi
+        'draw-round-path! $ %{} 'CodeEntry (:doc "|共享原生开放圆头/圆连接描边原语；零宽不绘制，保存样式但不保留当前 path。")
+          :code $ quote $ defn draw-round-path! (context path)
+            assert |invalid-scene-polyline $ scene/valid-polyline? path
+            when
+              > (:width path) 0
+              context .save!
+              js-set context :stroke-style $ color-css $ :stroke path
+              js-set context :line-width $ :width path
+              js-set context :line-cap |round
+              js-set context :line-join |round
+              context .begin-path!
+              let
+                  start $ &list:nth (:points path) 0
+                context .move-to! (:x start) (:y start)
+              each
+                rest $ :points path
+                fn (point)
+                  context .line-to! (:x point) (:y point)
+              context .stroke!
+              context .restore!
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/PolylineNode
+            :features $ #{} :js-ffi
+        'supported-flat-node? $ %{} 'CodeEntry (:doc "|声明基础 Canvas 参考的支持集合；不能静默丢弃不支持的 Scene 节点。")
+          :code $ quote $ defn supported-flat-node? (node)
+            and
+              empty? $ :parent node
+              match (:content node)
+                (:rect rect) true
+                (:polyline path) true
+                (:group group) false
+                (:instances instances) false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneNode
       :ns $ %{} 'NsEntry
         :doc "|Calcit 编写的基础 Canvas2D 参考绘制；Scene 解释保留在 Quamolit，不在 js-ffi 宿主层。"
         :code $ quote $ ns quamolit.canvas-reference
-          :require $ js-ffi.canvas-batches :as canvas
+          :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene)
     'quamolit.canvas-strokes $ %{} 'FileEntry
       :defs $ {}
         'RoundPolyline $ %{} 'CodeEntry (:doc |)
@@ -1866,23 +1923,7 @@
         'draw-polyline! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-polyline! (context path)
             assert |invalid-round-polyline $ valid-polyline? path
-            when
-              > (:width path) 0
-              context .save!
-              js-set context :stroke-style $ color-css $ :color path
-              js-set context :line-width $ :width path
-              js-set context :line-cap |round
-              js-set context :line-join |round
-              context .begin-path!
-              let
-                  start $ &list:nth (:points path) 0
-                context .move-to! (:x start) (:y start)
-              each
-                rest $ :points path
-                fn (point)
-                  context .line-to! (:x point) (:y point)
-              context .stroke!
-              context .restore!
+            draw-round-path! context $ scene/PolylineNode :points (:points path) :width (:width path) :stroke $ :color path
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -1957,8 +1998,9 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.canvas-strokes
           :require (js-ffi.canvas-batches :as canvas)
-            quamolit.canvas-reference :refer $ color-css
+            quamolit.canvas-reference :refer $ color-css draw-round-path!
             quamolit.motion :as motion
+            quamolit.scene-ir :as scene
     'quamolit.comp.debug $ %{} 'FileEntry
       :defs $ {}
         'comp-debug $ %{} 'CodeEntry (:doc |)
@@ -2953,7 +2995,7 @@
             :return $ :: 'List 'quamolit.canvas-strokes/RoundPolyline
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context time depth)
-            strokes/draw-polylines! context $ :scene $ frame-at time depth
+            reference/draw-reference! context $ scene-at time depth
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number 'Number
@@ -2996,6 +3038,16 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
+        'scene-at $ %{} 'CodeEntry
+          :doc "|绝对时间全量采样为正式 SceneDocument；保持旧 frame-at 的身份、顺序和几何，不承诺跨帧结构复用。"
+          :code $ quote $ defn scene-at (time depth)
+            scene/SceneDocument :nodes $ map
+              :scene $ frame-at time depth
+              fn (path)
+                scene/SceneNode :id (:id path) :key (:id path) :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline $ scene/PolylineNode :points (:points path) :width (:width path) :stroke (:color path)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number 'Number
         'segment $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn segment (id x y angle scale dx dy)
             let
@@ -3013,6 +3065,8 @@
         :code $ quote $ ns quamolit.examples.binary-tree
           :require (quamolit.canvas-strokes :as strokes) (quamolit.motion :as motion) (quamolit.direct-frame :as direct)
             calcit.test :refer $ is=
+            quamolit.scene-ir :as scene
+            quamolit.canvas-reference :as reference
     'quamolit.fixed-step $ %{} 'FileEntry
       :defs $ {}
         'SimulationState $ %{} 'CodeEntry
@@ -5660,6 +5714,7 @@
                   %some $ :source instances
                 (:group group) (%none)
                 (:rect rect) (%none)
+                (:polyline path) (%none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.presence/PresenceItem
@@ -6860,6 +6915,7 @@
               (:rect rect)
                 scene-ir/SceneContent :rect $ apply-rect-scalar rect target value
               (:instances instance) (raise |unsupported-instance-binding)
+              (:polyline path) (raise |unsupported-polyline-binding)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
             :args $ [] 'quamolit.scene-ir/SceneContent 'quamolit.scene-ir/ScalarTarget 'Number
@@ -7081,6 +7137,7 @@
         'GeometrySignature $ %{} 'CodeEntry
           :doc "|Closed geometry-only projection of supported Scene content."
           :code $ quote $ defenum GeometrySignature (:group 'quamolit.scene-ir/Matrix2D 'quamolit.scene-ir/ClipSpec) (:rect 'Number 'Number 'Number 'Number) (:instances 'Number 'Number)
+            :polyline (:: 'List 'quamolit.motion/Vec2) 'Number
           :examples $ []
           :schema $ :: 'EnumDef
         'IdentitySegment $ %{} 'CodeEntry
@@ -7090,7 +7147,7 @@
           :schema $ :: 'StructDef
         'PropertySignature $ %{} 'CodeEntry
           :doc "|Closed visual-property projection; separate from geometry and resource versions."
-          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba)
+          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ :: 'EnumDef
         'ResourceSignature $ %{} 'CodeEntry
@@ -7382,6 +7439,8 @@
                 GeometrySignature :rect (:x rect) (:y rect) (:width rect) (:height rect)
               (:instances instances)
                 GeometrySignature :instances (:width instances) (:height instances)
+              (:polyline path)
+                GeometrySignature :polyline (:points path) (:width path)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/GeometrySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -7441,6 +7500,8 @@
                 PropertySignature :rect $ :fill rect
               (:instances instances)
                 PropertySignature :instances $ :fill instances
+              (:polyline path)
+                PropertySignature :polyline $ :stroke path
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/PropertySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -7451,6 +7512,7 @@
               (:rect rect) (ResourceSignature :none)
               (:instances instances)
                 ResourceSignature :instances $ :source instances
+              (:polyline path) (ResourceSignature :none)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/ResourceSignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -7494,6 +7556,13 @@
           :code $ quote $ defstruct Matrix2D (:a 'Number) (:b 'Number) (:c 'Number) (:d 'Number) (:e 'Number) (:f 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'PolylineNode $ %{} 'CodeEntry (:doc "|开放圆头/圆连接折线；至少两点，有限非负宽度，直通道 sRGB 颜色，不含宿主句柄。")
+          :code $ quote $ defstruct PolylineNode
+            :points $ :: 'List 'quamolit.motion/Vec2
+            :width 'Number
+            :stroke 'quamolit.motion/ColorRgba
+          :examples $ []
+          :schema $ :: 'StructDef
         'RectNode $ %{} 'CodeEntry
           :doc "|Solid rectangle geometry and straight-alpha sRGB color."
           :code $ quote $ defstruct RectNode (:x 'Number) (:y 'Number) (:width 'Number) (:height 'Number) (:fill 'quamolit.motion/ColorRgba)
@@ -7511,7 +7580,7 @@
           :schema $ :: 'EnumDef
         'SceneContent $ %{} 'CodeEntry
           :doc "|Closed primitive/group/instance-layer union, independent from execution plans."
-          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode)
+          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneDocument $ %{} 'CodeEntry
@@ -7554,6 +7623,7 @@
               (:group group) |group
               (:rect rect) |rect
               (:instances instances) |instances
+              (:polyline path) |polyline
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -7732,6 +7802,7 @@
                     >= (:width instances) 0
                     >= (:height instances) 0
                     valid-color? $ :fill instances
+              (:polyline path) (valid-polyline? path)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -7751,6 +7822,19 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
+        'valid-polyline? $ %{} 'CodeEntry (:doc "|验证折线点数、有限坐标、有限非负宽度和颜色。")
+          :code $ quote $ defn valid-polyline? (path)
+            and
+              >=
+                count $ :points path
+                , 2
+              every? (:points path) finite-vec2?
+              finite-number? $ :width path
+              >= (:width path) 0
+              valid-color? $ :stroke path
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/PolylineNode
         'valid-prefix? $ %{} 'CodeEntry
           :doc "|Walk preorder nodes and reject invalid topology or duplicate identities."
           :code $ quote $ defn valid-prefix? (remaining earlier)
@@ -7850,7 +7934,7 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.scene-ir
           :require
-            quamolit.motion :refer $ finite-number? ColorRgba
+            quamolit.motion :refer $ finite-number? ColorRgba finite-vec2?
             calcit.test :refer $ is= is-throws
     'quamolit.test.component-fixture $ %{} 'FileEntry
       :defs $ {}

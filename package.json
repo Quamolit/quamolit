@@ -12,7 +12,7 @@
   },
   "scripts": {
     "compile:binary-tree": "calcit --emit-path target/js/binary-tree/ --init-fn quamolit.examples.binary-tree/main! --reload-fn quamolit.examples.binary-tree/reload! calcit.cirru js",
-    "test:binary-tree": "calcit analyze check-public --ns quamolit.canvas-strokes --ns quamolit.examples.binary-tree && calcit test quamolit.examples.binary-tree/frame-at --require-match && yarn compile:binary-tree && node --test test/binary-tree-smoke.mjs",
+    "test:binary-tree": "calcit analyze check-public --ns quamolit.scene-ir --ns quamolit.scene-diff --ns quamolit.scene-binding --ns quamolit.presence --ns quamolit.canvas-reference --ns quamolit.canvas-strokes --ns quamolit.examples.binary-tree && calcit test quamolit.examples.binary-tree/frame-at --require-match && yarn compile:binary-tree && node --test test/binary-tree-smoke.mjs test/scene-polyline-smoke.mjs",
     "compile:demos": "node scripts/prepare-demos.mjs",
     "demo": "yarn compile:demos && vite --host 127.0.0.1 --open /demos/index.html",
     "release:demos": "yarn compile:demos && vite build --config demos/vite.config.mjs --base=./",

@@ -88,11 +88,12 @@ test("播放/暂停/分享时间、resize、浮层与 reduced-motion", async ({ 
   await page.reload();
   await page.waitForFunction(()=>window.treeDemo?.snapshot().time===2.5);
   const before=await page.evaluate(()=>window.treeDemo.snapshot());
-  expect(before.paths).toHaveLength(63);
+  expect(before.scene.nodes).toHaveLength(63);
+  expect(before.scene.nodes.every(n=>n.content[0]==="polyline")).toBe(true);
   await page.setViewportSize({width:390,height:844});
   await expect.poll(()=>page.locator("canvas").evaluate(c=>c.width)).toBe(390);
   expect(await page.locator("canvas").boundingBox()).toEqual({x:0,y:0,width:390,height:844});
-  expect(await page.evaluate(()=>window.treeDemo.snapshot().paths)).toEqual(before.paths);
+  expect(await page.evaluate(()=>window.treeDemo.snapshot().scene)).toEqual(before.scene);
   expect(await page.evaluate(()=>window.treeDemo.snapshot().samples)).toBe(before.samples);
   await page.locator("#panel-toggle").click();
   await expect(page.locator("#panel")).toBeHidden();
@@ -116,11 +117,11 @@ test("DPR 2 与首个 rAF 时间戳早于注册时间", async ({ browser }) => {
     await page.evaluate(()=>window.treeDemo.seek(5));
     await expect.poll(()=>page.locator("canvas").evaluate(c=>[c.width,c.height])).toEqual([1800,1400]);
     const before=await page.evaluate(()=>window.treeDemo.snapshot());
-    expect(before.paths).toHaveLength(63);
+    expect(before.scene.nodes).toHaveLength(63);
     await page.setViewportSize({width:390,height:844});
     await expect.poll(()=>page.locator("canvas").evaluate(c=>[c.width,c.height])).toEqual([780,1688]);
     const after=await page.evaluate(()=>window.treeDemo.snapshot());
-    expect(after.time).toBe(5); expect(after.paths).toEqual(before.paths); expect(after.samples).toBe(before.samples);
+    expect(after.time).toBe(5); expect(after.scene).toEqual(before.scene); expect(after.samples).toBe(before.samples);
     expect(errors).toEqual([]);
   } finally { await context.close(); }
 });

@@ -24,12 +24,14 @@ yarn test:binary-tree
 yarn test:demo-nav
 ```
 
-第一条严格检查 15 个 Calcit 定义、原生测试和 3 项 Node 合同；独立 oracle 用旧版矩阵组合，不复制被测角度累加算法，对 126 条边的端点、宽度、ID 和颜色逐项核对（误差 < 1e-10）。偏移分支负例必须失败。拒绝非法深度/时间，核对 63 次 stroke、状态恢复、整批非法输入无宿主副作用及零宽跳过。这是调用计数，不是性能测量。
+第一条严格检查 151 个 Calcit 定义、原生测试和 6 项 Node 合同；独立 oracle 用旧版矩阵组合，不复制被测角度累加算法，对 126 条边的端点、宽度、ID 和颜色逐项核对（误差 < 1e-10）。偏移分支负例必须失败。拒绝非法深度/时间，核对 63 次 stroke、状态恢复、整批非法输入无宿主副作用及零宽跳过。新增正式 Scene 身份/序列化、diff 分类、混合层序和能力拒绝验证。这是调用计数，不是性能测量。
 
 导航门禁包含乱序时间 `[5,0,2.5,10,5]`、清空画布负例、播放暂停、分享刷新、reduced-motion、DPR 1/2、移动端/resize/浮层操作。现在参考由历史独立矩阵生成每个分叉的三点路径，以原生 round stroke 绘制。alpha 误差仍仅统计覆盖像素（均值 < 4/255），实色 RGB 容差仍为 1，未放宽阈值。保存固定时间、浮层与移动端截图；2.5 秒另附 `tree-old`（上一版平头矩形近似）和 `tree-diff`（alpha 差异放大 4 倍，橙色）PNG，旧近似须有超过 100 个差异像素。
 
 ## 未完成与下一步
 
-这不是完整 Scene IR path：每次采样全量构造 63 条路径；暂停 resize 复用帧不等于连续动画保留式优化。不是 WebGPU，不提供加速结论。通用 Path IR、拓扑保留和 GPU 由 #53/#50/#40 承接；不关闭这些 issue 或 M2/M3。其他 10 个原有示例待恢复。下一切片把同一动画接入 Scene/保留计划，不持续扩大旁路 renderer。
+浏览器和 `draw!` 已改用 `scene-at(time, depth)` → `SceneDocument` → 公共 `draw-reference!`，63 条正式 polyline 与旧采样的 ID、顺序和几何一一对应。旧 `frame-at`/`RoundPolyline` 接口保留，并委托共享绘制原语；主入口不再走独立路径列表 renderer。能力边界见 [Scene 折线契约](scene-ir-core.md)。
+
+这仍不是完整 Path IR：每次采样全量构造 63 条路径及 Scene 节点；暂停 resize 复用 Scene 不等于连续动画保留式优化。不是 WebGPU，不提供加速结论。通用 Path IR、拓扑保留和 GPU 由 #53/#50/#40 承接；不关闭这些 issue 或 M2/M3。其他 10 个原有示例待恢复。下一切片应把同一动画接入保留计划，以全量参考逐帧对照，明确证明结构/几何更新边界，不能把缓存最终帧冒充结构复用。
 
 上游接口见 [js-ffi #122](https://github.com/calcit-lang/js-ffi/pull/122) 与 [0.2.1-alpha.1](https://github.com/calcit-lang/js-ffi/releases/tag/0.2.1-alpha.1)。安装沿用 `caps --ci`：touch-control 仍请求 js-ffi 0.1.35，根项目选择新版本，存在明确版本冲突警告，`caps --strict` 因此不通过；这是传递版本债务，未通过放宽 Calcit 类型检查处理。Yarn 引用和 lockfile 同步更新。
