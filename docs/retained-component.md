@@ -4,6 +4,12 @@
 
 ## 使用合同
 
+新统一入口为 `build-execution-plan(request, declare)` / `update-execution-plan(plan, request, declare)`；声明返回 `ExecutionDeclaration { component: ComponentDeclaration, transforms: TransformSampler }`。`TransformSampler :none` 只有标量更新，`:cpu sample` 提供纯函数 `sample(time) -> List<Matrix2D>`，数量与 Scene 节点一致、顺序相同，矩阵分量有限。闭包只在执行声明/运行计划，不进入可序列化 Scene/Motion IR。CPU 闭包不自动转 WGSL。
+
+两种动画都返回同一个 `ComponentPlan`，共用 `sample-plan-at`；新增 `draw-plan!` 按声明顺序混合绘制顶层矩形与折线，先应用标量绑定再复合各节点局部变换。支持任意有限绝对时间，同时间六类版本变化均重建，替换声明/闭包必须提升 component/motion 版本。更换 Model、资源等不能只调用时间采样入口。构建/采样失败不污染旧计划。
+
+旧 `build-component-plan` / `update-component-plan` 保留为无变换的兼容入口；新执行声明必须成对使用新的构建/更新入口，不用旧更新函数重建包含变换的计划。变换更新共享静态节点、局部几何与预编译标量槽位，`transform-samples` 单独记录采样调用次数。绘制先拒绝 group/instances/子节点，不提供裁剪或隔离组透明度。
+
 - `build-component-plan(request, declare)`：检查身份、时间与六类版本，调用声明函数一次，验证 Scene 和描述符，解析所有标量绑定并生成请求时间的首帧。
 - `sample-plan-at(plan, time)`：只有时间变化时使用；支持负时间、乱序、倒放与重复。仅遍历预编译绑定槽位，通过持久列表更新对应节点，未绑定节点继续共享。
 - `update-component-plan(plan, request, declare)`：同身份和完整版本下只采样；身份或任一版本变更时保守地重新声明和构建。调用者更换声明函数或 props 时必须提升 `component` 版本，Motion 改变提升 `motion` 版本。
@@ -40,5 +46,7 @@ Chromium 验证两侧全部像素相同，另用独立期望检查 x/y/width、�
 `declarations` / `plan-builds` 是构建次数；`binding-samples` / `node-writes` 按槽位计数，多字段绑定同一节点会多次写入；`skipped-updates` 记录同一时间和版本的重复请求。它们不统计所有底层分配、实际复制字节、draw call 或 GPU 上传。
 
 本路径是 CPU 标量绑定的首个公共集成，版本变化仍整体重声明。暂未实现逐绑定版本依赖、增量拓扑、完整生命周期联动、GPU 计划和统一调度器。演示只绘制顶层矩形；现有 Canvas 参考不支持完整 group/clip/instances 语义。旧 JS `RetainedScenePlan` 及其夹具仍保留用于已有行为对照，不能称为已全部迁移。
+
+统一入口追加验证：混合矩形标量与折线变换的 1000 帧共享、六类版本失效、重复时间跳过、失败保留旧计划，以及半透明交叠图元的独立原生 Canvas 像素对照。Binary Tree 真实页面已切换该入口；早期 `retained-path` API 暂留作兼容/参考，不继续发展为另一套组件框架。独立消费者当前仍验证原标量入口的兼容性，混合动画/生命周期消费与 GPU 仍由 #104 后续验收，不能据此关闭 M2。
 
 #104 的独立安装与输出搬移已有[消费检验切片](isolated-consumer.md)；#39 的真实阶段耗时和 #49 的进入退出/重排演示仍需后续交付；这些切片不关闭 #50 或 M2。

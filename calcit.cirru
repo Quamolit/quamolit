@@ -1826,6 +1826,20 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.motion/ColorRgba
+        'draw-content! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-content! (context content)
+            match content
+              (:rect rect)
+                canvas/fill-solid-rect! context (:x rect) (:y rect) (:width rect) (:height rect)
+                  color-css $ :fill rect
+              (:polyline path) (draw-round-path! context path)
+              (:group group) (raise |unsupported-reference-group)
+              (:instances instances) (raise |unsupported-reference-instances)
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneContent
+            :features $ #{} :js-ffi
         'draw-reference! $ %{} 'CodeEntry
           :doc "|整场景预检后按声明顺序绘制顶层 rect/polyline；group、子节点和 instances 明确拒绝。调用方负责清屏、视口与绑定求值。"
           :code $ quote $ defn draw-reference! (context document)
@@ -1833,13 +1847,7 @@
             assert |unsupported-reference-scene $ every? (:nodes document) supported-flat-node?
             each (:nodes document)
               fn (node)
-                match (:content node)
-                  (:rect rect)
-                    canvas/fill-solid-rect! context (:x rect) (:y rect) (:width rect) (:height rect)
-                      color-css $ :fill rect
-                  (:polyline path) (draw-round-path! context path)
-                  (:group group) (raise |unsupported-reference-group)
-                  (:instances instances) (raise |unsupported-reference-instances)
+                draw-content! context $ :content node
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -3036,6 +3044,27 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number 'Number 'Bool $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
             :return $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
+        'component-request $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn component-request (time depth)
+            component/ComponentRequest :id |binary-tree :time time :versions
+              direct/FrameVersions :component depth :motion 0 :model 0 :input 0 :resources 0 :viewport 0
+              , :props depth :model 0 :input 0 :resources 0 :viewport 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number
+            :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'Number 'Number 'Number 'Number
+        'declare-execution $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-execution (depth model input resources viewport)
+            let
+                initial $ build-plan 0 depth
+                slots $ :props initial
+              execution/ExecutionDeclaration :component
+                component/ComponentDeclaration :scene (:scene initial) :motions $ []
+                , :transforms $ execution/TransformSampler :cpu $ fn (time) (sample-transforms slots time)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.retained-component/ExecutionDeclaration
+            :args $ [] 'Number 'Number 'Number 'Number 'Number
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context time depth)
             reference/draw-reference! context $ scene-at time depth
@@ -3171,6 +3200,18 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-strokes/StrokeSegment)
             :args $ [] 'String 'Number 'Number 'Number 'Number 'Number 'Number
+        'start-component $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-component (time depth)
+            execution/build-execution-plan (component-request time depth) declare-execution
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number 'Number
+        'update-component $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-component (plan time depth)
+            execution/update-execution-plan plan (component-request time depth) declare-execution
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.binary-tree
           :require (quamolit.canvas-strokes :as strokes) (quamolit.motion :as motion) (quamolit.direct-frame :as direct)
@@ -3178,6 +3219,8 @@
             quamolit.scene-ir :as scene
             quamolit.canvas-reference :as reference
             quamolit.retained-path :as retained
+            quamolit.retained-component :as execution
+            quamolit.component-sample :as component
     'quamolit.fixed-step $ %{} 'FileEntry
       :defs $ {}
         'SimulationState $ %{} 'CodeEntry
@@ -6796,8 +6839,23 @@
             :binding-samples 'Number
             :node-writes 'Number
             :skipped-updates 'Number
+            :transforms $ :: 'List 'quamolit.scene-ir/Matrix2D
+            :transform-sampler 'quamolit.retained-component/TransformSampler
+            :transform-samples 'Number
           :examples $ []
           :schema $ :: 'StructDef
+        'ExecutionDeclaration $ %{} 'CodeEntry (:doc "|统一组件执行声明：纯 Scene/Motion 描述 + 可选 CPU 变换提供者。")
+          :code $ quote $ defstruct ExecutionDeclaration (:component 'quamolit.component-sample/ComponentDeclaration) (:transforms 'quamolit.retained-component/TransformSampler)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'TransformSampler $ %{} 'CodeEntry
+          :doc "|执行层 CPU 变换采样器，按 Scene 节点顺序返回矩阵；闭包不进入 Scene/Motion IR，不承诺自动 WGSL。"
+          :code $ quote $ defenum TransformSampler (:none)
+            :cpu $ :: 'Fn $ {}
+              :args $ [] 'Number
+              :return $ :: 'List 'quamolit.scene-ir/Matrix2D
+          :examples $ []
+          :schema $ :: 'EnumDef
         'build-component-plan $ %{} 'CodeEntry
           :doc "|声明并验证一次组件，解析 Motion 引用，直接生成首个指定时间帧；所有业务处理在 Calcit。"
           :code $ quote $ defn build-component-plan (request declare)
@@ -6811,11 +6869,31 @@
               let
                   slots $ compile-slots (:nodes document) descriptors 0 $ empty-slots
                   nodes $ evaluate-slots slots (:nodes document) (:time request)
-                ComponentPlan :id (:id request) :time (:time request) :versions (:versions request) :scene (scene/SceneDocument :nodes nodes) :slots slots :declarations 1 :plan-builds 1 :binding-samples (count slots) :node-writes (count slots) :skipped-updates 0
+                ComponentPlan :id (:id request) :time (:time request) :versions (:versions request) :scene (scene/SceneDocument :nodes nodes) :slots slots :declarations 1 :plan-builds 1 :binding-samples (count slots) :node-writes (count slots) :skipped-updates 0 :transforms (empty-transforms) :transform-sampler (TransformSampler :none) :transform-samples 0
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] (:: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V)
               :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+                :args $ [] 'P 'M 'I 'R 'V
+            :generics $ [] 'P 'M 'I 'R 'V
+        'build-execution-plan $ %{} 'CodeEntry
+          :doc "|统一构建入口：声明一次并解析标量与变换；返回同一个 ComponentPlan，时间更新复用既有 sample-plan-at。"
+          :code $ quote $ defn build-execution-plan (request declare)
+            assert |invalid-component-request $ direct/valid-direct-request? $ component/to-direct-request request
+            let
+                declaration $ declare (:props request) (:model request) (:input request) (:resources request) (:viewport request)
+                base $ build-component-plan request $ fn (props model input resources viewport) (:component declaration)
+                sampler $ :transforms declaration
+                transforms $ evaluate-transforms sampler
+                  count $ :nodes $ :scene base
+                  :time request
+              struct-with base (:transform-sampler sampler) (:transforms transforms)
+                :transform-samples $ if (transform-active? sampler) 1 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] (:: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V)
+              :: 'Fn $ {}
+                :return 'quamolit.retained-component/ExecutionDeclaration
                 :args $ [] 'P 'M 'I 'R 'V
             :generics $ [] 'P 'M 'I 'R 'V
         'compile-slots $ %{} 'CodeEntry (:doc "|仅在组件重新声明时遍历节点并解析 Motion 引用；时间更新复用结果。")
@@ -6832,12 +6910,44 @@
           :schema $ :: 'Fn $ {}
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) (:: 'List 'quamolit.motion/ScalarDescriptor) 'Number $ :: 'List 'quamolit.retained-component/BoundScalar
             :return $ :: 'List 'quamolit.retained-component/BoundScalar
+        'draw-plan! $ %{} 'CodeEntry
+          :doc "|统一 Canvas 提交：按 Scene 顺序绘制矩形与折线，先标量更新再局部仿射变换；不支持组/实例时绘制前拒绝。"
+          :code $ quote $ defn draw-plan! (context plan)
+            assert |unsupported-component-canvas-scene $ every?
+              :nodes $ :scene plan
+              , canvas/supported-flat-node?
+            each
+              range $ count $ :nodes (:scene plan)
+              fn (index)
+                let
+                    node $ node-at
+                      :nodes $ :scene plan
+                      , index
+                  context .save!
+                  when
+                    transform-active? $ :transform-sampler plan
+                    let
+                        m $ &list:nth (:transforms plan) index
+                      context .transform! (:a m) (:b m) (:c m) (:d m) (:e m) (:f m)
+                  canvas/draw-content! context $ :content node
+                  context .restore!
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.retained-component/ComponentPlan
+            :features $ #{} :js-ffi
         'empty-slots $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-slots () ([])
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'quamolit.retained-component/BoundScalar
+        'empty-transforms $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-transforms () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/Matrix2D
         'evaluate-slots $ %{} 'CodeEntry (:doc "|只更新预编译绑定；持久列表保留其他节点。失败不会修改调用者持有的旧帧。")
           :code $ quote $ defn evaluate-slots (slots nodes time)
             foldl slots nodes $ fn (current slot)
@@ -6855,6 +6965,21 @@
           :schema $ :: 'Fn $ {}
             :args $ [] (:: 'List 'quamolit.retained-component/BoundScalar) (:: 'List 'quamolit.scene-ir/SceneNode) 'Number
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'evaluate-transforms $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn evaluate-transforms (sampler size time)
+            match sampler
+              (:none) (empty-transforms)
+              (:cpu sample)
+                let
+                    result $ sample time
+                  assert |invalid-component-transforms $ and
+                    = size $ count result
+                    every? result valid-transform?
+                  , result
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.retained-component/TransformSampler 'Number 'Number
+            :return $ :: 'List 'quamolit.scene-ir/Matrix2D
         'node-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn node-at (nodes index)
             -> (get nodes index) .unwrap
@@ -6874,13 +6999,31 @@
                   scene/SceneDocument :nodes $ evaluate-slots (:slots plan)
                     :nodes $ :scene plan
                     , time
+                transforms $ if same? (:transforms plan)
+                  evaluate-transforms (:transform-sampler plan)
+                    count $ :nodes document
+                    , time
               struct-with plan (:time time) (:scene document)
                 :binding-samples $ + (:binding-samples plan) added
                 :node-writes $ + (:node-writes plan) added
                 :skipped-updates $ + (:skipped-updates plan) (if same? 1 0)
+                :transforms transforms
+                :transform-samples $ + (:transform-samples plan)
+                  if
+                    and (not same?)
+                      transform-active? $ :transform-sampler plan
+                    , 1 0
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
+        'transform-active? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transform-active? (sampler)
+            match sampler
+              (:none) false
+              (:cpu sample) true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.retained-component/TransformSampler
         'update-component-plan $ %{} 'CodeEntry
           :doc "|完整身份/版本不变时只采样绑定；任一版本或身份变更保守重声明。替换声明函数须提升 component 版本。"
           :code $ quote $ defn update-component-plan (previous request declare)
@@ -6904,9 +7047,42 @@
               :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
                 :args $ [] 'P 'M 'I 'R 'V
             :generics $ [] 'P 'M 'I 'R 'V
+        'update-execution-plan $ %{} 'CodeEntry
+          :doc "|同身份/六类版本复用；任何依赖变化重声明标量和变换，失败不修改旧计划。替换声明或闭包需提升 component/motion 版本。"
+          :code $ quote $ defn update-execution-plan (previous request declare)
+            assert |invalid-component-request $ direct/valid-direct-request? $ component/to-direct-request request
+            if
+              and
+                = (:id previous) (:id request)
+                = (:versions previous) (:versions request)
+              sample-plan-at previous $ :time request
+              let
+                  next $ build-execution-plan request declare
+                struct-with next
+                  :declarations $ inc $ :declarations previous
+                  :plan-builds $ inc $ :plan-builds previous
+                  :binding-samples $ + (:binding-samples previous) (:binding-samples next)
+                  :node-writes $ + (:node-writes previous) (:node-writes next)
+                  :skipped-updates $ :skipped-updates previous
+                  :transform-samples $ + (:transform-samples previous) (:transform-samples next)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan (:: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V)
+              :: 'Fn $ {}
+                :return 'quamolit.retained-component/ExecutionDeclaration
+                :args $ [] 'P 'M 'I 'R 'V
+            :generics $ [] 'P 'M 'I 'R 'V
+        'valid-transform? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-transform? (m)
+            every?
+              [] (:a m) (:b m) (:c m) (:d m) (:e m) (:f m)
+              , motion/finite-number?
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/Matrix2D
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.retained-component
-          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.scene-binding :as binding) (quamolit.motion :as motion)
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.scene-binding :as binding) (quamolit.motion :as motion) (quamolit.canvas-reference :as canvas)
     'quamolit.retained-path $ %{} 'FileEntry
       :defs $ {}
         'PathPlan $ %{} 'CodeEntry
@@ -9240,6 +9416,31 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'declare-mixed $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-mixed (props model input resources viewport)
+            let
+                base $ declare-demo props model input resources viewport
+                path $ scene/SceneNode :id |mixed-path :parent | :key |mixed-path :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline
+                  scene/PolylineNode :width 4 :stroke
+                    motion/ColorRgba :r 0 :g 0.5 :b 1 :a 0.5
+                    , :points $ [] (motion/Vec2 :x 40 :y 60) (motion/Vec2 :x 80 :y 70)
+                nodes $ conj
+                  :nodes $ :scene base
+                  , path
+              retained/ExecutionDeclaration :component
+                struct-with base $ :scene $ scene/SceneDocument :nodes nodes
+                , :transforms $ retained/TransformSampler :cpu $ fn (time)
+                  map nodes $ fn (node)
+                    scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e
+                      if
+                        = |mixed-path $ :id node
+                        + model $ * 10 time
+                        , 0
+                      , :f 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.retained-component/ExecutionDeclaration
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
         'draw-plan! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-plan! (context plan)
             canvas/draw-reference-rects! context $ :scene plan
@@ -9295,6 +9496,18 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'start-mixed $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-mixed (time model ready viewport)
+            retained/build-execution-plan (make-request time model ready viewport) declare-mixed
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number 'Number 'Bool 'Number
+        'update-mixed $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-mixed (plan time model ready viewport)
+            retained/update-execution-plan plan (make-request time model ready viewport) declare-mixed
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
         'update-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-plan (previous time model ready viewport)
             retained/update-component-plan previous (make-request time model ready viewport) declare-demo

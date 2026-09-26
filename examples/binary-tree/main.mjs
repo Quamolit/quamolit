@@ -1,16 +1,16 @@
 // 页面入口只管理时钟/视口/DOM；递归、三角函数与绘制在 Calcit。
-import { scene_at, build_plan } from "../../target/js/binary-tree/quamolit.examples.binary-tree.mjs";
-import { sample_plan_at, draw_plan_$x_ } from "../../target/js/binary-tree/quamolit.retained-path.mjs";
+import { scene_at, start_component, update_component } from "../../target/js/binary-tree/quamolit.examples.binary-tree.mjs";
+import { sample_plan_at, draw_plan_$x_ } from "../../target/js/binary-tree/quamolit.retained-component.mjs";
 import { draw_reference_$x_ } from "../../target/js/binary-tree/quamolit.canvas-reference.mjs";
 import { to_js_data, init_tags } from "../../target/js/binary-tree/calcit.core.mjs";
-const tags = init_tags(["scene", "transforms", "samples"]);
+const tags = init_tags(["scene", "transforms", "transform-samples"]);
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), slider = document.querySelector("#time");
 const play = document.querySelector("#play"), panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
 const params = new URLSearchParams(location.search);
 const parsed = Number(params.get("t") || 0);
 let time = Number.isFinite(parsed) && parsed >= 0 && parsed <= 60 ? parsed : 0;
-let depth = 5, plan = build_plan(time, depth), builds = 1, referenceMode = false;
+let depth = 5, plan = start_component(time, depth), builds = 1, referenceMode = false;
 let playing = false, raf = null, anchor = 0, started = 0;
 let paints = 0, samples = 1;
 function draw() {
@@ -26,7 +26,7 @@ function draw() {
   else draw_plan_$x_(context, plan);
   paints++;
   slider.value = String(time);
-  status.textContent = `t = ${time.toFixed(2)} s\n${2 ** (depth + 1) - 1} paths · ${referenceMode ? "全量参考" : "保留几何"}\n结构构建 ${builds} / 变换采样 ${plan.get(tags.samples)}\n采样 ${samples} / 绘制 ${paints}`;
+  status.textContent = `t = ${time.toFixed(2)} s\n${2 ** (depth + 1) - 1} paths · ${referenceMode ? "全量参考" : "统一组件计划"}\n结构构建 ${builds} / 变换采样 ${plan.get(tags["transform-samples"])}\n采样 ${samples} / 绘制 ${paints}`;
   status.dataset.result = "pass";
 }
 function sample(t) {
@@ -53,9 +53,9 @@ function start() {
   raf = requestAnimationFrame(tick);
 }
 function seek(t) { stop(); sample(t); return snapshot(); }
-function snapshot() { return { time, playing, samples, paints, builds, depth, referenceMode, planSamples: plan.get(tags.samples), scene: to_js_data(plan.get(tags.scene)), transforms: to_js_data(plan.get(tags.transforms)), width: canvas.width, height: canvas.height }; }
+function snapshot() { return { time, playing, samples, paints, builds, depth, referenceMode, planSamples: plan.get(tags["transform-samples"]), scene: to_js_data(plan.get(tags.scene)), transforms: to_js_data(plan.get(tags.transforms)), width: canvas.width, height: canvas.height }; }
 document.querySelector("#depth").onchange = event => {
-  const nextDepth = Number(event.target.value), next = build_plan(time, nextDepth);
+  const nextDepth = Number(event.target.value), next = update_component(plan, time, nextDepth);
   depth = nextDepth; plan = next; builds++; draw();
 };
 document.querySelector("#reference").onclick = event => {

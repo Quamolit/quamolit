@@ -1,5 +1,7 @@
 # 保留折线动画：静态 Scene + 时间变换
 
+后续统一：Binary Tree 默认播放已切到 `retained-component/build-execution-plan`、`sample-plan-at`、`update-execution-plan` 和 `draw-plan!`，与标量组件使用同一个 ComponentPlan。下文 PathPlan 是早期兼容/参考 API；不再作为独立主线扩展，详见 [统一组件入口](retained-component.md)。
+
 推进 #50/#33/#53。`quamolit.retained-path` 是 Calcit 的 CPU 自定义几何动画执行路径，不新增 JS renderer。首个实际消费者为 Binary Tree，页面默认使用此路径，可切换全量参考并改变深度。
 
 ## 公共接口
