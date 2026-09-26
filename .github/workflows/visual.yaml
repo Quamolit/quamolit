@@ -212,6 +212,21 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Check restored Solar recursive orbits
+        if: inputs.mutation != 'color'
+        run: yarn test:solar-demo
+        env:
+          CI: "true"
+
+      - name: Upload Solar fixed-time evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-solar-${{ github.run_id }}
+          path: test-results/solar/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Check restored TodoList lifecycle and Canvas interaction
         if: inputs.mutation != 'color'
         run: yarn test:todolist

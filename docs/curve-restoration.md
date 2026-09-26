@@ -30,4 +30,4 @@ yarn test:curve-demo
 - **角度单位重建**：旧 `comp-ring` 的 `&PI`/度数单位在历史版本中有歧义；本切片按语义重建为「角度以度计、经 PI/180 转弧度」，`rotation` 为度。若与旧画面存在差异，以本仓库固定时间截图为准并在此记录。
 - **旧门户的 `comp-debug`/hud 文本**未恢复；曲线本体不含调试文字。
 - **几何保留/GPU**：每帧重建 98 点，尚未做几何保留、批量或 GPU 路径。
-- **其余 demo**：clock、solar、table、finder、raining、icons、folding-fan、drag-demo 仍待恢复；不能据此关闭 #36 或 M3。
+- **其余 demo**：Clock 与 Solar 已有独立恢复切片；table、finder、raining、icons、folding-fan、drag-demo 仍待恢复。不能据此关闭 #36 或 M3。
