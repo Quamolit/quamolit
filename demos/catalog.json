@@ -36,7 +36,6 @@
     { "id": "finder", "title": "Finder · 文件卡片", "group": "originals", "summary": "文件夹和卡片展开、居中缩放、淡出与返回。" },
     { "id": "raining", "title": "Raining · 雨滴", "group": "originals", "summary": "雨滴生成、下落、落地消散；恢复时加入固定随机种子。" },
     { "id": "icons", "title": "Icons · 图标变形", "group": "originals", "summary": "加号旋转与数值切换，以及播放/暂停路径变形。" },
-    { "id": "curve", "title": "Curve · 动态曲线", "group": "originals", "summary": "32 段控制点随时间变化的闭合曲线。" },
     { "id": "folding-fan", "title": "Folding fan · 折扇", "group": "originals", "summary": "荷花图片的 24 个切片旋转，交互展开与收拢。" },
     { "id": "drag-demo", "title": "Drag demo · 拖拽", "group": "originals", "summary": "矩形拖动与滑块调节，恢复坐标和交互语义。" }
   ],
@@ -70,6 +69,16 @@
       "status": "恢复切片 · Canvas",
       "docs": "docs/clock-restoration.md",
       "compile": "compile:clock"
+    },
+    {
+      "id": "curve",
+      "path": "examples/curve/index.html",
+      "title": "Curve · 动态曲线",
+      "group": "originals",
+      "summary": "32 段控制点随时间旋转的闭合曲线；逻辑时间由页面注入，顶点全部由 Calcit 纯函数决定，可乱序截图。",
+      "status": "恢复切片 · Canvas",
+      "docs": "docs/curve-restoration.md",
+      "compile": "compile:curve"
     },
     {
       "path": "test/retained-component.html",

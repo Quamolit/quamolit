@@ -3429,6 +3429,103 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.clock
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.curve $ %{} 'FileEntry
+      :defs $ {}
+        'build-curve $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-curve (k time acc)
+            if (> k 32) acc $ recur (inc k) time $ concat acc (curve-point k time)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number $ :: 'List 'quamolit.motion/Vec2
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'curve-degree $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ def curve-degree (/ &PI 180)
+          :examples $ []
+          :schema $ :: 'Number
+        'curve-point $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn curve-point (k time)
+            let
+                rotation $ curve-rotation time
+                theta $ * 11.25 k
+                a1 $ + (- theta rotation 11.25) 10
+                a2 $ - (+ theta rotation) 10
+              []
+                motion/Vec2 :x
+                  * 360 $ sin $ * curve-degree a1
+                  , :y $ - 0 $ * 360
+                    cos $ * curve-degree a1
+                motion/Vec2 :x
+                  * 360 $ sin $ * curve-degree a2
+                  , :y $ - 0 $ * 360
+                    cos $ * curve-degree a2
+                motion/Vec2 :x
+                  * 60 $ sin $ * curve-degree theta
+                  , :y $ - 0 $ * 60
+                    cos $ * curve-degree theta
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'curve-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn curve-points (time)
+            let
+                start $ motion/Vec2 :x 0 :y -60
+                body $ build-curve 1 time $ empty-vec2s
+              prepend (conj body start) start
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.motion/Vec2
+          :tests $ [] $ %{} 'TestEntry (:name |closed-star-count)
+            :code $ quote $ do
+              assert= 98 $ count $ curve-points 0
+              assert= 98 $ count $ curve-points 5
+              assert= (curve-points 3) (curve-points 3)
+            :tags $ #{} :curve :unit
+        'curve-rotation $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn curve-rotation (time)
+            let
+                raw $ * 0.3 time
+              - raw $ * 360 $ floor (/ raw 360)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context time)
+            reference/draw-reference! context $ scene-at time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number
+        'empty-vec2s $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-vec2s () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (time)
+            scene/SceneDocument :nodes $ [] $ scene/SceneNode :id |curve :key |curve :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content
+              scene/SceneContent :polyline $ scene/PolylineNode :points (curve-points time) :width 1 :stroke $ motion/ColorRgba :r 0.7 :g 0.2 :b 0.9 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |single-polyline)
+            :code $ quote $ assert= 1
+              count $ :nodes $ scene-at 0
+            :tags $ #{} :curve :unit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.curve
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
     'quamolit.examples.todolist $ %{} 'FileEntry
       :defs $ {}
         'Event $ %{} 'CodeEntry (:doc |)
