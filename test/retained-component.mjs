@@ -1,6 +1,8 @@
 import { to_js_data as toJsData, init_tags as initTags } from "../target/js/retained-component/calcit.core.mjs";
 import { start, update_plan as updatePlan, draw_plan_$x_ as drawPlan, draw_reference_$x_ as drawReference, plan_scene as planScene } from "../target/js/retained-component/quamolit.test.retained-component-fixture.mjs";
 import * as gpuComponent from "../target/js/retained-component/quamolit.gpu-component.mjs";
+import * as gpuScalar from "../target/js/retained-component/quamolit.gpu-scalar-program.mjs";
+import {readScalarSample} from './host/gpu-scalar-readback.mjs';
 import { probe_$x_ as probeDevice } from "../target/js/retained-component/quamolit.webgpu-capabilities.mjs";
 
 const tags = initTags(["declarations", "plan-builds", "binding-samples", "node-writes", "skipped-updates", "prepared", "delta", "full-builds", "candidates", "instances", "uploaded-bytes"]);
@@ -15,6 +17,7 @@ let gpuCanvas=document.getElementById('gpu-component'), gpuReason='未启用 GPU
 const gpuStatus=document.getElementById('gpu-status');
 let gpuAdapter='';
 let gpuPaintRevision=0;
+let scalarMode=false, scalarProgram;
 function newGpuCanvas() {
   const next=gpuCanvas.cloneNode(false);gpuCanvas.replaceWith(next);gpuCanvas=next;
 }
@@ -22,11 +25,27 @@ function stopGpu(reason) {
   gpuGeneration++;
   if(gpuHost)gpuComponent.dispose_renderer_$x_(gpuHost);
   gpuHost=undefined;gpuDevice?.destroy();gpuDevice=undefined;
+  scalarProgram=undefined;
   gpuBatch=undefined;gpuReason=reason;newGpuCanvas();
 }
 function paintGpu() {
   gpuPaintRevision++;
   const pixels=document.getElementById('gpu-pixels');pixels.dataset.result='pending';pixels.textContent='当前帧像素待验证';
+  if(gpuHost && scalarMode){
+    const before=gpuHost.uploadedBytes,parametersBefore=gpuHost.parameterBytes;
+    if(!scalarProgram || !gpuScalar.reusable_$q_(scalarProgram,plan)){
+      const candidate=gpuScalar.prepare_program(plan);
+      if(candidate.tag.value==='fallback'){stopGpu(candidate.extra[0]);paintGpu();return;}
+      scalarProgram=candidate.extra[0];gpuScalar.install_program_$x_(gpuHost,scalarProgram);
+    }else {
+      if(!gpuScalar.time_supported_$q_(scalarProgram,state.time)){stopGpu('scalar-time-precision');paintGpu();return;}
+      gpuScalar.draw_at_$x_(gpuHost,scalarProgram,state.time);
+    }
+    gpuStatus.dataset.backend='webgpu';gpuStatus.dataset.motion='gpu';
+    gpuStatus.textContent=`WebGPU 标量采样 · ${gpuAdapter} · 本帧记录上传 ${gpuHost.uploadedBytes-before} B · 参数上传 ${gpuHost.parameterBytes-parametersBefore} B + 16 B time/viewport · pipeline 1 / buffers 3`;
+    return;
+  }
+  gpuStatus.dataset.motion='cpu';
   gpuBatch=gpuBatch?gpuComponent.update_batch(gpuBatch,plan):gpuComponent.build_batch(plan);
   const prepared=gpuBatch.get(tags.prepared);
   if(prepared.tag.value==='fallback' && gpuHost)stopGpu(prepared.extra[0]);
@@ -40,7 +59,8 @@ function paintGpu() {
     gpuStatus.dataset.backend='canvas';gpuStatus.textContent=`Canvas 整层回退 · ${prepared.tag.value==='fallback'?prepared.extra[0]:gpuReason}`;
   }
 }
-async function enableGpu() {
+async function enableGpu(motion=false) {
+  scalarMode=motion;
   stopGpu('正在获取设备');paintGpu();const generation=gpuGeneration;
   const result=await probeDevice(navigator);
   if(result.tag.value!=='ready'){if(generation===gpuGeneration){gpuReason=JSON.stringify(toJsData(result));paintGpu();}return;}
@@ -50,7 +70,7 @@ async function enableGpu() {
   let candidate;
   try {
     const candidateCanvas=gpuCanvas.cloneNode(false);device.pushErrorScope('validation');
-    try {candidate=gpuComponent.create_renderer_$x_(candidateCanvas,device,ready.format,1024);}
+    try {candidate=(motion?gpuScalar:gpuComponent).create_renderer_$x_(candidateCanvas,device,ready.format,1024);}
     finally {const error=await device.popErrorScope();if(error)throw Error(error.message);}
     if(generation!==gpuGeneration){gpuComponent.dispose_renderer_$x_(candidate);device.destroy();return;}
     gpuCanvas.replaceWith(candidateCanvas);gpuCanvas=candidateCanvas;
@@ -66,7 +86,24 @@ async function enableGpu() {
   }
 }
 document.getElementById('gpu-enable').onclick=()=>enableGpu().catch(error=>{stopGpu(error.message);paintGpu();});
+document.getElementById('gpu-motion').onclick=()=>enableGpu(true).catch(error=>{stopGpu(error.message);paintGpu();});
 document.getElementById('gpu-disable').onclick=()=>{stopGpu('手动禁用');paintGpu();};
+document.getElementById('gpu-numeric').onclick=async()=>{
+  const output=document.getElementById('gpu-numeric-status'),host=gpuHost,generation=gpuGeneration;
+  output.dataset.result='pending';output.textContent='正在验证 GPU 非整数数值';
+  try{
+    if(!host||!scalarMode||!scalarProgram)throw Error('请先启用 GPU 动画采样');
+    const samples=[];
+    for(const time of [.37,.81,.4999999,-.1,1.1]){
+      if(!gpuScalar.time_supported_$q_(scalarProgram,time))throw Error('scalar-time-precision');
+      const [actual]=await readScalarSample(host,64,time),expected=80+40*Math.max(0,Math.min(1,time));
+      if(Math.abs(actual-expected)>1e-5+1e-5*Math.abs(expected))throw Error(`t=${time}: ${actual} != ${expected}`);
+      samples.push({time,actual,expected});
+    }
+    if(generation!==gpuGeneration||host!==gpuHost)return;
+    output.dataset.result='pass';output.textContent=`PASS · 实际 GPU 读回 ${JSON.stringify(samples)} · 总读回 40 B`;
+  }catch(error){if(generation!==gpuGeneration||host!==gpuHost)return;output.dataset.result='fail';output.textContent=error.message;}
+};
 document.getElementById('gpu-verify').onclick=async()=>{
   const output=document.getElementById('gpu-pixels');
   const expected=contexts[1].getImageData(0,0,320,180).data;

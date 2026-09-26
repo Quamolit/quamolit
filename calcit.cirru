@@ -4330,7 +4330,7 @@
           :code $ quote $ defn dispose-renderer! (host) &unit
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|h=>{if(h.disposed)return;h.disposed=true;try{h.context.unconfigure();}finally{try{h.vertices.destroy();}finally{h.params.destroy();}}}"
+            :js $ {} $ :inline "|h=>{if(h.disposed)return;h.disposed=true;try{h.context.unconfigure();}finally{try{h.vertices.destroy();}finally{try{h.params.destroy();}finally{h.motions?.destroy();}}}}"
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject
             :features $ #{} :js-ffi
@@ -4680,6 +4680,306 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.gpu-component
           :require (quamolit.scene-ir :as scene) (quamolit.retained-component :as retained) (quamolit.gpu-vec2-translation :as f32)
+    'quamolit.gpu-scalar-program $ %{} 'FileEntry
+      :defs $ {}
+        'ParameterResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum ParameterResult (:ready 'quamolit.gpu-scalar-program/ScalarParameter) (:fallback 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ProgramResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum ProgramResult (:ready 'quamolit.gpu-scalar-program/ScalarProgram) (:fallback 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ScalarParameter $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ScalarParameter (:index 'Number) (:axis 'Number) (:start 'Number) (:duration 'Number) (:from 'Number) (:to 'Number) (:easing 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ScalarProgram $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ScalarProgram (:source 'quamolit.retained-component/ComponentPlan) (:frame 'quamolit.gpu-component/RectFrame)
+            :parameters $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
+            :precision-base 'Number
+            :precision-slope 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'axis-of $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn axis-of (slot)
+            match (:target slot)
+              (:x) 0
+              (:y) 1
+              _ -1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.retained-component/BoundScalar
+        'bounded? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn bounded? (value)
+            and (f32/finite-f32? value)
+              <= (abs value) 1e30
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number
+        'collect-parameters $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn collect-parameters (slots plan frame parameters)
+            if (empty? slots) (finish-program plan frame parameters)
+              let
+                  slot $ first-slot slots
+                do
+                  assert |gpu-scalar-binding-index $ and
+                    motion/valid-motion-version? $ :index slot
+                    < (:index slot)
+                      count $ :records frame
+                  match (prepare-slot slot)
+                    (:fallback reason) (ProgramResult :fallback reason)
+                    (:ready parameter)
+                      if
+                        any? parameters $ fn (old)
+                          and
+                            = (:index old) (:index parameter)
+                            = (:axis old) (:axis parameter)
+                        ProgramResult :fallback |duplicate-gpu-scalar-target
+                        recur (rest slots) plan frame $ append parameters parameter
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
+            :args $ [] (:: 'List 'quamolit.retained-component/BoundScalar) 'quamolit.retained-component/ComponentPlan 'quamolit.gpu-component/RectFrame $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
+        'create-renderer! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create-renderer! (canvas device format capacity)
+            raw-create! canvas (unsafe-coerce device 'JsObject) format capacity true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'js-ffi.webgpu/DeviceHost 'String 'Number
+            :features $ #{} :js-ffi
+        'draw-at! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-at! (host program time)
+            assert |gpu-scalar-time-domain $ time-supported? program time
+            gpu/raw-draw! host $ raw-time! host time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarProgram 'Number
+            :features $ #{} :js-ffi
+        'empty-parameters $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-parameters () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
+        'finish-program $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn finish-program (plan frame parameters)
+            let
+                precision $ precision-envelope parameters
+                program $ ScalarProgram :source plan :frame frame :parameters parameters :precision-base (:x precision) :precision-slope $ :y precision
+              if
+                time-supported? program $ :time plan
+                ProgramResult :ready program
+                ProgramResult :fallback |scalar-precision-budget
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'quamolit.gpu-component/RectFrame $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
+        'first-slot $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-slot (slots)
+            -> (get slots 0) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/BoundScalar)
+            :args $ [] $ :: 'List 'quamolit.retained-component/BoundScalar
+        'install-program! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn install-program! (host program)
+            assert |gpu-scalar-program-mismatch $ = (ProgramResult :ready program)
+              prepare-program $ :source program
+            let
+                instances $ count $ :records (:frame program)
+                time $ :time $ :source program
+              assert |gpu-scalar-time-domain $ time-supported? program time
+              gpu/raw-check! host instances
+              raw-reset! host instances time
+              each (:parameters program)
+                fn (p) (write-parameter! host p)
+              gpu/submit-frame! host (gpu/empty-frame) (:frame program)
+              raw-ready! host
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarProgram
+            :features $ #{} :js-ffi
+        'make-parameter $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-parameter (slot tween)
+            let
+                values $ [] (:start tween) (:duration tween) (:from tween) (:to tween)
+                  + (:start tween) (:duration tween)
+              if
+                and (every? values bounded?)
+                  >= (:duration tween) 0
+                  or
+                    = (:duration tween) 0
+                    >= (:duration tween) 1e-30
+                ParameterResult :ready $ ScalarParameter :index (:index slot) :axis (axis-of slot) :start (:start tween) :duration (:duration tween) :from (:from tween) :to (:to tween) :easing $ match (:easing tween)
+                  (:linear) 0
+                  (:smoothstep) 1
+                ParameterResult :fallback |scalar-parameters-outside-f32-domain
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ParameterResult)
+            :args $ [] 'quamolit.retained-component/BoundScalar 'quamolit.motion/ScalarTween
+        'parameter-precision $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn parameter-precision (p)
+            let
+                from $ :from p
+                to $ :to p
+                duration $ :duration p
+                magnitude $ + (abs from) (abs to)
+                minimum $ if
+                  <= (* from to) 0
+                  , 0 $ if
+                    < (abs from) (abs to)
+                    abs from
+                    abs to
+                budget $ + 0.00001 $ * 0.00001 minimum
+                scale $ / (* 8 1.1920928955078125e-7) budget
+              if
+                and (= duration 0) (not= from to)
+                motion/Vec2 :x 2 :y 0
+                let
+                    speed $ if (= from to) 0 $ *
+                      if
+                        = (:easing p) 1
+                        , 1.5 1
+                      /
+                        abs $ - to from
+                        , duration
+                  motion/Vec2 :x
+                    * scale $ + magnitude $ * speed
+                      +
+                        abs $ :start p
+                        , duration
+                    , :y $ * scale speed
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.gpu-scalar-program/ScalarParameter
+        'parameter-values $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn parameter-values (parameter)
+            [] (:index parameter) (:axis parameter) (:start parameter) (:duration parameter) (:from parameter) (:to parameter) (:easing parameter) 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.gpu-scalar-program/ScalarParameter
+            :return $ :: 'List 'Number
+        'precision-envelope $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn precision-envelope (parameters)
+            foldl parameters (motion/Vec2 :x 0 :y 0)
+              fn (acc p)
+                hint-fn $ {}
+                  :args $ [] 'quamolit.motion/Vec2 'quamolit.gpu-scalar-program/ScalarParameter
+                  :return 'quamolit.motion/Vec2
+                let
+                    cost $ parameter-precision p
+                  motion/Vec2 :x
+                    if
+                      > (:x acc) (:x cost)
+                      :x acc
+                      :x cost
+                    , :y $ if
+                      > (:y acc) (:y cost)
+                      :y acc
+                      :y cost
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
+        'prepare-program $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn prepare-program (plan)
+            if
+              retained/transform-active? $ :transform-sampler plan
+              ProgramResult :fallback |cpu-transform-required
+              match (gpu/prepare-plan plan)
+                (:fallback reason) (ProgramResult :fallback reason)
+                (:rects frame)
+                  collect-parameters (:slots plan) plan frame $ empty-parameters
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
+            :args $ [] 'quamolit.retained-component/ComponentPlan
+        'prepare-slot $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn prepare-slot (slot)
+            if
+              < (axis-of slot) 0
+              ParameterResult :fallback |scalar-target-not-supported
+              match
+                lowering/lower-scalar $ :descriptor slot
+                (:unsupported reason) (ParameterResult :fallback reason)
+                (:supported candidate)
+                  match (:kernel candidate)
+                    (:constant value)
+                      make-parameter slot $ motion/ScalarTween :start 0 :duration 0 :from value :to value :easing $ motion/Easing :linear
+                    (:tween tween) (make-parameter slot tween)
+                    _ $ ParameterResult :fallback |scalar-kernel-not-supported
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ParameterResult)
+            :args $ [] 'quamolit.retained-component/BoundScalar
+        'raw-create! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-create! (canvas device format capacity scalar) (raise |js-only-gpu-scalar)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :file |src/host/gpu-component-create.mjs
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'JsObject 'String 'Number 'Bool
+            :features $ #{} :js-ffi
+        'raw-parameter! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-parameter! (host index axis start duration from to easing) &unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,index,axis,start,duration,from,to,easing)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(index)||index<0||index>=h.scalarCount||(axis!==0&&axis!==1))throw Error('gpu-scalar-index');\n h.scalarScratch.set([from,to,start,duration,1,easing,0,0]);\n h.device.queue.writeBuffer(h.motions,index*64+axis*32,h.scalarScratch);h.parameterBytes+=32;\n}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'Number 'Number 'Number 'Number 'Number 'Number 'Number
+            :features $ #{} :js-ffi
+        'raw-ready! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-ready! (host) &unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline |h=>{h.scalarReady=true;}
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject
+            :features $ #{} :js-ffi
+        'raw-reset! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-reset! (host instances time) &unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,count,time)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-scalar-capacity');\n h.scalarReady=false;h.scalarCount=count;h.viewScratch[2]=time;\n if(count>0){h.device.queue.writeBuffer(h.motions,0,new Float32Array(count*16));h.parameterBytes+=count*64;}\n}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'Number 'Number
+            :features $ #{} :js-ffi
+        'raw-time! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-time! (host time) (raise |js-only-gpu-scalar)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,time)=>{if(h.disposed||!h.motions||!h.scalarReady)throw Error('gpu-scalar-not-installed');h.viewScratch[2]=time;return h.scalarCount;}"
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'JsObject 'Number
+            :features $ #{} :js-ffi
+        'reusable? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reusable? (program plan)
+            and
+              =
+                :id $ :source program
+                :id plan
+              =
+                :versions $ :source program
+                :versions plan
+              not $ retained/transform-active? $ :transform-sampler plan
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.gpu-scalar-program/ScalarProgram 'quamolit.retained-component/ComponentPlan
+        'time-supported? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn time-supported? (program time)
+            and (bounded? time)
+              <=
+                + (:precision-base program)
+                  * (abs time) (:precision-slope program)
+                , 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.gpu-scalar-program/ScalarProgram 'Number
+        'write-parameter! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn write-parameter! (host p)
+            raw-parameter! host (:index p) (:axis p) (:start p) (:duration p) (:from p) (:to p) (:easing p)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarParameter
+            :features $ #{} :js-ffi
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.gpu-scalar-program
+          :require (quamolit.motion :as motion) (quamolit.motion-gpu :as lowering) (quamolit.retained-component :as retained) (quamolit.gpu-component :as gpu) (quamolit.gpu-vec2-translation :as f32)
     'quamolit.gpu-vec2-translation $ %{} 'FileEntry
       :defs $ {}
         'GpuVec2TranslationFrame $ %{} 'CodeEntry (:doc |)
@@ -10017,17 +10317,33 @@
                 is= (gpu/PreparedFrame :fallback |geometry-outside-f32-domain) (:prepared failed)
                 is= 4160 $ :uploaded-bytes $ :delta restored
               :tags $ #{} :gpu-component
+            %{} 'TestEntry (:name |scalar-program-domain)
+              :code $ quote $ do
+                is= (scalar-program/ProgramResult :fallback |scalar-parameters-outside-f32-domain)
+                  scalar-program/prepare-program $ extreme-plan 0
+                match (scalar-program-at 0.5)
+                  (:fallback reason) (is= |ready reason)
+                  (:ready program)
+                    is= 1 $ count $ :parameters program
+              :tags $ #{} :gpu-component
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () (main!)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ []
+        'scalar-program-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scalar-program-at (time)
+            scalar-program/prepare-program $ fixture/start time 40 false 100
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
+            :args $ [] 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.gpu-component-fixture
           :require (quamolit.gpu-component :as gpu) (quamolit.test.retained-component-fixture :as fixture)
             calcit.test :refer $ is=
             quamolit.retained-component :as retained
             quamolit.motion :as motion
+            quamolit.gpu-scalar-program :as scalar-program
     'quamolit.test.motion-fixture $ %{} 'FileEntry
       :defs $ {}
         'PresenceFixtureFrame $ %{} 'CodeEntry (:doc |)

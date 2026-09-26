@@ -63,3 +63,33 @@ test('GPU 初始化等待期间，Canvas 回退仍可接受输入',async({page})
  await expect(page.locator('#gpu-status')).toHaveAttribute('data-backend','webgpu');
  expect(errors).toEqual([]);
 });
+
+test('公共标准动画在非软件 GPU 采样，时间帧不上传记录或参数',async({page},info)=>{
+ await page.goto('/test/retained-component.html');
+ const status=page.locator('#gpu-status');
+ await page.getByRole('button',{name:'启用 GPU 动画采样',exact:true}).click();
+ await expect(status).not.toContainText('正在获取设备');
+ const description=await status.textContent();
+ if(!description.startsWith('WebGPU')){
+  expect(description).toMatch(/软件 adapter|unavailable|failed/);
+  test.skip(true,description);
+ }
+ await expect(status).toHaveAttribute('data-motion','gpu');
+ await expect(status).toContainText('本帧记录上传 4160 B');
+ await page.getByRole('button',{name:'验证 GPU 非整数数值',exact:true}).click();
+ await expect(page.locator('#gpu-numeric-status')).toHaveAttribute('data-result','pass');
+ await expect(page.locator('#gpu-numeric-status')).toContainText('总读回 40 B');
+ for(const label of ['1s','0s','0.5s','0.25s','1s','Model +1','资源 ready 切换','视口版本切换']){
+  await page.getByRole('button',{name:label,exact:true}).click();
+  await expect(status).toContainText(label.endsWith('s')?'本帧记录上传 0 B · 参数上传 0 B + 16 B':'本帧记录上传 4160 B');
+  await page.getByRole('button',{name:'验证当前像素',exact:true}).click();
+  await expect(page.locator('#gpu-pixels')).toHaveAttribute('data-result','pass');
+ }
+ await page.getByRole('button',{name:'禁用 GPU',exact:true}).click();
+ await expect(status).toHaveAttribute('data-backend','canvas');
+ await page.getByRole('button',{name:'启用 GPU 动画采样',exact:true}).click();
+ await expect(status).toHaveAttribute('data-motion','gpu');
+ await page.getByRole('button',{name:'验证当前像素',exact:true}).click();
+ await expect(page.locator('#gpu-pixels')).toHaveAttribute('data-result','pass');
+ await page.screenshot({path:info.outputPath('gpu-scalar-program.png'),fullPage:true});
+});

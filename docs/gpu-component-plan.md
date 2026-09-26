@@ -2,6 +2,8 @@
 
 推进 M2 #38/#40，复用 #114 的 `ComponentPlan`；不是第二套 Scene 或动画运行时。页面沿用导航中的“Calcit 保留组件” `/test/retained-component.html`，新增同源 GPU 对照与禁用/重建、严格像素检查。固定尺寸仅用于此诊断页。
 
+以下介绍基础 CPU 采样→GPU 绘制模式。另有[标准标量 GPU 采样模式](gpu-scalar-program.md)，复用同一声明与 renderer 资源构造器，时间帧只上传 uniform；支持范围、精度回退及数值读回证据见该文档。
+
 ## Calcit API 与宿主分工
 
 `quamolit.gpu-component/prepare-plan(plan)` 返回封闭结果：
