@@ -162,6 +162,7 @@ jobs:
         with:
           name: quamolit-demos-${{ github.run_id }}
           path: |
+            demos/catalog.json
             dist-demos/
             test-results/demo-nav/
           if-no-files-found: error
