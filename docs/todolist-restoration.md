@@ -12,7 +12,7 @@
 - 进入按行错峰，退出反向错峰；删除立即禁交互，延迟期间仍保留画面。清空也有退出位移/alpha；这不是一般嵌套父级/子树的绘制支持。
 - `hit-at` 对示例行的逻辑区域按绘制逆序命中，不是 #34 的通用命中索引或指针捕获。编辑通过浮层输入，而非恢复旧 prompt UI。
 - `SceneContent :text` 是基础单行、左对齐、中线、monospace 文字；支持位置、字号、颜色及叶节点 alpha，尚无复杂 shaping、字体资源表、文字裁剪或 GPU 字形缓存。diff 把文字/字号/位置视为几何，颜色视为属性。
-- 原生 `fillText` 暂用 `canvas-reference/raw-fill-text!` 的同步 inline 表达式；上游 [js-ffi #124](https://github.com/calcit-lang/js-ffi/issues/124) 发布类型化文字 API 后替换该局部适配，保留相同测试。无独立 JS 宿主文件。
+- 原生文字使用 js-ffi `0.2.1-alpha.2` 的类型化 `CanvasContextHost.fill-text!`；`draw-text!` 在 Calcit 中设置字体、对齐和颜色，并在异常路径恢复 Canvas 状态。已移除本地 `raw-fill-text!` inline 适配；保留原生 Canvas 像素对照和浏览器回归测试。参见上游 [js-ffi #124](https://github.com/calcit-lang/js-ffi/issues/124)。
 
 ## 时钟与日志
 
