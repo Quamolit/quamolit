@@ -1931,8 +1931,18 @@
           :code $ quote $ defn draw-text! (context text)
             do
               assert |invalid-scene-text $ scene/valid-content? $ scene/SceneContent :text text
-              raw-fill-text! (unsafe-coerce context 'JsObject) (:text text) (:x text) (:y text) (:size text)
-                color-css $ :fill text
+              context .save!
+              try
+                do
+                  js-set context :font $ str (:size text) "|px monospace"
+                  js-set context :text-align |left
+                  js-set context :text-baseline |middle
+                  js-set context :direction |ltr
+                  js-set context :fill-style $ color-css $ :fill text
+                  context .fill-text! (:text text) (:x text) (:y text)
+                fn (error) (context .restore!) (raise error)
+              context .restore!
+              , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/TextNode
@@ -1944,14 +1954,6 @@
             :js $ {} $ :file |src/host/canvas-rect-batches.mjs
           :schema $ :: 'Fn $ {} (:return 'JsObject)
             :args $ [] 'JsObject 'JsObject 'Number 'Number 'Number 'Number 'String 'Number
-            :features $ #{} :js-ffi
-        'raw-fill-text! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn raw-fill-text! (context text x y size color) &unit
-          :examples $ []
-          :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(ctx,text,x,y,size,color)=>{ctx.save();try{ctx.font=size+\"px monospace\";ctx.textAlign=\"left\";ctx.textBaseline=\"middle\";ctx.direction=\"ltr\";ctx.fillStyle=color;ctx.fillText(text,x,y);}finally{ctx.restore();}}"
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'JsObject 'String 'Number 'Number 'Number 'String
             :features $ #{} :js-ffi
         'supported-flat-node? $ %{} 'CodeEntry (:doc "|声明基础 Canvas 参考的支持集合；不能静默丢弃不支持的 Scene 节点。")
           :code $ quote $ defn supported-flat-node? (node)
