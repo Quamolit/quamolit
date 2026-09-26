@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 const baseURL = "http://127.0.0.1:5190/preview/";
 export default defineConfig({
   testDir: ".",
-  testMatch: "demo-nav.spec.mjs",
+  testMatch: ["demo-nav.spec.mjs", "binary-tree.spec.mjs"],
   workers: 1,
   retries: 0,
   timeout: 30000,

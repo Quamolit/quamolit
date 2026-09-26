@@ -156,6 +156,10 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check restored binary tree Calcit geometry
+        if: inputs.mutation != 'color'
+        run: yarn test:binary-tree
+
       - name: Upload demo site and navigation evidence
         if: always() && inputs.mutation != 'color'
         uses: actions/upload-artifact@v4
