@@ -1,0 +1,260 @@
+{
+  "groups": [
+    {
+      "id": "public",
+      "title": "公共 Calcit 路径"
+    },
+    {
+      "id": "motion",
+      "title": "Motion 与可控时间"
+    },
+    {
+      "id": "lifecycle",
+      "title": "组件与生命周期"
+    },
+    {
+      "id": "gpu",
+      "title": "实例与 WebGPU 实验"
+    },
+    {
+      "id": "reference",
+      "title": "参考与验证工具"
+    }
+  ],
+  "entries": [
+    {
+      "path": "test/retained-component.html",
+      "title": "Calcit 保留组件",
+      "group": "public",
+      "summary": "同一声明的全量参考与保留计划对照，1000 帧结构复用。",
+      "status": "公共集成",
+      "docs": "docs/retained-component.md",
+      "compile": "compile:retained-component"
+    },
+    {
+      "path": "examples/retained-consumer/index.html",
+      "title": "独立 Calcit 消费者",
+      "group": "public",
+      "summary": "通过 caps 安装公共模块；显式时间、版本更新，无内部 JS 导入。",
+      "status": "独立消费",
+      "docs": "docs/isolated-consumer.md",
+      "compile": "consumer"
+    },
+    {
+      "path": "test/motion.html",
+      "title": "标量与 Vec2 Motion",
+      "group": "motion",
+      "summary": "直接跳到任意时间，观察 CPU 标量与向量采样。",
+      "status": "CPU 参考",
+      "docs": "docs/motion-scalar.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/keyframes.html",
+      "title": "关键帧与循环",
+      "group": "motion",
+      "summary": "对比 clamp、repeat、mirror 时间模式。",
+      "status": "CPU 参考",
+      "docs": "docs/motion-scalar.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/color.html",
+      "title": "颜色与透明度",
+      "group": "motion",
+      "summary": "固定时间的颜色插值及实色像素。",
+      "status": "CPU 参考",
+      "docs": "docs/motion-scalar.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/composition.html",
+      "title": "动画组合",
+      "group": "motion",
+      "summary": "两个标量输入组合生成输出。",
+      "status": "CPU 参考",
+      "docs": "docs/motion-scalar.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/custom.html",
+      "title": "自定义标量函数",
+      "group": "motion",
+      "summary": "运行时回调保留 CPU 路径，不自动转 WGSL。",
+      "status": "CPU 扩展",
+      "docs": "docs/motion-scalar.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/cpu-motion.html",
+      "title": "泛型 CPU Motion",
+      "group": "motion",
+      "summary": "Vec2 输出和显式模型、资源、视口依赖。",
+      "status": "CPU 扩展",
+      "docs": "docs/cpu-motion-extension.md",
+      "compile": "compile:cpu-motion"
+    },
+    {
+      "path": "test/direct.html",
+      "title": "绝对时间与失效",
+      "group": "motion",
+      "summary": "乱序、重复时间与六类依赖版本。",
+      "status": "CPU 参考",
+      "docs": "docs/direct-frame-sampling.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/host-clock.html",
+      "title": "暂停、变速与 seek",
+      "group": "motion",
+      "summary": "宿主时钟到动画时间的显式映射。",
+      "status": "时钟合同",
+      "docs": "docs/host-clock.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/playback.html",
+      "title": "统一播放时间边界",
+      "group": "motion",
+      "summary": "直接采样和固定 tick 在同一宿主时间线上运行。",
+      "status": "播放合同",
+      "docs": "docs/playback-boundary.md",
+      "compile": "compile:playback"
+    },
+    {
+      "path": "test/simulation.html",
+      "title": "固定步长模拟",
+      "group": "motion",
+      "summary": "显式 tick、步数预算与可重复的状态推进。",
+      "status": "CPU 模拟",
+      "docs": "docs/fixed-step-simulation.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/replay-archive.html",
+      "title": "输入日志与检查点",
+      "group": "motion",
+      "summary": "从日志和有界检查点恢复旧时刻。",
+      "status": "CPU 重放",
+      "docs": "docs/replay-archive.md",
+      "compile": "compile:replay-archive"
+    },
+    {
+      "path": "test/component.html",
+      "title": "声明式组件采样",
+      "group": "lifecycle",
+      "summary": "泛型组件输入到 Scene/Motion 的全量参考。",
+      "status": "全量参考",
+      "docs": "docs/component-sample.md",
+      "compile": "compile:component"
+    },
+    {
+      "path": "test/transition.html",
+      "title": "目标打断与连续性",
+      "group": "lifecycle",
+      "summary": "从当前值重新建立过渡，重放固定事件。",
+      "status": "逻辑参考",
+      "docs": "docs/transition-interruption.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/presence.html",
+      "title": "重排、退出与重入",
+      "group": "lifecycle",
+      "summary": "稳定 key、fade、退出禁交互与终点逻辑释放。",
+      "status": "逻辑参考",
+      "docs": "docs/presence-lifecycle.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/fade-migration.html",
+      "title": "旧 fade 迁移",
+      "group": "lifecycle",
+      "summary": "将旧动画意图表达成 Calcit Motion 和绑定。",
+      "status": "迁移切片",
+      "docs": "docs/fade-migration.md",
+      "compile": "compile:fade"
+    },
+    {
+      "path": "test/presence-resources.html",
+      "title": "生命周期与资源引用",
+      "group": "lifecycle",
+      "summary": "Float32 快照退出保留、重入与最后引用释放。",
+      "status": "宿主夹具",
+      "docs": "docs/presence-resources.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/scene-core.html",
+      "title": "Scene IR 与标量绑定",
+      "group": "lifecycle",
+      "summary": "类型化节点、直接采样与基础 Canvas 参考绘制。",
+      "status": "Scene 参考",
+      "docs": "docs/scene-ir-core.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/retained-scene.html",
+      "title": "旧保留计划与停帧",
+      "group": "lifecycle",
+      "summary": "JS 宿主参考：空闲停帧、DPR 和输入唤醒。",
+      "status": "旧宿主夹具",
+      "docs": "docs/retained-scene-plan.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/instance-sources.html",
+      "title": "万实例与版本更新",
+      "group": "gpu",
+      "summary": "同源 Canvas/WebGPU 图层与资源版本；不可用时明确回退。",
+      "status": "GPU 实验",
+      "docs": "docs/webgpu-instances.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/gpu-vec2.html",
+      "title": "GPU Vec2 时间采样",
+      "group": "gpu",
+      "summary": "保留实例数据，在 vertex shader 按绝对时间移动。",
+      "status": "GPU 实验",
+      "docs": "docs/gpu-vec2-motion.md",
+      "compile": "compile:motion"
+    },
+    {
+      "path": "test/m0/index.html",
+      "title": "M0 代表场景",
+      "group": "reference",
+      "summary": "UI 过渡、实例、混合节点和文字路径的原始参考基线。",
+      "status": "基线参考",
+      "docs": "test/m0/README.md",
+      "compile": null
+    },
+    {
+      "path": "test/visual.html",
+      "title": "旧顺序帧验证",
+      "group": "reference",
+      "summary": "旧 evaluate-at 的中间帧与只绘制重放，不是新运行时。",
+      "status": "旧参考",
+      "docs": "docs/frame-evaluation.md",
+      "compile": "compile:visual"
+    },
+    {
+      "path": "test/m0/bench.html",
+      "title": "基准驱动宿主页",
+      "group": "reference",
+      "summary": "仅由 yarn bench 驱动；直接打开只有画布，不是动画演示。",
+      "status": "工具页面",
+      "docs": "docs/performance-m0.md",
+      "compile": null
+    },
+    {
+      "path": "index.html",
+      "title": "原编译占位入口",
+      "group": "reference",
+      "summary": "当前仍是 bootstrap，不代表原应用已恢复。",
+      "status": "编译占位",
+      "docs": "docs/roadmap.md",
+      "compile": "compile"
+    }
+  ]
+}

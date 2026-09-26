@@ -6,6 +6,8 @@
 
 ## 当前可执行门禁
 
+`yarn test:demo-nav` 验证[完整演示导航](../demos/README.md)：清单无遗漏、统一编译、全部页面静态构建后在子路径部署、26 个入口初始化与导航往返、搜索/分类/刷新/移动端。仅验证 GPU 不可用时的回退，不替代真实 GPU 画面或吞吐；CI 保存站点、导航截图与失败 trace。
+
 `yarn test:consumer` 在独立临时项目安装候选提交，严格检查消费者，搬移入口可达产物后执行 Node/Chromium 合同；覆盖 1000 帧复用、乱序时间、同时间失效与 js-ffi `:file` 分发。详见[独立消费检验](isolated-consumer.md)；尚不包含生命周期、真实资源释放、JS-only 重编译和 GPU 验收。
 
 `yarn test:retained-component` 验证 [Calcit 组件保留计划](retained-component.md)：严格类型、原生乱序采样、Node 的 1000 帧静态对象身份/实际声明次数和六类版本失效、Chromium 同源画面对照及演示截图。它使用独立 `target/js/retained-component/`，不代表外部消费者安装或完整 GPU/生命周期验收。
