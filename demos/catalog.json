@@ -31,7 +31,6 @@
     }
   ],
   "planned": [
-    { "id": "clock", "title": "Clock · 数字时钟", "group": "originals", "summary": "六位时分秒与七段数字笔画的渐变切换。" },
     { "id": "solar", "title": "Solar · 轨道", "group": "originals", "summary": "递归旋转、缩放与圆弧组成的轨道动画。" },
     { "id": "table", "title": "Table · 编辑表格", "group": "originals", "summary": "3 × 3 文本格子的编辑交互；不是持续运动作品。" },
     { "id": "finder", "title": "Finder · 文件卡片", "group": "originals", "summary": "文件夹和卡片展开、居中缩放、淡出与返回。" },
@@ -61,6 +60,16 @@
       "status": "恢复切片 · Canvas",
       "docs": "docs/binary-tree-restoration.md",
       "compile": "compile:binary-tree"
+    },
+    {
+      "id": "clock",
+      "path": "examples/clock/index.html",
+      "title": "Clock · 数字时钟",
+      "group": "originals",
+      "summary": "六位时分秒与七段笔画渐变；逻辑时间由页面注入，进位与透明度由 Calcit 纯函数决定，可乱序截图。随机散开暂未恢复。",
+      "status": "恢复切片 · Canvas",
+      "docs": "docs/clock-restoration.md",
+      "compile": "compile:clock"
     },
     {
       "path": "test/retained-component.html",
