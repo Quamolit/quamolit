@@ -66,7 +66,7 @@
       "path": "test/retained-component.html",
       "title": "Calcit 保留组件",
       "group": "public",
-      "summary": "同一声明的全量参考与保留计划对照，1000 帧结构复用。",
+      "summary": "同一 Calcit 计划的 Canvas/WebGPU 矩形对照、常驻标量动画参数、数值读回与整层回退。",
       "status": "公共集成",
       "docs": "docs/retained-component.md",
       "compile": "compile:retained-component"
@@ -75,7 +75,7 @@
       "path": "examples/retained-consumer/index.html",
       "title": "独立 Calcit 消费者",
       "group": "public",
-      "summary": "独立安装统一组件入口；标量矩形与变换折线、1000 帧复用、版本失效和产物搬移，无内部 JS 导入。",
+      "summary": "独立安装统一组件入口；线性矩形/变换折线与双轴 smoothstep 可切换，1000 帧复用、产物搬移和同源 GPU 门禁，无内部 JS 导入。",
       "status": "独立消费",
       "docs": "docs/isolated-consumer.md",
       "compile": "consumer"

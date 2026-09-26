@@ -42,6 +42,15 @@
     <div><button id="model">Model +1</button><button id="resource">资源 ready 切换</button><button id="viewport">视口版本切换</button><button id="run">验证 1000 帧</button><button id="reset">重置</button></div>
     <p id="counts"></p><div id="status" role="status">加载 Calcit 模块…</div>
   </section>
-  <footer>本切片验证标量绑定与结构复用。计数是实际逻辑操作次数，不代表 FPS 或 WebGPU 性能；完整进入/退出、增量拓扑和 GPU 集成仍在推进。</footer>
+  <section class="controls">
+    <h2>同一保留计划 → WebGPU 矩形批次</h2>
+    <p class="caption">固定尺寸诊断画布。普通 GPU 模式绘制 CPU 采样结果；GPU 动画模式在 shader 中采样矩形 x/y 的 constant/tween，时间帧只上传 uniform。不支持的节点整层回退 Canvas。</p>
+    <button id="gpu-enable">启用 / 重建 GPU</button><button id="gpu-motion">启用 GPU 动画采样</button><button id="gpu-disable">禁用 GPU</button><button id="gpu-verify">验证当前像素</button><button id="gpu-numeric">验证 GPU 非整数数值</button>
+    <canvas id="gpu-component" width="320" height="180"></canvas>
+    <p id="gpu-status" role="status">Canvas 回退（未启用 GPU）</p>
+    <p id="gpu-pixels" role="status">像素尚未验证（严格比较适用于整数坐标诊断帧）</p>
+    <p id="gpu-numeric-status" role="status">数值尚未验证（诊断读回，不计正常帧吞吐）</p>
+  </section>
+  <footer>逻辑计数与上传量不是 FPS；真实设备与完整画质、资源恢复仍按 M2 验收。动画示例使用全屏画布，本页仅为固定尺寸对照诊断。</footer>
 </main><script type="module" src="./retained-component.mjs"></script></body>
 </html>

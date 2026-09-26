@@ -11,6 +11,9 @@
     "vite": "^8.0.12"
   },
   "scripts": {
+    "bench:gpu-component": "yarn compile:gpu-component && node test/gpu-component-bench.mjs",
+    "compile:gpu-component": "mkdir -p target/js/gpu-component && calcit --emit-path target/js/gpu-component/ --init-fn quamolit.test.gpu-component-fixture/main! --reload-fn quamolit.test.gpu-component-fixture/reload! calcit.cirru js",
+    "test:gpu-component": "calcit analyze check-public --ns quamolit.gpu-component --ns quamolit.gpu-scalar-program --ns quamolit.test.gpu-component-fixture && calcit test --tag gpu-component --require-match && yarn compile:gpu-component && node --test test/gpu-component-smoke.mjs test/gpu-scalar-program-smoke.mjs && yarn compile:retained-component && playwright test --config test/gpu-component.playwright.config.mjs",
     "compile:todolist": "calcit --emit-path target/js/todolist/ --init-fn quamolit.examples.todolist/main! --reload-fn quamolit.examples.todolist/reload! calcit.cirru js",
     "test:todolist": "calcit analyze check-public --ns quamolit.examples.todolist --ns quamolit.scene-ir --ns quamolit.scene-diff --ns quamolit.scene-binding --ns quamolit.presence-component --ns quamolit.canvas-reference && calcit test --tag todolist --require-match && yarn compile:todolist && node --test test/todolist-smoke.mjs && playwright test --config test/todolist.playwright.config.mjs",
     "compile:binary-tree": "calcit --emit-path target/js/binary-tree/ --init-fn quamolit.examples.binary-tree/main! --reload-fn quamolit.examples.binary-tree/reload! calcit.cirru js",

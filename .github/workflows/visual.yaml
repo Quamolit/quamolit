@@ -134,12 +134,27 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check public component GPU batch and explicit fallback
+        if: inputs.mutation != 'color'
+        run: yarn test:gpu-component
+        env:
+          CI: "true"
+
       - name: Check isolated Calcit consumer installation and relocated output
         if: inputs.mutation != 'color'
         run: yarn test:consumer
         env:
           CI: "true"
           QUAMOLIT_CONSUMER_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Upload public GPU component evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-gpu-component-${{ github.run_id }}
+          path: test-results/gpu-component/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload isolated consumer evidence
         if: always() && inputs.mutation != 'color'

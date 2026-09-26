@@ -1,5 +1,5 @@
 // 页面胶水只导入本应用的编译产物，不导入框架内部 JS 或测试夹具。
-import { start, update_plan, draw_$x_, browser_available_$q_ } from "./target/js/app/app.main.mjs";
+import { start, update_plan, start_dual, update_dual, draw_$x_, browser_available_$q_ } from "./target/js/app/app.main.mjs";
 import { init_tags, to_js_data } from "./target/js/app/calcit.core.mjs";
 
 const tags = init_tags(["declarations", "plan-builds", "binding-samples", "transform-samples", "transforms", "scene"]);
@@ -22,14 +22,16 @@ if (/\/examples\/retained-consumer\/(?:index.html)?$/.test(location.pathname)) {
   nav.textContent = "← 所有演示";
 }
 let time = 0, model = 40, ready = false, viewport = 100;
-let plan = start(time, model, ready, viewport);
+let mode = new URLSearchParams(location.search).get("motion") === "dual" ? "dual" : "mixed";
+let plan = (mode === "dual" ? start_dual : start)(time, model, ready, viewport);
 function snapshot() {
-  return { time, model, ready, viewport, browser: browser_available_$q_(),
+  return { time, model, ready, viewport, mode, browser: browser_available_$q_(),
     declarations: plan.get(tags.declarations), builds: plan.get(tags["plan-builds"]),
     samples: plan.get(tags["binding-samples"]), transformSamples: plan.get(tags["transform-samples"]),
     transforms: to_js_data(plan.get(tags.transforms)), scene: to_js_data(plan.get(tags.scene)) };
 }
 function show() {
+  document.querySelectorAll("[data-mode]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.mode === mode)));
   if (fullscreen) {
     const { width, height } = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -48,16 +50,24 @@ function show() {
 }
 function set(next = {}) {
   const request = { time, model, ready, viewport, ...next };
-  const updated = update_plan(plan, request.time, request.model, request.ready, request.viewport);
+  const updated = (mode === "dual" ? update_dual : update_plan)(plan, request.time, request.model, request.ready, request.viewport);
   ({ time, model, ready, viewport } = request);
   plan = updated;
   return show();
 }
+function setMode(next) {
+  if (!["mixed", "dual"].includes(next)) throw Error("unknown-consumer-mode");
+  // 更换声明时建立新计划，不能让相同版本错误复用另一个声明的结构。
+  const nextPlan = (next === "dual" ? start_dual : start)(time, model, ready, viewport);
+  mode = next; plan = nextPlan;
+  return show();
+}
+document.querySelectorAll("[data-mode]").forEach(button => button.onclick = () => setMode(button.dataset.mode));
 document.querySelectorAll("[data-time]").forEach(button => button.onclick = () => set({ time: Number(button.dataset.time) }));
 document.querySelector("#model").onclick = () => set({ model: model + 1 });
 document.querySelector("#ready").onclick = () => set({ ready: !ready });
 document.querySelector("#viewport").onclick = () => set({ viewport: viewport + 100 });
-window.consumer = { set, snapshot };
+window.consumer = { set, snapshot, setMode };
 if (fullscreen) {
   new ResizeObserver(show).observe(canvas);
   // 跨显示器/缩放可能仅改变 DPR；不以动画推进触发重绘。
