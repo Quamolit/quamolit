@@ -2,7 +2,7 @@
 import { start, update_plan, draw_$x_, browser_available_$q_ } from "./target/js/app/app.main.mjs";
 import { init_tags, to_js_data } from "./target/js/app/calcit.core.mjs";
 
-const tags = init_tags(["declarations", "plan-builds", "binding-samples", "scene"]);
+const tags = init_tags(["declarations", "plan-builds", "binding-samples", "transform-samples", "transforms", "scene"]);
 const canvas = document.querySelector("canvas");
 const context = canvas.getContext("2d");
 // 仅为页面展示/诊断模式；动画和 Scene 仍由 Calcit 产生。
@@ -26,7 +26,8 @@ let plan = start(time, model, ready, viewport);
 function snapshot() {
   return { time, model, ready, viewport, browser: browser_available_$q_(),
     declarations: plan.get(tags.declarations), builds: plan.get(tags["plan-builds"]),
-    samples: plan.get(tags["binding-samples"]), scene: to_js_data(plan.get(tags.scene)) };
+    samples: plan.get(tags["binding-samples"]), transformSamples: plan.get(tags["transform-samples"]),
+    transforms: to_js_data(plan.get(tags.transforms)), scene: to_js_data(plan.get(tags.scene)) };
 }
 function show() {
   if (fullscreen) {
@@ -41,7 +42,7 @@ function show() {
     context.setTransform(scale, 0, 0, scale, (w - 320 * scale) / 2, (h - 180 * scale) / 2);
   }
   draw_$x_(context, plan);
-  const { scene, ...counts } = snapshot();
+  const { scene, transforms, ...counts } = snapshot();
   document.querySelector("#status").textContent = JSON.stringify(counts, null, 2);
   return snapshot();
 }

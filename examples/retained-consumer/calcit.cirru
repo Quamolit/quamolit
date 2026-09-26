@@ -38,9 +38,33 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'declare-execution $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-execution (props model input ready viewport)
+            let
+                base $ declare props model input ready viewport
+                path $ scene/SceneNode :id |ribbon :key |ribbon :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline
+                  scene/PolylineNode :width 6 :stroke
+                    motion/ColorRgba :r 0 :g 0.5 :b 1 :a 1
+                    , :points $ [] (motion/Vec2 :x 0 :y 140) (motion/Vec2 :x 40 :y 140)
+                nodes $ conj
+                  :nodes $ :scene base
+                  , path
+              retained/ExecutionDeclaration :component
+                struct-with base $ :scene $ scene/SceneDocument :nodes nodes
+                , :transforms $ retained/TransformSampler :cpu $ fn (time)
+                  map nodes $ fn (node)
+                    scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e
+                      if
+                        = |ribbon $ :id node
+                        + 20 (* 10 time) (- model 40)
+                        , 0
+                      , :f 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.retained-component/ExecutionDeclaration
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
         'draw! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn draw! (context plan) (platform/clear-canvas! context 320 180)
-            canvas/draw-reference-rects! context $ :scene plan
+          :code $ quote $ defn draw! (context plan) (platform/clear-canvas! context 320 180) (retained/draw-plan! context plan)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.retained-component/ComponentPlan
@@ -66,16 +90,16 @@
             :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'Number 'Number 'Bool 'Number
         'start $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start (time model ready viewport)
-            retained/build-component-plan (request time model ready viewport) declare
+            retained/build-execution-plan (request time model ready viewport) declare-execution
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
         'update-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-plan (plan time model ready viewport)
-            retained/update-component-plan plan (request time model ready viewport) declare
+            retained/update-execution-plan plan (request time model ready viewport) declare-execution
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.main
-          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (quamolit.canvas-reference :as canvas) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser)
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser)
