@@ -10,6 +10,7 @@ import { chromium } from "@playwright/test";
 import { verifyConsumer } from "./consumer-contract.mjs";
 import { verifyGpuConsumer, verifyDualGpuConsumer } from "./consumer-gpu-contract.mjs";
 import { verifyGpuConsumerBrowser } from "./consumer-gpu-browser.mjs";
+import { runConsumerBench } from "./consumer-bench.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const fixture = join(root, "examples/retained-consumer");
@@ -24,7 +25,8 @@ const harness = {
   sha256: {},
 };
 for (const name of ["examples/retained-consumer/calcit.cirru", "examples/retained-consumer/main.mjs", "examples/retained-consumer/index.html",
-  "test/isolated-consumer.mjs", "test/consumer-gpu-contract.mjs", "test/consumer-gpu-browser.mjs", "test/host/gpu-scalar-readback.mjs"]) {
+  "test/isolated-consumer.mjs", "test/consumer-gpu-contract.mjs", "test/consumer-gpu-browser.mjs", "test/host/gpu-scalar-readback.mjs",
+  "test/consumer-bench.mjs", "test/consumer-bench-browser.mjs"]) {
   harness.sha256[name] = createHash("sha256").update(await readFile(join(root, name))).digest("hex");
 }
 assert.match(candidate, /^[A-Za-z0-9][A-Za-z0-9._/-]*$/, "候选提交或 tag 必须是安全 Git ref");
@@ -148,7 +150,9 @@ try {
   }
   assert.deepEqual(errors, []);
   assert.ok(requests.every(url => !/test\/host|quamolit\.test|js-ffi-assets|source-retired/.test(url)));
-  const report = { result: "PASS", candidate, harness, temporary, resolvedModule, modules: [...modules].sort(), counts, gpuCounts, gpuDualCounts, gpuBrowser, gpuDualBrowser,
+  const benchmark = process.env.QUAMOLIT_CONSUMER_BENCH === "1"
+    ? await runConsumerBench(browser, url, artifacts, { candidate, harness, calcit: run("calcit", ["-v"], runtime).trim() }) : null;
+  const report = { result: "PASS", candidate, harness, temporary, resolvedModule, modules: [...modules].sort(), counts, gpuCounts, gpuDualCounts, gpuBrowser, gpuDualBrowser, benchmark,
     negativeControl: ["停止 CPU 时间采样被断言检出", "停止 GPU uniform 写入被断言检出", "停止双轴 CPU 参考更新被断言检出"],
     browser: await browser.version(), node: process.version, calcit: run("calcit", ["-v"], runtime).trim(),
     times: [1, 0, 0.5, 0.25, 1], sameTimeInvalidations: ["model", "resources", "viewport"], requests,
