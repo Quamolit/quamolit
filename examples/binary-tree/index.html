@@ -18,7 +18,7 @@
     <label>时间（秒） <input id="time" type="range" min="0" max="60" step="0.01" value="0"></label>
     <div class="buttons"><button data-time="0">0 s</button><button data-time="2.5">2.5 s</button><button data-time="5">5 s</button><button data-time="10">10 s</button></div>
     <output id="status" aria-live="off"></output>
-    <p class="note">Canvas2D · CPU 全量参考。已恢复递归运动；圆头/圆角描边精度、Scene IR 缓存与 WebGPU 尚待后续。当前使用独立平头线段，不宣称与旧版逐像素一致。</p>
+    <p class="note">Canvas2D · CPU 全量参考。递归运动与三点路径的圆头、圆连接已恢复。每帧 63 次原生描边；Scene IR 缓存与 WebGPU 尚待后续，不代表性能验收。</p>
     <a href="https://github.com/Quamolit/quamolit/blob/main/docs/binary-tree-restoration.md">行为依据与检验规则</a>
   </aside>
   <script type="module" src="./main.mjs"></script>

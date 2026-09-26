@@ -1852,10 +1852,51 @@
           :require $ js-ffi.canvas-batches :as canvas
     'quamolit.canvas-strokes $ %{} 'FileEntry
       :defs $ {}
+        'RoundPolyline $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RoundPolyline (:id 'String)
+            :points $ :: 'List 'quamolit.motion/Vec2
+            :width 'Number
+            :color 'quamolit.motion/ColorRgba
+          :examples $ []
+          :schema $ :: 'StructDef
         'StrokeSegment $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct StrokeSegment (:id 'String) (:x0 'Number) (:y0 'Number) (:x1 'Number) (:y1 'Number) (:width 'Number) (:color 'quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ :: 'StructDef
+        'draw-polyline! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-polyline! (context path)
+            assert |invalid-round-polyline $ valid-polyline? path
+            when
+              > (:width path) 0
+              context .save!
+              js-set context :stroke-style $ color-css $ :color path
+              js-set context :line-width $ :width path
+              js-set context :line-cap |round
+              js-set context :line-join |round
+              context .begin-path!
+              let
+                  start $ &list:nth (:points path) 0
+                context .move-to! (:x start) (:y start)
+              each
+                rest $ :points path
+                fn (point)
+                  context .line-to! (:x point) (:y point)
+              context .stroke!
+              context .restore!
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.canvas-strokes/RoundPolyline
+            :features $ #{} :js-ffi
+        'draw-polylines! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-polylines! (context paths)
+            assert |invalid-round-polylines $ every? paths valid-polyline?
+            each paths $ fn (path) (draw-polyline! context path)
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost $ :: 'List 'quamolit.canvas-strokes/RoundPolyline
+            :features $ #{} :js-ffi
         'draw-segment! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-segment! (context segment)
             let
@@ -1887,6 +1928,19 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost $ :: 'List 'quamolit.canvas-strokes/StrokeSegment
             :features $ #{} :js-ffi
+        'valid-polyline? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-polyline? (path)
+            and
+              >=
+                count $ :points path
+                , 2
+              every? (:points path) motion/finite-vec2?
+              motion/finite-number? $ :width path
+              >= (:width path) 0
+              motion/valid-color? $ :color path
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.canvas-strokes/RoundPolyline
         'valid-segment? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn valid-segment? (segment)
             and
@@ -2876,13 +2930,17 @@
             let
                 left $ segment (str id |L) x y angle scale 80 -220
                 right $ segment (str id |R) x y angle scale -140 -100
+                path $ strokes/RoundPolyline :id id :width (:width left) :color (:color left) :points $ []
+                  motion/Vec2 :x (:x1 left) :y $ :y1 left
+                  motion/Vec2 :x x :y y
+                  motion/Vec2 :x (:x1 right) :y $ :y1 right
                 shift-a $ * 0.0206 $ sin
                   / (* 10 time) 17.9
                 shift-b $ * 0.0315 $ sin
                   / (* 10 time) 16.6
                 degree $ / &PI 180
-              if (= depth 0) ([] left right)
-                concat ([] left right)
+              if (= depth 0) ([] path)
+                concat ([] path)
                   branches time (dec depth) (str id |L) (:x1 left) (:y1 left)
                     + angle $ * degree $ + 10 (* 30 shift-a)
                     * scale $ + 0.6 $ * 1.3 shift-a
@@ -2892,10 +2950,10 @@
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number 'Number 'String 'Number 'Number 'Number 'Number
-            :return $ :: 'List 'quamolit.canvas-strokes/StrokeSegment
+            :return $ :: 'List 'quamolit.canvas-strokes/RoundPolyline
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context time depth)
-            strokes/draw-segments! context $ :scene $ frame-at time depth
+            strokes/draw-polylines! context $ :scene $ frame-at time depth
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number 'Number
@@ -2905,7 +2963,7 @@
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number
-            :return $ :: 'List 'quamolit.canvas-strokes/StrokeSegment
+            :return $ :: 'List 'quamolit.canvas-strokes/RoundPolyline
         'frame-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn frame-at (time depth)
             assert |invalid-tree-depth $ and (motion/finite-number? depth)
@@ -2920,14 +2978,14 @@
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number 'Number
-            :return $ :: 'quamolit.direct-frame/DirectFrame $ :: 'List 'quamolit.canvas-strokes/StrokeSegment
+            :return $ :: 'quamolit.direct-frame/DirectFrame $ :: 'List 'quamolit.canvas-strokes/RoundPolyline
           :tests $ [] $ %{} 'TestEntry (:name |original-depth-and-replay)
             :code $ quote $ do
-              is= 126 $ count $ :scene (frame-at 0 5)
+              is= 63 $ count $ :scene (frame-at 0 5)
               is=
                 :scene $ frame-at 1 5
                 :scene $ frame-at 1 5
-              is= 2 $ count $ :scene (frame-at 0 0)
+              is= 1 $ count $ :scene (frame-at 0 0)
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () &unit
           :examples $ []

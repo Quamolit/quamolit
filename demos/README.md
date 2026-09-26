@@ -1,6 +1,6 @@
 # 演示导航与阶段成果入口
 
-恢复进度：已有 Binary Tree 递归动画切片（圆角描边/Scene 集成未完成），其余 10 项仍待恢复。优先从“原有动画”进入实际动画，详见[行为与限制](../docs/binary-tree-restoration.md)。
+恢复进度：已有 Binary Tree 递归动画切片（圆头/圆连接已恢复，Scene 集成未完成），其余 10 项仍待恢复。优先从“原有动画”进入实际动画，详见[行为与限制](../docs/binary-tree-restoration.md)。
 
 统一入口为 `/demos/index.html`。当前收录 27 个已有页面，分为原有动画、公共 Calcit 路径、Motion/时间、组件/生命周期、实例/WebGPU 和参考/验证工具。可以搜索、分类筛选，筛选条件保存在 URL，刷新可复现。
 

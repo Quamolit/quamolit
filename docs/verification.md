@@ -6,7 +6,7 @@
 
 ## 当前可执行门禁
 
-`yarn test:binary-tree` 严格检查 Calcit 线段参考与原有摆动树，执行原生和 3 项 Node 合同；浏览器验证原有递归运动的独立矩阵/画面对照、负例和全屏播放控制。见 [Binary Tree 恢复边界](binary-tree-restoration.md)；不能据此宣称完整 Path IR、圆角描边或 GPU 已实现。
+`yarn test:binary-tree` 严格检查 Calcit 线段参考与原有摆动树，执行原生和 3 项 Node 合同；浏览器验证原有递归运动的独立矩阵/画面对照、负例和全屏播放控制。见 [Binary Tree 恢复边界](binary-tree-restoration.md)；不能据此宣称完整 Path IR 或 GPU 已实现。
 
 全屏与恢复导航：`test:demo-nav` 当前为 3 项 Node + 34 项浏览器检查；包括原有 11 项不可遗漏、待恢复不显示运行链接、艺术分类空状态，以及 DPR 1/2、桌面/窄屏、暂停 resize 后状态不变、像素和浮层键盘操作。跨物理显示器 DPR 切换、旧 11 个动画的完整验收与真实 GPU 尚未完成。见[恢复清单](demo-restoration.md)。
 
@@ -16,7 +16,7 @@
 
 `yarn test:retained-component` 验证 [Calcit 组件保留计划](retained-component.md)：严格类型、原生乱序采样、Node 的 1000 帧静态对象身份/实际声明次数和六类版本失效、Chromium 同源画面对照及演示截图。它使用独立 `target/js/retained-component/`，不代表外部消费者安装或完整 GPU/生命周期验收。
 
-使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前 `deps.cirru` 声明 Calcit `0.22.0` 与 js-ffi `0.2.0`；该版本支持定义级 `:ffi :js :inline/:file`，但后续仍可随证据升级。
+使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前 `deps.cirru` 声明 Calcit `0.22.0` 与 js-ffi `0.2.1-alpha.1`；该版本支持定义级 `:ffi :js :inline/:file`，但后续仍可随证据升级。
 
 ```sh
 yarn install --immutable
