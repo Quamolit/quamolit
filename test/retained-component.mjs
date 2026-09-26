@@ -3,14 +3,14 @@ import { start, update_plan as updatePlan, draw_plan_$x_ as drawPlan, draw_refer
 import * as gpuComponent from "../target/js/retained-component/quamolit.gpu-component.mjs";
 import { probe_$x_ as probeDevice } from "../target/js/retained-component/quamolit.webgpu-capabilities.mjs";
 
-const tags = initTags(["declarations", "plan-builds", "binding-samples", "node-writes", "skipped-updates"]);
+const tags = initTags(["declarations", "plan-builds", "binding-samples", "node-writes", "skipped-updates", "prepared", "delta", "full-builds", "candidates", "instances", "uploaded-bytes"]);
 const state = { time: Number(new URLSearchParams(location.search).get("time") ?? 0.5), model: 40, ready: false, viewport: 100 };
 const canvases = ["reference", "retained"].map((id) => document.getElementById(id));
 const contexts = canvases.map((canvas) => canvas.getContext("2d", { willReadFrequently: true }));
 const status = document.getElementById("status");
 let plan;
 let referenceDeclarations = 0;
-let gpuHost, gpuDevice, gpuFrame=gpuComponent.empty_frame(), gpuGeneration=0;
+let gpuHost, gpuDevice, gpuBatch, gpuGeneration=0;
 let gpuCanvas=document.getElementById('gpu-component'), gpuReason='未启用 GPU';
 const gpuStatus=document.getElementById('gpu-status');
 let gpuAdapter='';
@@ -22,18 +22,19 @@ function stopGpu(reason) {
   gpuGeneration++;
   if(gpuHost)gpuComponent.dispose_renderer_$x_(gpuHost);
   gpuHost=undefined;gpuDevice?.destroy();gpuDevice=undefined;
-  gpuFrame=gpuComponent.empty_frame();gpuReason=reason;newGpuCanvas();
+  gpuBatch=undefined;gpuReason=reason;newGpuCanvas();
 }
 function paintGpu() {
   gpuPaintRevision++;
   const pixels=document.getElementById('gpu-pixels');pixels.dataset.result='pending';pixels.textContent='当前帧像素待验证';
-  const prepared=gpuComponent.prepare_plan(plan);
+  gpuBatch=gpuBatch?gpuComponent.update_batch(gpuBatch,plan):gpuComponent.build_batch(plan);
+  const prepared=gpuBatch.get(tags.prepared);
   if(prepared.tag.value==='fallback' && gpuHost)stopGpu(prepared.extra[0]);
   if(gpuHost) {
-    const next=prepared.extra[0];
-    const delta=toJsData(gpuComponent.submit_frame_$x_(gpuHost,gpuFrame,next));gpuFrame=next;
+    gpuComponent.submit_batch_$x_(gpuHost,gpuBatch);
+    const delta=gpuBatch.get(tags.delta);
     gpuStatus.dataset.backend='webgpu';
-    gpuStatus.textContent=`WebGPU · ${gpuAdapter} · ${delta.instances} instances · 本帧记录上传 ${delta['uploaded-bytes']} B + 16 B viewport · 累计记录 ${gpuHost.uploadedBytes} B · draw ${gpuHost.draws} · pipeline 1 / buffers 2`;
+    gpuStatus.textContent=`WebGPU · ${gpuAdapter} · ${delta.get(tags.instances)} instances · 本帧记录上传 ${delta.get(tags['uploaded-bytes'])} B + 16 B viewport · 累计记录 ${gpuHost.uploadedBytes} B · draw ${gpuHost.draws} · pipeline 1 / buffers 2 · 批次构建 ${gpuBatch.get(tags['full-builds'])} · 候选记录 ${gpuBatch.get(tags.candidates)}`;
   } else {
     const context=gpuCanvas.getContext('2d');context.fillStyle='white';context.fillRect(0,0,320,180);drawPlan(context,plan);
     gpuStatus.dataset.backend='canvas';gpuStatus.textContent=`Canvas 整层回退 · ${prepared.tag.value==='fallback'?prepared.extra[0]:gpuReason}`;
@@ -48,11 +49,12 @@ async function enableGpu() {
   if(ready.adapter.info?.isFallbackAdapter){device.destroy();gpuReason='软件 adapter，不计硬件验收';paintGpu();return;}
   let candidate;
   try {
-    newGpuCanvas();device.pushErrorScope('validation');
-    try {candidate=gpuComponent.create_renderer_$x_(gpuCanvas,device,ready.format,1024);}
+    const candidateCanvas=gpuCanvas.cloneNode(false);device.pushErrorScope('validation');
+    try {candidate=gpuComponent.create_renderer_$x_(candidateCanvas,device,ready.format,1024);}
     finally {const error=await device.popErrorScope();if(error)throw Error(error.message);}
     if(generation!==gpuGeneration){gpuComponent.dispose_renderer_$x_(candidate);device.destroy();return;}
-    gpuHost=candidate;gpuDevice=device;gpuFrame=gpuComponent.empty_frame();
+    gpuCanvas.replaceWith(candidateCanvas);gpuCanvas=candidateCanvas;
+    gpuHost=candidate;gpuDevice=device;gpuBatch=undefined;
     const info=ready.adapter.info;
     gpuAdapter=`${info?.vendor||'unknown'}/${info?.architecture||'unknown'} · software=${String(info?.isFallbackAdapter)}`;
     gpuStatus.dataset.adapter=gpuAdapter;

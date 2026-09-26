@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import * as gpu from '../target/js/gpu-component/quamolit.gpu-component.mjs';
 import * as fixture from '../target/js/gpu-component/quamolit.test.retained-component-fixture.mjs';
+import {extreme_plan as extremePlan} from '../target/js/gpu-component/quamolit.test.gpu-component-fixture.mjs';
 import {sample_plan_at as sample} from '../target/js/gpu-component/quamolit.retained-component.mjs';
 import {init_tags,to_js_data as js,_$n_enum_$o_nth as nth,CalcitSliceList} from '../target/js/gpu-component/calcit.core.mjs';
-const tags=init_tags(['scene','nodes','content','x','y','width','height','fill','a','b','c','d','e','f','transforms','records','id','rect','matrix','writes','instances','uploaded-bytes']);
+const tags=init_tags(['scene','nodes','content','x','y','width','height','fill','a','b','c','d','e','f','transforms','records','id','rect','matrix','writes','instances','uploaded-bytes','source','prepared','delta','indices','full-builds','candidates','versions','component','motion','model','input','resources','viewport','time','slots']);
 const get=(o,k)=>o.get(tags[k]);
 const set=(o,k,v)=>o.assoc(tags[k],v);
 const list=xs=>new CalcitSliceList(xs);
@@ -118,5 +119,59 @@ test('容量不足与非法记录在任何上传之前失败',()=>{
  assert.equal(calls.writes.length,0);assert.equal(calls.submits,0);
  const record=get(frame(base()),'records').get(0);
  assert.equal(gpu.valid_record_$q_(set(record,'rect',set(get(record,'rect'),'width',-1))),false);
+ gpu.dispose_renderer_$x_(host);
+});
+
+test('缓存的 1000 标量时间帧只访问动态槽位，静态记录保持身份',()=>{
+ let p=base(),batch=gpu.build_batch(p);
+ const initial=get(gpu.frame_of(get(batch,'prepared')),'records');
+ assert.deepEqual(js(get(batch,'indices')),[64]);
+ for(let i=1;i<=1000;i++){
+  p=sample(p,(i%101)/100);batch=gpu.update_batch(batch,p);
+  const actual=gpu.frame_of(get(batch,'prepared')),expected=frame(p);
+  assert.deepEqual(js(actual),js(expected));
+  assert.deepEqual(js(get(get(batch,'delta'),'writes')).map(w=>w.index),[64]);
+  for(let j=0;j<64;j++)assert.equal(get(actual,'records').get(j),initial.get(j));
+ }
+ assert.equal(get(batch,'full-builds'),1);assert.equal(get(batch,'candidates'),1065);
+ const same=gpu.update_batch(batch,p);
+ assert.equal(get(same,'prepared'),get(batch,'prepared'));
+ assert.equal(get(same,'candidates'),1065);assert.equal(get(get(same,'delta'),'uploaded-bytes'),0);
+});
+
+test('六类版本均重建；重复绑定索引只处理一次',()=>{
+ const p=base(),initial=gpu.build_batch(p);
+ for(const key of ['component','motion','model','input','resources','viewport']){
+  const next=set(p,'versions',set(get(p,'versions'),key,17));
+  const changed=gpu.update_batch(initial,next);
+  assert.equal(get(changed,'full-builds'),2);assert.equal(get(changed,'candidates'),130);
+  assert.deepEqual(js(get(changed,'prepared')),js(gpu.prepare_plan(next)));
+ }
+ const slot=get(p,'slots').get(0),duplicate=set(p,'slots',list([slot,slot]));
+ let batch=gpu.build_batch(duplicate);batch=gpu.update_batch(batch,sample(duplicate,.5));
+ assert.deepEqual(js(get(batch,'indices')),[64]);assert.equal(get(batch,'candidates'),66);
+});
+
+test('动态数值越界整层回退，恢复后重新建立完整上传',()=>{
+ const p=extremePlan(0),batch=gpu.build_batch(p);
+ const large=sample(p,.5);
+ const fallback=gpu.update_batch(batch,large);
+ assert.equal(js(get(fallback,'prepared'))[0],'fallback');
+ assert.equal(get(fallback,'full-builds'),1);assert.equal(get(fallback,'candidates'),66);
+ const recovered=gpu.update_batch(fallback,p);
+ assert.equal(js(get(recovered,'prepared'))[0],'rects');
+ assert.equal(get(get(recovered,'delta'),'uploaded-bytes'),4160);
+ assert.equal(get(recovered,'full-builds'),2);
+});
+
+test('缓存提交仅验证和写入差量，旧缓存不被修改',()=>{
+ const {device,canvas,calls}=mockDevice(),host=gpu.create_renderer_$x_(canvas,device,'bgra8unorm',128);
+ const p=base(),before=gpu.build_batch(p),snapshot=js(get(before,'prepared'));
+ gpu.submit_batch_$x_(host,before);
+ const next=gpu.update_batch(before,sample(p,.5));gpu.submit_batch_$x_(host,next);
+ assert.equal(host.uploadedBytes,4224);assert.equal(calls.writes.length,68);
+ assert.deepEqual(js(get(before,'prepared')),snapshot);
+ const repeated=gpu.update_batch(next,get(next,'source'));gpu.submit_batch_$x_(host,repeated);
+ assert.equal(host.uploadedBytes,4224);assert.equal(calls.writes.length,69);
  gpu.dispose_renderer_$x_(host);
 });

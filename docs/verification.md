@@ -6,7 +6,7 @@
 
 ## 当前可执行门禁
 
-`yarn test:gpu-component` 验证[公共计划 GPU 连接](gpu-component-plan.md)：严格类型、原生差量、Node 编译后 file/inline 调用、1000 时间帧、浏览器整层回退与非软件 GPU 专项。硬件不可用时专项明确 skip，不能记为通过；当前不测吞吐或标准动画 shader 采样。
+`yarn test:gpu-component` 验证[公共计划 GPU 连接](gpu-component-plan.md)：严格类型、原生差量、Node 编译后 file/inline 调用、1000 时间帧缓存身份及六类版本失效、浏览器整层回退、异步 GPU 初始化期间的输入与非软件 GPU 专项。初始化竞态使用 mock，不算硬件验证。硬件不可用时专项明确 skip，不能记为通过；当前不测吞吐或标准动画 shader 采样。`yarn bench:gpu-component` 仅测 CPU 批次准备阶段，不能代替正式端到端验收。
 
 `yarn test:todolist` 验证 [TodoList 恢复](todolist-restoration.md)：严格类型、原生日志合同、Node 的重排打断/重入/错峰/100 次装卸/1000 时间帧共享，以及 Chromium 全像素文字参考、实际 Canvas 操作、导入失败隔离、两秒空闲停帧、DPR 1/2 和暂停 resize。文字为基础 monospace，未验证 GPU。
 

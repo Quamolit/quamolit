@@ -4246,6 +4246,19 @@
         :code $ quote $ ns quamolit.global
     'quamolit.gpu-component $ %{} 'FileEntry
       :defs $ {}
+        'BatchPlan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct BatchPlan (:source 'quamolit.retained-component/ComponentPlan) (:prepared 'quamolit.gpu-component/PreparedFrame) (:delta 'quamolit.gpu-component/RectUpdate)
+            :indices $ :: 'List 'Number
+            :full-builds 'Number
+            :candidates 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'FastResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct FastResult (:prepared 'quamolit.gpu-component/PreparedFrame)
+            :writes $ :: 'List 'quamolit.gpu-component/RectWrite
+            :candidates 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
         'PreparedFrame $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum PreparedFrame (:rects 'quamolit.gpu-component/RectFrame) (:fallback 'String)
           :examples $ []
@@ -4270,6 +4283,18 @@
           :code $ quote $ defstruct RectWrite (:index 'Number) (:record 'quamolit.gpu-component/RectRecord)
           :examples $ []
           :schema $ :: 'StructDef
+        'build-batch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-batch (plan)
+            let
+                prepared $ prepare-plan plan
+              BatchPlan :source plan :prepared prepared :delta
+                update-frame (empty-frame) (frame-of prepared)
+                , :indices
+                  unique-indices (:slots plan) ([])
+                  , :full-builds 1 :candidates $ count $ :nodes (:scene plan)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/BatchPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan
         'canvas-channel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn canvas-channel (value)
             /
@@ -4353,6 +4378,14 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
+        'frame-of $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn frame-of (prepared)
+            match prepared
+              (:rects frame) frame
+              (:fallback reason) (empty-frame)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectFrame)
+            :args $ [] 'quamolit.gpu-component/PreparedFrame
         'identity-matrix $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn identity-matrix ()
             scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
@@ -4438,6 +4471,19 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number
             :features $ #{} :js-ffi
+        'rebuild-batch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rebuild-batch (batch plan)
+            let
+                fresh $ build-batch plan
+              struct-with fresh
+                :delta $ update-frame
+                  frame-of $ :prepared batch
+                  frame-of $ :prepared fresh
+                :full-builds $ inc $ :full-builds batch
+                :candidates $ + (:candidates batch) (:candidates fresh)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/BatchPlan)
+            :args $ [] 'quamolit.gpu-component/BatchPlan 'quamolit.retained-component/ComponentPlan
         'record-values $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn record-values (record)
             let
@@ -4473,36 +4519,109 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectRecord)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
+        'submit-batch! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn submit-batch! (host batch)
+            match (:prepared batch)
+              (:fallback reason) (raise reason)
+              (:rects frame)
+                submit-update! host $ :delta batch
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'quamolit.gpu-component/BatchPlan
+            :features $ #{} :js-ffi
         'submit-frame! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn submit-frame! (host previous next)
             let
                 delta $ update-frame previous next
               assert |invalid-gpu-component-frame $ every? (:records next) valid-record?
-              raw-check! host $ count $ :records next
-              each (:writes delta)
-                fn (write)
-                  let
-                      record $ :record write
-                      r $ :rect record
-                      color $ :fill r
-                      m $ :matrix record
-                    raw-write! host (:index write) (:x r) (:y r) (:width r) (:height r)
-                      canvas-channel $ :r color
-                      canvas-channel $ :g color
-                      canvas-channel $ :b color
-                      :a color
-                      :a m
-                      :b m
-                      :c m
-                      :d m
-                      :e m
-                      :f m
-              raw-draw! host $ :instances delta
+              submit-update! host delta
               , delta
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectUpdate)
             :args $ [] 'JsObject 'quamolit.gpu-component/RectFrame 'quamolit.gpu-component/RectFrame
             :features $ #{} :js-ffi
+        'submit-update! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn submit-update! (host delta)
+            raw-check! host $ :instances delta
+            assert |invalid-gpu-delta-count $ = (:instances delta)
+              count $ :records $ :frame delta
+            each (:writes delta)
+              fn (write)
+                assert |invalid-gpu-delta-index $ and
+                  >= (:index write) 0
+                  = (:index write)
+                    floor $ :index write
+                  < (:index write) (:instances delta)
+                assert |invalid-gpu-delta-record $ and
+                  valid-record? $ :record write
+                  = (:record write)
+                    &list:nth
+                      :records $ :frame delta
+                      :index write
+            each (:writes delta)
+              fn (write)
+                let
+                    record $ :record write
+                    r $ :rect record
+                    color $ :fill r
+                    m $ :matrix record
+                  raw-write! host (:index write) (:x r) (:y r) (:width r) (:height r)
+                    canvas-channel $ :r color
+                    canvas-channel $ :g color
+                    canvas-channel $ :b color
+                    :a color
+                    :a m
+                    :b m
+                    :c m
+                    :d m
+                    :e m
+                    :f m
+            raw-draw! host $ :instances delta
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'quamolit.gpu-component/RectUpdate
+            :features $ #{} :js-ffi
+        'unique-indices $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn unique-indices (slots result)
+            if (empty? slots) result $ let
+                index $ :index $ &list:nth slots 0
+              recur (rest slots)
+                if (includes? result index) result $ conj result index
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.retained-component/BoundScalar) (:: 'List 'Number)
+            :return $ :: 'List 'Number
+        'update-batch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-batch (batch plan)
+            let
+                old $ :source batch
+                stable? $ and
+                  = (:id old) (:id plan)
+                  = (:versions old) (:versions plan)
+                  not $ retained/transform-active? $ :transform-sampler plan
+                  not $ retained/transform-active? $ :transform-sampler old
+              if stable?
+                match (:prepared batch)
+                  (:fallback reason) (rebuild-batch batch plan)
+                  (:rects frame)
+                    let
+                        result $ if
+                          = (:time old) (:time plan)
+                          FastResult :prepared (:prepared batch) :writes (empty-writes) :candidates 0
+                          walk-indices plan (:indices batch) (:records frame) (empty-writes) 0
+                        next $ frame-of $ :prepared result
+                        delta $ RectUpdate :frame next :writes (:writes result) :instances
+                          count $ :records next
+                          , :uploaded-bytes $ * 64
+                            count $ :writes result
+                      struct-with batch (:source plan)
+                        :prepared $ :prepared result
+                        :delta delta
+                        :candidates $ + (:candidates batch) (:candidates result)
+                rebuild-batch batch plan
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/BatchPlan)
+            :args $ [] 'quamolit.gpu-component/BatchPlan 'quamolit.retained-component/ComponentPlan
         'update-frame $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-frame (previous next)
             let
@@ -4532,6 +4651,32 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.gpu-component/RectRecord
+        'walk-indices $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn walk-indices (plan indices records writes checked)
+            if (empty? indices)
+              FastResult :prepared
+                PreparedFrame :rects $ RectFrame :records records
+                , :writes writes :candidates checked
+              let
+                  index $ &list:nth indices 0
+                  node $ &list:nth
+                    :nodes $ :scene plan
+                    , index
+                  next $ rect-record plan index
+                if
+                  and
+                    = (:parent node) |
+                    valid-record? next
+                  let
+                      same? $ = next $ &list:nth records index
+                    recur plan (rest indices)
+                      if same? records $ assoc records index next
+                      if same? writes $ conj writes $ RectWrite :index index :record next
+                      inc checked
+                  FastResult :prepared (PreparedFrame :fallback |geometry-outside-f32-domain) :writes (empty-writes) :candidates $ inc checked
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/FastResult)
+            :args $ [] 'quamolit.retained-component/ComponentPlan (:: 'List 'Number) (:: 'List 'quamolit.gpu-component/RectRecord) (:: 'List 'quamolit.gpu-component/RectWrite) 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.gpu-component
           :require (quamolit.scene-ir :as scene) (quamolit.retained-component :as retained) (quamolit.gpu-vec2-translation :as f32)
@@ -9822,6 +9967,19 @@
             quamolit.frame-eval :refer $ initial-frame evaluate-at
     'quamolit.test.gpu-component-fixture $ %{} 'FileEntry
       :defs $ {}
+        'extreme-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn extreme-plan (time)
+            let
+                plan $ fixture/start 0 40 false 100
+                slot $ &list:nth (:slots plan) 0
+                descriptor $ struct-with (:descriptor slot)
+                  :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from 80 :to 1e39 :easing (motion/Easing :linear)
+                changed $ struct-with plan $ :slots
+                  [] $ struct-with slot $ :descriptor descriptor
+              retained/sample-plan-at changed time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number
         'frame-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn frame-at (time)
             match
@@ -9837,17 +9995,28 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ []
-          :tests $ [] $ %{} 'TestEntry (:name |gpu-component-delta)
-            :code $ quote $ let
-                initial $ frame-at 0
-                changed $ frame-at 0.5
-                cold $ gpu/update-frame (gpu/empty-frame) initial
-                hot $ gpu/update-frame initial changed
-              is= 65 $ :instances cold
-              is= 4160 $ :uploaded-bytes cold
-              is= 64 $ :uploaded-bytes hot
-              is= 0 $ :uploaded-bytes $ gpu/update-frame changed changed
-            :tags $ #{} :gpu-component
+          :tests $ []
+            %{} 'TestEntry (:name |gpu-component-delta)
+              :code $ quote $ let
+                  initial $ frame-at 0
+                  changed $ frame-at 0.5
+                  cold $ gpu/update-frame (gpu/empty-frame) initial
+                  hot $ gpu/update-frame initial changed
+                is= 65 $ :instances cold
+                is= 4160 $ :uploaded-bytes cold
+                is= 64 $ :uploaded-bytes hot
+                is= 0 $ :uploaded-bytes $ gpu/update-frame changed changed
+              :tags $ #{} :gpu-component
+            %{} 'TestEntry (:name |gpu-cache-identity)
+              :code $ quote $ let
+                  initial $ gpu/build-batch $ extreme-plan 0
+                  failed $ gpu/update-batch initial $ extreme-plan 0.5
+                  restored $ gpu/update-batch failed $ extreme-plan 0
+                is= 65 $ :candidates initial
+                is= 66 $ :candidates failed
+                is= (gpu/PreparedFrame :fallback |geometry-outside-f32-domain) (:prepared failed)
+                is= 4160 $ :uploaded-bytes $ :delta restored
+              :tags $ #{} :gpu-component
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () (main!)
           :examples $ []
@@ -9857,6 +10026,8 @@
         :code $ quote $ ns quamolit.test.gpu-component-fixture
           :require (quamolit.gpu-component :as gpu) (quamolit.test.retained-component-fixture :as fixture)
             calcit.test :refer $ is=
+            quamolit.retained-component :as retained
+            quamolit.motion :as motion
     'quamolit.test.motion-fixture $ %{} 'FileEntry
       :defs $ {}
         'PresenceFixtureFrame $ %{} 'CodeEntry (:doc |)
