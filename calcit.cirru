@@ -1835,6 +1835,7 @@
               (:polyline path) (draw-round-path! context path)
               (:group group) (raise |unsupported-reference-group)
               (:instances instances) (raise |unsupported-reference-instances)
+              (:text text) (draw-text! context text)
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -1869,6 +1870,7 @@
                   (:group group) &unit
                   (:instances instances) &unit
                   (:polyline path) (raise |polyline-requires-draw-reference)
+                  (:text text) (raise |text-requires-draw-reference)
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -1899,6 +1901,24 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/PolylineNode
             :features $ #{} :js-ffi
+        'draw-text! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-text! (context text)
+            do
+              assert |invalid-scene-text $ scene/valid-content? $ scene/SceneContent :text text
+              raw-fill-text! (unsafe-coerce context 'JsObject) (:text text) (:x text) (:y text) (:size text)
+                color-css $ :fill text
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/TextNode
+            :features $ #{} :js-ffi
+        'raw-fill-text! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-fill-text! (context text x y size color) &unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(ctx,text,x,y,size,color)=>{ctx.save();try{ctx.font=size+\"px monospace\";ctx.textAlign=\"left\";ctx.textBaseline=\"middle\";ctx.direction=\"ltr\";ctx.fillStyle=color;ctx.fillText(text,x,y);}finally{ctx.restore();}}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'String 'Number 'Number 'Number 'String
+            :features $ #{} :js-ffi
         'supported-flat-node? $ %{} 'CodeEntry (:doc "|声明基础 Canvas 参考的支持集合；不能静默丢弃不支持的 Scene 节点。")
           :code $ quote $ defn supported-flat-node? (node)
             and
@@ -1908,6 +1928,7 @@
                 (:polyline path) true
                 (:group group) false
                 (:instances instances) false
+                (:text text) true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -3221,6 +3242,587 @@
             quamolit.retained-path :as retained
             quamolit.retained-component :as execution
             quamolit.component-sample :as component
+    'quamolit.examples.todolist $ %{} 'FileEntry
+      :defs $ {}
+        'Event $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct Event (:at 'Number) (:kind 'String) (:id 'String) (:text 'String)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'Hit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct Hit (:id 'String) (:action 'String) (:text 'String)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'Model $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct Model
+            :rows $ :: 'List 'quamolit.examples.todolist/Row
+            :presence 'quamolit.presence/PresenceModel
+            :revision 'Number
+            :next-id 'Number
+            :at 'Number
+            :released 'Number
+            :undo-id 'String
+            :undo-text 'String
+            :undo-done 'Bool
+          :examples $ []
+          :schema $ :: 'StructDef
+        'Row $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct Row (:id 'String) (:text 'String) (:done 'Bool) (:present 'Bool) (:y 'quamolit.transition/TransitionIntent) (:progress 'quamolit.transition/TransitionIntent)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'Session $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct Session (:model 'quamolit.examples.todolist/Model) (:cursor 'Number) (:time 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'advance $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn advance (session log time)
+            assert |invalid-todo-advance $ and (motion/finite-number? time)
+              >= time $ :time session
+              <= (:cursor session) (count log)
+            if
+              < (:cursor session) (count log)
+              let
+                  event $ &list:nth log $ :cursor session
+                if
+                  <= (:at event) time
+                  recur
+                    Session :model
+                      dispatch (:model session) (:at event) (:kind event) (:id event) (:text event)
+                      , :cursor
+                        inc $ :cursor session
+                        , :time $ :at event
+                    , log time
+                  Session :model
+                    settle (:model session) time
+                    , :cursor (:cursor session) :time time
+              Session :model
+                settle (:model session) time
+                , :cursor (:cursor session) :time time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Session)
+            :args $ [] 'quamolit.examples.todolist/Session (:: 'List 'quamolit.examples.todolist/Event) 'Number
+        'append-event $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn append-event (log at kind id label)
+            do
+              assert |todo-log-capacity $ < (count log) 2000
+              do
+                assert |invalid-todo-event-time $ and (motion/finite-number? at) (>= at 0)
+                assert |unknown-todo-event $ includes?
+                  [] |add |toggle |edit |remove |restore |front |reverse |clear
+                  , kind
+                assert |invalid-todo-label $ or
+                  not $ includes? ([] |add |edit) kind
+                  valid-label? label
+            assert |nonmonotonic-todo-log $ or (empty? log)
+              >= at $ :at $ &list:nth log
+                dec $ count log
+            conj log $ Event :at at :kind kind :id id :text label
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.examples.todolist/Event) 'Number 'String 'String 'String
+            :return $ :: 'List 'quamolit.examples.todolist/Event
+        'color $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn color (r g b a)
+            motion/ColorRgba :r r :g g :b b :a a
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
+            :args $ [] 'Number 'Number 'Number 'Number
+        'commit-rows $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn commit-rows (model rows at)
+            let
+                arranged $ reflow rows at
+                presence-update $ presence/reconcile-presence (:presence model) (desired-scene arranged) at 0.4 $ motion/Easing :smoothstep
+                next $ struct-with model (:rows arranged)
+                  :presence $ :model presence-update
+                  :at at
+                  :revision $ inc $ :revision model
+                  :released $ + (:released model)
+                    count $ :released presence-update
+              struct-with next $ :presence $ delay-entries next at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Model)
+            :args $ [] 'quamolit.examples.todolist/Model (:: 'List 'quamolit.examples.todolist/Row) 'Number
+        'declare-execution $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-execution (props model input resources viewport)
+            let
+                descriptors $ map (:rows model)
+                  fn (row)
+                    motion/ScalarDescriptor :id
+                      str (:id row) |/done
+                      , :version 0 :motion $ motion/ScalarMotion :tween $ :tween (:progress row)
+                component $ lifecycle/declare-flat (:presence model) descriptors
+                items $ :items $ :presence model
+                rows $ :rows model
+              retained/ExecutionDeclaration :component component :transforms $ retained/TransformSampler :cpu $ fn (time)
+                map items $ fn (item)
+                  let
+                      row $ row-for-node rows $ :node (:entry item)
+                    scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e
+                      * -40 $ - 1 $ presence/alpha-at item time
+                      , :f $ transition/sample-transition (:y row) time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.retained-component/ExecutionDeclaration
+            :args $ [] 'Number 'quamolit.examples.todolist/Model 'Number 'Number 'Number
+        'delay-entries $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn delay-entries (model at)
+            struct-with (:presence model)
+              :items $ map
+                :items $ :presence model
+                fn (item)
+                  let
+                      tween $ :alpha item
+                      row $ row-for-node (:rows model)
+                        :node $ :entry item
+                      delay $ * 0.001 $ + 160
+                        :to $ :tween $ :y row
+                    if
+                      and
+                        >= (:start tween) at
+                        = 0 $ :from tween
+                      struct-with item $ :alpha $ struct-with tween
+                        :start $ + at delay
+                      if
+                        and
+                          = at $ :start tween
+                          = (presence/PresencePhase :exit) (:phase item)
+                        struct-with item $ :alpha $ struct-with tween
+                          :start $ + at $ if
+                            >
+                              -
+                                * 0.064 $ dec $ count (:rows model)
+                                , delay
+                              , 0
+                            -
+                              * 0.064 $ dec $ count (:rows model)
+                              , delay
+                            , 0
+                        , item
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ [] 'quamolit.examples.todolist/Model 'Number
+        'demo-log $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn demo-log ()
+            -> (empty-events) (append-event 0 |add | |Sketch) (append-event 0 |add | |Animate) (append-event 0 |add | |Explore) (append-event 1 |toggle |2 |) (append-event 1.5 |remove |3 |) (append-event 1.7 |restore | |) (append-event 2.3 |front |1 |) (append-event 2.45 |reverse | |) (append-event 3 |edit |2 |Create) (append-event 3.5 |remove |1 |)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.examples.todolist/Event
+        'desired-scene $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn desired-scene (rows)
+            scene/SceneDocument :nodes $ mapcat
+              filter rows $ fn (row) (:present row)
+              , row-nodes
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] $ :: 'List 'quamolit.examples.todolist/Row
+        'dispatch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn dispatch (model at kind id label)
+            assert |invalid-todo-event-time $ and (motion/finite-number? at)
+              >= at $ :at model
+            let
+                current $ settle model at
+                rows $ :rows current
+              case-default kind (raise |unknown-todo-event)
+                |add $ do
+                  assert |invalid-todo-label $ valid-label? label
+                  assert |todo-capacity $ < (count rows) 24
+                  let
+                      row $ new-row
+                        str $ :next-id current
+                        , label false at
+                    commit-rows
+                      struct-with current $ :next-id $ inc (:next-id current)
+                      prepend rows row
+                      , at
+                |toggle $ let
+                    row $ find-row current id
+                    done $ not $ :done row
+                  replace-row current
+                    struct-with row (:done done)
+                      :progress $ transition/interrupt-transition (:progress row) (if done 28 0) at 0.4 $ motion/Easing :smoothstep
+                    , at
+                |edit $ do
+                  assert |invalid-todo-label $ valid-label? label
+                  replace-row current
+                    struct-with (find-row current id) (:text label)
+                    , at
+                |remove $ let
+                    row $ find-row current id
+                  replace-row
+                    struct-with current (:undo-id id)
+                      :undo-text $ :text row
+                      :undo-done $ :done row
+                    struct-with row $ :present false
+                    , at
+                |restore $ do
+                  assert |nothing-to-restore $ not $ empty? (:undo-id current)
+                  let
+                      restored $ restore-row current at
+                      remaining $ filter rows $ fn (row)
+                        not= (:id row) (:id restored)
+                    commit-rows
+                      struct-with current $ :undo-id |
+                      prepend remaining restored
+                      , at
+                |front $ let
+                    row $ find-row current id
+                    remaining $ filter rows $ fn (old)
+                      not= (:id old) id
+                  commit-rows current (prepend remaining row) at
+                |reverse $ commit-rows current
+                  concat
+                    reverse $ filter rows $ fn (row) (:present row)
+                    filter rows $ fn (row)
+                      not $ :present row
+                  , at
+                |clear $ commit-rows current
+                  map rows $ fn (row)
+                    struct-with row $ :present false
+                  , at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Model)
+            :args $ [] 'quamolit.examples.todolist/Model 'Number 'String 'String 'String
+        'empty-events $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-events () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.examples.todolist/Event
+        'empty-hit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-hit () (Hit :id | :action | :text |)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Hit)
+            :args $ []
+        'empty-rows $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-rows () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.examples.todolist/Row
+        'events-through $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn events-through (log time)
+            filter log $ fn (event)
+              <= (:at event) time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.examples.todolist/Event) 'Number
+            :return $ :: 'List 'quamolit.examples.todolist/Event
+        'find-row $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn find-row (model id)
+            match
+              find (:rows model)
+                fn (row)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.examples.todolist/Row
+                    :return 'Bool
+                  and (:present row)
+                    = id $ :id row
+              (:some row) row
+              (:none) (raise |missing-active-todo-row)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Row)
+            :args $ [] 'quamolit.examples.todolist/Model 'String
+        'hit-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-at (model time x y)
+            assert |invalid-todo-hit $ and (motion/finite-number? time) (motion/finite-number? x) (motion/finite-number? y)
+            foldl
+              reverse $ :rows model
+              empty-hit
+              fn (hit row)
+                hint-fn $ {}
+                  :args $ [] 'quamolit.examples.todolist/Hit 'quamolit.examples.todolist/Row
+                  :return 'quamolit.examples.todolist/Hit
+                if
+                  not $ empty? $ :id hit
+                  , hit $ let
+                      alpha $ row-alpha model row time
+                      local-x $ + x $ * 40 (- 1 alpha)
+                      local-y $ - y $ transition/sample-transition (:y row) time
+                    if
+                      and (:present row) (> alpha 0) (>= local-y -25) (<= local-y 25) (>= local-x -282) (<= local-x 292)
+                      Hit :id (:id row) :text (:text row) :action $ cond
+                          < local-x -248
+                          , |toggle
+                        (< local-x 200) |edit
+                        (< local-x 250) |front
+                        true |remove
+                      , hit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Hit)
+            :args $ [] 'quamolit.examples.todolist/Model 'Number 'Number 'Number
+        'initial $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial ()
+            Model :rows (empty-rows) :presence
+              presence/start-presence $ scene/SceneDocument :nodes $ scene/empty-scene-nodes
+              , :revision 0 :next-id 1 :at 0 :released 0 :undo-id | :undo-text | :undo-done false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Model)
+            :args $ []
+        'initial-session $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-session ()
+            Session :model (initial) :cursor 0 :time 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Session)
+            :args $ []
+        'intent $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn intent (id from to at)
+            transition/start-transition id from to at 0.4 $ motion/Easing :smoothstep
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.transition/TransitionIntent)
+            :args $ [] 'String 'Number 'Number 'Number
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! ()
+            = 3 $ count $ :rows
+              replay (demo-log) 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ []
+          :tests $ [] $ %{} 'TestEntry (:name |todo-replay-and-release)
+            :code $ quote $ let
+                log $ demo-log
+                end $ replay log 4
+                begin $ replay log 0
+              is= 3 $ count $ :rows begin
+              is= 2 $ count $ :rows end
+              is= 6 $ :released end
+              is= false $ needs-frame? end 4
+              is= end $ replay log 4
+              is= begin $ replay log 0
+              is-throws $ append-event (empty-events) 0 |bad | |
+              is-throws $ dispatch (initial) -1 |add | |wrong
+              is-throws $ dispatch (initial) 0 |add | |
+              is-throws $ replay log $ / 1 0
+            :tags $ #{} :todolist
+        'needs-frame? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn needs-frame? (model time)
+            or
+              presence/presence-needs-frame? (:presence model) time
+              any?
+                :items $ :presence model
+                fn (item)
+                  >
+                    :start $ :alpha item
+                    , time
+              any? (:rows model)
+                fn (row)
+                  or
+                    transition/transition-active? (:y row) time
+                    transition/transition-active? (:progress row) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.examples.todolist/Model 'Number
+        'new-row $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn new-row (id text done at)
+            Row :id id :text text :done done :present true :y (intent id -120 -160 at) :progress $ intent (str id |/done) (if done 28 0) (if done 28 0) at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Row)
+            :args $ [] 'String 'String 'Bool 'Number
+        'next-event-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn next-event-at (session log)
+            if
+              < (:cursor session) (count log)
+              :at $ &list:nth log $ :cursor session
+              , -1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.todolist/Session $ :: 'List 'quamolit.examples.todolist/Event
+        'node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn node (row role content)
+            let
+                id $ str (:id row) |/ role
+              scene/SceneNode :id id :key id :parent | :content content :bindings ([]) :interaction $ scene/SceneInteraction :target id
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'quamolit.examples.todolist/Row 'String 'quamolit.scene-ir/SceneContent
+        'rect $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rect (x y w h fill)
+            scene/SceneContent :rect $ scene/RectNode :x x :y y :width w :height h :fill fill
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ [] 'Number 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+        'reflow $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reflow (rows at)
+            concat
+              map-indexed
+                filter rows $ fn (row) (:present row)
+                fn (index row)
+                  let
+                      target $ - (* 64 index) 160
+                      old $ :y row
+                    if
+                      = target $ :to $ :tween old
+                      , row $ struct-with row $ :y
+                        transition/interrupt-transition old target at 0.4 $ motion/Easing :smoothstep
+              filter rows $ fn (row)
+                not $ :present row
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.examples.todolist/Row) 'Number
+            :return $ :: 'List 'quamolit.examples.todolist/Row
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () (main!)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ []
+        'replace-row $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn replace-row (model row at)
+            commit-rows model
+              map (:rows model)
+                fn (old)
+                  if
+                    = (:id old) (:id row)
+                    , row old
+              , at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Model)
+            :args $ [] 'quamolit.examples.todolist/Model 'quamolit.examples.todolist/Row 'Number
+        'replay $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn replay (log time)
+            assert |invalid-todo-time $ and (motion/finite-number? time) (>= time 0)
+            :model $ advance (initial-session) log time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Model)
+            :args $ [] (:: 'List 'quamolit.examples.todolist/Event) 'Number
+        'request $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn request (model time)
+            component/ComponentRequest :id |todolist :time time :versions
+              direct/FrameVersions :component 0 :motion 0 :model (:revision model) :input 0 :resources 0 :viewport 0
+              , :props 0 :model model :input 0 :resources 0 :viewport 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.examples.todolist/Model 'Number
+            :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'quamolit.examples.todolist/Model 'Number 'Number 'Number
+        'restore-row $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn restore-row (model at)
+            match
+              find (:rows model)
+                fn (row)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.examples.todolist/Row
+                    :return 'Bool
+                  = (:id row) (:undo-id model)
+              (:some row)
+                struct-with row $ :present true
+              (:none)
+                do
+                  assert |todo-capacity $ <
+                    count $ :rows model
+                    , 24
+                  new-row (:undo-id model) (:undo-text model) (:undo-done model) at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Row)
+            :args $ [] 'quamolit.examples.todolist/Model 'Number
+        'row-alpha $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn row-alpha (model row time)
+            match
+              find
+                :items $ :presence model
+                fn (item)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.presence/PresenceItem
+                    :return 'Bool
+                  =
+                    :id $ :node $ :entry item
+                    str (:id row) |/card
+              (:some item) (presence/alpha-at item time)
+              (:none) 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.todolist/Model 'quamolit.examples.todolist/Row 'Number
+        'row-for-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn row-for-node (rows node)
+            match
+              find rows $ fn (row)
+                hint-fn $ {}
+                  :args $ [] 'quamolit.examples.todolist/Row
+                  :return 'Bool
+                starts-with? (:id node)
+                  str (:id row) |/
+              (:some row) row
+              (:none) (raise |missing-todo-row)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Row)
+            :args $ [] (:: 'List 'quamolit.examples.todolist/Row) 'quamolit.scene-ir/SceneNode
+        'row-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn row-nodes (row)
+            []
+              node row |card $ rect -300 -25 600 50 $ color 0.10 0.16 0.23 1
+              node row |toggle $ rect -282 -14 28 28 $ color 0.20 0.30 0.42 1
+              struct-with
+                node row |checked $ rect -282 -14
+                  :to $ :tween $ :progress row
+                  , 28 $ color 0.25 0.82 0.66 1
+                :bindings $ if
+                  =
+                    :from $ :tween $ :progress row
+                    :to $ :tween $ :progress row
+                  []
+                  [] $ scene/ScalarBinding :target (scene/ScalarTarget :width) :motion-id
+                    str (:id row) |/done
+                    , :version 0
+              node row |edit $ text -234 (:text row) 18 $ color 0.88 0.93 0.98 1
+              node row |front $ text 215 "|↑" 22 $ color 0.52 0.70 0.88 1
+              node row |remove $ text 260 "|×" 24 $ color 0.98 0.52 0.52 1
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.examples.todolist/Row
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'settle $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn settle (model time)
+            assert |invalid-todo-time $ and (motion/finite-number? time)
+              >= time $ :at model
+            let
+                presence-update $ presence/settle-presence (:presence model) time
+                next $ :model presence-update
+              if
+                = next $ :presence model
+                , model $ struct-with model (:presence next)
+                  :revision $ inc $ :revision model
+                  :released $ + (:released model)
+                    count $ :released presence-update
+                  :rows $ filter (:rows model)
+                    fn (row)
+                      or (:present row)
+                        any? (:items next)
+                          fn (item)
+                            starts-with?
+                              :id $ :node $ :entry item
+                              str (:id row) |/
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Model)
+            :args $ [] 'quamolit.examples.todolist/Model 'Number
+        'start-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-plan (model time)
+            retained/build-execution-plan (request model time) declare-execution
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.examples.todolist/Model 'Number
+        'text $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn text (x value size fill)
+            scene/SceneContent :text $ scene/TextNode :x x :y 0 :size size :text value :fill fill
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ [] 'Number 'String 'Number 'quamolit.motion/ColorRgba
+        'update-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-plan (plan model time)
+            retained/update-execution-plan plan (request model time) declare-execution
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'quamolit.examples.todolist/Model 'Number
+        'valid-label? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-label? (label)
+            and
+              >
+                count $ trim label
+                , 0
+              <= (count label) 28
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'String
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.todolist
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.presence :as presence) (quamolit.presence-component :as lifecycle) (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.retained-component :as retained)
+            calcit.test :refer $ is= is-throws
     'quamolit.fixed-step $ %{} 'FileEntry
       :defs $ {}
         'SimulationState $ %{} 'CodeEntry
@@ -5869,6 +6471,7 @@
                 (:group group) (%none)
                 (:rect rect) (%none)
                 (:polyline path) (%none)
+                (:text text) (%none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.presence/PresenceItem
@@ -6181,11 +6784,19 @@
             calcit.test :refer $ is= is-throws
     'quamolit.presence-component $ %{} 'FileEntry
       :defs $ {}
+        'animated-alpha? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn animated-alpha? (item)
+            not= (:phase item) (presence/PresencePhase :present)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.presence/PresenceItem
         'declare-flat $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-flat (model descriptors)
             let
                 document $ scene/SceneDocument :nodes $ map (:items model) item-node
-                motions $ concat descriptors $ map (:items model) item-motion
+                motions $ concat descriptors $ map
+                  filter (:items model) animated-alpha?
+                  , item-motion
               scene/validate-scene document
               binding/validate-descriptors motions
               component/ComponentDeclaration :scene document :motions motions
@@ -6224,8 +6835,10 @@
                 fn (entry)
                   not= (:target entry) (scene/ScalarTarget :alpha)
               struct-with node (:id id) (:key id)
-                :bindings $ conj (:bindings node)
-                  scene/ScalarBinding :target (scene/ScalarTarget :alpha) :motion-id id :version 0
+                :bindings $ if (animated-alpha? item)
+                  conj (:bindings node)
+                    scene/ScalarBinding :target (scene/ScalarTarget :alpha) :motion-id id :version 0
+                  :bindings node
                 :interaction $ match (:phase item)
                   (:exit) (scene/SceneInteraction :none)
                   _ $ :interaction node
@@ -6239,6 +6852,8 @@
                 :a $ :fill rect
               (:polyline path)
                 :a $ :stroke path
+              (:text text)
+                :a $ :fill text
               _ $ raise |presence-requires-flat-leaf
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
@@ -7202,6 +7817,7 @@
                     (:rect rect) (raise |unsupported-retained-path-scene)
                     (:group group) (raise |unsupported-retained-path-scene)
                     (:instances instances) (raise |unsupported-retained-path-scene)
+                    (:text text) (raise |unsupported-retained-path-scene)
                   context .restore!
             , &unit
           :examples $ []
@@ -7219,6 +7835,7 @@
                 (:rect rect) false
                 (:group group) false
                 (:instances instances) false
+                (:text text) false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -7384,6 +8001,12 @@
                     scene-ir/SceneContent :polyline $ struct-with path $ :stroke
                       struct-with (:stroke path) (:a value)
                   _ $ raise |unsupported-polyline-binding
+              (:text text)
+                match target
+                  (:alpha)
+                    scene-ir/SceneContent :text $ struct-with text $ :fill
+                      struct-with (:fill text) (:a value)
+                  _ $ raise |unsupported-text-binding
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
             :args $ [] 'quamolit.scene-ir/SceneContent 'quamolit.scene-ir/ScalarTarget 'Number
@@ -7606,6 +8229,7 @@
           :doc "|Closed geometry-only projection of supported Scene content."
           :code $ quote $ defenum GeometrySignature (:group 'quamolit.scene-ir/Matrix2D 'quamolit.scene-ir/ClipSpec) (:rect 'Number 'Number 'Number 'Number) (:instances 'Number 'Number)
             :polyline (:: 'List 'quamolit.motion/Vec2) 'Number
+            :text 'Number 'Number 'Number 'String
           :examples $ []
           :schema $ :: 'EnumDef
         'IdentitySegment $ %{} 'CodeEntry
@@ -7615,7 +8239,7 @@
           :schema $ :: 'StructDef
         'PropertySignature $ %{} 'CodeEntry
           :doc "|Closed visual-property projection; separate from geometry and resource versions."
-          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba)
+          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba) (:text 'quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ :: 'EnumDef
         'ResourceSignature $ %{} 'CodeEntry
@@ -7909,6 +8533,8 @@
                 GeometrySignature :instances (:width instances) (:height instances)
               (:polyline path)
                 GeometrySignature :polyline (:points path) (:width path)
+              (:text text)
+                GeometrySignature :text (:x text) (:y text) (:size text) (:text text)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/GeometrySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -7970,6 +8596,8 @@
                 PropertySignature :instances $ :fill instances
               (:polyline path)
                 PropertySignature :polyline $ :stroke path
+              (:text text)
+                PropertySignature :text $ :fill text
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/PropertySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -7981,6 +8609,7 @@
               (:instances instances)
                 ResourceSignature :instances $ :source instances
               (:polyline path) (ResourceSignature :none)
+              (:text text) (ResourceSignature :none)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/ResourceSignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -8048,7 +8677,7 @@
           :schema $ :: 'EnumDef
         'SceneContent $ %{} 'CodeEntry
           :doc "|Closed primitive/group/instance-layer union, independent from execution plans."
-          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode)
+          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode) (:text 'quamolit.scene-ir/TextNode)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneDocument $ %{} 'CodeEntry
@@ -8067,6 +8696,10 @@
           :code $ quote $ defstruct SceneNode (:id 'String) (:parent 'String) (:key 'String) (:content 'quamolit.scene-ir/SceneContent)
             :bindings $ :: 'List 'quamolit.scene-ir/ScalarBinding
             :interaction 'quamolit.scene-ir/SceneInteraction
+          :examples $ []
+          :schema $ :: 'StructDef
+        'TextNode $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct TextNode (:x 'Number) (:y 'Number) (:size 'Number) (:text 'String) (:fill 'quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ :: 'StructDef
         'conflicts-with-earlier? $ %{} 'CodeEntry
@@ -8092,6 +8725,7 @@
               (:rect rect) |rect
               (:instances instances) |instances
               (:polyline path) |polyline
+              (:text text) |text
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -8197,6 +8831,7 @@
                   or
                     = (content-kind content) |rect
                     = (content-kind content) |polyline
+                    = (content-kind content) |text
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/ScalarBinding 'quamolit.scene-ir/SceneContent
@@ -8275,6 +8910,13 @@
                     >= (:height instances) 0
                     valid-color? $ :fill instances
               (:polyline path) (valid-polyline? path)
+              (:text text)
+                and
+                  finite-number? $ :x text
+                  finite-number? $ :y text
+                  finite-number? $ :size text
+                  > (:size text) 0
+                  valid-color? $ :fill text
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneContent

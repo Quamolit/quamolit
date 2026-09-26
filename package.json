@@ -11,6 +11,8 @@
     "vite": "^8.0.12"
   },
   "scripts": {
+    "compile:todolist": "calcit --emit-path target/js/todolist/ --init-fn quamolit.examples.todolist/main! --reload-fn quamolit.examples.todolist/reload! calcit.cirru js",
+    "test:todolist": "calcit analyze check-public --ns quamolit.examples.todolist --ns quamolit.scene-ir --ns quamolit.scene-diff --ns quamolit.scene-binding --ns quamolit.presence-component --ns quamolit.canvas-reference && calcit test --tag todolist --require-match && yarn compile:todolist && node --test test/todolist-smoke.mjs && playwright test --config test/todolist.playwright.config.mjs",
     "compile:binary-tree": "calcit --emit-path target/js/binary-tree/ --init-fn quamolit.examples.binary-tree/main! --reload-fn quamolit.examples.binary-tree/reload! calcit.cirru js",
     "test:binary-tree": "calcit analyze check-public --ns quamolit.scene-ir --ns quamolit.scene-diff --ns quamolit.scene-binding --ns quamolit.presence --ns quamolit.canvas-reference --ns quamolit.canvas-strokes --ns quamolit.retained-path --ns quamolit.examples.binary-tree && calcit test quamolit.examples.binary-tree/frame-at --require-match && calcit test --tag retained-path --require-match && yarn compile:binary-tree && node --test test/binary-tree-smoke.mjs test/scene-polyline-smoke.mjs test/retained-path-smoke.mjs",
     "compile:demos": "node scripts/prepare-demos.mjs",

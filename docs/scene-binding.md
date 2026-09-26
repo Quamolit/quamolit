@@ -2,7 +2,7 @@
 
 `quamolit.scene-binding/resolve-scene(document, descriptors, time)` 将 `SceneNode.bindings` 中的 Motion ID/version 与 `ScalarDescriptor` 精确配对，在给定有限绝对时间采样，返回一个新的 `SceneDocument`。输入和输出都经过 `validate-scene`，输出保留原绑定元数据，可继续序列化、比较和重新采样。不同版本的描述可以同时存在，但同一 ID/version 对不得重复；空 ID、非整数/非有限版本、缺失或版本不符的引用会报错。
 
-当前目标允许 group opacity、rect x/y/width/height，以及 rect/polyline 的 alpha（替换 fill/stroke 的 a）。alpha 不是组透明度；不能应用到 group/instances。采样后的 opacity/alpha 必须仍在 `[0,1]`，尺寸不得为负；越界会由 Scene 校验拒绝，而不是悄悄裁剪。实例源、事件目标和资源版本原样保留；不把闭包、DOM 或 GPU 句柄引入 IR。描述的数值语义由 [Motion 标量参考实现](motion-scalar.md)定义。Scene 的连续预序子树约束及绘制/命中顺序见 [Scene IR 核心](scene-ir-core.md)。
+当前目标允许 group opacity、rect x/y/width/height，以及 rect/polyline/text 的 alpha（替换 fill/stroke 的 a）。alpha 不是组透明度；不能应用到 group/instances。采样后的 opacity/alpha 必须仍在 `[0,1]`，尺寸不得为负；越界会由 Scene 校验拒绝，而不是悄悄裁剪。实例源、事件目标和资源版本原样保留；不把闭包、DOM 或 GPU 句柄引入 IR。描述的数值语义由 [Motion 标量参考实现](motion-scalar.md)定义。Scene 的连续预序子树约束及绘制/命中顺序见 [Scene IR 核心](scene-ir-core.md)。
 
 这是逐节点/逐绑定查找的 CPU **正确性参考**，会产生新文档；不代表生产路径必须每帧重建 Scene、遍历所有绑定或上传所有几何。#50 的保留执行计划需用稳定逻辑身份记录绑定依赖，只重新采样受时间/模型版本影响的字段，并证明静态几何与资源复用。
 

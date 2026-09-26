@@ -160,6 +160,21 @@ jobs:
         if: inputs.mutation != 'color'
         run: yarn test:binary-tree
 
+      - name: Check restored TodoList lifecycle and Canvas interaction
+        if: inputs.mutation != 'color'
+        run: yarn test:todolist
+        env:
+          CI: "true"
+
+      - name: Upload TodoList fixed-time and interaction evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-todolist-${{ github.run_id }}
+          path: test-results/todolist/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload demo site and navigation evidence
         if: always() && inputs.mutation != 'color'
         uses: actions/upload-artifact@v4

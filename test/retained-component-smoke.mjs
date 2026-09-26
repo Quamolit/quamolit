@@ -61,7 +61,7 @@ test("Presence 重入在 25/50/75% 连续，终点释放一次，100 次装卸�
 });
 
 test("Presence 声明拒绝 alpha 冲突、非平面子节点和 Motion ID 冲突", () => {
-  const model = presenceInitial();
+  const model = presenceExit();
   const declaration = declarePresence(model, empty);
   const items = get(model, "items"), item = items.get(0), entry = get(item, "entry");
   const node = get(entry, "node");
@@ -72,7 +72,7 @@ test("Presence 声明拒绝 alpha 冲突、非平面子节点和 Motion ID 冲�
   assert.throws(() => declarePresence(changeNode(node.assoc(presenceTags.bindings, get(bound, "bindings"))), empty), /presence-alpha-binding-conflict/);
   assert.throws(() => declarePresence(changeNode(node.assoc(presenceTags.parent, "parent")), empty), /presence-requires-flat-leaf/);
   assert.throws(() => declarePresence(model, field(declaration, "motions")), /duplicate-motion-descriptor/);
-  assert.deepEqual(toJsData(model), toJsData(presenceInitial()), "失败不修改输入 Model");
+  assert.deepEqual(toJsData(model), toJsData(presenceExit()), "失败不修改输入 Model");
 });
 
 test("Presence 进入、重排和同 key 换类型沿用逻辑身份，不重复渲染 ID", () => {
@@ -95,7 +95,7 @@ test("Presence 进入、重排和同 key 换类型沿用逻辑身份，不重复
 });
 
 test("叶节点 alpha 越界不裁剪，Scene 验证明确拒绝", () => {
-  const declaration = declarePresence(presenceInitial(), empty);
+  const declaration = declarePresence(presenceExit(), empty);
   const document = field(declaration, "scene"), nodes = field(document, "nodes");
   for (const node of [nodes.get(0), nodes.get(1)]) {
     const target = get(get(node, "bindings").get(0), "target");

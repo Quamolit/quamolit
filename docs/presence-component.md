@@ -8,12 +8,12 @@
 
 ## 支持范围与责任
 
-- 仅顶层矩形与折线叶节点。原色 alpha 乘 Presence alpha，编译为 ScalarTween；底层 `ScalarTarget :alpha` 本身是替换语义。
+- 仅顶层矩形、折线及基础文字叶节点。原色 alpha 乘 Presence alpha，编译为 ScalarTween；底层 `ScalarTarget :alpha` 本身是替换语义。present 项不创建生命周期绑定，避免静态节点逐帧重写。
 - 保留项顺序沿用 Presence：当前声明在前，退出项随后。退出项仍绘制，interaction 置 none；重入恢复原事件目标。
 - 渲染 ID/key 使用 `presence/<content-kind>/<原 key>`，同 key 换类型时新旧节点可共存。原始逻辑 ID/path 仍保留在 PresenceModel 和释放通知中；调用者不能把渲染 ID 当作原始业务 ID。
 - 原有非 alpha 绑定保留。调用者传入它们所需的描述符，退出期间也必须保留这些描述符。生成的生命周期描述符固定 version=0；Model/过渡变化必须递增 ComponentRequest 的 model（或对应依赖）版本，不能只依赖时间或描述符版本。
 - 拒绝已有 alpha 绑定、重复描述符 ID/version、group/instances 和非顶层节点，不静默降级。不支持把多个独立模型直接拼入同一个 Scene；需要先形成统一逻辑 Model。
-- 这不是嵌套组隔离透明度，也不实现文字、真实资源释放或指针捕获。TodoList 的行级 Model、文字、错峰/重排、输入日志、全屏操作页面还未完成。
+- 这不是嵌套组隔离透明度，也不实现真实资源释放或指针捕获。[TodoList](todolist-restoration.md)已消费此连接，提供行级 Model、文字、错峰/重排、输入日志及全屏操作页面。
 
 ## 可复现验证
 
