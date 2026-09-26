@@ -5,12 +5,12 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
-"@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#tag=0.2.0-alpha.5":
-  version: 0.2.0-alpha.5
-  resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=d09577c5728d5a66eb0b2f2355726c3e6b58acbf"
+"@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#tag=0.2.0":
+  version: 0.2.0
+  resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=43ae6112f4b67fb120a882547581037a0f47ad53"
   dependencies:
-    "@calcit/procs": "npm:0.22.0-alpha.3"
-  checksum: 10c0/19cf25b0cf966272d96a0390960ab0b6a335212cdbe5bd04339c18576b257e68a3bc0188caf8366b7f5ef98b309a9bf6972336b2c2dfb95a3f06cb8e6f3c0704
+    "@calcit/procs": "npm:0.22.0"
+  checksum: 10c0/8f9904ac15de860f4fff1afbe3578054a8e3b8237df4956d466dc790c5be3fcd4b2e2b80aafe9316bae9a05d3cbcb2cc7d84d679ef3a35bedf0863d450f53699
   languageName: node
   linkType: hard
 
@@ -22,17 +22,6 @@ __metadata:
     "@cirru/parser.ts": "npm:^0.0.9"
     "@cirru/writer.ts": "npm:^0.1.9"
   checksum: 10c0/57706484fe15e2d47bc17e1c9ec7f9d73446fb8fbf22d06e43f6d9b4b172177b8fa5e0ec39bd89444de08b58d34ab7a9ba3024d51b26a9d415af95c144ea9f95
-  languageName: node
-  linkType: hard
-
-"@calcit/procs@npm:0.22.0-alpha.3":
-  version: 0.22.0-alpha.3
-  resolution: "@calcit/procs@npm:0.22.0-alpha.3"
-  dependencies:
-    "@calcit/ternary-tree": "npm:0.0.26"
-    "@cirru/parser.ts": "npm:^0.0.9"
-    "@cirru/writer.ts": "npm:^0.1.9"
-  checksum: 10c0/b6aa28ae40918bef2e5363adbd4f5b36ec2ee26eda1a45b5e6c628b12c0d2746554d1106c5b0c86e2ff1be0fc726bed7173df1984e1dcb9a07d846b849db2a4e
   languageName: node
   linkType: hard
 
@@ -680,7 +669,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
-    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.0-alpha.5"
+    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.0"
     "@calcit/procs": "npm:0.22.0"
     "@playwright/test": "npm:1.63.0"
     "@quamolit/touch-control": "npm:^0.0.13"

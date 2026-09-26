@@ -6,7 +6,7 @@
 
 Quamolit 让使用者声明组件，通过函数和显式动画描述生成中间帧。框架负责把这些声明转成高效的网页动画执行路径，既支持普通交互 UI，也支持大量同类图元。应用拥有逻辑动画 Model，渲染器拥有可重建的执行缓存与宿主资源。
 
-截至本次整理：#42 的 Calcit 0.19.1/runtime 升级及 #44 的 tick/paint 分离已合并；#45 的泛型顺序帧求值仍是独立 PR。`sample-at`、Motion IR、Scene IR、增量执行、WebGPU 和完整视觉 CI 均不能据此认定已完成。默认入口仍是 bootstrap。未来接手时以实际 main 和 PR 状态重新核对，不把这份历史快照当作实时进度。工具链现已升级到 Calcit 0.22.0 / js-ffi 0.2.0-alpha.5，并已用 0.22.0 重跑现有编译、release 与全部 `yarn test:*`。
+截至本次整理：#42 的 Calcit 0.19.1/runtime 升级及 #44 的 tick/paint 分离已合并；#45 的泛型顺序帧求值仍是独立 PR。`sample-at`、Motion IR、Scene IR、增量执行、WebGPU 和完整视觉 CI 均不能据此认定已完成。默认入口仍是 bootstrap。未来接手时以实际 main 和 PR 状态重新核对，不把这份历史快照当作实时进度。工具链现已升级到 Calcit 0.22.0 / js-ffi 0.2.0；0.22.0 升级切片已重跑现有编译、release 与全部 `yarn test:*`，正式版 js-ffi 另按其依赖升级切片验证。
 
 ## 两种时间语义
 

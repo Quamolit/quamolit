@@ -45,7 +45,7 @@ Calcit 0.22 起，定义级 `:ffi :js` 可以嵌入一个 JS 函数表达式：`
 
 本轮已核对实际消费：`typed-arrays.mjs` 的 Float32Array 快照与 `webgpu-capabilities.mjs` 的 adapter/device 探测仍封装平台能力，保留上游；`canvas-rect-batches.mjs` 的批次循环与 `webgpu-rect-batches.mjs` 的矩形 shader、Vec2 tween 和图层资源当前只有 Quamolit 的实际消费者，已迁到本仓库 `src/host/`，由 `quamolit.instance-ffi` / `quamolit.webgpu-batches` Calcit 入口调用。旧 `canvas-scene-commands.mjs` 没有 Quamolit 运行消费者，不把它复制成死代码；上游 0.2.0-alpha.1 移除实验接口。原 `gpu-vec2-translation.mjs` 的 Motion 参数解释已迁至 Calcit。
 
-本仓库已升级到 Calcit `0.22.0` 与 js-ffi `0.2.0-alpha.5`，可直接使用定义级 JS 嵌入（`:ffi :js :inline/:file`）。升级后 `yarn compile`、`yarn release` 与全部 `yarn test:*` 在 0.22.0 下通过；严格诊断清单由 `calcit analyze weak-types --ffi-evidence` 记录，当前为 178 个待审 FFI 边界、17 处 `unsafe-coerce`、45 处 `code-nil`、463 处 `schema-dynamic`，主要集中在 legacy 应用命名空间与 test fixture。新路径立即收紧，legacy 应用命名空间挂到 [#36](https://github.com/Quamolit/quamolit/issues/36) 的迁移期限；不得通过全局 `:allow` 或宽泛 `Dynamic` 掩盖新代码的类型错误。
+本仓库已升级到 Calcit `0.22.0` 与 js-ffi `0.2.0`，可直接使用定义级 JS 嵌入（`:ffi :js :inline/:file`）。Calcit 0.22 升级切片的 `yarn compile`、`yarn release` 与全部 `yarn test:*` 已通过；js-ffi 正式版切片另验证编译、release、WebGPU 实例及固定时间浏览器测试。严格诊断清单由 `calcit analyze weak-types --ffi-evidence` 记录，原升级切片为 178 个待审 FFI 边界、17 处 `unsafe-coerce`、45 处 `code-nil`、463 处 `schema-dynamic`，主要集中在 legacy 应用命名空间与 test fixture。新路径立即收紧，legacy 应用命名空间挂到 [#36](https://github.com/Quamolit/quamolit/issues/36) 的迁移期限；不得通过全局 `:allow` 或宽泛 `Dynamic` 掩盖新代码的类型错误。
 
 本仓库 `src/host/` 目前仍混有生产宿主与待迁逻辑，并非最终归属：
 
