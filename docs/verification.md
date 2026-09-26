@@ -6,15 +6,17 @@
 
 ## 当前可执行门禁
 
+`yarn test:todolist` 验证 [TodoList 恢复](todolist-restoration.md)：严格类型、原生日志合同、Node 的重排打断/重入/错峰/100 次装卸/1000 时间帧共享，以及 Chromium 全像素文字参考、实际 Canvas 操作、导入失败隔离、两秒空闲停帧、DPR 1/2 和暂停 resize。文字为基础 monospace，未验证 GPU。
+
 `yarn test:binary-tree` 严格检查 Calcit 线段参考与原有摆动树，执行原生和 3 项 Node 合同；浏览器验证原有递归运动的独立矩阵/画面对照、负例和全屏播放控制。见 [Binary Tree 恢复边界](binary-tree-restoration.md)；不能据此宣称完整 Path IR 或 GPU 已实现。
 
-全屏与恢复导航：`test:demo-nav` 当前为 3 项 Node + 34 项浏览器检查；包括原有 11 项不可遗漏、待恢复不显示运行链接、艺术分类空状态，以及 DPR 1/2、桌面/窄屏、暂停 resize 后状态不变、像素和浮层键盘操作。跨物理显示器 DPR 切换、旧 11 个动画的完整验收与真实 GPU 尚未完成。见[恢复清单](demo-restoration.md)。
+全屏与恢复导航：`test:demo-nav` 当前为 3 项 Node + 36 项浏览器检查；包括原有 11 项不可遗漏、待恢复不显示运行链接、艺术分类空状态，以及 DPR 1/2、桌面/窄屏、暂停 resize 后状态不变、像素和浮层键盘操作。跨物理显示器 DPR 切换、旧 11 个动画的完整验收与真实 GPU 尚未完成。见[恢复清单](demo-restoration.md)。
 
-`yarn test:demo-nav` 验证[完整演示导航](../demos/README.md)：清单无遗漏、统一编译、全部页面静态构建后在子路径部署、27 个入口初始化与导航往返、搜索/分类/刷新/移动端。仅验证 GPU 不可用时的回退，不替代真实 GPU 画面或吞吐；CI 保存站点、导航截图与失败 trace。
+`yarn test:demo-nav` 验证[完整演示导航](../demos/README.md)：清单无遗漏、统一编译、全部页面静态构建后在子路径部署、所有已实现入口初始化与导航往返、搜索/分类/刷新/移动端。仅验证 GPU 不可用时的回退，不替代真实 GPU 画面或吞吐；CI 保存站点、导航截图与失败 trace。
 
 `yarn test:consumer` 在独立临时项目安装候选提交，严格检查消费者，搬移入口可达产物后执行 Node/Chromium 合同；覆盖 1000 帧复用、乱序时间、同时间失效与 js-ffi `:file` 分发。详见[独立消费检验](isolated-consumer.md)；尚不包含生命周期、真实资源释放、JS-only 重编译和 GPU 验收。
 
-`yarn test:retained-component` 验证 [Calcit 组件保留计划](retained-component.md)：严格类型、原生乱序采样、Node 的 1000 帧静态对象身份/实际声明次数和六类版本失效、Chromium 同源画面对照及演示截图。它使用独立 `target/js/retained-component/`，不代表外部消费者安装或完整 GPU/生命周期验收。
+`yarn test:retained-component` 验证 [Calcit 组件保留计划](retained-component.md)：严格类型、原生乱序采样、Node 的 1000 帧静态对象身份/实际声明次数和六类版本失效、Chromium 同源画面对照及演示截图。另覆盖 [Presence 组件连接](presence-component.md)的叶节点 alpha、重入连续性、显式释放、100 次装卸及独立 Canvas 像素对照。它使用独立 `target/js/retained-component/`，不代表外部消费者安装、完整 TodoList 或 GPU/资源生命周期验收。
 
 使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前 `deps.cirru` 声明 Calcit `0.22.0` 与 js-ffi `0.2.1-alpha.1`；该版本支持定义级 `:ffi :js :inline/:file`，但后续仍可随证据升级。
 

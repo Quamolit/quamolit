@@ -1,0 +1,7 @@
+@import url("../binary-tree/style.css");
+:root { background: #0b111b; color: #d7e6ee; }
+#panel { background: #111e2bf2; }
+#draft { border: 1px solid #375560; border-radius: 7px; background: #09131e; color: inherit; font: inherit; padding: 9px; }
+#message { color: #efb784; min-height: 1.5em; margin: 6px 0; }
+.import { display: block; font-size: 13px; }
+.import input { font: inherit; max-width: 240px; }

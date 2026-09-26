@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Todolist · Quamolit 原有动画</title><link rel="stylesheet" href="./style.css"></head>
+<body>
+  <canvas id="scene" aria-label="可编辑、重排并带进入退出动画的待办列表"></canvas>
+  <nav aria-label="演示导航"><a href="../../demos/index.html?group=originals">← 所有演示</a></nav>
+  <button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起面板</button>
+  <aside id="panel" aria-label="动画控制">
+    <span class="eyebrow">QUAMOLIT / ORIGINAL 02</span>
+    <h1>Todolist<br><small>让状态变化有迹可循</small></h1>
+    <p>点击方块切换完成，点击文字编辑，↑ 置顶，× 删除。行与文字全部绘制在 Canvas；这里是控制浮层。</p>
+    <form id="entry-form"><label>待办内容 <input id="draft" maxlength="28" autocomplete="off" value="Make something move" required></label><div class="buttons"><button type="submit" id="submit">新增</button><button type="button" id="cancel-edit" hidden>取消编辑</button></div></form>
+    <div class="buttons"><button id="restore">恢复最近删除</button><button id="reverse">倒序重排</button><button id="clear">清空</button></div>
+    <div class="buttons"><button id="play">播放</button><button id="reset">重放示范</button><button id="live">自由操作</button></div>
+    <label>日志时间（秒） <input id="time" type="range" min="0" max="5" step="0.01" value="0"></label>
+    <div class="buttons"><button data-time="0.25">进入 0.25 s</button><button data-time="1.6">退出 1.6 s</button><button data-time="2.6">重排 2.6 s</button><button data-time="4">终点 4 s</button></div>
+    <div class="buttons"><button id="export">导出输入日志</button><label class="import">导入日志 <input id="import" type="file" accept="application/json,.json"></label></div>
+    <output id="status" aria-live="off"></output><p id="message" role="status"></p>
+    <p class="note">支持最多 24 行、每条 28 字符；多行自动缩小构图。空闲停止绘制，拖动时间可从日志恢复任意帧。Canvas 基础文字暂用 monospace；WebGPU、复杂字形排版与通用指针捕获仍待后续。</p>
+    <a href="https://github.com/Quamolit/quamolit/blob/main/docs/todolist-restoration.md">行为依据与检验规则</a>
+  </aside>
+  <script type="module" src="./main.mjs"></script>
+</body></html>

@@ -31,7 +31,6 @@
     }
   ],
   "planned": [
-    { "id": "todolist", "title": "Todolist · 待办列表", "group": "originals", "summary": "新增、完成、删除；条目错峰进入退出与位置过渡。" },
     { "id": "clock", "title": "Clock · 数字时钟", "group": "originals", "summary": "六位时分秒与七段数字笔画的渐变切换。" },
     { "id": "solar", "title": "Solar · 轨道", "group": "originals", "summary": "递归旋转、缩放与圆弧组成的轨道动画。" },
     { "id": "table", "title": "Table · 编辑表格", "group": "originals", "summary": "3 × 3 文本格子的编辑交互；不是持续运动作品。" },
@@ -43,6 +42,16 @@
     { "id": "drag-demo", "title": "Drag demo · 拖拽", "group": "originals", "summary": "矩形拖动与滑块调节，恢复坐标和交互语义。" }
   ],
   "entries": [
+    {
+      "id": "todolist",
+      "path": "examples/todolist/index.html",
+      "title": "Todolist · 待办列表",
+      "group": "originals",
+      "summary": "全屏 Canvas 文字与行动画；新增、编辑、完成、删除恢复、重排打断、日志重放与空闲停帧。",
+      "status": "恢复切片 · Canvas",
+      "docs": "docs/todolist-restoration.md",
+      "compile": "compile:todolist"
+    },
     {
       "id": "binary-tree",
       "path": "examples/binary-tree/index.html",

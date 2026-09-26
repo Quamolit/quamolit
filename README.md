@@ -4,9 +4,9 @@ Quamolit in calcit-js / Calcit 版 Quamolit
 
 Quamolit 是用 Calcit 编写的声明式 Canvas 动画库。组件描述画面，应用模型保存动画状态；框架提供绘制与帧更新能力。
 
-**查看演示：** 运行 `yarn demo` 打开[统一演示导航](demos/README.md)。现有 27 个入口按能力分类，支持搜索和返回导航；`yarn release:demos` 构建可部署的完整演示站点。
+**查看演示：** 运行 `yarn demo` 打开[统一演示导航](demos/README.md)。所有入口按能力分类，支持搜索和返回导航；`yarn release:demos` 构建可部署的完整演示站点。
 
-原有 11 个示例已列入[完整恢复清单](docs/demo-restoration.md)。[Binary Tree](docs/binary-tree-restoration.md) 已接入[保留折线计划](docs/retained-path.md)：静态 Scene、拓扑和局部几何跨帧共享，时间只更新变换，可切换全量参考；其余 10 项待恢复。导航预留艺术动画分类，动画页面采用全屏 Canvas 与可收起 DOM 浮层。
+原有 11 个示例已列入[完整恢复清单](docs/demo-restoration.md)。[Binary Tree](docs/binary-tree-restoration.md) 使用统一计划共享静态几何；[TodoList](docs/todolist-restoration.md) 已提供 Canvas 文字、完整列表操作、错峰进退、打断重排和日志重放。其余 9 项待恢复，同源 GPU 尚未完成。导航预留艺术动画分类，动画页面采用全屏 Canvas 与可收起 DOM 浮层。
 
 后续开发以 [技术路线与 milestones](docs/roadmap.md)、[工作项规格](docs/work-items.md) 和 [检验规则](docs/verification.md) 为准。计划分为 M0 基线、M1 动画函数、M2 增量执行与 WebGPU、M3 完整应用、M4 性能发布；性能目标均需实测，不能把编译成功当作功能或性能验收。接手编码前请阅读 [AGENTS.md](AGENTS.md)。
 
@@ -33,11 +33,11 @@ yarn release
 
 English documentation and legacy API examples follow.
 
-Binary Tree now retains typed Scene IR polylines and local geometry, updating only transforms over time in Calcit. Its fullscreen demo can switch to the full reference and change topology. GPU batching is still pending; the other ten original demos remain scheduled for restoration.
+Binary Tree retains typed Scene IR polylines and local geometry through the unified execution plan. [TodoList](docs/todolist-restoration.md) now restores Canvas text, add/edit/toggle/delete/restore/reorder interactions, staggered transitions and replayable input. GPU integration and nine other original demos remain pending.
 
-Run `yarn demo` for the [demo gallery](demos/README.md): all 27 current entry pages, searchable by capability with return links. `yarn release:demos` builds a separate static demo site; experimental fixtures are clearly distinguished from the public Calcit integration.
+Run `yarn demo` for the [demo gallery](demos/README.md): all current entry pages, searchable by capability with return links. `yarn release:demos` builds a separate static demo site; experimental fixtures are clearly distinguished from the public Calcit integration.
 
-All 11 original demos are tracked for restoration. Binary Tree now runs with explicit-time Calcit geometry, connected paths with round caps/joins, and a full-viewport Canvas. Scene integration and the other 10 demos remain pending. An art category is reserved for future animations. Controls use collapsible DOM overlays; fixed-size diagnostics remain available.
+All 11 original demos remain tracked for restoration. An art category is reserved for future animations. Animation canvases fill the viewport; controls use collapsible DOM overlays, while fixed-size diagnostics remain available.
 
 > what if we describe UI transitions in React's way? Previously written in [ClojureScript](https://github.com/Quamolit/quamolit.cljs).
 

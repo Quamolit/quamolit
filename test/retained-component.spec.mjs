@@ -1,5 +1,29 @@
 import { test, expect } from "@playwright/test";
 
+test("Presence 通过统一计划绘制矩形与折线 alpha，独立原生 Canvas 对照", async ({ page }, testInfo) => {
+  await page.goto("/test/retained-component.html");
+  const results = await page.evaluate(async () => {
+    const fixture = await import("/target/js/retained-component/quamolit.test.retained-component-fixture.mjs");
+    const execution = await import("/target/js/retained-component/quamolit.retained-component.mjs");
+    const create = () => { const c = document.createElement("canvas"); c.width = 320; c.height = 180; return c.getContext("2d"); };
+    return [0, 0.25, 0.5, 0.75, 1, 0.5].map(time => {
+      const actual = create(), expected = create();
+      execution.draw_plan_$x_(actual, fixture.presence_plan(fixture.presence_exit(), time));
+      expected.fillStyle = `rgba(235,71,153,${1-time})`;
+      expected.fillRect(80,40,10,20);
+      expected.strokeStyle = `rgba(0,128,255,${0.5*(1-time)})`;
+      expected.lineWidth = 4; expected.lineCap = expected.lineJoin = "round";
+      expected.beginPath(); expected.moveTo(40,60); expected.lineTo(80,70); expected.stroke();
+      const a = actual.getImageData(0,0,320,180).data, b = expected.getImageData(0,0,320,180).data;
+      return {time, equal:a.every((value,i) => value === b[i]), image:actual.canvas.toDataURL()};
+    });
+  });
+  for (const result of results) {
+    await testInfo.attach(`presence-${result.time}.png`, {body:Buffer.from(result.image.split(",")[1], "base64"), contentType:"image/png"});
+    expect(result.equal, `t=${result.time}`).toBe(true);
+  }
+});
+
 test("Calcit 组件保留计划：乱序时间、同时间失效和 1000 帧对照", async ({ page }, testInfo) => {
   test.setTimeout(60_000);
   const errors = [];

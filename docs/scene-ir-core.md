@@ -14,6 +14,12 @@
 
 Scene 标量绑定已有 [CPU 参考解析器](scene-binding.md)。实例 typed-array 的版本化引用和宿主快照边界已有实现；资源表、批量绑定执行与上传优化仍待后续里程碑。执行计划与增量调度属于 #50；完整裁剪、透明组和绘制由后续后端 issue 验收。
 
+## 后续支持扩展
+
+以下扩展修订上方初始切片的支持集：当前还包括开放折线与基础单行文字；矩形、折线、文字均允许叶节点 `:alpha` 标量绑定（乘原颜色 alpha），不是组隔离透明度。当前通用 Canvas 参考绘制顶层 rect/polyline/text，其他结构仍明确拒绝。
+
+`SceneContent :text` 保存 `TextNode { x, y, size, text, fill }`，字号必须有限且大于零。位置、字号、内容是几何签名，颜色是属性签名；没有字体资源引用。支持 monospace、左对齐、中线绘制，尚无 shaping、字体加载或 GPU 字形缓存。实现与验证见 [TodoList 恢复](todolist-restoration.md)。
+
 ## #53 路径前置：正式开放折线
 
 `SceneContent :polyline` 新增 `PolylineNode { points: List<Vec2>, width: Number, stroke: ColorRgba }`。至少两点，坐标有限、宽度有限且非负、颜色遵守现有约束。仅支持开放折线、圆头和圆连接；不代表任意曲线、闭合填充、dash 或完整 SVG Path。零宽不绘制。点与宽度变化是 geometry diff，颜色变化是 properties diff；没有外部资源签名。当前不接受路径标量绑定，直接调用绑定解析器也会明确拒绝。
