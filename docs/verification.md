@@ -6,6 +6,8 @@
 
 ## 当前可执行门禁
 
+`yarn test:retained-component` 验证 [Calcit 组件保留计划](retained-component.md)：严格类型、原生乱序采样、Node 的 1000 帧静态对象身份/实际声明次数和六类版本失效、Chromium 同源画面对照及演示截图。它使用独立 `target/js/retained-component/`，不代表外部消费者安装或完整 GPU/生命周期验收。
+
 使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前 `deps.cirru` 声明 Calcit `0.22.0` 与 js-ffi `0.2.0`；该版本支持定义级 `:ffi :js :inline/:file`，但后续仍可随证据升级。
 
 ```sh

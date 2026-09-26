@@ -9,6 +9,7 @@ Quamolit 是用 Calcit 编写的声明式 Canvas 动画库。组件描述画面�
 当前 vNext 迁移仍在进行中：[设计草案](docs/vnext-design.md) 说明目标 API 与渲染边界，[确定性帧测试](test/README.md) 说明固定时间截图的使用方式。要在本地编译和运行，需要 Calcit 0.22.0 与 Node.js 24：
 
 M0 的[三类可运行参考场景](test/m0/README.md)可独立打开，用于后续后端的相同输入与画面对照。
+M2 新增 [Calcit 保留组件演示](docs/retained-component.md)：同一声明的全量参考与保留计划并排显示，可拖动时间、改变输入并验证 1000 帧结构复用。运行 `yarn test:retained-component` 验证。
 固定 Chromium 截图回归运行 `yarn test:visual`；浏览器安装、快照容差和基线更新方式见该场景文档。
 性能参考基准运行 `yarn bench --help` 查看参数；[M0 基线](docs/performance-m0.md)记录了实测环境、三次运行的离散程度及当前不可测的 GPU 指标。
 
@@ -39,12 +40,13 @@ Features:
 
 ### Design
 
-The current implementation plan is [roadmap v2](docs/roadmap.md), with
+The current implementation plan is [roadmap v3](docs/roadmap.md), with
 [issue specifications](docs/work-items.md) and [verification rules](docs/verification.md)
 in Chinese. It separates direct time sampling from stateful simulation and
 brings batching, benchmarks, and WebGPU into the early architecture work.
 Performance figures are validation targets, not measured claims.
 The [M0 benchmark record](docs/performance-m0.md) documents a measured Canvas2D reference workload, its environment, and unavailable GPU metrics.
+The [retained component demo](docs/retained-component.md) compares full sampling with a Calcit execution plan at explicit times. Run `yarn test:retained-component` to verify static node reuse and matching Canvas pixels; this is not a GPU or frame-rate benchmark.
 
 The staged vNext API and rendering contract is documented in
 [docs/vnext-design.md](docs/vnext-design.md). It is a draft; the API described

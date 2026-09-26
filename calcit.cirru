@@ -6416,6 +6416,132 @@
         :code $ quote $ ns quamolit.replay-archive
           :require (quamolit.fixed-step :as fixed) (quamolit.motion :as motion)
             calcit.test :refer $ is= is-throws
+    'quamolit.retained-component $ %{} 'FileEntry
+      :defs $ {}
+        'BoundScalar $ %{} 'CodeEntry (:doc "|构建时解析的标量绑定：节点索引、目标与描述符，不含宿主句柄。")
+          :code $ quote $ defstruct BoundScalar (:index 'Number) (:target 'quamolit.scene-ir/ScalarTarget) (:descriptor 'quamolit.motion/ScalarDescriptor)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ComponentPlan $ %{} 'CodeEntry
+          :doc "|不可变组件保留计划；静态节点共享，更新返回新计划。计数为逻辑操作次数，不代表内存字节或 GPU 性能。"
+          :code $ quote $ defstruct ComponentPlan (:id 'String) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:scene 'quamolit.scene-ir/SceneDocument)
+            :slots $ :: 'List 'quamolit.retained-component/BoundScalar
+            :declarations 'Number
+            :plan-builds 'Number
+            :binding-samples 'Number
+            :node-writes 'Number
+            :skipped-updates 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'build-component-plan $ %{} 'CodeEntry
+          :doc "|声明并验证一次组件，解析 Motion 引用，直接生成首个指定时间帧；所有业务处理在 Calcit。"
+          :code $ quote $ defn build-component-plan (request declare)
+            assert |invalid-component-request $ direct/valid-direct-request? $ component/to-direct-request request
+            let
+                declaration $ declare (:props request) (:model request) (:input request) (:resources request) (:viewport request)
+                document $ :scene declaration
+                descriptors $ :motions declaration
+              assert |invalid-component-scene $ scene/validate-scene document
+              assert |invalid-component-motions $ binding/validate-descriptors descriptors
+              let
+                  slots $ compile-slots (:nodes document) descriptors 0 $ empty-slots
+                  nodes $ evaluate-slots slots (:nodes document) (:time request)
+                ComponentPlan :id (:id request) :time (:time request) :versions (:versions request) :scene (scene/SceneDocument :nodes nodes) :slots slots :declarations 1 :plan-builds 1 :binding-samples (count slots) :node-writes (count slots) :skipped-updates 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] (:: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V)
+              :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+                :args $ [] 'P 'M 'I 'R 'V
+            :generics $ [] 'P 'M 'I 'R 'V
+        'compile-slots $ %{} 'CodeEntry (:doc "|仅在组件重新声明时遍历节点并解析 Motion 引用；时间更新复用结果。")
+          :code $ quote $ defn compile-slots (nodes descriptors index slots)
+            if (empty? nodes) slots $ let
+                node $ scene/first-node nodes
+                next $ foldl (:bindings node) slots $ fn (acc item)
+                  hint-fn $ {}
+                    :args $ [] (:: 'List 'quamolit.retained-component/BoundScalar) 'quamolit.scene-ir/ScalarBinding
+                    :return $ :: 'List 'quamolit.retained-component/BoundScalar
+                  append acc $ BoundScalar :index index :target (:target item) :descriptor $ binding/find-descriptor descriptors (:motion-id item) (:version item)
+              recur (rest nodes) descriptors (inc index) next
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) (:: 'List 'quamolit.motion/ScalarDescriptor) 'Number $ :: 'List 'quamolit.retained-component/BoundScalar
+            :return $ :: 'List 'quamolit.retained-component/BoundScalar
+        'empty-slots $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-slots () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.retained-component/BoundScalar
+        'evaluate-slots $ %{} 'CodeEntry (:doc "|只更新预编译绑定；持久列表保留其他节点。失败不会修改调用者持有的旧帧。")
+          :code $ quote $ defn evaluate-slots (slots nodes time)
+            foldl slots nodes $ fn (current slot)
+              hint-fn $ {}
+                :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.retained-component/BoundScalar
+                :return $ :: 'List 'quamolit.scene-ir/SceneNode
+              let
+                  node $ node-at current $ :index slot
+                  value $ motion/sample-scalar (:descriptor slot) time
+                  content $ binding/apply-scalar (:content node) (:target slot) value
+                assert |invalid-retained-content $ scene/valid-content? content
+                assoc current (:index slot)
+                  struct-with node $ :content content
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.retained-component/BoundScalar) (:: 'List 'quamolit.scene-ir/SceneNode) 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'node-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn node-at (nodes index)
+            -> (get nodes index) .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'Number
+        'sample-plan-at $ %{} 'CodeEntry
+          :doc "|仅时间更新入口，支持乱序/重复/倒放；输入变更必须调用 update-component-plan 并提升相关版本。"
+          :code $ quote $ defn sample-plan-at (plan time)
+            assert |invalid-component-time $ motion/finite-number? time
+            let
+                same? $ = time $ :time plan
+                added $ if same? 0 $ count (:slots plan)
+                document $ if
+                  or same? $ empty? $ :slots plan
+                  :scene plan
+                  scene/SceneDocument :nodes $ evaluate-slots (:slots plan)
+                    :nodes $ :scene plan
+                    , time
+              struct-with plan (:time time) (:scene document)
+                :binding-samples $ + (:binding-samples plan) added
+                :node-writes $ + (:node-writes plan) added
+                :skipped-updates $ + (:skipped-updates plan) (if same? 1 0)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
+        'update-component-plan $ %{} 'CodeEntry
+          :doc "|完整身份/版本不变时只采样绑定；任一版本或身份变更保守重声明。替换声明函数须提升 component 版本。"
+          :code $ quote $ defn update-component-plan (previous request declare)
+            assert |invalid-component-request $ direct/valid-direct-request? $ component/to-direct-request request
+            if
+              and
+                = (:id previous) (:id request)
+                = (:versions previous) (:versions request)
+              sample-plan-at previous $ :time request
+              let
+                  next $ build-component-plan request declare
+                struct-with next
+                  :declarations $ inc $ :declarations previous
+                  :plan-builds $ inc $ :plan-builds previous
+                  :binding-samples $ + (:binding-samples previous) (:binding-samples next)
+                  :node-writes $ + (:node-writes previous) (:node-writes next)
+                  :skipped-updates $ :skipped-updates previous
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan (:: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V)
+              :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+                :args $ [] 'P 'M 'I 'R 'V
+            :generics $ [] 'P 'M 'I 'R 'V
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.retained-component
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.scene-binding :as binding) (quamolit.motion :as motion)
     'quamolit.retained-scene $ %{} 'FileEntry
       :defs $ {}
         'append-changed-revisions $ %{} 'CodeEntry (:doc |)
@@ -8587,6 +8713,107 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.replay-archive-fixture
           :require (quamolit.replay-archive :as archive) (quamolit.fixed-step :as fixed)
+    'quamolit.test.retained-component-fixture $ %{} 'FileEntry
+      :defs $ {}
+        'declare-demo $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-demo (props model input resources viewport)
+            let
+                moving $ badge/declare-badge props model input resources viewport
+                tiles $ map (range 64)
+                  fn (index)
+                    hint-fn $ {}
+                      :args $ [] 'Number
+                      :return 'quamolit.scene-ir/SceneNode
+                    let
+                        id $ str |tile- index
+                        color $ motion/ColorRgba :r 0.87 :g 0.9 :b 0.94 :a 1
+                        rect $ scene/RectNode :x
+                          + 16 $ * 18 $ - index
+                            * 16 $ floor $ / index 16
+                          , :y
+                            + 100 $ * 18 $ floor (/ index 16)
+                            , :width 12 :height 12 :fill color
+                      scene/SceneNode :id id :parent | :key id :content (scene/SceneContent :rect rect) :bindings ([]) :interaction $ scene/SceneInteraction :none
+              component/ComponentDeclaration :scene
+                scene/SceneDocument :nodes $ concat tiles $ :nodes (:scene moving)
+                , :motions $ :motions moving
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'draw-plan! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-plan! (context plan)
+            canvas/draw-reference-rects! context $ :scene plan
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.retained-component/ComponentPlan
+            :features $ #{} :js-ffi
+        'draw-reference! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-reference! (context time model ready viewport)
+            canvas/draw-reference-rects! context $ reference-at time model ready viewport
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number 'Number 'Bool 'Number
+            :features $ #{} :js-ffi
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! ()
+            let
+                first-plan $ start 0.5 40 false 100
+                final-plan $ verify-sequence ([] 1 0 0.5 0.25 1) first-plan
+              and
+                = 1 $ :declarations final-plan
+                = 1 $ :plan-builds final-plan
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ []
+          :tests $ [] $ %{} 'TestEntry (:name |retained-component-replay)
+            :code $ quote $ assert= true (main!)
+        'make-request $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-request (time model ready viewport) (badge/make-request time model ready viewport)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Bool 'Number
+            :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'Number 'Number 'Bool 'Number
+        'plan-scene $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn plan-scene (plan) (:scene plan)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.retained-component/ComponentPlan
+        'reference-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reference-at (time model ready viewport)
+            :scene $ component/sample-component-at (make-request time model ready viewport) declare-demo
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number 'Number 'Bool 'Number
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () (main!)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ []
+        'start $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start (time model ready viewport)
+            retained/build-component-plan (make-request time model ready viewport) declare-demo
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number 'Number 'Bool 'Number
+        'update-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-plan (previous time model ready viewport)
+            retained/update-component-plan previous (make-request time model ready viewport) declare-demo
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+        'verify-sequence $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn verify-sequence (times plan)
+            if (empty? times) plan $ let
+                time $ -> (first times) .unwrap
+                next $ update-plan plan time 40 false 100
+              assert= (reference-at time 40 false 100) (:scene next)
+              recur (rest times) next
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] (:: 'List 'Number) 'quamolit.retained-component/ComponentPlan
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.test.retained-component-fixture
+          :require (quamolit.retained-component :as retained) (quamolit.component-sample :as component) (quamolit.test.component-fixture :as badge) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as canvas)
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")
