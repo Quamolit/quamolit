@@ -197,6 +197,21 @@ jobs:
         if: inputs.mutation != 'color'
         run: yarn test:binary-tree
 
+      - name: Check restored Curve Calcit geometry
+        if: inputs.mutation != 'color'
+        run: yarn test:curve-demo
+        env:
+          CI: "true"
+
+      - name: Upload Curve fixed-time evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-curve-${{ github.run_id }}
+          path: test-results/curve/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Check restored TodoList lifecycle and Canvas interaction
         if: inputs.mutation != 'color'
         run: yarn test:todolist
