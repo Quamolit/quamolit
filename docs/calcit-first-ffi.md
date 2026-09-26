@@ -11,7 +11,7 @@ Quamolit 的目标是增强 Calcit 动画生态：声明式组件与显式时间
 | 通用 JS 生态基础 API：DOM/Canvas2D/WebGPU/TypedArray 原生对象、方法、能力探测 | `js-ffi` 的 Calcit 公共命名空间；实现可以是包内原生 JS，或包内模块定义的 `:ffi :js :inline/:file` | Calcit 调用方可直接导入类型化接口；契约不依赖 Quamolit Scene/Motion IR |
 | Quamolit 专属的 Scene/Motion 遍历、动画采样、变更分类、执行计划、资源/批次策略和后端选择 | Quamolit 的 `calcit.cirru` | 相同输入与绝对时间可在 Calcit 测试复现；下游只引用 Quamolit Calcit 模块 |
 | Quamolit 专属、同步、无状态、参数与返回可由原始 ABI（`Number`/`String`/`Bool`/`Unit`/`JsObject`/`JsNullish`）表达的宿主原语 | Quamolit `calcit.cirru` 定义内的 `:ffi :js :inline` 或 `:file` | `Fn` schema 精确、显式 `:target`、带 `:js-ffi`；附 Node 或浏览器宿主测试 |
-| Quamolit 专属、有状态/async/批量/shader/资源宿主（例如矩形批次、WebGPU pipeline、图层租约） | Quamolit 的 `src/host/*.mjs`，由 Calcit 类型化入口 `:require` 调用 | 说明无法用 inline/file 或 Calcit 表达的 ABI 原因（trait/Struct/async/状态）；有调用、复制、上传计数与测试 |
+| Quamolit 专属、经复现确认当前 Calcit/inline/file ABI 无法合理表达的宿主边界 | 局部适配暂留 `src/host/*.mjs`，通过 Calcit 类型化入口调用 | 记录具体限制、上游 issue（存在缺口时）、替代方案与撤销条件；状态/批量/shader 不自动构成例外 |
 | 测试页面、浏览器夹具、测试用宿主桥接、构建入口 | `test/`（测试宿主桥接放 `test/host/`）、根目录 `main.mjs` 和 `vite.config.mjs` | 不对下游暴露为框架 API |
 
 归属依据首先是 API 语义，再检查实际消费者：若一个 JS 文件当前只有 Quamolit 使用，且实现的是自定义绘制循环、shader、动画或图层策略，而非浏览器原生 API 封装，则迁回 Quamolit；不能仅凭“未来可能复用”留在上游。通用原生 buffer、资源生命周期仍由 `js-ffi` 的 Calcit 类型化接口提供。若逐图元跨边界调用太贵，Quamolit 可在 `src/host/` 保留有明确计数与测试的批量宿主循环。比较记录帧时间、复制字节、调用次数、画面语义与设备。
@@ -37,7 +37,9 @@ Calcit 0.22 起，定义级 `:ffi :js` 可以嵌入一个 JS 函数表达式：`
   :features $ #{} :js-ffi
 ```
 
-选择顺序：**同步、无状态、原始 ABI 的宿主原语 → `:ffi :js :inline/:file`**；需要状态、资源释放、WGSL shader、异步设备请求，或参数/返回为 Trait/Struct 时，inline/file 不适用，按上表落到本仓库 `src/host/` 或 `js-ffi` 类型化入口。等 Calcit ABI 扩展后再评估把现有批次宿主迁入内嵌形式（跟踪 [calcit-lang/calcit #1359](https://github.com/calcit-lang/calcit/issues/1359)、[#1360](https://github.com/calcit-lang/calcit/issues/1360)、[#1361](https://github.com/calcit-lang/calcit/issues/1361)、[#1363](https://github.com/calcit-lang/calcit/issues/1363) 与 [js-ffi #112](https://github.com/calcit-lang/js-ffi/issues/112)）。
+选择顺序：Calcit 业务逻辑 → js-ffi 类型化原生能力 → 必要宿主操作的 `:ffi :js :inline/:file`。短表达式用 inline，较长单函数表达式用 file；file 不等于 import 整个 ESM。状态、资源释放、批量或 WGSL 文本本身不排除表达式实现，必须实际检查 ABI、async 与共享实例。不能为内嵌重复共享状态，也不能把业务解释器整体塞入片段代替 Calcit 实现。
+
+截至 2026-09-26，[Calcit #1359](https://github.com/calcit-lang/calcit/issues/1359)、[#1360](https://github.com/calcit-lang/calcit/issues/1360)、[#1361](https://github.com/calcit-lang/calcit/issues/1361)、[#1363](https://github.com/calcit-lang/calcit/issues/1363) 均已关闭，属于 0.22 已交付功能参考，不是等待 ABI 扩展的开放问题。遇到当前版本限制先查重，向 Calcit 提交版本、最小复现、期望与实际、影响及建议契约；用局部适配继续推进，并关联回归测试与撤销条件。升级后复测，不假定问题自动消失。#104 验证干净消费者安装、片段分发与输出搬移；JS-only 修改需要显式重编译。
 
 ## 当前债务与迁移顺序
 

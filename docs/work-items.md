@@ -1,8 +1,10 @@
 # 工作项规格与依赖索引
 
-计划版本：v2，2026-09-23。这里保存本次同步到 GitHub 的任务规格；进度以 issue/PR 实时状态为准。技术约束见 [roadmap.md](roadmap.md)，具体检验规则见 [verification.md](verification.md)。修改任务范围时应同步此文件和对应 issue。
+计划版本：v3，2026-09-26。当前优先级、逐 issue 交付与验收责任见 [计划 v3](plan-v3.md)，优先于下方保留的 v2 详细规格。进度以 GitHub 为准；不能按历史未勾选框重新实施已完成工作。
 
 ## 推荐开始顺序
+
+当前从 #50/#33/#35 的 Calcit 公共运行集成开始，随后用新增 [#104 独立 Calcit 消费者](https://github.com/Quamolit/quamolit/issues/104)在 M2 验证调用、分发、可控时间与计数；#39 接实际阶段测量，再完成同源 WebGPU。#49 的宿主资源/指针验收分别移交 #51/#34；具体边界以 [v3](plan-v3.md) 为准。下面的顺序与阶段表作为 v2 依赖来源保留，不是当前待办队列。
 
 先实现 [#46](https://github.com/Quamolit/quamolit/issues/46) 的三个可运行夹具，然后交付 [#47](https://github.com/Quamolit/quamolit/issues/47) 最小视觉 CI 和 [#39](https://github.com/Quamolit/quamolit/issues/39) 基准。M1 从 [#30](https://github.com/Quamolit/quamolit/issues/30)、[#48](https://github.com/Quamolit/quamolit/issues/48) 的 API/动画契约开始，接 [#31](https://github.com/Quamolit/quamolit/issues/31)/[#32](https://github.com/Quamolit/quamolit/issues/32)，再处理 [#49](https://github.com/Quamolit/quamolit/issues/49)。M2 在这些前置产物之上落实 [#35](https://github.com/Quamolit/quamolit/issues/35)/[#51](https://github.com/Quamolit/quamolit/issues/51)/[#50](https://github.com/Quamolit/quamolit/issues/50)、[#33](https://github.com/Quamolit/quamolit/issues/33)/[#38](https://github.com/Quamolit/quamolit/issues/38)/[#40](https://github.com/Quamolit/quamolit/issues/40) 和 [#52](https://github.com/Quamolit/quamolit/issues/52)。后续依赖如下表。已经完成的工具链升级 [#42](https://github.com/Quamolit/quamolit/issues/42) 归档在 M0，不重新打开。
 
@@ -10,6 +12,7 @@
 
 | Milestone | 工作项 | 前置 issue |
 | --- | --- | --- |
+| [M2](https://github.com/Quamolit/quamolit/milestone/2) | [#104 独立 Calcit 消费者贯通声明动画与保留渲染](https://github.com/Quamolit/quamolit/issues/104) | #50/#33/#35 的已验证最小切片；资源接 #51，随后接 #38/#40/#52 |
 | [M0](https://github.com/Quamolit/quamolit/milestone/4) | [#46 M0：建立三类可运行的动画与绘制基准场景](https://github.com/Quamolit/quamolit/issues/46) | 无 |
 | [M0](https://github.com/Quamolit/quamolit/milestone/4) | [#47 M0：把最小固定时间像素与截图检查接入 CI](https://github.com/Quamolit/quamolit/issues/47) | [#46](https://github.com/Quamolit/quamolit/issues/46) |
 | [M0](https://github.com/Quamolit/quamolit/milestone/4) | [#39 M0：建立可复现性能基准、预算与回归规则](https://github.com/Quamolit/quamolit/issues/39) | [#46](https://github.com/Quamolit/quamolit/issues/46) |

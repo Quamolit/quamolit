@@ -3,7 +3,7 @@
 ## 开始工作
 
 1. 先读 [技术路线](docs/roadmap.md) 与 [检验规则](docs/verification.md)，再定位 [工作项索引](docs/work-items.md) 中的当前 issue。GitHub 的状态可能已变化，开始前核对 milestone、issue 和相关 PR 的最新状态。
-2. `roadmap.md` 中的计划 v2 取代旧 `vnext-design.md` 的三阶段顺序。本文说明仓库约定；用户当前明确要求优先。
+2. 先读 [计划 v3](docs/plan-v3.md)：它修订 v2 的执行顺序和验收责任，下一主线是 #50 的 Calcit 组件到保留计划集成与 #104 的独立消费者。未冲突的 v2 约束保留；用户当前明确要求优先。
 3. 每次选择一个有明确前置产物的实现切片，说明其 issue、依赖和退出条件。依赖尚未关闭时，引用已合并且通过验证的前置产物；不能把尚未实现的草案当作可用接口。
 4. 检查工作区，保留用户改动。文档与 PR 使用中文，README 保留中英文入口。
 
@@ -26,6 +26,8 @@
 - 手写 JS 宿主适配只放 `src/host/`（入口/构建配置除外），测试夹具桥接放 `test/host/`；同步、无状态、原始 ABI 的小适配器优先用定义级 `:ffi :js :inline/:file` 嵌入 Calcit 定义，不新增独立 `.mjs`；归属细则见 [Calcit 优先的 FFI 边界](docs/calcit-first-ffi.md)。多入口 Calcit 编译产物放被忽略的 `target/js/<entry>/`，不得在根目录新建 `js-out-*`。
 - 优先采用当前已发布且适用的新方案；升级时同步 Calcit CLI、runtime、依赖、lockfile 与 CI。不要未经核对机械升级所有依赖；若回退，给出可复现回归和上游 issue。
 - 用泛型/Struct/Enum 保留能够表达的类型关系；不要用 Dynamic 或兼容模式掩盖新代码的类型错误。
+- 宿主适配优先定义级 inline/file；file 是单函数表达式源码，不是整文件 ESM 导入。状态/批量/shader 不是自动例外，须验证具体 ABI 与实例共享。发现 Calcit 缺口先查重并直接上报最小复现，采用局部绕过继续推进，关联上游 issue、回归测试及撤销条件；升级后复测再移除。
+- 主线 PR 优先公共 Calcit 动画 API、组件到渲染集成、同源性能证据和可控时间测试。生产路径不得依赖测试编译产物；最小下游消费在 M2 验收，完整旧应用迁移留在 M3。
 
 ## 完成与交付
 

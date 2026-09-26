@@ -1,12 +1,12 @@
 # Quamolit 技术路线与阶段交付
 
-计划版本：v2，2026-09-23。本文及 `verification.md` 是后续编码的共同约定；GitHub issues 管理进度，`work-items.md` 保存本次整理的任务规格与依赖。旧版 `vnext-design.md` 保留历史背景，其三阶段顺序已被本计划替代。
+计划版本：v3，2026-09-26。[当前执行与验收修订](plan-v3.md)优先于本文保留的 v2 阶段规格；未冲突的技术约束继续适用。GitHub issues 管理进度，`work-items.md` 保存详细范围与依赖。
 
 ## 产品目标与当前事实
 
 Quamolit 让使用者声明组件，通过函数和显式动画描述生成中间帧。框架负责把这些声明转成高效的网页动画执行路径，既支持普通交互 UI，也支持大量同类图元。应用拥有逻辑动画 Model，渲染器拥有可重建的执行缓存与宿主资源。
 
-截至本次整理：#42 的 Calcit 0.19.1/runtime 升级及 #44 的 tick/paint 分离已合并；#45 的泛型顺序帧求值仍是独立 PR。`sample-at`、Motion IR、Scene IR、增量执行、WebGPU 和完整视觉 CI 均不能据此认定已完成。默认入口仍是 bootstrap。未来接手时以实际 main 和 PR 状态重新核对，不把这份历史快照当作实时进度。工具链现已升级到 Calcit 0.22.0 / js-ffi 0.2.0；0.22.0 升级切片已重跑现有编译、release 与全部 `yarn test:*`，正式版 js-ffi 另按其依赖升级切片验证。
+截至 #103 合并：Calcit 0.22.0 / js-ffi 0.2.0 已接入，M1 的 #30/#31/#32/#48 已关闭，#49 仍待收口；M2 核心工作仍开放。已有独立采样、Scene/Motion、保留计划和 GPU 夹具，公共 Calcit 组件与高效执行尚未贯通，默认应用仍是 bootstrap。下一步优先 #50 与 #104；测试通过不等于新架构性能或完整应用验收。
 
 ## 两种时间语义
 
@@ -50,8 +50,8 @@ Canvas2D 在 M2 提供基础语义参考，M3 补齐完整支持矩阵。回退�
 | 阶段 | 主要交付 | 退出条件 |
 | --- | --- | --- |
 | M0 代表场景与性能基线 | UI 过渡、实例、文字/路径三个可运行夹具；最小视觉 CI；完整帧基准 | 固定输入可复现，原始数据及环境可审查，CI 真正执行浏览器测试 |
-| M1 动画函数与组件契约 | 直接时间采样、固定步长模拟、Motion/Scene IR、身份及进入退出 | 乱序采样、打断连续性、重放和生命周期测试通过，迁移 API 有可编译样例 |
-| M2 增量执行与 WebGPU 主路径 | 保留计划、资源表、批量 FFI、自动合批/instances、基础双后端、GPU 标准动画 | 真实 GPU 证据，时间变化不重建静态结构，同源场景双后端正确，回退/恢复通过 |
+| M1 动画函数与组件契约 | 直接时间采样、固定步长模拟、Motion/Scene IR、逻辑身份及进入退出 | 乱序采样、打断、重放、逻辑释放通知及可编译示例；真实资源/指针释放分别由 #51/#34 承接 |
+| M2 增量执行与 WebGPU 主路径 | Calcit 组件到保留计划集成、#104 独立消费者、资源表、合批/instances、同源双后端 | 公共 Calcit 入口独立可用，时间变化不重建静态结构，同源端到端测量、真实 GPU、回退/恢复证据 |
 | M3 完整 2D 功能与应用迁移 | 文字路径等完整语义、独立交互、真实入口、扩展视觉 CI | 代表性应用运行，compile/release 对应真实入口，功能与画质矩阵明确 |
 | M4 GPU 模拟与性能发布 | GPU 历史模拟、跨设备调优、后端/Use.GPU 决策与迁移发布资料 | 指定设备达到注明的目标，或明确记录未达范围；数据、恢复与回归证据齐全 |
 
@@ -75,6 +75,6 @@ Canvas2D 在 M2 提供基础语义参考，M3 补齐完整支持矩阵。回退�
 
 接口名、后端选择和第三方包可以在证据支持下调整；涉及本路线边界时，随代码提交设计记录：问题、候选、选择、语义影响、基准与迁移成本，并同步关联 issue。不得因旧实现存在而锁定旧技术，也不得在无测量时宣称新技术更快。
 
-`calcit-lang/js-ffi` 继续封装可跨项目复用的 JS 生态基础能力，包括 DOM、Canvas2D、WebGPU、TypedArray 和通用批量/资源原语：公共入口优先由 Calcit 定义类型，必要的宿主 JS 实现留在上游包内。同步、无状态、原始参数的小适配器优先用 Calcit 0.22 起的定义级 `:ffi :js :inline/:file` 嵌入，避免新增独立 JS 文件；有状态、async、shader 或 trait/Struct 宿主仍用独立模块。Quamolit 专属的 Scene lowering、动画与执行计划、资源/批次策略优先写在本仓库 Calcit 中；只有专属且无法合理用 Calcit 表达的宿主适配才放本仓库 `src/host/`。不以 JS 行数决定模块归属，也不把 Quamolit Scene 格式搬到通用库。具体守则见 [Calcit 优先的 FFI 边界](calcit-first-ffi.md)。Use.GPU 优先评估数据源/图层、增量执行与 shader 工具；引入完整 Live 运行时需证明它与 Calcit 组件模型的整合成本可接受。
+`calcit-lang/js-ffi` 继续封装可跨项目复用的 JS 生态基础能力，包括 DOM、Canvas2D、WebGPU、TypedArray 和通用批量/资源原语：公共入口优先由 Calcit 定义类型，必要的宿主 JS 实现留在上游包内。同步、无状态、原始参数的小适配器优先用 Calcit 0.22 起的定义级 `:ffi :js :inline/:file` 嵌入，避免新增独立 JS 文件；有状态、批量或 shader 也须逐项评估表达式与 ABI；确认限制后才保留局部宿主模块，并记录上游问题和撤销条件。Quamolit 专属的 Scene lowering、动画与执行计划、资源/批次策略优先写在本仓库 Calcit 中；只有专属且无法合理用 Calcit 表达的宿主适配才放本仓库 `src/host/`。不以 JS 行数决定模块归属，也不把 Quamolit Scene 格式搬到通用库。具体守则见 [Calcit 优先的 FFI 边界](calcit-first-ffi.md)。Use.GPU 优先评估数据源/图层、增量执行与 shader 工具；引入完整 Live 运行时需证明它与 Calcit 组件模型的整合成本可接受。
 
 参考：[Use.GPU 增量执行](https://usegpu.live/docs/guides-memoization)、[数据驱动图层](https://usegpu.live/docs/guides-data-driven-geometry)、[WebGPU 上传策略](https://toji.dev/webgpu-best-practices/buffer-uploads)、[性能测量边界](https://webgpufundamentals.org/webgpu/lessons/webgpu-timing.html)。这些是技术依据，项目验收仍以本仓库可复现证据为准。
