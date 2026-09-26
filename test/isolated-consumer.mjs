@@ -92,6 +92,13 @@ try {
       return [Array.from(ctx.getImageData(x + 2, 64, 1, 1).data), Array.from(ctx.getImageData(18, 102, 1, 1).data), Array.from(ctx.getImageData(x - 2, 64, 1, 1).data)];
     }, x);
     assert.deepEqual(pixels, [[235, 71, 153, 255], [102, 102, 102, 255], [0, 0, 0, 0]]);
+    assert.equal(result.scene.nodes[2].content[0], "polyline");
+    assert.equal(result.transforms[2].e,20+10*time);
+    const ribbon=await page.evaluate(offset=>{
+      const ctx=document.querySelector("canvas").getContext("2d");
+      return [Array.from(ctx.getImageData(offset+10,140,1,1).data),Array.from(ctx.getImageData(offset-5,140,1,1).data)];
+    },20+10*time);
+    assert.deepEqual(ribbon,[[0,128,255,255],[0,0,0,0]],"统一入口实际绘制变换后的折线，而不只是序列化其数据");
     if ([0, 0.5, 1].includes(time)) await page.screenshot({ path: join(artifacts, `frame-${time}.png`), fullPage: true });
   }
   for (const id of ["model", "ready", "viewport"]) await page.click(`#${id}`);

@@ -66,7 +66,7 @@
       "path": "examples/retained-consumer/index.html",
       "title": "独立 Calcit 消费者",
       "group": "public",
-      "summary": "通过 caps 安装公共模块；显式时间、版本更新，无内部 JS 导入。",
+      "summary": "独立安装统一组件入口；标量矩形与变换折线、1000 帧复用、版本失效和产物搬移，无内部 JS 导入。",
       "status": "独立消费",
       "docs": "docs/isolated-consumer.md",
       "compile": "consumer"
