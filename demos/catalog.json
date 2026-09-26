@@ -48,7 +48,7 @@
       "path": "examples/binary-tree/index.html",
       "title": "Binary Tree · 摆动树",
       "group": "originals",
-      "summary": "原 5 层递归运动，63 条正式 Scene IR 圆头/圆连接折线，全屏播放/暂停和任意时间采样；跨帧结构复用和 GPU 待补。",
+      "summary": "原递归运动，正式 Scene 折线与局部几何跨帧保留；全屏播放、任意时间、全量参考切换和拓扑更改；GPU 待补。",
       "status": "恢复切片 · Canvas",
       "docs": "docs/binary-tree-restoration.md",
       "compile": "compile:binary-tree"

@@ -17,8 +17,9 @@
     <div class="buttons"><button id="play">播放</button><button id="reset">回到起点</button><button id="share">复制当前时间链接</button></div>
     <label>时间（秒） <input id="time" type="range" min="0" max="60" step="0.01" value="0"></label>
     <div class="buttons"><button data-time="0">0 s</button><button data-time="2.5">2.5 s</button><button data-time="5">5 s</button><button data-time="10">10 s</button></div>
+    <div class="buttons"><button id="reference">切换全量参考</button><label>深度 <select id="depth"><option>3</option><option selected>5</option><option>7</option></select></label></div>
     <output id="status" aria-live="off"></output>
-    <p class="note">Canvas2D · CPU 全量参考。63 条正式 Scene IR 折线保留原有圆头、圆连接。每帧 63 次原生描边；跨帧结构复用与 WebGPU 尚待后续，不代表性能验收。</p>
+    <p class="note">Canvas2D · 静态 Scene/局部几何保留，时间只更新分支变换。可切换全量参考并在同一时间更改拓扑。仍每条路径一次描边，尚未 GPU 合批；计数不代表帧率性能。</p>
     <a href="https://github.com/Quamolit/quamolit/blob/main/docs/binary-tree-restoration.md">行为依据与检验规则</a>
   </aside>
   <script type="module" src="./main.mjs"></script>

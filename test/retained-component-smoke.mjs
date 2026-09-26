@@ -3,11 +3,46 @@ import { test } from "node:test";
 import { to_js_data as toJsData, init_tags as initTags, CalcitSliceList } from "../target/js/retained-component/calcit.core.mjs";
 import { start, update_plan as updatePlan, reference_at as referenceAt, make_request as makeRequest, declare_demo as declareDemo } from "../target/js/retained-component/quamolit.test.retained-component-fixture.mjs";
 import { build_component_plan as buildPlan, update_component_plan as updateComponentPlan, sample_plan_at as sampleAt } from "../target/js/retained-component/quamolit.retained-component.mjs";
+import { declare_mixed as declareMixed, start_mixed as startMixed } from "../target/js/retained-component/quamolit.test.retained-component-fixture.mjs";
+import { build_execution_plan as buildExecution, update_execution_plan as updateExecution } from "../target/js/retained-component/quamolit.retained-component.mjs";
 
-const tags = initTags(["scene", "nodes", "slots", "versions", "id", "component", "motion", "model", "input", "resources", "viewport", "motions", "declarations", "plan-builds", "binding-samples", "node-writes", "skipped-updates"]);
+const tags = initTags(["scene", "nodes", "slots", "versions", "id", "component", "motion", "model", "input", "resources", "viewport", "motions", "declarations", "plan-builds", "binding-samples", "node-writes", "skipped-updates", "transforms", "transform-samples"]);
 const field = (x, key) => x.get(tags[key]);
 const nodesOf = (plan) => field(field(plan, "scene"), "nodes");
 const sceneOf = (plan) => toJsData(field(plan, "scene"));
+
+test("统一执行计划：混合标量/折线变换共享结构，六类版本同时失效", () => {
+  let calls=0;
+  const declare=(...args)=>{calls++;return declareMixed(...args);};
+  let plan=buildExecution(makeRequest(0,40,false,100),declare);
+  const path=nodesOf(plan).get(65),slots=field(plan,"slots");
+  for(let i=1;i<=1000;i++){
+    const time=i%2 ? i/1000 : -i/1000;
+    plan=updateExecution(plan,makeRequest(time,40,false,100),declare);
+    assert.equal(nodesOf(plan).get(65),path);
+    assert.equal(field(plan,"slots"),slots);
+    assert.deepEqual(sceneOf(plan).nodes.slice(0,65),toJsData(referenceAt(time,40,false,100)).nodes);
+    assert.equal(toJsData(field(plan,"transforms")).at(-1).e,40+10*time);
+  }
+  assert.equal(calls,1);assert.equal(field(plan,"transform-samples"),1001);
+  const same=updateExecution(plan,makeRequest(-1,40,false,100),declare);
+  assert.equal(field(same,"transforms"),field(plan,"transforms"));
+  assert.equal(field(same,"transform-samples"),1001);
+  for(const version of ["component","motion","model","input","resources","viewport"]){
+    const request=makeRequest(-1,40,false,100);
+    const changed=request.assoc(tags.versions,field(request,"versions").assoc(tags[version],999));
+    const next=updateExecution(plan,changed,declare);
+    assert.equal(field(next,"plan-builds"),2);
+    assert.notEqual(nodesOf(next).get(65),path);
+  }
+  const changed=updateExecution(plan,makeRequest(-1,41,false,100),declare);
+  assert.equal(toJsData(field(changed,"transforms")).at(-1).e,31);
+  assert.equal(sceneOf(changed).nodes[64].content[1].y,63);
+  const broken=(...args)=>{const d=declareMixed(...args);return d.assoc(tags.transforms,null);};
+  assert.throws(()=>buildExecution(makeRequest(0,40,false,100),broken));
+  assert.equal(nodesOf(plan).get(65),path);
+  assert.equal(sceneOf(startMixed(0,40,false,100)).nodes.length,66);
+});
 
 test("1000 个时间帧只声明一次，编译槽位和 64 个静态节点保留身份", () => {
   let calls = 0;
