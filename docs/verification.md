@@ -6,6 +6,8 @@
 
 ## 当前可执行门禁
 
+`yarn test:gpu-component` 验证[公共计划 GPU 连接](gpu-component-plan.md)：严格类型、原生差量、Node 编译后 file/inline 调用、1000 时间帧、浏览器整层回退与非软件 GPU 专项。硬件不可用时专项明确 skip，不能记为通过；当前不测吞吐或标准动画 shader 采样。
+
 `yarn test:todolist` 验证 [TodoList 恢复](todolist-restoration.md)：严格类型、原生日志合同、Node 的重排打断/重入/错峰/100 次装卸/1000 时间帧共享，以及 Chromium 全像素文字参考、实际 Canvas 操作、导入失败隔离、两秒空闲停帧、DPR 1/2 和暂停 resize。文字为基础 monospace，未验证 GPU。
 
 `yarn test:binary-tree` 严格检查 Calcit 线段参考与原有摆动树，执行原生和 3 项 Node 合同；浏览器验证原有递归运动的独立矩阵/画面对照、负例和全屏播放控制。见 [Binary Tree 恢复边界](binary-tree-restoration.md)；不能据此宣称完整 Path IR 或 GPU 已实现。

@@ -1,5 +1,7 @@
 # Calcit 组件到保留计划：M2 #50 首个集成切片
 
+后续扩展：[公共计划到 WebGPU 矩形批次](gpu-component-plan.md)复用本入口，现有页面新增同源 GPU 对照；基础文字和 Presence 则见 [TodoList 恢复](todolist-restoration.md)。下文历史切片的“尚未实现”不代替这些扩展各自的能力边界。
+
 `quamolit.retained-component` 直接消费 `quamolit.component-sample/ComponentRequest` 与声明函数，返回不可变的 `ComponentPlan`。声明、Motion 查找、槽位编译、采样与版本失效全部由 Calcit 实现；公共实现不导入手写 JS、不依赖测试编译产物，也不要求调用者提供 JS sampler Map。
 
 ## 使用合同

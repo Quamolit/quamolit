@@ -4244,6 +4244,297 @@
           :schema $ :: 'Ref $ :: 'List (:: 'Map 'Tag 'Dynamic)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.global
+    'quamolit.gpu-component $ %{} 'FileEntry
+      :defs $ {}
+        'PreparedFrame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum PreparedFrame (:rects 'quamolit.gpu-component/RectFrame) (:fallback 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'RectFrame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RectFrame
+            :records $ :: 'List 'quamolit.gpu-component/RectRecord
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RectRecord $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RectRecord (:id 'String) (:rect 'quamolit.scene-ir/RectNode) (:matrix 'quamolit.scene-ir/Matrix2D)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RectUpdate $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RectUpdate (:frame 'quamolit.gpu-component/RectFrame)
+            :writes $ :: 'List 'quamolit.gpu-component/RectWrite
+            :uploaded-bytes 'Number
+            :instances 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RectWrite $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RectWrite (:index 'Number) (:record 'quamolit.gpu-component/RectRecord)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'canvas-channel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn canvas-channel (value)
+            /
+              round $ * value 255
+              , 255
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'collect-writes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn collect-writes (before after index result)
+            if
+              >= index $ count after
+              , result $ let
+                  record $ &list:nth after index
+                  unchanged? $ if
+                    < index $ count before
+                    = record $ &list:nth before index
+                    , false
+                recur before after (inc index)
+                  if unchanged? result $ conj result $ RectWrite :index index :record record
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.gpu-component/RectRecord) (:: 'List 'quamolit.gpu-component/RectRecord) 'Number $ :: 'List 'quamolit.gpu-component/RectWrite
+            :return $ :: 'List 'quamolit.gpu-component/RectWrite
+        'create-renderer! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create-renderer! (canvas device format capacity)
+            raw-create! canvas (unsafe-coerce device 'JsObject) format capacity
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'js-ffi.webgpu/DeviceHost 'String 'Number
+            :features $ #{} :js-ffi
+        'dispose-renderer! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn dispose-renderer! (host) &unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|h=>{if(h.disposed)return;h.disposed=true;try{h.context.unconfigure();}finally{try{h.vertices.destroy();}finally{h.params.destroy();}}}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject
+            :features $ #{} :js-ffi
+        'empty-frame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-frame ()
+            RectFrame :records $ []
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectFrame)
+            :args $ []
+        'empty-writes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-writes () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.gpu-component/RectWrite
+        'finite-corner? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn finite-corner? (m x y)
+            and
+              <=
+                +
+                  +
+                    abs $ * (:a m) x
+                    abs $ * (:c m) y
+                  abs $ :e m
+                , 1e37
+              <=
+                +
+                  +
+                    abs $ * (:b m) x
+                    abs $ * (:d m) y
+                  abs $ :f m
+                , 1e37
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/Matrix2D 'Number 'Number
+        'first-reason $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-reason (plan index)
+            if
+              >= index $ count $ :nodes (:scene plan)
+              , | $ let
+                  reason $ node-reason plan index
+                if (= reason |)
+                  recur plan $ inc index
+                  , reason
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
+        'identity-matrix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn identity-matrix ()
+            scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ []
+        'matrix-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn matrix-at (plan index)
+            if
+              retained/transform-active? $ :transform-sampler plan
+              &list:nth (:transforms plan) index
+              identity-matrix
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
+        'node-reason $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn node-reason (plan index)
+            let
+                node $ &list:nth
+                  :nodes $ :scene plan
+                  , index
+              if
+                not= (:parent node) |
+                , |nested-scene-requires-layer-fallback $ match (:content node)
+                  (:rect r)
+                    if
+                      valid-record? $ RectRecord :id (:id node) :rect r :matrix $ matrix-at plan index
+                      , | |geometry-outside-f32-domain
+                  _ $ str |unsupported-node: $ scene/content-kind (:content node)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
+        'prepare-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn prepare-plan (plan)
+            assert |invalid-gpu-component-scene $ scene/validate-scene $ :scene plan
+            when
+              retained/transform-active? $ :transform-sampler plan
+              assert |invalid-gpu-component-transforms $ and
+                =
+                  count $ :transforms plan
+                  count $ :nodes $ :scene plan
+                every? (:transforms plan) retained/valid-transform?
+            let
+                reason $ first-reason plan 0
+              if (not= reason |) (PreparedFrame :fallback reason)
+                PreparedFrame :rects $ RectFrame :records $ map
+                  range $ count $ :nodes (:scene plan)
+                  fn (index) (rect-record plan index)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/PreparedFrame)
+            :args $ [] 'quamolit.retained-component/ComponentPlan
+        'raw-check! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-check! (host instance-count) &unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,count)=>{if(h.disposed)throw Error(\"gpu-component-disposed\");if(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error(\"gpu-component-capacity\");if(!Number.isSafeInteger(h.canvas.width)||h.canvas.width<=0||!Number.isSafeInteger(h.canvas.height)||h.canvas.height<=0)throw Error(\"gpu-component-viewport\");}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'Number
+            :features $ #{} :js-ffi
+        'raw-create! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-create! (canvas device format capacity) (raise |js-only-gpu-component)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :file |src/host/gpu-component-create.mjs
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'JsObject 'String 'Number
+            :features $ #{} :js-ffi
+        'raw-draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-draw! (host instance-count) &unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,count)=>{\nif(h.disposed)throw Error('gpu-component-disposed');\nif(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-component-capacity');\nconst {width,height}=h.canvas;\nif(!Number.isSafeInteger(width)||width<=0||!Number.isSafeInteger(height)||height<=0)throw Error('gpu-component-viewport');\nh.viewScratch[0]=width;h.viewScratch[1]=height;h.device.queue.writeBuffer(h.params,0,h.viewScratch);\nconst encoder=h.device.createCommandEncoder(),pass=encoder.beginRenderPass({colorAttachments:[{view:h.context.getCurrentTexture().createView(),loadOp:'clear',storeOp:'store',clearValue:{r:1,g:1,b:1,a:1}}]});\nif(count>0){pass.setPipeline(h.pipeline);pass.setBindGroup(0,h.bindGroup);pass.setVertexBuffer(0,h.vertices);pass.draw(6,count);h.draws++;}\npass.end();h.device.queue.submit([encoder.finish()]);h.submits++;\n}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'Number
+            :features $ #{} :js-ffi
+        'raw-write! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-write!
+            host index x y width height r g b alpha a mb c md e f
+            , &unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,index,x,y,w,height,r,g,b,alpha,a,mb,c,md,e,f)=>{\nif(h.disposed)throw Error('gpu-component-disposed');\nif(!Number.isSafeInteger(index)||index<0||index>=h.capacity)throw Error('gpu-component-capacity');\nconst values=[x,y,w,height,r,g,b,alpha,a,mb,c,md,e,f,0,0];\nif(!values.every(v=>Number.isFinite(v)&&Number.isFinite(Math.fround(v))))throw Error('gpu-component-nonfinite');\nh.recordScratch.set(values);h.device.queue.writeBuffer(h.vertices,index*64,h.recordScratch);h.uploadedBytes+=64;\n}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number
+            :features $ #{} :js-ffi
+        'record-values $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn record-values (record)
+            let
+                r $ :rect record
+                c $ :fill r
+                m $ :matrix record
+              [] (:x r) (:y r) (:width r) (:height r)
+                canvas-channel $ :r c
+                canvas-channel $ :g c
+                canvas-channel $ :b c
+                :a c
+                :a m
+                :b m
+                :c m
+                :d m
+                :e m
+                :f m
+                , 0 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.gpu-component/RectRecord
+            :return $ :: 'List 'Number
+        'rect-record $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rect-record (plan index)
+            let
+                node $ &list:nth
+                  :nodes $ :scene plan
+                  , index
+              match (:content node)
+                (:rect r)
+                  RectRecord :id (:id node) :rect r :matrix $ matrix-at plan index
+                _ $ raise |unsupported-gpu-rect-record
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectRecord)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
+        'submit-frame! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn submit-frame! (host previous next)
+            let
+                delta $ update-frame previous next
+              assert |invalid-gpu-component-frame $ every? (:records next) valid-record?
+              raw-check! host $ count $ :records next
+              each (:writes delta)
+                fn (write)
+                  let
+                      record $ :record write
+                      r $ :rect record
+                      color $ :fill r
+                      m $ :matrix record
+                    raw-write! host (:index write) (:x r) (:y r) (:width r) (:height r)
+                      canvas-channel $ :r color
+                      canvas-channel $ :g color
+                      canvas-channel $ :b color
+                      :a color
+                      :a m
+                      :b m
+                      :c m
+                      :d m
+                      :e m
+                      :f m
+              raw-draw! host $ :instances delta
+              , delta
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectUpdate)
+            :args $ [] 'JsObject 'quamolit.gpu-component/RectFrame 'quamolit.gpu-component/RectFrame
+            :features $ #{} :js-ffi
+        'update-frame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-frame (previous next)
+            let
+                writes $ collect-writes (:records previous) (:records next) 0 $ empty-writes
+              RectUpdate :frame next :writes writes :uploaded-bytes
+                * 64 $ count writes
+                , :instances $ count $ :records next
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectUpdate)
+            :args $ [] 'quamolit.gpu-component/RectFrame 'quamolit.gpu-component/RectFrame
+        'valid-record? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-record? (record)
+            let
+                r $ :rect record
+                m $ :matrix record
+                x $ :x r
+                y $ :y r
+                right $ + x $ :width r
+                bottom $ + y $ :height r
+              and
+                every? (record-values record) f32/finite-f32?
+                finite-corner? m x y
+                finite-corner? m right y
+                finite-corner? m x bottom
+                finite-corner? m right bottom
+                scene/valid-content? $ scene/SceneContent :rect r
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.gpu-component/RectRecord
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.gpu-component
+          :require (quamolit.scene-ir :as scene) (quamolit.retained-component :as retained) (quamolit.gpu-vec2-translation :as f32)
     'quamolit.gpu-vec2-translation $ %{} 'FileEntry
       :defs $ {}
         'GpuVec2TranslationFrame $ %{} 'CodeEntry (:doc |)
@@ -9529,6 +9820,43 @@
             quamolit.types :refer $ Component Shape
             quamolit.render.paint :refer $ paint-tree-only-with paint-rect
             quamolit.frame-eval :refer $ initial-frame evaluate-at
+    'quamolit.test.gpu-component-fixture $ %{} 'FileEntry
+      :defs $ {}
+        'frame-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn frame-at (time)
+            match
+              gpu/prepare-plan $ fixture/start time 40 false 100
+              (:rects frame) frame
+              (:fallback reason) (raise reason)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectFrame)
+            :args $ [] 'Number
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! ()
+            count $ :records $ frame-at 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ []
+          :tests $ [] $ %{} 'TestEntry (:name |gpu-component-delta)
+            :code $ quote $ let
+                initial $ frame-at 0
+                changed $ frame-at 0.5
+                cold $ gpu/update-frame (gpu/empty-frame) initial
+                hot $ gpu/update-frame initial changed
+              is= 65 $ :instances cold
+              is= 4160 $ :uploaded-bytes cold
+              is= 64 $ :uploaded-bytes hot
+              is= 0 $ :uploaded-bytes $ gpu/update-frame changed changed
+            :tags $ #{} :gpu-component
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () (main!)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ []
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.test.gpu-component-fixture
+          :require (quamolit.gpu-component :as gpu) (quamolit.test.retained-component-fixture :as fixture)
+            calcit.test :refer $ is=
     'quamolit.test.motion-fixture $ %{} 'FileEntry
       :defs $ {}
         'PresenceFixtureFrame $ %{} 'CodeEntry (:doc |)
