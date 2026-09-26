@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Clock · Quamolit 原有动画</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <canvas id="scene" aria-label="六位数字时钟，七段笔画随时间切换"></canvas>
+  <nav aria-label="演示导航"><a href="../../demos/index.html?group=originals">← 所有演示</a></nav>
+  <button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起面板</button>
+  <aside id="panel" aria-label="动画控制">
+    <span class="eyebrow">QUAMOLIT / ORIGINAL 02</span>
+    <h1>Clock<br><small>六位数字与七段渐变</small></h1>
+    <p>原来的时分秒数字。逻辑时间由页面显式注入，Calcit 纯函数决定进位与七段笔画透明度，不读取当前墙钟。</p>
+    <div class="buttons"><button id="play">播放</button><button id="reset">回到起点</button><button id="share">复制当前时间链接</button></div>
+    <label>时间（秒） <input id="time" type="range" min="0" max="120" step="0.01" value="0"></label>
+    <div class="buttons"><button data-time="0">0 s</button><button data-time="59">59 s</button><button data-time="60">60 s</button><button data-time="120">120 s</button></div>
+    <output id="status" aria-live="off"></output>
+    <p class="note">Canvas2D · 绝对时间采样，同一时间可乱序/重复截图。笔画渐变按 0.25 秒窗口确定性给出，不使用随机散开；不与帧率挂钩。</p>
+    <a href="https://github.com/Quamolit/quamolit/blob/main/docs/clock-restoration.md">行为依据与检验规则</a>
+  </aside>
+  <script type="module" src="./main.mjs"></script>
+</body>
+</html>

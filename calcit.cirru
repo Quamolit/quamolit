@@ -3276,6 +3276,159 @@
             quamolit.retained-path :as retained
             quamolit.retained-component :as execution
             quamolit.component-sample :as component
+    'quamolit.examples.clock $ %{} 'FileEntry
+      :defs $ {}
+        'build-positions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-positions (position current previous phase acc)
+            if (>= position 6) acc $ recur (inc position) current previous phase $ build-segments position current previous phase 0 acc
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number (:: 'List 'Number) (:: 'List 'Number) 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'build-segments $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-segments (position current previous phase index acc)
+            if (>= index 7) acc $ let
+                opacity $ segment-opacity index (&list:nth current position) (&list:nth previous position) phase
+              recur position current previous phase (inc index)
+                if (> opacity 0)
+                  conj acc $ segment-node position index opacity
+                  , acc
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number (:: 'List 'Number) (:: 'List 'Number) 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'digit-masks $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ def digit-masks
+            [] ([] 1 2 3 4 5 6) ([] 1 6) ([] 0 1 2 4 5) ([] 0 1 2 5 6) ([] 0 1 3 6) ([] 0 2 3 5 6) ([] 0 2 3 4 5 6) ([] 1 2 6) ([] 0 1 2 3 4 5 6) ([] 0 1 2 3 5 6)
+          :examples $ []
+          :schema $ :: 'List $ :: 'List 'Number
+        'digits-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn digits-at (time)
+            let
+                safe $ &number:rem (floor time) 86400
+                day $ if (< safe 0) (+ safe 86400) safe
+                hrs $ floor $ / day 3600
+                mins $ floor $ / (&number:rem day 3600) 60
+                secs $ &number:rem day 60
+              []
+                floor $ / hrs 10
+                &number:rem hrs 10
+                floor $ / mins 10
+                &number:rem mins 10
+                floor $ / secs 10
+                &number:rem secs 10
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |carry-and-wrap)
+            :code $ quote $ do
+              assert= ([] 0 0 0 0 0 0) (digits-at 0)
+              assert= ([] 0 0 0 0 5 9) (digits-at 59)
+              assert= ([] 0 0 0 1 0 0) (digits-at 60)
+              assert= ([] 0 0 5 9 5 9) (digits-at 3599)
+              assert= ([] 0 1 0 0 0 0) (digits-at 3600)
+              assert= ([] 2 3 5 9 5 9) (digits-at 86399)
+              assert= ([] 0 0 0 0 0 0) (digits-at 86400)
+            :tags $ #{} :clock :unit
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context time)
+            reference/draw-reference! context $ scene-at time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number
+        'empty-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-nodes () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'position-x $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn position-x (index)
+            &list:nth ([] -280 -200 -80 0 120 200) index
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (time)
+            let
+                current $ digits-at time
+                previous $ digits-at $ - time 1
+                phase $ - time $ floor time
+              scene/SceneDocument :nodes $ build-positions 0 current previous phase $ empty-nodes
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |settled-segments)
+            :code $ quote $ do
+              assert= 32 $ count $ :nodes (scene-at 60.5)
+              assert= 36 $ count $ :nodes (scene-at 0.5)
+            :tags $ #{} :clock :unit
+        'segment-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn segment-node (position index opacity)
+            scene/SceneNode :id (str |clock- position |- index) :key (str |clock- position |- index) :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline $ scene/PolylineNode :points
+              segment-points index $ position-x position
+              , :width 3 :stroke
+                motion/ColorRgba :r 0.1 :g 0.5 :b 0.95 :a opacity
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'Number 'Number 'Number
+        'segment-on? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn segment-on? (mask index)
+            if (empty? mask) false $ if
+              = (&list:nth mask 0) index
+              , true $ recur (rest mask) index
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'Number) 'Number
+        'segment-opacity $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn segment-opacity (index current previous phase)
+            let
+                on? $ segment-on? (&list:nth digit-masks current) index
+                was? $ segment-on? (&list:nth digit-masks previous) index
+                raw $ / phase 0.25
+                ramp $ if (> raw 1) 1 raw
+              if (and on? was?) 1 $ if on? ramp $ if was? (- 1 ramp) 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number 'Number
+        'segment-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn segment-points (index ox)
+            let
+                s $ &list:nth segments index
+              []
+                motion/Vec2 :x
+                  +
+                    * 60 $ &list:nth s 0
+                    , ox
+                  , :y $ * 100 $ &list:nth s 1
+                motion/Vec2 :x
+                  +
+                    * 60 $ &list:nth s 2
+                    , ox
+                  , :y $ * 100 $ &list:nth s 3
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'segments $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ def segments
+            [] ([] 0 1 1 1) ([] 1 1 1 0) ([] 1 0 0 0) ([] 0 0 0 1) ([] 0 1 0 2) ([] 0 2 1 2) ([] 1 2 1 1)
+          :examples $ []
+          :schema $ :: 'List $ :: 'List 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.clock
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
     'quamolit.examples.todolist $ %{} 'FileEntry
       :defs $ {}
         'Event $ %{} 'CodeEntry (:doc |)
