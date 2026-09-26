@@ -51,7 +51,7 @@ Calcit 0.22 起，定义级 `:ffi :js` 可以嵌入一个 JS 函数表达式：`
 
 本仓库 `src/host/` 目前仍混有生产宿主与待迁逻辑，并非最终归属：
 
-- 生产宿主：`canvas-rect-batches.mjs` 已改为定义级 `:ffi :js :file` 内嵌（`quamolit.instance-ffi/raw-draw-canvas!` 与 `quamolit.canvas-reference/raw-draw-instances!`），宿主文件是单函数表达式，消费者可达闭包不再出现裸 `src/host/*.mjs`；`webgpu-rect-batches.mjs` 仍由 `:require` 调用，在 ABI 支持其 trait/async 前保留，并标注原因与计数。
+- 生产宿主：`canvas-rect-batches.mjs` 已改为定义级 `:ffi :js :file` 内嵌（`quamolit.instance-ffi/raw-draw-canvas!` 与 `quamolit.canvas-reference/raw-draw-instances!`），宿主文件是单函数表达式，消费者可达闭包不再出现裸 `src/host/*.mjs`；`instance-resource-table.mjs` 也用 `:file` 内嵌（`quamolit.instance-resource/raw-create-table!`）；`webgpu-rect-batches.mjs` 仍由 `:require` 调用，在 ABI 支持其 trait/async 前保留，并标注原因与计数。
 - 测试夹具桥接：`webgpu-capabilities.mjs`、`instance-sources.mjs`、`canvas-instance-batches.mjs`、`webgpu-instance-batches.mjs`、`webgpu-layer-lease.mjs` 已迁到 `test/host/`，仅供 `test/` 引用并反向读取 `target/js/motion/`。
 - 宿主执行缓存：`retained-scene-plan.mjs` 保留可变保留帧与任意 CPU sampler 闭包，但失效原因分类、重采样判定与采样值校验已由 Calcit `quamolit.retained-scene` 提供；`demand-frame-scheduler.mjs` 是纯宿主 rAF 句柄与回调调度，没有可迁的纯逻辑。设计文档见 [保留式 Scene 计划](retained-scene-plan.md)；`presence-resources.mjs` 的引用计数/释放决策也已迁入 Calcit `quamolit.presence/instance-resource-plan`，其薄宿主适配器在 `test/host/presence-resources.mjs`。迁移时按同一 fixture 对照语义与调用/复制计数，不能只做代码搬运。
 

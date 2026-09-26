@@ -103,6 +103,7 @@
 
 - 承接 #49 移交的真实资源清理验收：退出终点、共享最后引用、重入、百次装卸后 live 基线。
 - device loss/rebuild 复用 Model 与资源版本；记录旧异步结果迟到的处理。
+- 已落地公共 [版本化实例源资源表](instance-resource-table.md)（`quamolit.instance-resource`，定义级 `:file` 宿主 + 类型化 Calcit 入口，100 次装卸回到 live 基线）；与 Presence/GPU buffer 的实际接线随后。
 
 ### #38：普通组件合批与显式 instances 共享入口
 

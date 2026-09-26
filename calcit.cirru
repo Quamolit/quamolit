@@ -5385,6 +5385,79 @@
         :doc "|Scene 实例源到 js-ffi Calcit API 的薄适配；版本与缓存仍由 Quamolit 宿主层管理。"
         :code $ quote $ ns quamolit.instance-ffi
           :require (js-ffi.typed-arrays :as arrays) (js-ffi.contract :as contract)
+    'quamolit.instance-resource $ %{} 'FileEntry
+      :defs $ {}
+        'create-table! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create-table! () (raw-create-table!)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ []
+        'live-count $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn live-count (table) (raw-live-count table)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'JsObject
+        'raw-create-table! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-create-table! () (raise |js-only-instance-resource)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :file |src/host/instance-resource-table.mjs
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ []
+            :features $ #{} :js-ffi
+        'raw-live-count $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-live-count (h) (raise |js-only-instance-resource)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|h=>h.liveCount()"
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'JsObject
+            :features $ #{} :js-ffi
+        'raw-register! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-register! (h id version amount positions) (raise |js-only-instance-resource)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,id,version,amount,positions)=>h.register(id,version,amount,positions)"
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'String 'Number 'Number 'JsObject
+            :features $ #{} :js-ffi
+        'raw-release! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-release! (h id version amount) (raise |js-only-instance-resource)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,id,version,amount)=>h.release(id,version,amount)"
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'JsObject 'String 'Number 'Number
+            :features $ #{} :js-ffi
+        'raw-resolve $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-resolve (h id version amount) (raise |js-only-instance-resource)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,id,version,amount)=>h.resolve(id,version,amount)"
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'String 'Number 'Number
+            :features $ #{} :js-ffi
+        'register! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn register! (table source positions)
+            raw-register! table (:id source) (:version source) (:count source) positions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource 'JsObject
+        'release! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release! (table source)
+            raw-release! table (:id source) (:version source) (:count source)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource
+        'resolve $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resolve (table source)
+            raw-resolve table (:id source) (:version source) (:count source)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.instance-resource
+          :require $ quamolit.scene-ir :as scene
     'quamolit.math $ %{} 'FileEntry
       :defs $ {}
         'bound-01 $ %{} 'CodeEntry (:doc |)
