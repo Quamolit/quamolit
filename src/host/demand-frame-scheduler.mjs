@@ -9,6 +9,7 @@ export class DemandFrameScheduler {
   #reasons = new Set();
   #inputs = [];
   #submissions = 0;
+  #generation = 0;
 
   constructor({ requestFrame, cancelFrame, paint }) {
     if (typeof requestFrame !== "function" || typeof cancelFrame !== "function" || typeof paint !== "function") {
@@ -30,7 +31,10 @@ export class DemandFrameScheduler {
   pause() {
     if (this.#disposed) return;
     this.#paused = true;
-    if (this.#handle !== undefined) this.#cancelFrame(this.#handle);
+    if (this.#handle !== undefined) {
+      this.#generation++;
+      this.#cancelFrame(this.#handle);
+    }
     this.#handle = undefined;
   }
 
@@ -41,7 +45,10 @@ export class DemandFrameScheduler {
   }
 
   dispose() {
-    if (this.#handle !== undefined) this.#cancelFrame(this.#handle);
+    if (this.#handle !== undefined) {
+      this.#generation++;
+      this.#cancelFrame(this.#handle);
+    }
     this.#handle = undefined;
     this.#disposed = true;
     this.#reasons.clear();
@@ -50,7 +57,10 @@ export class DemandFrameScheduler {
 
   #schedule() {
     if (this.#paused || this.#disposed || this.#handle !== undefined || this.#reasons.size === 0) return;
+    const generation = ++this.#generation;
     this.#handle = this.#requestFrame((timestamp) => {
+      if (generation !== this.#generation) return;
+      this.#generation++;
       this.#handle = undefined;
       if (this.#paused || this.#disposed) return;
       const reasons = [...this.#reasons];

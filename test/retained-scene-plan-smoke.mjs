@@ -113,3 +113,36 @@ test("按需调度合并重复请求、保存输入、暂停并在恢复后唤�
   scheduler.dispose();
   assert.throws(() => scheduler.request("input"), /disposed/);
 });
+
+test("已取消或重复投递的帧回调不能清除新帧或重复绘制", () => {
+  const callbacks = new Map();
+  const paints = [];
+  let next = 0;
+  const scheduler = new DemandFrameScheduler({
+    requestFrame(callback) { const id = ++next; callbacks.set(id, callback); return id; },
+    cancelFrame() {}, // 模拟取消后仍迟到投递的宿主回调。
+    paint(timestamp, reasons, inputs) { paints.push({ timestamp, reasons, inputs }); },
+  });
+  scheduler.request("input", "first");
+  const stale = callbacks.get(1);
+  scheduler.pause();
+  scheduler.request("input", "second");
+  scheduler.resume();
+  assert.equal(scheduler.pending, true);
+  stale(16);
+  assert.equal(scheduler.pending, true, "stale callback must not clear the new frame handle");
+  assert.equal(scheduler.queuedInputs, 2);
+  assert.equal(scheduler.submissions, 0);
+  const current = callbacks.get(2);
+  current(32);
+  assert.deepEqual(paints, [{ timestamp: 32, reasons: ["input"], inputs: ["first", "second"] }]);
+  current(48);
+  assert.equal(scheduler.submissions, 1, "duplicate callback must not paint again");
+  scheduler.request("resize");
+  const disposed = callbacks.get(3);
+  scheduler.dispose();
+  disposed(64);
+  assert.equal(scheduler.pending, false);
+  assert.equal(scheduler.submissions, 1);
+  assert.equal(paints.length, 1);
+});
