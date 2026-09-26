@@ -23,6 +23,21 @@ defstruct SourceUpload (:version 'Number) (:bytes 'Number) (:uploaded? 'Bool)
 
 当 `previous == (:version source)` 时返回 `{:bytes 0 :uploaded? false}`，**不解析也不上传**；否则从表中 `resolve` 快照，`unsafe-coerce` 为 `Float32ArrayHost` 后调用 `quamolit.webgpu-batches/upload!`，返回该次上传字节与版本。
 
+## 整层绘制入口
+
+```cirru
+defstruct SourceDraw (:version 'Number) (:uploaded? 'Bool) (:upload-bytes 'Number) (:instances 'Number) (:draw-calls 'Number)
+
+gpu/draw-source! previous batch table instances
+```
+
+`draw-source! (previous, batch, table, instances) -> SourceDraw` 消费 Scene `InstanceNode`：
+
+1. 用 `upload-source!` 按 `(id,version)` 决定是否上传 `(:source instances)`；
+2. 用 `(:width)`/`(:height)`/`(:fill)` 与 `(:count source)` 调用 `quamolit.webgpu-batches/draw!`，无位移（`%none`）绘制整层。
+
+返回组合计数：`uploaded?`、`upload-bytes`、`instances`、`draw-calls`。同版本热帧 `upload-bytes=0` 但仍绘制一层；版本变化才重新上传。
+
 ## 语义与计数
 
 - 同一版本的热帧不新增上传，也不重复解析；调用次数按资源版本增长。
