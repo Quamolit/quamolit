@@ -33,7 +33,6 @@
   "planned": [
     { "id": "table", "title": "Table · 编辑表格", "group": "originals", "summary": "3 × 3 文本格子的编辑交互；不是持续运动作品。" },
     { "id": "finder", "title": "Finder · 文件卡片", "group": "originals", "summary": "文件夹和卡片展开、居中缩放、淡出与返回。" },
-    { "id": "raining", "title": "Raining · 雨滴", "group": "originals", "summary": "雨滴生成、下落、落地消散；恢复时加入固定随机种子。" },
     { "id": "folding-fan", "title": "Folding fan · 折扇", "group": "originals", "summary": "荷花图片的 24 个切片旋转，交互展开与收拢。" },
     { "id": "drag-demo", "title": "Drag demo · 拖拽", "group": "originals", "summary": "矩形拖动与滑块调节，恢复坐标和交互语义。" }
   ],
@@ -97,6 +96,16 @@
       "status": "恢复切片 · Canvas",
       "docs": "docs/icons-restoration.md",
       "compile": "compile:icons"
+    },
+    {
+      "id": "raining",
+      "path": "examples/raining/index.html",
+      "title": "Raining · 雨滴",
+      "group": "originals",
+      "summary": "固定 seed/tick 的雨滴出现、下落、落地消散；可重置、乱序采样和分享画面。",
+      "status": "恢复切片 · Canvas",
+      "docs": "docs/raining-restoration.md",
+      "compile": "compile:raining"
     },
     {
       "path": "test/retained-component.html",

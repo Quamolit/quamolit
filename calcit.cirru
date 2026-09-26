@@ -3709,6 +3709,97 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.icons
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.raining $ %{} 'FileEntry
+      :defs $ {}
+        'build-drops $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-drops (seed tick slot acc)
+            if (>= slot 48) acc $ let
+                item $ drop-node seed tick slot
+              recur seed tick (inc slot)
+                match item
+                  (:some node) (conj acc node)
+                  (:none) acc
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context seed tick)
+            reference/draw-reference! context $ scene-at seed tick
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number 'Number
+        'drop-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn drop-node (seed tick slot)
+            let
+                age $ + tick $ * slot 7
+                phase $ &number:rem age 120
+                cycle $ floor $ / age 120
+                value $ hash-at seed slot cycle
+                x $ -
+                  * (/ value 2147483647) 1000
+                  , 500
+                id $ str |rain- slot |/ cycle
+              if (< phase 75)
+                %some $ rect-node id x
+                  - (* phase 8) 400
+                  , 3 30 0.88
+                if (< phase 86)
+                  %some $ rect-node id
+                    - x $ * (- phase 74) 2
+                    , 200
+                      * (- phase 74) 4
+                      , 5 $ - 1
+                        / (- phase 75) 11
+                  %none
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number
+            :return $ :: 'Option 'quamolit.scene-ir/SceneNode
+        'empty-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-nodes () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'hash-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hash-at (seed slot cycle)
+            &number:rem
+              * 48271 $ &number:rem
+                * 48271 $ + seed
+                  * (* slot slot) 131
+                  * (* cycle cycle) 719
+                , 2147483647
+              , 2147483647
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'rect-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rect-node (id x y w h alpha)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :rect $ scene/RectNode :x x :y y :width w :height h :fill
+              motion/ColorRgba :r 0.47 :g 0.78 :b 0.96 :a alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'Number 'Number 'Number 'Number 'Number
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (seed tick)
+            scene/SceneDocument :nodes $ build-drops seed tick 0 $ empty-nodes
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.raining
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
     'quamolit.examples.solar $ %{} 'FileEntry
       :defs $ {}
         'build-circle $ %{} 'CodeEntry (:doc |)

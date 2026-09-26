@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Raining · Quamolit 原有动画</title><link rel="stylesheet" href="./style.css"></head>
+<body>
+  <canvas id="scene" aria-label="固定种子的雨滴下落与落地消散"></canvas>
+  <nav aria-label="演示导航"><a href="../../demos/index.html?group=originals">← 所有演示</a></nav>
+  <button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起面板</button>
+  <aside id="panel" aria-label="动画控制">
+    <span class="eyebrow">QUAMOLIT / ORIGINAL 06</span>
+    <h1>Raining<br><small>可以重放的一场雨</small></h1>
+    <p>每一滴雨由 Calcit 根据种子和固定 tick 确定。暂停、重置或打开分享链接，都能回到同一画面。</p>
+    <div class="buttons"><button id="play">播放</button><button id="reset">重置</button><button id="share">复制当前画面链接</button></div>
+    <label>种子 <input id="seed" type="number" min="1" max="1000000" step="1" value="17"></label>
+    <label>时间 tick（每秒 30 步） <input id="tick" type="range" min="0" max="900" step="1" value="0"></label>
+    <div class="buttons"><button data-tick="0">0</button><button data-tick="30">30</button><button data-tick="75">75</button><button data-tick="120">120</button></div>
+    <output id="status" aria-live="off"></output>
+    <p class="note">48 个固定槽位，雨滴出现、下落、溅开和消失均可乱序采样；当前是 Canvas2D 参考路径，GPU 粒子执行尚未接入。</p>
+    <a href="https://github.com/Quamolit/quamolit/blob/main/docs/raining-restoration.md">行为依据与检验规则</a>
+  </aside>
+  <script type="module" src="./main.mjs"></script>
+</body></html>
