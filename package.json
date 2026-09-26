@@ -19,7 +19,7 @@
     "test:demo-nav": "node --test test/demo-catalog.test.mjs && yarn release:demos && playwright test --config test/demo-nav.playwright.config.mjs",
     "test:consumer": "node test/isolated-consumer.mjs",
     "compile:retained-component": "calcit --emit-path target/js/retained-component/ --init-fn quamolit.test.retained-component-fixture/main! --reload-fn quamolit.test.retained-component-fixture/reload! calcit.cirru js",
-    "test:retained-component": "calcit analyze check-public --ns quamolit.retained-component --ns quamolit.test.retained-component-fixture && calcit test quamolit.test.retained-component-fixture/main! --require-match && yarn compile:retained-component && node --test test/retained-component-smoke.mjs && playwright test --config test/retained-component.playwright.config.mjs",
+    "test:retained-component": "calcit analyze check-public --ns quamolit.retained-component --ns quamolit.presence-component --ns quamolit.test.retained-component-fixture && calcit test quamolit.test.retained-component-fixture/main! --require-match && calcit test --tag presence-component --require-match && yarn compile:retained-component && node --test test/retained-component-smoke.mjs && playwright test --config test/retained-component.playwright.config.mjs",
     "compile": "caps --ci && mkdir -p target/js/app && calcit --emit-path target/js/app/ calcit.cirru js",
     "test:clock": "calcit test --tag frame-clock --require-match",
     "test:simulation": "calcit analyze check-public --ns quamolit.fixed-step --ns quamolit.test.motion-fixture && calcit test --tag simulation --require-match && yarn compile:motion && node --test test/simulation-smoke.mjs",

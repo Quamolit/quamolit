@@ -14,7 +14,7 @@
 
 `yarn test:consumer` 在独立临时项目安装候选提交，严格检查消费者，搬移入口可达产物后执行 Node/Chromium 合同；覆盖 1000 帧复用、乱序时间、同时间失效与 js-ffi `:file` 分发。详见[独立消费检验](isolated-consumer.md)；尚不包含生命周期、真实资源释放、JS-only 重编译和 GPU 验收。
 
-`yarn test:retained-component` 验证 [Calcit 组件保留计划](retained-component.md)：严格类型、原生乱序采样、Node 的 1000 帧静态对象身份/实际声明次数和六类版本失效、Chromium 同源画面对照及演示截图。它使用独立 `target/js/retained-component/`，不代表外部消费者安装或完整 GPU/生命周期验收。
+`yarn test:retained-component` 验证 [Calcit 组件保留计划](retained-component.md)：严格类型、原生乱序采样、Node 的 1000 帧静态对象身份/实际声明次数和六类版本失效、Chromium 同源画面对照及演示截图。另覆盖 [Presence 组件连接](presence-component.md)的叶节点 alpha、重入连续性、显式释放、100 次装卸及独立 Canvas 像素对照。它使用独立 `target/js/retained-component/`，不代表外部消费者安装、完整 TodoList 或 GPU/资源生命周期验收。
 
 使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前 `deps.cirru` 声明 Calcit `0.22.0` 与 js-ffi `0.2.1-alpha.1`；该版本支持定义级 `:ffi :js :inline/:file`，但后续仍可随证据升级。
 

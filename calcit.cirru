@@ -6179,6 +6179,73 @@
         :code $ quote $ ns quamolit.presence
           :require (quamolit.scene-diff :as scene-diff) (quamolit.scene-ir :as scene-ir) (quamolit.motion :as motion)
             calcit.test :refer $ is= is-throws
+    'quamolit.presence-component $ %{} 'FileEntry
+      :defs $ {}
+        'declare-flat $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-flat (model descriptors)
+            let
+                document $ scene/SceneDocument :nodes $ map (:items model) item-node
+                motions $ concat descriptors $ map (:items model) item-motion
+              scene/validate-scene document
+              binding/validate-descriptors motions
+              component/ComponentDeclaration :scene document :motions motions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'quamolit.presence/PresenceModel $ :: 'List 'quamolit.motion/ScalarDescriptor
+        'item-id $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn item-id (item)
+            let
+                node $ :node $ :entry item
+                kind $ scene/content-kind $ :content node
+              str |presence/ kind |/ $ :key node
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.presence/PresenceItem
+        'item-motion $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn item-motion (item)
+            let
+                alpha $ leaf-alpha $ :content
+                  :node $ :entry item
+                tween $ :alpha item
+              motion/ScalarDescriptor :id (item-id item) :version 0 :motion $ motion/ScalarMotion :tween $ struct-with tween
+                :from $ * alpha $ :from tween
+                :to $ * alpha $ :to tween
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'quamolit.presence/PresenceItem
+        'item-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn item-node (item)
+            let
+                node $ :node $ :entry item
+                id $ item-id item
+              assert |presence-requires-flat-leaf $ empty? $ :parent node
+              leaf-alpha $ :content node
+              assert |presence-alpha-binding-conflict $ every? (:bindings node)
+                fn (entry)
+                  not= (:target entry) (scene/ScalarTarget :alpha)
+              struct-with node (:id id) (:key id)
+                :bindings $ conj (:bindings node)
+                  scene/ScalarBinding :target (scene/ScalarTarget :alpha) :motion-id id :version 0
+                :interaction $ match (:phase item)
+                  (:exit) (scene/SceneInteraction :none)
+                  _ $ :interaction node
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'quamolit.presence/PresenceItem
+        'leaf-alpha $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn leaf-alpha (content)
+            match content
+              (:rect rect)
+                :a $ :fill rect
+              (:polyline path)
+                :a $ :stroke path
+              _ $ raise |presence-requires-flat-leaf
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.scene-ir/SceneContent
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.presence-component
+          :require (quamolit.presence :as presence) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.component-sample :as component) (quamolit.scene-binding :as binding)
     'quamolit.render.element $ %{} 'FileEntry
       :defs $ {}
         'alpha $ %{} 'CodeEntry (:doc |)
@@ -7296,7 +7363,10 @@
                       match target
                         (:height) value
                         _ $ :height rect
-                      , :fill $ :fill rect
+                      , :fill $ match target
+                        (:alpha)
+                          struct-with (:fill rect) (:a value)
+                        _ $ :fill rect
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/RectNode)
             :args $ [] 'quamolit.scene-ir/RectNode 'quamolit.scene-ir/ScalarTarget 'Number
@@ -7308,7 +7378,12 @@
               (:rect rect)
                 scene-ir/SceneContent :rect $ apply-rect-scalar rect target value
               (:instances instance) (raise |unsupported-instance-binding)
-              (:polyline path) (raise |unsupported-polyline-binding)
+              (:polyline path)
+                match target
+                  (:alpha)
+                    scene-ir/SceneContent :polyline $ struct-with path $ :stroke
+                      struct-with (:stroke path) (:a value)
+                  _ $ raise |unsupported-polyline-binding
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
             :args $ [] 'quamolit.scene-ir/SceneContent 'quamolit.scene-ir/ScalarTarget 'Number
@@ -7968,7 +8043,7 @@
           :schema $ :: 'StructDef
         'ScalarTarget $ %{} 'CodeEntry
           :doc "|Scalar animation binding target; supported per content kind by validator."
-          :code $ quote $ defenum ScalarTarget (:x) (:y) (:width) (:height) (:opacity)
+          :code $ quote $ defenum ScalarTarget (:x) (:y) (:width) (:height) (:opacity) (:alpha)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneContent $ %{} 'CodeEntry
@@ -8118,6 +8193,10 @@
                   = (content-kind content) |rect
                 (:height)
                   = (content-kind content) |rect
+                (:alpha)
+                  or
+                    = (content-kind content) |rect
+                    = (content-kind content) |polyline
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/ScalarBinding 'quamolit.scene-ir/SceneContent
@@ -9479,6 +9558,73 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'quamolit.retained-component/ComponentPlan
+        'presence-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-document ()
+            let
+                nodes $ :nodes $ :scene
+                  :component $ declare-mixed 0 40 0 false 100
+                rect $ &list:nth nodes 64
+                path $ &list:nth nodes 65
+              scene/SceneDocument :nodes $ []
+                struct-with rect
+                  :bindings $ []
+                  :interaction $ scene/SceneInteraction :target |badge
+                , path
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ []
+        'presence-exit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-exit ()
+            :model $ presence/reconcile-presence (presence-initial)
+              scene/SceneDocument :nodes $ []
+              , 0 1 $ motion/Easing :linear
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ []
+        'presence-initial $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-initial ()
+            presence/start-presence $ presence-document
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ []
+        'presence-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-plan (model time)
+            retained/build-execution-plan (make-request time 40 false 100)
+              fn (props ignored input resources viewport)
+                retained/ExecutionDeclaration :component
+                  presence-component/declare-flat model $ binding/empty-descriptors
+                  , :transforms $ retained/TransformSampler :none
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.presence/PresenceModel 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |presence-binding-continuity)
+            :code $ quote $ let
+                exiting $ presence-exit
+                midpoint $ presence-plan exiting 0.5
+                revived $ :model $ presence/reconcile-presence exiting (presence-document) 0.5 1 (motion/Easing :linear)
+                resumed $ presence-plan revived 0.5
+                completed $ presence/settle-presence exiting 1
+              is= 2 $ count $ :nodes (:scene midpoint)
+              is= 0.5 $ presence-component/leaf-alpha $ :content
+                &list:nth
+                  :nodes $ :scene midpoint
+                  , 0
+              is= 0.25 $ presence-component/leaf-alpha $ :content
+                &list:nth
+                  :nodes $ :scene midpoint
+                  , 1
+              is= (:scene midpoint)
+                struct-with (:scene resumed)
+                  :nodes $ map
+                    :nodes $ :scene resumed
+                    fn (node)
+                      struct-with node $ :interaction $ scene/SceneInteraction :none
+              is= 2 $ count $ :released completed
+              is= 0 $ count $ :released
+                presence/settle-presence (:model completed) 1
+              is= false $ presence/presence-needs-frame? (:model completed) 1
+              is-throws $ retained/sample-plan-at midpoint $ / 1 0
+            :tags $ #{} :presence-component
         'reference-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reference-at (time model ready viewport)
             :scene $ component/sample-component-at (make-request time model ready viewport) declare-demo
@@ -9526,7 +9672,9 @@
             :args $ [] (:: 'List 'Number) 'quamolit.retained-component/ComponentPlan
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.retained-component-fixture
-          :require (quamolit.retained-component :as retained) (quamolit.component-sample :as component) (quamolit.test.component-fixture :as badge) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as canvas)
+          :require (quamolit.retained-component :as retained) (quamolit.component-sample :as component) (quamolit.test.component-fixture :as badge) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as canvas) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component)
+            calcit.test :refer $ is= is-throws
+            quamolit.scene-binding :as binding
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")
