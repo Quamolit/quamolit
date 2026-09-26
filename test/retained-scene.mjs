@@ -2,8 +2,8 @@ import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
 import { bound_scene_document_at as boundSceneDocumentAt, sample_direct_x as sampleDirectX } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 import { RetainedScenePlan } from "../src/host/retained-scene-plan.mjs";
 import { DemandFrameScheduler } from "../src/host/demand-frame-scheduler.mjs";
-import { InstanceSourceRegistry } from "../src/host/instance-sources.mjs";
-import { CanvasInstanceBatches } from "../src/host/canvas-instance-batches.mjs";
+import { InstanceSourceRegistry } from "./host/instance-sources.mjs";
+import { CanvasInstanceBatches } from "./host/canvas-instance-batches.mjs";
 import { instanceGrid } from "./instance-grid.mjs";
 
 const canvas = document.querySelector("#scene");

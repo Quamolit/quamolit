@@ -1,12 +1,12 @@
 import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
 import { gpu_translation_plan as gpuTranslationPlan, sample_vec2_at as sampleVec2At, scene_document_at as sceneDocumentAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 import { frame_at as gpuTranslationFrameAt, require_ready as requireGpuTranslation } from "../target/js/motion/quamolit.gpu-vec2-translation.mjs";
-import { InstanceSourceRegistry } from "../src/host/instance-sources.mjs";
-import { CanvasInstanceBatches } from "../src/host/canvas-instance-batches.mjs";
-import { WebGpuInstanceBatches } from "../src/host/webgpu-instance-batches.mjs";
-import { WebGpuLayerLease } from "../src/host/webgpu-layer-lease.mjs";
+import { InstanceSourceRegistry } from "./host/instance-sources.mjs";
+import { CanvasInstanceBatches } from "./host/canvas-instance-batches.mjs";
+import { WebGpuInstanceBatches } from "./host/webgpu-instance-batches.mjs";
+import { WebGpuLayerLease } from "./host/webgpu-layer-lease.mjs";
 import { instanceGrid } from "./instance-grid.mjs";
-import { probeWebGpuDevice } from "../src/host/webgpu-capabilities.mjs";
+import { probeWebGpuDevice } from "./host/webgpu-capabilities.mjs";
 
 const canvas = document.querySelector("#scene");
 const context = canvas.getContext("2d", { willReadFrequently: true });

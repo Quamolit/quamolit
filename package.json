@@ -1,8 +1,8 @@
 {
   "version": "0.0.18-alpha.1",
   "dependencies": {
-    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.0-alpha.2",
-    "@calcit/procs": "0.19.1",
+    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.0",
+    "@calcit/procs": "0.22.0",
     "@quamolit/touch-control": "^0.0.13"
   },
   "devDependencies": {
@@ -25,7 +25,7 @@
     "test:webgpu-instances": "calcit analyze check-public --ns quamolit.instance-ffi --ns quamolit.webgpu-batches --ns quamolit.webgpu-capabilities && yarn compile:motion && node --test test/webgpu-capabilities-smoke.mjs test/webgpu-instance-batches-smoke.mjs test/webgpu-layer-lease-smoke.mjs test/relocated-webgpu-rect-batches.test.mjs && playwright test --config test/gpu.playwright.config.mjs",
     "test:scene-diff": "calcit analyze check-public --ns quamolit.scene-diff --ns quamolit.test.motion-fixture && calcit test --tag scene-diff --require-match && yarn compile:motion && node --test test/scene-diff-smoke.mjs",
     "test:scene-binding": "calcit analyze check-public --ns quamolit.scene-binding --ns quamolit.test.motion-fixture && calcit test --tag scene-binding --require-match && yarn compile:motion && node --test test/scene-binding-smoke.mjs",
-    "test:retained-scene": "yarn compile:motion && node --test test/retained-scene-plan-smoke.mjs && playwright test --config test/motion.playwright.config.mjs test/retained-scene.spec.mjs",
+    "test:retained-scene": "calcit analyze check-public --ns quamolit.retained-scene && calcit test --tag retained-scene --require-match && yarn compile:motion && node --test test/retained-scene-plan-smoke.mjs && playwright test --config test/motion.playwright.config.mjs test/retained-scene.spec.mjs",
     "test:transition": "calcit analyze check-public --ns quamolit.transition --ns quamolit.test.motion-fixture && calcit test --tag transition --require-match && yarn compile:motion && node --test test/transition-smoke.mjs",
     "test:presence": "calcit analyze check-public --ns quamolit.presence --ns quamolit.test.motion-fixture && calcit test --tag presence --require-match && yarn compile:motion && node --test test/presence-smoke.mjs",
     "test:presence-resources": "calcit analyze check-public --ns quamolit.presence --ns quamolit.test.motion-fixture && yarn compile:motion && node --test test/presence-resources-smoke.mjs",

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
 import { scene_document_at as sceneDocumentAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
-import { CanvasInstanceBatches } from "../src/host/canvas-instance-batches.mjs";
-import { InstanceSourceRegistry } from "../src/host/instance-sources.mjs";
+import { CanvasInstanceBatches } from "./host/canvas-instance-batches.mjs";
+import { InstanceSourceRegistry } from "./host/instance-sources.mjs";
 
 function fixture() {
   return toJsData(sceneDocumentAt(0.5)).nodes.find((node) => node.content[0] === "instances").content[1];

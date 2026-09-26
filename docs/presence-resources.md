@@ -1,6 +1,6 @@
 # Presence 宿主实例资源跟踪
 
-`PresenceInstanceResources` 是 `InstanceSourceRegistry` 的薄宿主所有权适配，输入为 `toJsData(PresenceModel)` 的纯数据结果。每次提交新的正向生命周期状态时调用 `sync(model)`；它检查所有实例源已登记，按 `(id,version,count)` 统计引用。`exit` item 仍在 Model 中，因此资源仍存活；终点 `settle-presence` 移除 item 后，最后一个引用消失才释放该快照。重复 `sync` 无副作用；`clear()` 用于整个宿主场景销毁。
+引用计数与释放决策由 Calcit `quamolit.presence/instance-resource-plan` 计算：输入 `PresenceModel` 与上一次的 `InstanceResourcePlan`，输出新的 `references`、`release`、`live-references` 与 `live-sources`。测试夹具用的 `test/host/presence-resources.mjs` 只是薄宿主适配：持有 `InstanceSourceRegistry`、独占所有权、按计划先校验所有新引用再释放；它不再实现统计逻辑，输入为 Calcit `PresenceModel`（不是 `toJsData` 结果）。每次提交新的正向生命周期状态时调用 `sync(model)`；`exit` item 仍在 Model 中，因此资源仍存活；终点 `settle-presence` 移除 item 后，最后一个引用消失才释放该快照。重复 `sync` 无副作用；`clear()` 用于整个宿主场景销毁。
 
 一个 tracker 独占一个 registry，调用方不得在 tracker 外释放它持有的源，也不得把离线/乱序截图重放结果同步到真实宿主。截图重放须创建隔离的 registry 与 tracker。源数据已经在登记时复制，真实 GPU buffer、图片、字体、异步就绪和 device loss 仍由 #51 的通用资源表处理。本适配仅覆盖 `SceneContent :instances` 的 Float32 坐标快照。
 
