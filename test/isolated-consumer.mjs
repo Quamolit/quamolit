@@ -81,7 +81,7 @@ try {
   page.on("pageerror", error => errors.push(error.message));
   page.on("requestfailed", request => errors.push(`${request.url()} ${request.failure()?.errorText}`));
   page.on("request", request => requests.push(request.url()));
-  await page.goto(url);
+  await page.goto(`${url}?fixture=1`);
   await page.waitForFunction(() => window.consumer);
   for (const [time, x] of [[1, 120], [0, 80], [0.5, 100], [0.25, 90], [1, 120]]) {
     const result = await page.evaluate(t => window.consumer.set({ time: t }), time);

@@ -22,6 +22,54 @@ test("导航分类、搜索、刷新与移动端可用", async ({ page }, testIn
   await page.screenshot({ path: testInfo.outputPath("gallery-mobile.png") });
 });
 
+test("恢复清单可搜索但不能假装打开，艺术分类有空状态", async ({ page }) => {
+  await page.goto("demos/index.html?group=originals");
+  await expect(page.locator("[data-planned]")).toHaveCount(catalog.planned.length);
+  await expect(page.locator("a[data-demo]")).toHaveCount(0);
+  await page.getByLabel("查找演示").fill("折扇");
+  await expect(page.locator("[data-planned]")).toHaveCount(1);
+  await page.reload();
+  await expect(page.locator("[data-planned=folding-fan]")).toBeVisible();
+  await page.getByLabel("查找演示").fill("");
+  await page.getByLabel("分类", { exact: true }).selectOption("art");
+  await expect(page.locator("#art .reserved")).toContainText("尚无已交付作品");
+  await expect(page.locator("#empty")).toBeHidden();
+});
+
+for (const dpr of [1, 2]) test(`全屏消费者：DPR ${dpr}、暂停 resize 与浮层`, async ({ browser }, testInfo) => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: dpr });
+  const page = await context.newPage();
+  try {
+    await page.goto("http://127.0.0.1:5190/preview/examples/retained-consumer/index.html");
+    await page.waitForFunction(() => window.consumer?.snapshot().browser);
+    await page.evaluate(() => window.consumer.set({ time: 0.5 }));
+    const before = await page.evaluate(() => window.consumer.snapshot());
+    for (const size of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(size);
+      await expect.poll(() => page.locator("canvas").evaluate(c => [c.width, c.height])).toEqual([size.width * dpr, size.height * dpr]);
+      expect(await page.locator("canvas").boundingBox()).toEqual({ x: 0, y: 0, ...size });
+      expect(await page.evaluate(() => window.consumer.snapshot())).toEqual(before);
+      await page.locator("#panel-toggle").click();
+      await expect(page.locator("#panel")).toBeHidden();
+      // 未被实际浮层覆盖的区域直接落在 canvas，不存在透明全屏遮罩。
+      expect(await page.evaluate(() => document.elementFromPoint(innerWidth / 2, innerHeight / 2).tagName)).toBe("CANVAS");
+      const pixel = await page.locator("canvas").evaluate(c => {
+        const s = Math.min(c.width / 320, c.height / 180);
+        const x = Math.floor((c.width - 320 * s) / 2 + 103 * s);
+        const y = Math.floor((c.height - 180 * s) / 2 + 65 * s);
+        return [...c.getContext("2d").getImageData(x, y, 1, 1).data];
+      });
+      expect(pixel).toEqual([235, 71, 153, 255]);
+      await page.screenshot({ path: testInfo.outputPath(`stage-${size.width}.png`) });
+      await page.locator("#panel-toggle").focus();
+      await page.keyboard.press("Enter");
+      await expect(page.locator("#panel")).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`overlay-${size.width}.png`) });
+    }
+  } finally { await context.close(); }
+});
+
 for (const entry of catalog.entries) {
   test(`发布产物导航往返：${entry.title}`, async ({ page }, testInfo) => {
     const errors = [];

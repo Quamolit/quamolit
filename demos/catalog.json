@@ -1,6 +1,15 @@
 {
   "groups": [
     {
+      "id": "originals",
+      "title": "原有动画 · 恢复计划"
+    },
+    {
+      "id": "art",
+      "title": "艺术动画 · 未来作品",
+      "empty": "为全屏生成艺术、动态构图与粒子作品预留。尚无已交付作品；后续使用 Calcit 声明、显式时间与可重复种子。"
+    },
+    {
       "id": "public",
       "title": "公共 Calcit 路径"
     },
@@ -20,6 +29,19 @@
       "id": "reference",
       "title": "参考与验证工具"
     }
+  ],
+  "planned": [
+    { "id": "todolist", "title": "Todolist · 待办列表", "group": "originals", "summary": "新增、完成、删除；条目错峰进入退出与位置过渡。" },
+    { "id": "clock", "title": "Clock · 数字时钟", "group": "originals", "summary": "六位时分秒与七段数字笔画的渐变切换。" },
+    { "id": "solar", "title": "Solar · 轨道", "group": "originals", "summary": "递归旋转、缩放与圆弧组成的轨道动画。" },
+    { "id": "binary-tree", "title": "Binary Tree · 摆动树", "group": "originals", "summary": "递归分支随时间摆动、旋转和缩放。" },
+    { "id": "table", "title": "Table · 编辑表格", "group": "originals", "summary": "3 × 3 文本格子的编辑交互；不是持续运动作品。" },
+    { "id": "finder", "title": "Finder · 文件卡片", "group": "originals", "summary": "文件夹和卡片展开、居中缩放、淡出与返回。" },
+    { "id": "raining", "title": "Raining · 雨滴", "group": "originals", "summary": "雨滴生成、下落、落地消散；恢复时加入固定随机种子。" },
+    { "id": "icons", "title": "Icons · 图标变形", "group": "originals", "summary": "加号旋转与数值切换，以及播放/暂停路径变形。" },
+    { "id": "curve", "title": "Curve · 动态曲线", "group": "originals", "summary": "32 段控制点随时间变化的闭合曲线。" },
+    { "id": "folding-fan", "title": "Folding fan · 折扇", "group": "originals", "summary": "荷花图片的 24 个切片旋转，交互展开与收拢。" },
+    { "id": "drag-demo", "title": "Drag demo · 拖拽", "group": "originals", "summary": "矩形拖动与滑块调节，恢复坐标和交互语义。" }
   ],
   "entries": [
     {

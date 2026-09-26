@@ -114,7 +114,7 @@
 
 最小下游安装与 Calcit 公共 API 可用性提前到 M2 #104；本项消费其已验证入口。
 
-- 恢复真实应用，迁移代表性组件与事件，compile/release 不再只指 bootstrap；收紧 legacy Dynamic 债务。
+- 恢复真实应用，按[完整清单与全屏约定](demo-restoration.md)恢复全部 11 个原有示例的动画/交互，不恢复旧门户；为艺术动画预留分类。compile/release 不再只指 bootstrap；收紧 legacy Dynamic 债务。导航准备不等于恢复完成。
 
 ### #34：承接真实交互与卸载清理
 

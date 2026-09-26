@@ -22,6 +22,17 @@ test("目录扫描排除测试报告，不排除普通演示目录", () => {
   for (const name of ["playwright-report", "playwright-report-motion", "playwright-report-gpu", "test-results"]) assert.equal(isArtifactDirectory(name), true);
   for (const name of ["m0", "retained-consumer", "new-demo"]) assert.equal(isArtifactDirectory(name), false);
 });
+test("原有 11 项不可遗漏或以占位冒充可运行", async () => {
+  const originals = [...catalog.planned, ...catalog.entries.filter(e => e.group === "originals")];
+  assert.deepEqual(originals.map(e => e.id).sort(), ["todolist", "clock", "solar", "binary-tree", "table", "finder", "raining", "icons", "curve", "folding-fan", "drag-demo"].sort());
+  for (const entry of catalog.planned) {
+    assert.ok(entry.title && entry.summary && entry.group === "originals");
+    assert.equal(entry.path, undefined);
+    assert.equal(entry.compile, undefined);
+  }
+  await access(join(root, "docs/demo-restoration.md"));
+  assert.ok(catalog.groups.find(g => g.id === "art")?.empty);
+});
 test("所有演示页面已登记，路径、说明和编译入口存在", async () => {
   const pages = ["index.html", ...await htmlFiles("test"), ...await htmlFiles("examples")].sort();
   assert.deepEqual(catalog.entries.map(entry => entry.path).sort(), pages, "新增页面必须登记，禁止孤立 demo 或重复入口");
