@@ -1,6 +1,6 @@
 # WebGPU 矩形实例同源路径：M2 #40 切片
 
-`test/instance-sources.html` 从同一份编译后的 Scene IR 取一个 10k `:instances` 逻辑节点、同一 `(id,version,count)` 位置源与同一颜色/尺寸，分别交给 Canvas 参考路径和 `WebGpuInstanceBatches`。后者只负责从 `InstanceSourceRegistry` 解析不可变 token、缓存 CPU 私有副本、在源版本变化时上传；矩形专属 pipeline、shader、instanced draw 和诊断读回现在由 Quamolit `src/host/webgpu-rect-batches.mjs` 维护；原生 WebGPU 对象与能力探测仍由 js-ffi 提供 Calcit 类型化基础 API。Quamolit 的 `quamolit.webgpu-batches` 与 `quamolit.instance-ffi` Calcit 命名空间引用本地专属宿主实现；框架下游不需直接导入 `.mjs`。Scene IR 不保存 DOM/GPU 句柄。
+`test/instance-sources.html` 从同一份编译后的 Scene IR 取一个 10k `:instances` 逻辑节点、同一 `(id,version,count)` 位置源与同一颜色/尺寸，分别交给 Canvas 参考路径和 `WebGpuInstanceBatches`。后者只负责从 `InstanceSourceRegistry` 解析不可变 token、缓存 CPU 私有副本、在源版本变化时上传；矩形专属 pipeline、shader、instanced draw 和诊断读回由 Quamolit `src/host/webgpu-rect-batch-create.js` 的单函数表达式维护，通过 `quamolit.webgpu-batches/raw-create!` 的 `:file` 定义嵌入编译产物；原生 WebGPU 对象与能力探测仍由 js-ffi 提供 Calcit 类型化基础 API。框架下游只引用 Calcit 命名空间，无需单独搬运宿主 JS。Scene IR 不保存 DOM/GPU 句柄。
 
 当前实测切片为 320×100 实际像素、DPR=1、`t=0.5` 的橙色矩形网格。切换源版本时上传 80,000 字节位置数据、一个逻辑实例图层绘制 10,000 个实例、一次 GPU draw；重复同版本绘制时位置上传和 CPU 再复制均为 0，pipeline/常驻 buffer 数保持 1/2。Canvas 参考仍执行 10,000 次 `fillRect`。页面同时读取两后端的锚点、非活动锚点、网格和白色间隔四个像素；GPU 读回是每帧临时诊断资源，不属于稳态性能路径。
 

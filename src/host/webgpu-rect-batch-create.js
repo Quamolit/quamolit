@@ -1,3 +1,4 @@
+(() => {
 const TRANSLATION_SHADER = /* wgsl */ `
 struct Params {
   resolution: vec2f,
@@ -98,7 +99,7 @@ function translationParams(value) {
 }
 
 /** A retained, single-draw WebGPU layer for interleaved Float32 xy rectangles. */
-export async function createFloat32RectBatch(canvas, device, format, capacity) {
+async function createFloat32RectBatch(canvas, device, format, capacity) {
   if (canvas === null || typeof canvas?.getContext !== 'function') throw new TypeError('canvas required');
   if (device === null || typeof device?.createShaderModule !== 'function' || typeof device?.createRenderPipelineAsync !== 'function' ||
       typeof device?.createBuffer !== 'function' || typeof device?.createBindGroup !== 'function' ||
@@ -300,3 +301,5 @@ export async function createFloat32RectBatch(canvas, device, format, capacity) {
     throw error;
   }
 }
+return createFloat32RectBatch;
+})()

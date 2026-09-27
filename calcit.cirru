@@ -13473,12 +13473,9 @@
               :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'Number
               :return 'quamolit.webgpu-batches/RectBatchHost
               :features $ #{} :js-ffi
-            let
-                create $ unsafe-coerce createFloat32RectBatch $ :: 'Fn
-                  {} (:async true)
-                    :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'Number
-                    :return 'quamolit.webgpu-batches/RectBatchHost
-              js-await $ create canvas device format capacity
+            unsafe-coerce
+              js-await $ raw-create! (unsafe-coerce canvas JsObject) (unsafe-coerce device JsObject) format capacity
+              , quamolit.webgpu-batches/RectBatchHost
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.webgpu-batches/RectBatchHost)
@@ -13542,6 +13539,14 @@
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
             :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number 'quamolit.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'quamolit.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number)
+            :features $ #{} :js-ffi
+        'raw-create! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-create! (canvas device format capacity) (raise |js-only-webgpu-batch)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :file |src/host/webgpu-rect-batch-create.js
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'JsObject 'String 'Number
             :features $ #{} :js-ffi
         'read-pixel! $ %{} 'CodeEntry (:doc "|测试诊断读回；生产帧不得调用。")
           :code $ quote $ defn read-pixel! (batch x y)
@@ -13619,9 +13624,7 @@
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.webgpu-batches
-          :require
-            |../../../src/host/webgpu-rect-batches.mjs :refer $ createFloat32RectBatch
-            js-ffi.contract :as contract
+          :require $ js-ffi.contract :as contract
     'quamolit.webgpu-capabilities $ %{} 'FileEntry
       :defs $ {} $ 'probe!
         %{} 'CodeEntry (:doc "|获取上游封闭能力结果；调用方只在 ready 分支使用并最终释放设备。")
