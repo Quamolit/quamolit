@@ -1958,7 +1958,7 @@
               fn (point)
                 context .line-to! (:x point) (:y point)
             context .close-path!
-            fill-current-path! $ unsafe-coerce context 'JsObject
+            context .fill!
             when
               > (:width polygon) 0
               context .stroke!
@@ -2049,15 +2049,6 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/TextNode
-            :features $ #{} :js-ffi
-        'fill-current-path! $ %{} 'CodeEntry
-          :doc "|Canvas 当前路径的最小浏览器 FFI；待 js-ffi 提供类型化 CanvasContextHost.fill! 后替换本地 inline。"
-          :code $ quote $ defn fill-current-path! (context) &unit
-          :examples $ []
-          :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(c)=>{c.fill();}"
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'JsObject
             :features $ #{} :js-ffi
         'raw-draw-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-draw-instances! (context positions start amount width height fill-style alpha) (raise |js-only-canvas-instances)

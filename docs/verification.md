@@ -32,7 +32,7 @@
 
 `yarn test:retained-component` 验证 [Calcit 组件保留计划](retained-component.md)：严格类型、原生乱序采样、Node 的 1000 帧静态对象身份/实际声明次数和六类版本失效、Chromium 同源画面对照及演示截图。另覆盖 [Presence 组件连接](presence-component.md)的叶节点 alpha、重入连续性、显式释放、100 次装卸及独立 Canvas 像素对照。它使用独立 `target/js/retained-component/`，不代表外部消费者安装、完整 TodoList 或 GPU/资源生命周期验收。
 
-使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前主项目与独立消费者夹具均声明 Calcit `0.24.3`，主项目使用 js-ffi `0.2.1-alpha.9`；Folding Fan 已改用 js-ffi 类型化图片绘制 API。独立消费者夹具仍固定历史 Quamolit 候选提交，用于复现该候选的行为，不代表主项目源码版本。
+使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前主项目与独立消费者夹具均声明 Calcit `0.24.3`，主项目使用 js-ffi `0.2.1-alpha.10`；Folding Fan 已改用 js-ffi 类型化图片绘制 API，Canvas 当前路径填充改用 `.fill!`。独立消费者夹具仍固定历史 Quamolit 候选提交，用于复现该候选的行为，不代表主项目源码版本。
 
 ```sh
 yarn install --immutable
