@@ -7086,11 +7086,16 @@
             let
                 version $ :version source
               if (= previous version) (SourceUpload :version version :bytes 0 :uploaded? false)
-                SourceUpload :version version :bytes
-                  gpu/upload! batch
-                    unsafe-coerce (resource/resolve table source) js-ffi.typed-arrays/Float32ArrayHost
-                    :count source
-                  , :uploaded? true
+                let
+                    patch $ resource/patch-info table source
+                    bytes $ if
+                      and (:available? patch)
+                        = previous $ :base-version patch
+                      gpu/upload-patch! batch (:positions patch) (:start patch) (:count patch)
+                      gpu/upload! batch
+                        unsafe-coerce (resource/resolve table source) js-ffi.typed-arrays/Float32ArrayHost
+                        :count source
+                  SourceUpload :version version :bytes bytes :uploaded? true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.instance-gpu/SourceUpload)
             :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'JsObject 'quamolit.scene-ir/InstanceSource
@@ -7100,6 +7105,10 @@
           :require (quamolit.instance-resource :as resource) (quamolit.webgpu-batches :as gpu) (js-ffi.typed-arrays :as arrays)
     'quamolit.instance-resource $ %{} 'FileEntry
       :defs $ {}
+        'PatchInfo $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PatchInfo (:available? 'Bool) (:base-version 'Number) (:start 'Number) (:count 'Number) (:positions 'js-ffi.typed-arrays/Float32ArrayHost)
+          :examples $ []
+          :schema $ :: 'StructDef
         'create-table! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-table! () (raw-create-table!)
           :examples $ []
@@ -7110,6 +7119,20 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'JsObject
+        'patch-info $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn patch-info (table source)
+            let
+                raw $ raw-patch-info table (:id source) (:version source) (:count source)
+                available $ contract/expect-bool |InstancePatch.available $ contract/object-field |InstancePatch raw |available
+                base-version $ contract/expect-number |InstancePatch.baseVersion $ contract/object-field |InstancePatch raw |baseVersion
+                start $ contract/expect-number |InstancePatch.start $ contract/object-field |InstancePatch raw |start
+                amount $ contract/expect-number |InstancePatch.count $ contract/object-field |InstancePatch raw |count
+                positions $ unsafe-coerce (contract/object-field |InstancePatch raw |positions) js-ffi.typed-arrays/Float32ArrayHost
+              PatchInfo :available? available :base-version base-version :start start :count amount :positions positions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.instance-resource/PatchInfo)
+            :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource
+            :features $ #{} :js-ffi
         'raw-create-table! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-create-table! () (raise |js-only-instance-resource)
           :examples $ []
@@ -7126,6 +7149,14 @@
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'JsObject
             :features $ #{} :js-ffi
+        'raw-patch-info $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-patch-info (h id version amount) (raise |js-only-instance-resource)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,id,version,amount)=>h.patchInfo(id,version,amount)"
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'String 'Number 'Number
+            :features $ #{} :js-ffi
         'raw-register! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-register! (h id version amount positions) (raise |js-only-instance-resource)
           :examples $ []
@@ -7133,6 +7164,14 @@
             :js $ {} $ :inline "|(h,id,version,amount,positions)=>h.register(id,version,amount,positions)"
           :schema $ :: 'Fn $ {} (:return 'JsObject)
             :args $ [] 'JsObject 'String 'Number 'Number 'JsObject
+            :features $ #{} :js-ffi
+        'raw-register-patch! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-register-patch! (h id version amount base-version start positions) (raise |js-only-instance-resource)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,id,version,amount,baseVersion,start,positions)=>h.registerPatch(id,version,amount,baseVersion,start,positions)"
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'JsObject 'String 'Number 'Number 'Number 'Number 'JsObject
             :features $ #{} :js-ffi
         'raw-release! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-release! (h id version amount) (raise |js-only-instance-resource)
@@ -7156,6 +7195,13 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'JsObject)
             :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource 'JsObject
+        'register-patch! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn register-patch! (table source base-version start positions)
+            raw-register-patch! table (:id source) (:version source) (:count source) base-version start $ unsafe-coerce positions JsObject
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource 'Number 'Number 'js-ffi.typed-arrays/Float32ArrayHost
+            :features $ #{} :js-ffi
         'release! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release! (table source)
             raw-release! table (:id source) (:version source) (:count source)
@@ -7170,7 +7216,7 @@
             :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.instance-resource
-          :require $ quamolit.scene-ir :as scene
+          :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
     'quamolit.math $ %{} 'FileEntry
       :defs $ {}
         'bound-01 $ %{} 'CodeEntry (:doc |)
@@ -13357,6 +13403,9 @@
             .upload $ :: 'Fn $ {}
               :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number
               :return 'JsObject
+            .upload-patch $ :: 'Fn $ {}
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number
+              :return 'JsObject
             .draw $ :: 'Fn $ {}
               :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'JsObject
               :return 'JsObject
@@ -13554,6 +13603,19 @@
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number
+            :features $ #{} :js-ffi
+        'upload-patch! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn upload-patch! (batch positions start amount)
+            hint-fn $ {}
+              :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number
+              :return 'Number
+              :features $ #{} :js-ffi
+            let
+                result $ batch .upload-patch positions start amount
+              contract/expect-number |RectBatch.positionBytesUploaded $ contract/object-field |RectBatch.uploadPatch result |positionBytesUploaded
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'js-ffi.typed-arrays/Float32ArrayHost 'Number 'Number
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.webgpu-batches
