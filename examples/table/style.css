@@ -1,0 +1,22 @@
+:root { font: 15px/1.6 system-ui,sans-serif; color: #edf5ff; color-scheme: dark; background: radial-gradient(circle at 47% 45%,#263d58,#101923 72%); }
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; cursor: text; }
+nav { position: fixed; top: 18px; right: 24px; z-index: 3; }
+a { color: #aed6ff; text-underline-offset: 4px; }
+button { font: inherit; color: inherit; border: 1px solid #58789c; background: #29445f; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+button:hover { background: #3b5977; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid #b9dcff; outline-offset: 3px; }
+#panel-toggle { position: fixed; left: 20px; top: 14px; z-index: 3; }
+#panel { position: fixed; right: 24px; top: 64px; width: min(350px,calc(100vw - 40px)); max-height: calc(100dvh - 88px); overflow: auto; padding: 25px; border: 1px solid #54708f; border-radius: 16px; background: #152538ee; box-shadow: 0 12px 44px #0008; }
+.eyebrow { color: #a5c7ec; font-size: 11px; letter-spacing: .14em; }
+h1 { font-size: 31px; font-weight: 500; line-height: 1.35; margin: 20px 0; }
+h1 small { font-size: 17px; color: #cee3fa; }
+p { font-size: 14px; }
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+output { display: block; white-space: pre-wrap; color: #c5dbf4; font: 13px/1.8 ui-monospace,monospace; }
+.note { font-size: 12px; color: #a5bcd7; }
+#message { color: #ffcfac; min-height: 1.3em; }
+#editor { position: fixed; z-index: 2; border: 2px solid #c6e5ff; border-radius: 9px; background: #233a55; color: white; padding: 0 10px; font: 21px/1.2 system-ui,sans-serif; }
+#editor[hidden], #panel[hidden] { display: none; }
+@media (max-width:600px) { #panel { right: 20px; } }

@@ -272,6 +272,21 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Check restored Table editing and canvas scene
+        if: inputs.mutation != 'color'
+        run: yarn test:table-demo
+        env:
+          CI: "true"
+
+      - name: Upload Table interaction evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-table-${{ github.run_id }}
+          path: test-results/table/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Check restored TodoList lifecycle and Canvas interaction
         if: inputs.mutation != 'color'
         run: yarn test:todolist
