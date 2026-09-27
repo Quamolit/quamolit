@@ -56,7 +56,7 @@ try {
   run("calcit", ["--emit-path", "target/js/app/", "js"], source);
   const output = join(source, "target/js/app");
   const modules = new Set();
-  // Calcit 0.22 输出的 ESM 静态导入均为单行。只复制入口可达闭包，
+  // Current Calcit ESM static imports are single-line. Copy only the entry-reachable closure,
   // 禁止动态导入、原始宿主文件、测试模块及除标准 runtime 外的 npm 包。
   async function collect(name) {
     if (modules.has(name)) return;

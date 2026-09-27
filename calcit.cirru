@@ -4091,16 +4091,6 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.browser/ImageHost 'quamolit.examples.folding-fan/FanModel 'Number
             :features $ #{} :js-ffi
-        'draw-image-crop! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn draw-image-crop!
-            context image sx sy sw sh dx dy dw dh
-            , &unit
-          :examples $ []
-          :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(c,i,sx,sy,sw,sh,dx,dy,dw,dh)=>{c.drawImage(i,sx,sy,sw,sh,dx,dy,dw,dh);}"
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'JsObject 'JsObject 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number
-            :features $ #{} :js-ffi
         'draw-slice! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-slice! (context image segment)
             let
@@ -4109,7 +4099,7 @@
                 s $ sin angle
               context .save!
               context .transform! c s (- 0 s) c 0 0
-              draw-image-crop! (unsafe-coerce context 'JsObject) (unsafe-coerce image 'JsObject) (:source-x segment) 0 (:source-width segment) 432
+              js-ffi.canvas-batches/draw-image-crop! context image (:source-x segment) 0 (:source-width segment) 432
                 - 0 $ / 650 48
                 , -432 (/ 650 24) 432
               context .restore!
