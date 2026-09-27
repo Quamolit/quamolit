@@ -4294,6 +4294,136 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.solar
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.table $ %{} 'FileEntry
+      :defs $ {}
+        'add-cell $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn add-cell (cells selected index acc)
+            let
+                x $ cell-x index
+                y $ cell-y index
+                id $ str |cell- index
+                active? $ = selected index
+                color $ if active?
+                  motion/ColorRgba :r 0.38 :g 0.55 :b 0.78 :a 1
+                  motion/ColorRgba :r 0.13 :g 0.22 :b 0.34 :a 1
+                rect $ scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :target id) :content $ scene/SceneContent :rect
+                  scene/RectNode :x (- x 90) :y (- y 52) :width 180 :height 104 :fill color
+                text-id $ str id |/label
+                label $ cell-text cells index
+                text $ scene/SceneNode :id text-id :key text-id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text
+                  scene/TextNode :x (- x 76) :y (+ y 8) :size 22 :text label :fill $ motion/ColorRgba :r 0.91 :g 0.95 :b 1 :a 1
+              conj (conj acc rect) text
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'String) 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'build-cells $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-cells (cells selected index acc)
+            if (>= index 9) acc $ recur cells selected (inc index) (add-cell cells selected index acc)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'String) 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'cell-text $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cell-text (cells index)
+            assert |invalid-table-index $ and (>= index 0) (< index 9)
+              = index $ floor index
+            &list:nth cells index
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] (:: 'List 'String) 'Number
+        'cell-x $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cell-x (index)
+            -
+              *
+                - index $ *
+                  floor $ / index 3
+                  , 3
+                , 200
+              , 200
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'cell-y $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cell-y (index)
+            -
+              *
+                floor $ / index 3
+                , 124
+              , 124
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context cells selected)
+            reference/draw-reference! context $ scene-at cells selected
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost (:: 'List 'String) 'Number
+        'empty-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-nodes () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'hit-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-at (x y)
+            assert |invalid-table-point $ and (motion/finite-number? x) (motion/finite-number? y)
+            scan-hit x y 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
+        'initial $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial ()
+            [] "|第一格" | | | | | | | |
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'String
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'scan-hit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scan-hit (x y index)
+            if (>= index 9) -1 $ if
+              and
+                <=
+                  abs $ - x $ cell-x index
+                  , 90
+                <=
+                  abs $ - y $ cell-y index
+                  , 52
+              , index $ recur x y (inc index)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (cells selected)
+            assert |invalid-table-size $ = 9 $ count cells
+            scene/SceneDocument :nodes $ build-cells cells selected 0 $ empty-nodes
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] (:: 'List 'String) 'Number
+        'set-cell $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn set-cell (cells index value)
+            assert |invalid-table-index $ and (>= index 0) (< index 9)
+              = index $ floor index
+            assert |invalid-table-size $ = 9 $ count cells
+            assoc cells index value
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'String) 'Number 'String
+            :return $ :: 'List 'String
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.table
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
     'quamolit.examples.todolist $ %{} 'FileEntry
       :defs $ {}
         'Event $ %{} 'CodeEntry (:doc |)

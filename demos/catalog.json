@@ -31,11 +31,20 @@
     }
   ],
   "planned": [
-    { "id": "table", "title": "Table · 编辑表格", "group": "originals", "summary": "3 × 3 文本格子的编辑交互；不是持续运动作品。" },
     { "id": "folding-fan", "title": "Folding fan · 折扇", "group": "originals", "summary": "荷花图片的 24 个切片旋转，交互展开与收拢。" },
     { "id": "drag-demo", "title": "Drag demo · 拖拽", "group": "originals", "summary": "矩形拖动与滑块调节，恢复坐标和交互语义。" }
   ],
   "entries": [
+    {
+      "id": "table",
+      "path": "examples/table/index.html",
+      "title": "Table · 编辑表格",
+      "group": "originals",
+      "summary": "全屏 Canvas 九宫格；点击定位 DOM 输入，Calcit 维护文本、命中和 Scene，支持中文与分享重放。",
+      "status": "恢复切片 · Canvas",
+      "docs": "docs/table-restoration.md",
+      "compile": "compile:table"
+    },
     {
       "id": "todolist",
       "path": "examples/todolist/index.html",

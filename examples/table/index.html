@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Table · Quamolit 原有示例</title><link rel="stylesheet" href="./style.css"></head>
+<body>
+  <canvas id="scene" aria-label="可编辑的三乘三文字表格"></canvas>
+  <input id="editor" hidden aria-label="当前格文字" maxlength="80" autocomplete="off">
+  <nav aria-label="演示导航"><a href="../../demos/index.html?group=originals">← 所有演示</a></nav>
+  <button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起面板</button>
+  <aside id="panel" aria-label="表格说明">
+    <span class="eyebrow">QUAMOLIT / ORIGINAL 09</span>
+    <h1>Table<br><small>把文字写进九宫格</small></h1>
+    <p>点击画布中的格子编辑。Enter 或失焦提交，Esc 取消；中文输入法的组合过程不会被 Enter 提前提交。</p>
+    <div class="buttons"><button id="fill">填充示例</button><button id="reset">重置</button><button id="share">复制当前画面链接</button></div>
+    <output id="status" aria-live="off"></output>
+    <p id="message" role="status"></p>
+    <p class="note">九格数据、命中和 Scene 由 Calcit 定义；DOM 输入只承担文本编辑，实际作品铺满视口的 Canvas 绘制。</p>
+    <a href="https://github.com/Quamolit/quamolit/blob/main/docs/table-restoration.md">行为依据与检验规则</a>
+  </aside>
+  <script type="module" src="./main.mjs"></script>
+</body></html>
