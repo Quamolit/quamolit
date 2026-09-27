@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 const catalog = JSON.parse(await readFile(new URL("../demos/catalog.json", import.meta.url), "utf8"));
+const artifactURL = `http://127.0.0.1:${process.env.QUAMOLIT_DEMO_TEST_PORT || 5190}/preview/`;
 
 test("导航分类、搜索、刷新与移动端可用", async ({ page }, testInfo) => {
   await page.goto("demos/index.html");
@@ -40,7 +41,7 @@ for (const dpr of [1, 2]) test(`全屏消费者：DPR ${dpr}、暂停 resize 与
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: dpr });
   const page = await context.newPage();
   try {
-    await page.goto("http://127.0.0.1:5190/preview/examples/retained-consumer/index.html");
+    await page.goto(`${artifactURL}examples/retained-consumer/index.html`);
     await page.waitForFunction(() => window.consumer?.snapshot().browser);
     await page.evaluate(() => window.consumer.set({ time: 0.5 }));
     const before = await page.evaluate(() => window.consumer.snapshot());

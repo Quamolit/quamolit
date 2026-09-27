@@ -123,7 +123,7 @@ test("DPR 2 与首个 rAF 时间戳早于注册时间", async ({ browser }) => {
       const request=window.requestAnimationFrame.bind(window); let first=true;
       window.requestAnimationFrame=callback=>request(time=>{ if(first){first=false;callback(0);}else callback(time); });
     });
-    await page.goto("http://127.0.0.1:5190/preview/examples/binary-tree/index.html");
+    await page.goto(`http://127.0.0.1:${process.env.QUAMOLIT_DEMO_TEST_PORT || 5190}/preview/examples/binary-tree/index.html`);
     await page.waitForFunction(()=>window.treeDemo?.snapshot().time>0.05);
     await page.evaluate(()=>window.treeDemo.seek(5));
     await expect.poll(()=>page.locator("canvas").evaluate(c=>[c.width,c.height])).toEqual([1800,1400]);
