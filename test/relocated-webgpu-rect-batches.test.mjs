@@ -118,6 +118,11 @@ async function testWebGpuRectBatches(a) {
   const dirty = batch.draw({ start: 1, count: 1, width: 8, height: 8, fill });
   a.equal(dirty.positionBytesUploaded, 8);
   a.equal(draws[2].join(','), '6,1,0,1');
+  a.equal(batch.uploadPatch(new Float32Array([42, 43]), 5000, 1).positionBytesUploaded, 8);
+  a.equal(writes.at(-1)[1], 40000);
+  a.equal(writes.at(-1)[3], 0);
+  a.equal(writes.at(-1)[4], 2);
+  a.equal(batch.draw({ width: 8, height: 8, fill }).positionBytesUploaded, 8);
   a.equal((await batch.readPixel(1, 1)).join(','), '234,88,12,255');
   a.equal(createdBuffers, 3);
   a.equal(destroyedBuffers, 1);
@@ -140,6 +145,8 @@ async function testWebGpuRectBatches(a) {
     from: { x: 0, y: 0 }, to: { x: 1, y: 1 }, time: 0, start: 0, duration: 1, easing: 'cubic',
   } }), /easing/);
   a.throws(() => batch.upload(positions, 10000, 1), /range/);
+  a.throws(() => batch.uploadPatch(new Float32Array([1, 2]), 10000, 1), /active count/);
+  a.throws(() => batch.uploadPatch(new Float32Array([1, 2, 3, 4]), 0, 1), /patch required/);
   positions[0] = Number.NaN;
   a.throws(() => batch.upload(positions), /non-finite/);
   positions[0] = 40;
@@ -151,6 +158,7 @@ async function testWebGpuRectBatches(a) {
   a.equal(destroyedBuffers, 7);
   a.throws(() => batch.draw({ width: 8, height: 8, fill }), /disposed/);
   a.throws(() => batch.upload(positions), /disposed/);
+  a.throws(() => batch.uploadPatch(new Float32Array([1, 2]), 0, 1), /disposed/);
   let rejected = false;
   try { await createFloat32RectBatch({ getContext: () => null }, device, 'bgra8unorm', 1); }
   catch (error) { rejected = /context unavailable/.test(String(error)); }

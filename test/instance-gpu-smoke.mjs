@@ -3,18 +3,24 @@ import { test } from "node:test";
 import { _$n__PCT__$M_ as structWith, init_tags as initTags, to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
 import { InstanceNode, InstanceSource } from "../target/js/motion/quamolit.scene-ir.mjs";
 import { ColorRgba } from "../target/js/motion/quamolit.motion.mjs";
-import { create_table_$x_ as createTable, register_$x_ as register } from "../target/js/motion/quamolit.instance-resource.mjs";
+import { create_table_$x_ as createTable, register_$x_ as register, register_patch_$x_ as registerPatch } from "../target/js/motion/quamolit.instance-resource.mjs";
 import { draw_source_$x_ as drawSource, upload_source_$x_ as uploadSource } from "../target/js/motion/quamolit.instance-gpu.mjs";
 
 const tags = initTags(["id", "version", "count", "source", "width", "height", "fill", "r", "g", "b", "a"]);
 const source = (id, version, count) => structWith(InstanceSource, tags.id, id, tags.version, version, tags.count, count);
 const node = (id, version, count) => structWith(InstanceNode, tags.source, source(id, version, count), tags.width, 3, tags.height, 3, tags.fill, structWith(ColorRgba, tags.r, 0.9, tags.g, 0.3, tags.b, 0.1, tags.a, 1));
 const fakeBatch = () => ({
-  uploads: 0, draws: 0, bytes: 0,
+  uploads: 0, draws: 0, bytes: 0, patches: [], fullSnapshots: [],
   upload(positions, start, count) {
     assert.ok(positions instanceof Float32Array, "GPU 上传收到 Float32 快照");
     assert.equal(start, 0);
-    this.uploads++; this.bytes += count * 8;
+    this.uploads++; this.bytes += count * 8; this.fullSnapshots.push(positions);
+    return { positionBytesUploaded: count * 8 };
+  },
+  uploadPatch(positions, start, count) {
+    assert.ok(positions instanceof Float32Array);
+    assert.equal(positions.length, count * 2);
+    this.uploads++; this.bytes += count * 8; this.patches.push({ positions: positions.slice(), start, count });
     return { positionBytesUploaded: count * 8 };
   },
   draw(options) {
@@ -67,4 +73,19 @@ test("draw-source! 按版本上传并绘制整个实例层，热帧只重绘不�
   });
   assert.equal(batch.uploads, 2);
   assert.equal(batch.bytes, 40, "累计上传字节按版本而非帧数增长");
+});
+
+test("10k 版本补丁仅上传 8 B；跳过基版时全量恢复正确快照", () => {
+  const table = createTable(), batch = fakeBatch(), count = 10000;
+  const v1 = source("grid", 1, count), v2 = source("grid", 2, count), v3 = source("grid", 3, count);
+  register(table, v1, new Float32Array(count * 2));
+  assert.equal(toJsData(uploadSource(-1, batch, table, v1)).bytes, 80000);
+  assert.equal(registerPatch(table, v2, 1, 5000, new Float32Array([42, 43])), 8);
+  assert.deepEqual(toJsData(uploadSource(1, batch, table, v2)), { version: 2, bytes: 8, "uploaded?": true });
+  assert.deepEqual(batch.patches, [{ positions: new Float32Array([42, 43]), start: 5000, count: 1 }]);
+  assert.equal(toJsData(uploadSource(2, batch, table, v2)).bytes, 0);
+  assert.equal(registerPatch(table, v3, 2, 5001, new Float32Array([44, 45])), 8);
+  assert.deepEqual(toJsData(uploadSource(1, batch, table, v3)), { version: 3, bytes: 80000, "uploaded?": true });
+  assert.deepEqual(Array.from(batch.fullSnapshots.at(-1).slice(10000, 10004)), [42, 43, 44, 45]);
+  assert.equal(batch.bytes, 160008);
 });

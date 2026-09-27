@@ -30,6 +30,8 @@
 
 `yarn test:consumer` 在独立临时项目安装候选提交，严格检查消费者，搬移入口可达产物后执行 Node/Chromium 合同；覆盖 1000 帧复用、乱序时间、同时间失效与 js-ffi/Quamolit GPU `:file` 分发。GPU 原生设备 mock 验证 1000 时间帧仅写 uniform、版本失效和幂等释放；另有非软件 adapter 的 8 帧同源像素专项，无设备时单独 SKIP，不能记为硬件通过。详见[独立消费检验](isolated-consumer.md)；尚不包含生命周期、真实资源表释放、JS-only 重编译和 GPU 性能验收。
 
+实例脏区专项：`yarn test:instance-resource` 检查 10k 实例连续补丁、复制隔离、跳版本解析、千次版本推进与释放；`yarn test:instance-gpu` 检查 Calcit 的 80 kB→8 B→0 B 上传决策及跳版本全量回退；`yarn test:webgpu-instances` 检查原生 writeBuffer 偏移、WebGPU 回退和公共 Calcit→GPU 与 Canvas 的像素一致性。无头软件 adapter 的浏览器专项为 SKIP；本机可加 `--headed -g '公共 Calcit 10k 实例脏区'` 在非软件 adapter 上运行，日志输出实际 adapter 和字节数。该合同不等于完整动态 10k 帧性能基准。
+
 `yarn test:retained-component` 验证 [Calcit 组件保留计划](retained-component.md)：严格类型、原生乱序采样、Node 的 1000 帧静态对象身份/实际声明次数和六类版本失效、Chromium 同源画面对照及演示截图。另覆盖 [Presence 组件连接](presence-component.md)的叶节点 alpha、重入连续性、显式释放、100 次装卸及独立 Canvas 像素对照。它使用独立 `target/js/retained-component/`，不代表外部消费者安装、完整 TodoList 或 GPU/资源生命周期验收。
 
 使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前主项目与独立消费者夹具均声明 Calcit `0.24.3`，主项目使用 js-ffi `0.2.1-alpha.10`；Folding Fan 已改用 js-ffi 类型化图片绘制 API，Canvas 当前路径填充改用 `.fill!`。独立消费者夹具仍固定历史 Quamolit 候选提交，用于复现该候选的行为，不代表主项目源码版本。

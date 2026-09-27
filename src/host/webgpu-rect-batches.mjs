@@ -166,6 +166,22 @@ export async function createFloat32RectBatch(canvas, device, format, capacity) {
         pendingPositionBytesUploaded += bytes;
         return Object.freeze({ positionBytesUploaded: bytes, activeCount });
       },
+      uploadPatch(positions, start, count) {
+        ensureLive();
+        safeCount(start, 'start');
+        safeCount(count, 'count');
+        if (!(positions instanceof Float32Array) ||
+            (typeof SharedArrayBuffer !== 'undefined' && positions.buffer instanceof SharedArrayBuffer) || positions.length !== count * 2) {
+          throw new TypeError('interleaved non-shared Float32Array patch required');
+        }
+        if (start + count > activeCount) throw new RangeError('rectangle patch exceeds active count');
+        for (const coordinate of positions) if (!Number.isFinite(coordinate)) throw new RangeError('non-finite rectangle position');
+        if (count > 0) device.queue.writeBuffer(positionsBuffer, start * 8, positions, 0, count * 2);
+        const bytes = count * 8;
+        totalPositionBytesUploaded += bytes;
+        pendingPositionBytesUploaded += bytes;
+        return Object.freeze({ positionBytesUploaded: bytes, activeCount });
+      },
       draw({ start = 0, count = activeCount, width, height, fill, alpha = 1, clear = { r: 1, g: 1, b: 1, a: 1 }, translation }) {
         ensureLive();
         safeCount(start, 'start');
