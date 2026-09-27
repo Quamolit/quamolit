@@ -257,6 +257,21 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Check restored Finder transitions and replay
+        if: inputs.mutation != 'color'
+        run: yarn test:finder-demo
+        env:
+          CI: "true"
+
+      - name: Upload Finder fixed-time evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-finder-${{ github.run_id }}
+          path: test-results/finder/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Check restored TodoList lifecycle and Canvas interaction
         if: inputs.mutation != 'color'
         run: yarn test:todolist
