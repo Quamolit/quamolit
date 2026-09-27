@@ -302,6 +302,21 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Check restored Folding Fan slices and image failures
+        if: inputs.mutation != 'color'
+        run: yarn test:folding-fan
+        env:
+          CI: "true"
+
+      - name: Upload Folding Fan fixed-time evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-folding-fan-${{ github.run_id }}
+          path: test-results/folding-fan/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Check restored TodoList lifecycle and Canvas interaction
         if: inputs.mutation != 'color'
         run: yarn test:todolist

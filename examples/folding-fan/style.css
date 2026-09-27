@@ -1,0 +1,23 @@
+:root { font: 15px/1.6 system-ui,sans-serif; color: #fff5ef; color-scheme: dark; background: #171022; }
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; }
+nav { position: fixed; top: 18px; right: 24px; z-index: 3; }
+a { color: #ffcfca; text-underline-offset: 4px; }
+button { font: inherit; color: inherit; border: 1px solid #9e6682; background: #633450; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+button:hover { background: #86506d; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid #ffd7a0; outline-offset: 4px; }
+#panel-toggle { position: fixed; left: 20px; top: 14px; z-index: 3; }
+#panel { position: fixed; right: 24px; top: 64px; width: min(370px,calc(100vw - 40px)); max-height: calc(100dvh - 88px); overflow: auto; padding: 25px; border: 1px solid #9e6682; border-radius: 16px; background: #2c1b36ef; box-shadow: 0 12px 44px #0008; }
+#panel[hidden] { display: none; }
+.eyebrow { color: #e7b8c6; font-size: 11px; letter-spacing: .14em; }
+h1 { font-size: 31px; font-weight: 500; line-height: 1.35; margin: 20px 0; }
+h1 small { font-size: 17px; color: #f2c9d4; }
+p { font-size: 14px; }
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+label { display: grid; gap: 6px; }
+input { width: 100%; accent-color: #e9a2ba; }
+output { display: block; white-space: pre-wrap; color: #f2d7dc; font: 13px/1.8 ui-monospace,monospace; }
+#message { color: #ffd7a0; min-height: 1.3em; }
+.note { font-size: 12px; color: #ddbbca; }
+@media (max-width:600px) { #panel { right: 20px; } }

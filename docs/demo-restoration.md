@@ -20,7 +20,7 @@
 | folding-fan | 荷花图片 24 切片旋转展开/收拢 | Toggle 中间帧、裁剪/层序、图片失败诊断 |
 | drag-demo | 矩形拖动及滑块 | 坐标换算、跨边界拖拽、释放捕获、浮层不误触 |
 
-当前 [Binary Tree](binary-tree-restoration.md)、[TodoList](todolist-restoration.md)、[Clock](clock-restoration.md)、[Curve](curve-restoration.md)、[Solar](solar-restoration.md)、[Icons](icons-restoration.md)、[Raining](raining-restoration.md)、[Finder](finder-restoration.md)、[Table](table-restoration.md) 与 [Drag demo](drag-demo-restoration.md) 已提供可运行 Canvas 切片。Drag demo 的状态、命中与 Scene 由 Calcit 生成，宿主仅使用原生指针捕获和视口逆变换；GPU 仍未完成，余下 Folding Fan 待恢复。`demos/catalog.json` 的 `planned` 只登记尚无运行页面的项目，无页面路径、无“打开”按钮；提供可运行切片后同一 PR 将其移入 `entries`，保留稳定 `id`，明确部分恢复状态、实际编译入口、行为测试、截图及限制。可运行不等于全部验收完成，不能删除清单项来消除未完成数量。
+当前 [Binary Tree](binary-tree-restoration.md)、[TodoList](todolist-restoration.md)、[Clock](clock-restoration.md)、[Curve](curve-restoration.md)、[Solar](solar-restoration.md)、[Icons](icons-restoration.md)、[Raining](raining-restoration.md)、[Finder](finder-restoration.md)、[Table](table-restoration.md)、[Drag demo](drag-demo-restoration.md) 与 [Folding Fan](folding-fan-restoration.md) 均已提供可运行 Canvas 切片。`demos/catalog.json` 的 `planned` 仅登记尚无运行页面的未来项目，目前原有 11 项均在 `entries`。完整 Scene/GPU/功能矩阵及 M3 验收仍未完成；可运行不等于全部验收完成。
 
 ## 全屏舞台与 DOM 浮层
 

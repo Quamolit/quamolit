@@ -30,10 +30,18 @@
       "title": "参考与验证工具"
     }
   ],
-  "planned": [
-    { "id": "folding-fan", "title": "Folding fan · 折扇", "group": "originals", "summary": "荷花图片的 24 个切片旋转，交互展开与收拢。" }
-  ],
+  "planned": [],
   "entries": [
+    {
+      "id": "folding-fan",
+      "path": "examples/folding-fan/index.html",
+      "title": "Folding Fan · 折扇",
+      "group": "originals",
+      "summary": "原有荷花图片的 24 切片旋转；Calcit 采样可打断的开合，Canvas 全屏绘制并诊断图片失败。",
+      "status": "恢复切片 · Canvas",
+      "docs": "docs/folding-fan-restoration.md",
+      "compile": "compile:folding-fan"
+    },
     {
       "id": "drag-demo",
       "path": "examples/drag-demo/index.html",

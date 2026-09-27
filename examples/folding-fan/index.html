@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Folding Fan · Quamolit 原有动画</title><link rel="stylesheet" href="./style.css"></head>
+<body>
+  <canvas id="scene" aria-label="荷花图片的二十四片折扇动画"></canvas>
+  <nav aria-label="演示导航"><a href="../../demos/index.html?group=originals">← 所有演示</a></nav>
+  <button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起面板</button>
+  <aside id="panel" aria-label="折扇控制">
+    <span class="eyebrow">QUAMOLIT / ORIGINAL 11</span>
+    <h1>Folding Fan<br><small>一张荷花，二十四片时间</small></h1>
+    <p>点击 Toggle 展开或收拢；过渡中再点击会从当前姿态继续。拖动时间条可直接查看任意中间帧。</p>
+    <div class="buttons"><button id="toggle-fold">Toggle · 展开/收拢</button><button id="play">播放时间</button><button id="reset">重置</button><button id="share">复制时间链接</button></div>
+    <label>时间（秒） <input id="time" type="range" min="0" max="120" step="0.01" value="0"></label>
+    <div class="buttons"><button data-time="0">0 s</button><button data-time="0.18">0.18 s</button><button data-time="0.36">0.36 s</button></div>
+    <output id="status" aria-live="off"></output><p id="message" role="status"></p>
+    <p class="note">图片来自原有 assets/lotus.jpg。Calcit 定义状态、时间采样、切片和变换；页面只处理资源加载、时钟与视口。当前为 Canvas2D 参考，图片 Scene IR / GPU 纹理路径仍待集成。</p>
+    <a href="https://github.com/Quamolit/quamolit/blob/main/docs/folding-fan-restoration.md">行为依据与检验规则</a>
+  </aside>
+  <script type="module" src="./main.mjs"></script>
+</body></html>
