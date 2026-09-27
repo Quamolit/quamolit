@@ -1,4 +1,8 @@
-import { frame_at as frameAt, resample_at as resampleAt, unsupported_reason as unsupportedReason } from "../target/js/cpu/quamolit.test.cpu-motion-fixture.mjs";
+import {
+  frame_at as frameAt,
+  resample_at as resampleAt,
+  unsupported_reason as unsupportedReason,
+} from "../target/js/cpu/quamolit.test.cpu-motion-fixture.mjs";
 
 const canvas = document.querySelector("#frame");
 const context = canvas.getContext("2d", { willReadFrequently: true });
@@ -6,7 +10,8 @@ const status = document.querySelector("#status");
 let previous = null;
 
 function renderAt(time, model = 0, ready = false, viewport = 100) {
-  const frame = previous === null ? frameAt(time, model, ready, viewport) : resampleAt(previous, time, model, ready, viewport);
+  const frame =
+    previous === null ? frameAt(time, model, ready, viewport) : resampleAt(previous, time, model, ready, viewport);
   previous = frame;
   const value = frame.get("value");
   const x = Math.round(value.get("x"));
@@ -23,8 +28,13 @@ function renderAt(time, model = 0, ready = false, viewport = 100) {
 }
 
 for (const [label, args] of [
-  ["1s", [1]], ["0s", [0]], ["0.5s", [0.5]], ["0.25s", [0.25]],
-  ["ready", [0.5, 0, true, 100]], ["viewport", [0.5, 0, false, 110]], ["model", [0.5, 1, false, 100]],
+  ["1s", [1]],
+  ["0s", [0]],
+  ["0.5s", [0.5]],
+  ["0.25s", [0.25]],
+  ["ready", [0.5, 0, true, 100]],
+  ["viewport", [0.5, 0, false, 110]],
+  ["model", [0.5, 1, false, 100]],
 ]) {
   const button = document.createElement("button");
   button.textContent = label;

@@ -4,13 +4,25 @@ import {
   make_archive as makeArchive,
   update_state as updateState,
 } from "../target/js/replay/quamolit.test.replay-archive-fixture.mjs";
-import { start_clock as startClock, pause_clock as pauseClock, seek_clock as seekClock } from "../target/js/replay/quamolit.host-clock.mjs";
+import {
+  start_clock as startClock,
+  pause_clock as pauseClock,
+  seek_clock as seekClock,
+} from "../target/js/replay/quamolit.host-clock.mjs";
 import { sample_archive_at_host as sampleArchiveAtHost } from "../target/js/replay/quamolit.playback.mjs";
 
 const canvas = document.querySelector("#frame");
 const context = canvas.getContext("2d", { willReadFrequently: true });
 const status = document.querySelector("#status");
-const expected = new Map([[0, 0], [1, 0.5], [2, 1.5], [3, 1], [4, 1], [5, 2.5], [6, 2]]);
+const expected = new Map([
+  [0, 0],
+  [1, 0.5],
+  [2, 1.5],
+  [3, 1],
+  [4, 1],
+  [5, 2.5],
+  [6, 2],
+]);
 const saved = makeArchive();
 const timeline = startClock(10, 0, 1);
 

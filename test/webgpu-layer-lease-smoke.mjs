@@ -4,7 +4,9 @@ import { WebGpuLayerLease } from "./host/webgpu-layer-lease.mjs";
 
 function deferred() {
   let resolve;
-  const promise = new Promise((done) => { resolve = done; });
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
   return { promise, resolve };
 }
 
@@ -12,11 +14,25 @@ function ready(lost = deferred()) {
   let state = "ready";
   let releases = 0;
   return {
-    kind: "ready", adapter: { info: { vendor: "test", isFallbackAdapter: false } }, lost: lost.promise,
-    get state() { return state; },
-    get releases() { return releases; },
-    release() { if (state === "released") return false; state = "released"; releases++; return true; },
-    lose(info) { state = "lost"; lost.resolve(info); },
+    kind: "ready",
+    adapter: { info: { vendor: "test", isFallbackAdapter: false } },
+    lost: lost.promise,
+    get state() {
+      return state;
+    },
+    get releases() {
+      return releases;
+    },
+    release() {
+      if (state === "released") return false;
+      state = "released";
+      releases++;
+      return true;
+    },
+    lose(info) {
+      state = "lost";
+      lost.resolve(info);
+    },
   };
 }
 
@@ -24,8 +40,16 @@ test("100 mounts release layer and device with stable live count", async () => {
   const candidates = [];
   let disposed = 0;
   const lease = new WebGpuLayerLease({
-    probe: async () => { const candidate = ready(); candidates.push(candidate); return candidate; },
-    create: async () => ({ dispose() { disposed++; } }),
+    probe: async () => {
+      const candidate = ready();
+      candidates.push(candidate);
+      return candidate;
+    },
+    create: async () => ({
+      dispose() {
+        disposed++;
+      },
+    }),
   });
   for (let i = 0; i < 100; i++) {
     assert.equal((await lease.open({})).kind, "ready");
@@ -45,8 +69,15 @@ test("close invalidates pending probe/create and retry owns only new generation"
   let disposed = 0;
   let calls = 0;
   const lease = new WebGpuLayerLease({
-    probe: () => ++calls === 1 ? probe.promise : second,
-    create: (candidate) => candidate === first ? created.promise : { dispose() { disposed++; } },
+    probe: () => (++calls === 1 ? probe.promise : second),
+    create: (candidate) =>
+      candidate === first
+        ? created.promise
+        : {
+            dispose() {
+              disposed++;
+            },
+          },
   });
   const stale = lease.open({});
   assert.equal(lease.open({}), stale, "concurrent open should share one probe");
@@ -63,7 +94,11 @@ test("close invalidates pending probe/create and retry owns only new generation"
   const inFlight = createLease.open({});
   await Promise.resolve();
   createLease.close();
-  created.resolve({ dispose() { disposed++; } });
+  created.resolve({
+    dispose() {
+      disposed++;
+    },
+  });
   assert.equal((await inFlight).kind, "cancelled");
   assert.equal(third.releases, 1);
   assert.equal(disposed, 2);
@@ -76,8 +111,16 @@ test("loss closes lease once and reports failure; software fallback is released"
   let disposed = 0;
   const lease = new WebGpuLayerLease({
     probe: async () => candidate,
-    create: async () => ({ dispose() { disposed++; } }),
-    onLost(info, cleanup) { assert.equal(info.message, "test loss"); assert.equal(cleanup.live, 0); losses++; },
+    create: async () => ({
+      dispose() {
+        disposed++;
+      },
+    }),
+    onLost(info, cleanup) {
+      assert.equal(info.message, "test loss");
+      assert.equal(cleanup.live, 0);
+      losses++;
+    },
   });
   await lease.open({});
   candidate.lose({ reason: "unknown", message: "test loss" });
@@ -88,7 +131,12 @@ test("loss closes lease once and reports failure; software fallback is released"
 
   const software = ready();
   software.adapter.info.isFallbackAdapter = true;
-  const fallback = new WebGpuLayerLease({ probe: async () => software, create() { throw new Error("must not create"); } });
+  const fallback = new WebGpuLayerLease({
+    probe: async () => software,
+    create() {
+      throw new Error("must not create");
+    },
+  });
   assert.equal((await fallback.open({})).kind, "fallback");
   assert.equal(software.releases, 1);
   assert.equal(fallback.metrics.live, 0);
@@ -100,10 +148,14 @@ test("creation failure releases device and can retry without stale ownership", a
   let probes = 0;
   let disposed = 0;
   const lease = new WebGpuLayerLease({
-    probe: async () => ++probes === 1 ? first : second,
+    probe: async () => (++probes === 1 ? first : second),
     create: async (candidate) => {
       if (candidate === first) throw new Error("pipeline failed");
-      return { dispose() { disposed++; } };
+      return {
+        dispose() {
+          disposed++;
+        },
+      };
     },
   });
   assert.deepEqual(await lease.open({}), { kind: "failed", stage: "create", message: "pipeline failed" });
@@ -119,7 +171,11 @@ test("dispose errors are reported and do not suppress device release", async () 
   const candidate = ready();
   const lease = new WebGpuLayerLease({
     probe: async () => candidate,
-    create: async () => ({ dispose() { throw new Error("dispose failed"); } }),
+    create: async () => ({
+      dispose() {
+        throw new Error("dispose failed");
+      },
+    }),
   });
   await lease.open({});
   const cleanup = lease.close();
@@ -135,9 +191,15 @@ test("old device loss cannot tear down a rebuilt layer", async () => {
   let losses = 0;
   let disposed = 0;
   const lease = new WebGpuLayerLease({
-    probe: async () => ++probes === 1 ? first : second,
-    create: async () => ({ dispose() { disposed++; } }),
-    onLost() { losses++; },
+    probe: async () => (++probes === 1 ? first : second),
+    create: async () => ({
+      dispose() {
+        disposed++;
+      },
+    }),
+    onLost() {
+      losses++;
+    },
   });
   await lease.open({});
   lease.close();

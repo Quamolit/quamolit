@@ -1,4 +1,7 @@
-import { copy_range as float32CopyRange, draw_canvas_$x_ as drawCalcitRectBatch } from "../../target/js/motion/quamolit.instance-ffi.mjs";
+import {
+  copy_range as float32CopyRange,
+  draw_canvas_$x_ as drawCalcitRectBatch,
+} from "../../target/js/motion/quamolit.instance-ffi.mjs";
 import { to_js_data as toJsData } from "../../target/js/motion/calcit.core.mjs";
 
 function colorStyle(fill) {
@@ -17,7 +20,8 @@ export class CanvasInstanceBatches {
   #copies = new WeakMap();
 
   constructor(registry) {
-    if (registry === null || typeof registry?.resolve !== "function") throw new TypeError("InstanceSourceRegistry required");
+    if (registry === null || typeof registry?.resolve !== "function")
+      throw new TypeError("InstanceSourceRegistry required");
     this.#registry = registry;
   }
 
@@ -32,11 +36,22 @@ export class CanvasInstanceBatches {
       this.#copies.set(token, positions);
       positionBytesCopied = positions.byteLength;
     }
-    const typedMetrics = drawCalcitRectBatch(context, positions, start, count, instance.width, instance.height, fillStyle, alpha);
+    const typedMetrics = drawCalcitRectBatch(
+      context,
+      positions,
+      start,
+      count,
+      instance.width,
+      instance.height,
+      fillStyle,
+      alpha,
+    );
     const result = toJsData(typedMetrics);
     const metrics = {
-      boundaryCalls: result["boundary-calls"], canvasCalls: result["canvas-calls"],
-      instances: result.instances, positionBytesRead: result["position-bytes-read"],
+      boundaryCalls: result["boundary-calls"],
+      canvasCalls: result["canvas-calls"],
+      instances: result.instances,
+      positionBytesRead: result["position-bytes-read"],
     };
     return Object.freeze({
       ...metrics,

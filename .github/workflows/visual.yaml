@@ -35,6 +35,9 @@ jobs:
 
       - run: yarn install --immutable
 
+      - name: Check test JS formatting
+        run: yarn check:test-js-format
+
       - name: Install pinned Chromium and system dependencies
         run: yarn playwright install --with-deps chromium
 

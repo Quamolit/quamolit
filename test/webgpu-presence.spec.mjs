@@ -8,12 +8,17 @@ test("Presence 时间帧在真实 WebGPU 与 Canvas 间对照，终点可乱序�
   await expect(gpu).toHaveAttribute("data-kind", /ready|fallback|failed|unavailable/);
   await expect(page.locator("#status")).toContainText("t=0.875s · alpha=0.5");
   const kind = await gpu.getAttribute("data-kind");
-  console.log(`Presence WebGPU adapter: ${await gpu.getAttribute("data-adapter-vendor")}/${await gpu.getAttribute("data-adapter-fallback")}, kind=${kind}`);
+  console.log(
+    `Presence WebGPU adapter: ${await gpu.getAttribute("data-adapter-vendor")}/${await gpu.getAttribute("data-adapter-fallback")}, kind=${kind}`,
+  );
   if (kind !== "ready") {
     await expect(page.locator("#gpu-scene")).toBeHidden();
     await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
   }
-  test.skip(kind === "fallback" || kind === "unavailable", `当前 Chromium 没有可用硬件 WebGPU：${await gpu.textContent()}`);
+  test.skip(
+    kind === "fallback" || kind === "unavailable",
+    `当前 Chromium 没有可用硬件 WebGPU：${await gpu.textContent()}`,
+  );
   await expect(gpu).toHaveAttribute("data-kind", "ready");
   await expect(gpu).toHaveAttribute("data-result", "pass");
   await expect(gpu).toContainText("t=0.875s · alpha=0.5 · draw=1 · upload=0 · copied=0 · pipeline=1 · buffers=2");

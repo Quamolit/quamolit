@@ -1,6 +1,14 @@
 import { init_tags as initTags, to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
-import { instance_presence_document as instanceDocument, instance_presence_reconcile as reconcile } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
-import { presence_needs_frame_$q_ as needsFrame, sample_presence as sample, settle_presence as settle, start_presence as start } from "../target/js/motion/quamolit.presence.mjs";
+import {
+  instance_presence_document as instanceDocument,
+  instance_presence_reconcile as reconcile,
+} from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import {
+  presence_needs_frame_$q_ as needsFrame,
+  sample_presence as sample,
+  settle_presence as settle,
+  start_presence as start,
+} from "../target/js/motion/quamolit.presence.mjs";
 import { InstanceSourceRegistry } from "./host/instance-sources.mjs";
 import { PresenceInstanceResources } from "./host/presence-resources.mjs";
 import { CanvasInstanceBatches } from "./host/canvas-instance-batches.mjs";
@@ -29,17 +37,31 @@ const initialTime = Number(parameters.get("time") ?? 0.875);
 let currentTime = initialTime;
 let renderTail = Promise.resolve();
 let destroyed = 0;
-const testDevice = (lost) => ({ lost, destroy() { destroyed += 1; } });
-const testHost = { gpu: {
-  getPreferredCanvasFormat: () => "bgra8unorm",
-  requestAdapter: async () => ({
-    requestDevice: async () => testDevice(mode === "lost" ? Promise.resolve({ reason: "unknown", message: "test-loss" }) : new Promise(() => {})),
-  }),
-} };
-const deniedHost = { gpu: {
-  getPreferredCanvasFormat: () => "bgra8unorm",
-  requestAdapter: async () => { throw new Error("test-adapter-denied"); },
-} };
+const testDevice = (lost) => ({
+  lost,
+  destroy() {
+    destroyed += 1;
+  },
+});
+const testHost = {
+  gpu: {
+    getPreferredCanvasFormat: () => "bgra8unorm",
+    requestAdapter: async () => ({
+      requestDevice: async () =>
+        testDevice(
+          mode === "lost" ? Promise.resolve({ reason: "unknown", message: "test-loss" }) : new Promise(() => {}),
+        ),
+    }),
+  },
+};
+const deniedHost = {
+  gpu: {
+    getPreferredCanvasFormat: () => "bgra8unorm",
+    requestAdapter: async () => {
+      throw new Error("test-adapter-denied");
+    },
+  },
+};
 const gpuLease = new WebGpuLayerLease({
   probe: probeWebGpuDevice,
   create: (candidate) => WebGpuInstanceBatches.create(gpuCanvas, candidate, archiveRegistry, archivedSource.count),
@@ -121,11 +143,18 @@ function replayAt(time) {
   const completed = settle(model, time);
   model = completed.nthAt(0, modelTag);
   resources.sync(model);
-  return { samples: toJsData(sample(model, time)), registry, batches, released: toJsData(completed).released.length, active: needsFrame(model, time) };
+  return {
+    samples: toJsData(sample(model, time)),
+    registry,
+    batches,
+    released: toJsData(completed).released.length,
+    active: needsFrame(model, time),
+  };
 }
 
 const pixelAt = (x, y) => Array.from(context.getImageData(x, y, 1, 1).data);
-const samePixel = (actual, expected, tolerance) => actual.every((value, i) => Math.abs(value - expected[i]) <= (i === 3 ? 0 : tolerance));
+const samePixel = (actual, expected, tolerance) =>
+  actual.every((value, i) => Math.abs(value - expected[i]) <= (i === 3 ? 0 : tolerance));
 const pixelText = (pixel) => pixel.join(",");
 
 async function renderAt(time) {
@@ -154,7 +183,10 @@ async function renderAt(time) {
   }
   if (!instance && !samePixel(gridPixel, white, 0)) throw new Error("卸载后仍留下网格像素");
   if (time === 0.5 && pixelText(pixel) !== "234,88,12,255") throw new Error(`进入终点像素错误: ${pixelText(pixel)}`);
-  if (time === 1 && (pixelText(pixel) !== "255,255,255,255" || frame.registry.liveCount !== 0 || frame.released !== 1 || frame.active)) {
+  if (
+    time === 1 &&
+    (pixelText(pixel) !== "255,255,255,255" || frame.registry.liveCount !== 0 || frame.released !== 1 || frame.active)
+  ) {
     throw new Error("退出终点未停帧或未释放资源");
   }
   if (time === 0.875 && (instance?.alpha !== 0.5 || frame.registry.liveCount !== 1)) {
@@ -166,7 +198,9 @@ async function renderAt(time) {
       const metrics = instance ? gpuLayer.draw(instance.entry.node.content[1], instance.alpha) : gpuLayer.clear();
       // Acquire all readbacks before awaiting; they must address the same canvas texture.
       const actual = await Promise.all([
-        gpuLayer.readPixel(40, 50), gpuLayer.readPixel(0, 0), gpuLayer.readPixel(2, 0),
+        gpuLayer.readPixel(40, 50),
+        gpuLayer.readPixel(0, 0),
+        gpuLayer.readPixel(2, 0),
       ]);
       const expected = [pixel, gridPixel, gapPixel];
       const tolerance = instance?.alpha === 0.5 ? [1, 2, 0] : [0, 0, 0];
@@ -210,11 +244,16 @@ document.querySelector("#disable-gpu").addEventListener("click", () => {
   void scheduleRender(currentTime).catch(reportError);
 });
 document.querySelector("#retry-gpu").addEventListener("click", () => {
-  void (async () => { await openGpu(); await scheduleRender(currentTime); })().catch(reportError);
+  void (async () => {
+    await openGpu();
+    await scheduleRender(currentTime);
+  })().catch(reportError);
 });
 window.addEventListener("pagehide", () => closeGpu("页面关闭"), { once: true });
 try {
   await openGpu();
   for (const time of times) await scheduleRender(time);
   await scheduleRender(initialTime);
-} catch (error) { reportError(error); }
+} catch (error) {
+  reportError(error);
+}

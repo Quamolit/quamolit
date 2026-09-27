@@ -43,7 +43,8 @@ export function createManifest({
   if (!INSTANCE_COUNTS.includes(count)) throw new RangeError("count must be 1000, 10000 or 100000");
   if (fixture === "mixed-ui" && count !== 1_000) throw new RangeError("mixed-ui requires exactly 1000 nodes");
   if (dpr !== 1 && dpr !== 2) throw new RangeError("dpr must be 1 or 2");
-  if (!["loading", "ready", "error"].includes(glyphState)) throw new RangeError("glyphState must be loading, ready or error");
+  if (!["loading", "ready", "error"].includes(glyphState))
+    throw new RangeError("glyphState must be loading, ready or error");
   if (!Array.isArray(events)) throw new TypeError("events must be an array");
   const copied = events.map(eventCopy);
   if (new Set(copied.map((event) => event.id)).size !== copied.length) throw new TypeError("event ids must be unique");
@@ -63,7 +64,9 @@ export function createManifest({
       image: { id: "none", version: 0, state: "ready" },
     },
     events: copied,
-    ...(fixture === "mixed-ui" ? { mixedNodes: Array.from({ length: 1_000 }, (_, index) => mixedNodeAt(seed, index)) } : {}),
+    ...(fixture === "mixed-ui"
+      ? { mixedNodes: Array.from({ length: 1_000 }, (_, index) => mixedNodeAt(seed, index)) }
+      : {}),
   };
 }
 
@@ -91,7 +94,12 @@ function sampleUi(manifest, time) {
     if (event.type === "target") {
       movement = { from: tween(movement, event.time), to: event.value, start: event.time, duration: event.duration };
     } else {
-      panel = { from: tween(panel, event.time), to: event.type === "enter" ? 1 : 0, start: event.time, duration: event.duration };
+      panel = {
+        from: tween(panel, event.time),
+        to: event.type === "enter" ? 1 : 0,
+        start: event.time,
+        duration: event.duration,
+      };
       phase = event.type === "enter" ? "enter" : "exit";
     }
     appliedEvents.push(event.id);
@@ -106,13 +114,25 @@ export function sampleFixture(manifest, time) {
   finite(time, "time");
   if (time < 0) throw new RangeError("time must be non-negative");
   if (manifest.schema !== "quamolit.m0.fixture.v1") throw new TypeError("Unknown fixture schema");
-  const base = { fixture: manifest.fixture, time, seed: manifest.seed, width: manifest.width, height: manifest.height, glyphState: manifest.resources.glyphAtlas.state };
+  const base = {
+    fixture: manifest.fixture,
+    time,
+    seed: manifest.seed,
+    width: manifest.width,
+    height: manifest.height,
+    glyphState: manifest.resources.glyphAtlas.state,
+  };
   switch (manifest.fixture) {
-    case "ui-transition": return { ...base, ui: sampleUi(manifest, time) };
-    case "instances": return { ...base, count: manifest.count, motionPhase: time * 0.8 };
-    case "text-path": return { ...base, label: "QUAMOLIT 0123", pathPhase: time * Math.PI };
-    case "mixed-ui": return { ...base, count: manifest.count, motionPhase: time * 0.8 };
-    default: throw new RangeError(`Unknown fixture: ${manifest.fixture}`);
+    case "ui-transition":
+      return { ...base, ui: sampleUi(manifest, time) };
+    case "instances":
+      return { ...base, count: manifest.count, motionPhase: time * 0.8 };
+    case "text-path":
+      return { ...base, label: "QUAMOLIT 0123", pathPhase: time * Math.PI };
+    case "mixed-ui":
+      return { ...base, count: manifest.count, motionPhase: time * 0.8 };
+    default:
+      throw new RangeError(`Unknown fixture: ${manifest.fixture}`);
   }
 }
 
@@ -136,7 +156,8 @@ export function instanceAt(seed, index) {
 // Fixed 20 clipped groups × 50 heterogeneous nodes; unlike the instances fixture,
 // these serialized descriptors are deliberately materialized once during setup.
 export function mixedNodeAt(seed, index) {
-  if (!Number.isSafeInteger(index) || index < 0 || index >= 1_000) throw new RangeError("mixed node index must be 0..999");
+  if (!Number.isSafeInteger(index) || index < 0 || index >= 1_000)
+    throw new RangeError("mixed node index must be 0..999");
   const source = instanceAt(seed, index);
   return {
     id: `mixed-${index}`,

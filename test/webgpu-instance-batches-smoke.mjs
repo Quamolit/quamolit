@@ -25,11 +25,19 @@ test("WebGPU thin adapter reuses immutable source copies and only uploads change
     },
     draw(options) {
       draws.push(options);
-      return { drawCalls: 1, instances: options.count ?? uploads.at(-1).length / 2,
+      return {
+        drawCalls: 1,
+        instances: options.count ?? uploads.at(-1).length / 2,
         positionBytesUploaded: draws.length === 1 ? 80000 : 0,
-        uniformBytesUploaded: 64, pipelinesCreated: 1, buffersCreated: 2 };
+        uniformBytesUploaded: 64,
+        pipelinesCreated: 1,
+        buffersCreated: 2,
+      };
     },
-    dispose() { disposed++; return disposed === 1; },
+    dispose() {
+      disposed++;
+      return disposed === 1;
+    },
   };
   const layer = new WebGpuInstanceBatches(registry, backend);
   const shape = (source) => ({ source, width: 1, height: 1, fill: { r: 1, g: 0, b: 0, a: 1 } });

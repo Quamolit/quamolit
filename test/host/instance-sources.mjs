@@ -6,7 +6,8 @@ function validateDescriptor(source) {
   }
   const { id, version, count } = source;
   if (typeof id !== "string" || id.length === 0) throw new TypeError("InstanceSource id must be a nonempty string");
-  if (!Number.isSafeInteger(version) || version < 0) throw new RangeError("InstanceSource version must be a nonnegative safe integer");
+  if (!Number.isSafeInteger(version) || version < 0)
+    throw new RangeError("InstanceSource version must be a nonnegative safe integer");
   if (!Number.isSafeInteger(count) || count < 0 || !Number.isSafeInteger(count * 2)) {
     throw new RangeError("InstanceSource count must be a nonnegative safe integer with safe x/y length");
   }

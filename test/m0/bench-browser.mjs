@@ -22,7 +22,10 @@ export async function runBrowserBench(options) {
   const firstDrawMs = performance.now() - firstStart;
   const idleRaf = [];
   for (let index = 0; index < 61; index += 1) idleRaf.push(await frame());
-  const idleIntervals = idleRaf.slice(1).map((time, index) => time - idleRaf[index]).sort((a, b) => a - b);
+  const idleIntervals = idleRaf
+    .slice(1)
+    .map((time, index) => time - idleRaf[index])
+    .sort((a, b) => a - b);
   const idleRafMedianMs = (idleIntervals[29] + idleIntervals[30]) / 2;
 
   async function phase(seconds, collect) {
@@ -37,15 +40,16 @@ export async function runBrowserBench(options) {
       const renderStart = performance.now();
       renderCanvas(context, manifest, model);
       const renderEnd = performance.now();
-      if (collect) samples.push({
-        index,
-        fixtureTime: index / 60,
-        rafTime,
-        rafIntervalMs: previous === null ? null : rafTime - previous,
-        sampleMs: renderStart - sampleStart,
-        canvasCallMs: renderEnd - renderStart,
-        cpuFrameMs: renderEnd - sampleStart,
-      });
+      if (collect)
+        samples.push({
+          index,
+          fixtureTime: index / 60,
+          rafTime,
+          rafIntervalMs: previous === null ? null : rafTime - previous,
+          sampleMs: renderStart - sampleStart,
+          canvasCallMs: renderEnd - renderStart,
+          cpuFrameMs: renderEnd - sampleStart,
+        });
       previous = rafTime;
       index += 1;
     }
@@ -66,7 +70,11 @@ export async function runBrowserBench(options) {
     measure,
     checksum,
     checksumTime: 0.5,
-    canvas: { alpha: false, antialias: "browser-default", colorSpace: context.getContextAttributes?.().colorSpace ?? "unknown" },
+    canvas: {
+      alpha: false,
+      antialias: "browser-default",
+      colorSpace: context.getContextAttributes?.().colorSpace ?? "unknown",
+    },
     userAgent: navigator.userAgent,
     devicePixelRatio: window.devicePixelRatio,
   };

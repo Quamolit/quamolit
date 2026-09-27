@@ -9,7 +9,13 @@ import {
 } from "../target/js/cpu/quamolit.test.cpu-motion-fixture.mjs";
 
 test("泛型 CPU 回调可乱序返回 Vec2，完整版本键使同时间变化失效", () => {
-  for (const [time, x] of [[1, 120], [0, 80], [0.5, 100], [0.25, 90], [1, 120]]) {
+  for (const [time, x] of [
+    [1, 120],
+    [0, 80],
+    [0.5, 100],
+    [0.25, 90],
+    [1, 120],
+  ]) {
     assert.equal(sampleXAt(time, 0, false, 100), x);
     assert.equal(sampleYAt(time, 0, false, 100), 70);
   }

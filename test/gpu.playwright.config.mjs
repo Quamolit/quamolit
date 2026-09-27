@@ -12,10 +12,15 @@ export default defineConfig({
   timeout: 30_000,
   outputDir: "../test-results/gpu",
   reporter: "list",
-  projects: [{ name: "chromium-webgpu", use: {
-    browserName: "chromium",
-    launchOptions: { args: ["--enable-unsafe-webgpu"] },
-  } }],
+  projects: [
+    {
+      name: "chromium-webgpu",
+      use: {
+        browserName: "chromium",
+        launchOptions: { args: ["--enable-unsafe-webgpu"] },
+      },
+    },
+  ],
   use: { baseURL, viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 },
   webServer: {
     command: "yarn vite --host 127.0.0.1 --port 5181 --strictPort",

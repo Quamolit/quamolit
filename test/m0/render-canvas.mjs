@@ -4,10 +4,10 @@ const COLORS = ["#5b5bd6", "#e05c93", "#18a999", "#efaa38"];
 // Fixed 5x7 pixel glyphs keep this reference independent of system fonts.
 const GLYPHS = {
   " ": [0, 0, 0, 0, 0, 0, 0],
-  "0": [14, 17, 19, 21, 25, 17, 14],
-  "1": [4, 12, 4, 4, 4, 4, 14],
-  "2": [14, 17, 1, 2, 4, 8, 31],
-  "3": [30, 1, 1, 14, 1, 1, 30],
+  0: [14, 17, 19, 21, 25, 17, 14],
+  1: [4, 12, 4, 4, 4, 4, 14],
+  2: [14, 17, 1, 2, 4, 8, 31],
+  3: [30, 1, 1, 14, 1, 1, 30],
   A: [14, 17, 17, 31, 17, 17, 17],
   I: [31, 4, 4, 4, 4, 4, 31],
   L: [16, 16, 16, 16, 16, 16, 31],
@@ -110,7 +110,9 @@ function mixedUi(ctx, manifest, model) {
       ctx.fillStyle = COLORS[node.palette];
       ctx.strokeStyle = COLORS[node.palette];
       switch (node.kind) {
-        case "rect": ctx.fillRect(x, node.y, node.size, node.size); break;
+        case "rect":
+          ctx.fillRect(x, node.y, node.size, node.size);
+          break;
         case "circle":
           ctx.beginPath();
           ctx.arc(x, node.y, node.size * 0.55, 0, Math.PI * 2);
@@ -123,8 +125,11 @@ function mixedUi(ctx, manifest, model) {
           ctx.lineTo(x + node.size, node.y + node.size * 0.5);
           ctx.stroke();
           break;
-        case "glyph": glyphText(ctx, node.label, x, node.y, 1); break;
-        default: throw new Error(`Unknown mixed node kind: ${node.kind}`);
+        case "glyph":
+          glyphText(ctx, node.label, x, node.y, 1);
+          break;
+        default:
+          throw new Error(`Unknown mixed node kind: ${node.kind}`);
       }
     }
     ctx.restore();
@@ -177,10 +182,19 @@ export function renderCanvas(ctx, manifest, model) {
     return;
   }
   switch (manifest.fixture) {
-    case "ui-transition": uiTransition(ctx, model); break;
-    case "instances": instances(ctx, model); break;
-    case "mixed-ui": mixedUi(ctx, manifest, model); break;
-    case "text-path": textPath(ctx, model); break;
-    default: throw new RangeError(`Unknown fixture: ${manifest.fixture}`);
+    case "ui-transition":
+      uiTransition(ctx, model);
+      break;
+    case "instances":
+      instances(ctx, model);
+      break;
+    case "mixed-ui":
+      mixedUi(ctx, manifest, model);
+      break;
+    case "text-path":
+      textPath(ctx, model);
+      break;
+    default:
+      throw new RangeError(`Unknown fixture: ${manifest.fixture}`);
   }
 }

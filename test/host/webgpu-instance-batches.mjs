@@ -1,19 +1,26 @@
 import { copy_range as float32CopyRange } from "../../target/js/motion/quamolit.instance-ffi.mjs";
 import { _PCT_none as none, _PCT_some as some, to_js_data as toJsData } from "../../target/js/motion/calcit.core.mjs";
 import {
-  clear_$x_ as clearBatch, color as rectColor, create_$x_ as createBatch,
-  dispose_$x_ as disposeBatch, draw_$x_ as drawBatch,
-  read_pixel_$x_ as readPixel, translation as rectTranslation,
-  read_translation_$x_ as readTranslation, upload_$x_ as uploadBatch,
+  clear_$x_ as clearBatch,
+  color as rectColor,
+  create_$x_ as createBatch,
+  dispose_$x_ as disposeBatch,
+  draw_$x_ as drawBatch,
+  read_pixel_$x_ as readPixel,
+  translation as rectTranslation,
+  read_translation_$x_ as readTranslation,
+  upload_$x_ as uploadBatch,
 } from "../../target/js/motion/quamolit.webgpu-batches.mjs";
 
 function metricsToJs(value) {
   const metrics = toJsData(value);
   return {
-    drawCalls: metrics["draw-calls"], instances: metrics.instances,
+    drawCalls: metrics["draw-calls"],
+    instances: metrics.instances,
     positionBytesUploaded: metrics["position-bytes-uploaded"],
     uniformBytesUploaded: metrics["uniform-bytes-uploaded"],
-    pipelinesCreated: metrics["pipelines-created"], buffersCreated: metrics["buffers-created"],
+    pipelinesCreated: metrics["pipelines-created"],
+    buffersCreated: metrics["buffers-created"],
   };
 }
 
@@ -25,14 +32,21 @@ export class WebGpuInstanceBatches {
   #activeToken;
 
   static async create(canvas, capability, registry, capacity) {
-    if (capability?.kind !== "ready" || capability.state !== "ready") throw new TypeError("ready WebGPU capability required");
+    if (capability?.kind !== "ready" || capability.state !== "ready")
+      throw new TypeError("ready WebGPU capability required");
     const batch = await createBatch(canvas, capability.device, capability.format, capacity);
     return new WebGpuInstanceBatches(registry, batch);
   }
 
   constructor(registry, batch) {
-    if (registry === null || typeof registry?.resolve !== "function") throw new TypeError("InstanceSourceRegistry required");
-    if (batch === null || typeof batch?.upload !== "function" || typeof batch?.draw !== "function" || typeof batch?.dispose !== "function") {
+    if (registry === null || typeof registry?.resolve !== "function")
+      throw new TypeError("InstanceSourceRegistry required");
+    if (
+      batch === null ||
+      typeof batch?.upload !== "function" ||
+      typeof batch?.draw !== "function" ||
+      typeof batch?.dispose !== "function"
+    ) {
       throw new TypeError("WebGPU rectangle batch required");
     }
     this.#registry = registry;
@@ -55,10 +69,21 @@ export class WebGpuInstanceBatches {
     }
     const { r, g, b, a } = instance.fill;
     const fill = rectColor(r, g, b, a);
-    const motion = translation === undefined ? none() : some(rectTranslation(
-      translation.from.x, translation.from.y, translation.to.x, translation.to.y,
-      translation.time, translation.start, translation.duration, translation.easing,
-    ));
+    const motion =
+      translation === undefined
+        ? none()
+        : some(
+            rectTranslation(
+              translation.from.x,
+              translation.from.y,
+              translation.to.x,
+              translation.to.y,
+              translation.time,
+              translation.start,
+              translation.duration,
+              translation.easing,
+            ),
+          );
     const metrics = metricsToJs(drawBatch(this.#batch, instance.width, instance.height, fill, alpha, motion, none()));
     return Object.freeze({ ...metrics, positionBytesCopied });
   }
@@ -74,7 +99,8 @@ export class WebGpuInstanceBatches {
   }
 
   async readTranslation() {
-    if (typeof this.#batch.readTranslation !== "function") throw new TypeError("WebGPU translation diagnostic unavailable");
+    if (typeof this.#batch.readTranslation !== "function")
+      throw new TypeError("WebGPU translation diagnostic unavailable");
     return toJsData(await readTranslation(this.#batch));
   }
 

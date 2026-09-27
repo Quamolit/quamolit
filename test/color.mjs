@@ -42,7 +42,10 @@ try {
   assert(Math.abs(middle.red - 0.7353569830524495) < 1e-12, "线性红色中点错误");
   assert(Math.abs(middle.blue - 0.7353569830524495) < 1e-12, "线性蓝色中点错误");
   assert(middle.alpha === 0.5, "alpha 中点错误");
-  assert(middle.pixel.slice(0, 3).every((value, index) => Math.abs(value - [221, 127, 221][index]) <= 2), `中点合成像素错误：${middle.pixel}`);
+  assert(
+    middle.pixel.slice(0, 3).every((value, index) => Math.abs(value - [221, 127, 221][index]) <= 2),
+    `中点合成像素错误：${middle.pixel}`,
+  );
   const start = renderAt(0);
   assert(start.red === 1 && start.blue === 0 && start.alpha === 0, "透明起点丢失隐藏 RGB");
   assert(start.pixel.join(",") === "255,255,255,255", "透明起点画布合成错误");

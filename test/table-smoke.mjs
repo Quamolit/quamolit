@@ -11,7 +11,10 @@ test("九格 Calcit 文本更新与场景身份", () => {
   assert.equal(table.cell_text(initial, 4), "");
   const scene = to_js_data(table.scene_at(edited, 4));
   assert.equal(scene.nodes.length, 18);
-  assert.deepEqual(scene.nodes.map(node => node.id), Array.from({ length: 9 }, (_, i) => [`cell-${i}`, `cell-${i}/label`]).flat());
+  assert.deepEqual(
+    scene.nodes.map((node) => node.id),
+    Array.from({ length: 9 }, (_, i) => [`cell-${i}`, `cell-${i}/label`]).flat(),
+  );
   assert.equal(scene.nodes[9].content[1].text, "你好，世界");
 });
 

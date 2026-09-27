@@ -160,11 +160,17 @@ test("手动打断的输入记录可在刷新后重放", async ({ page }, testIn
 
 test("资源未就绪不能被视觉门禁当作成功", async ({ page }, testInfo) => {
   await expect(openFixture(page, testInfo, { fixture: "text-path", time: 0.5, glyphState: "error" })).rejects.toThrow();
-  await expect(openFixture(page, testInfo, { fixture: "text-path", time: 0.5, glyphState: "loading" })).rejects.toThrow();
+  await expect(
+    openFixture(page, testInfo, { fixture: "text-path", time: 0.5, glyphState: "loading" }),
+  ).rejects.toThrow();
 });
 
 test("旧版顺序帧夹具检查矩形中间帧与只绘制重放", async ({ page }, testInfo) => {
-  await attachJson(testInfo, "requested-input", { page: "/test/visual.html", time: 0.5, sequence: [0, 0.25, 0.5, 0.75, 1] });
+  await attachJson(testInfo, "requested-input", {
+    page: "/test/visual.html",
+    time: 0.5,
+    sequence: [0, 0.25, 0.5, 0.75, 1],
+  });
   await page.goto("/test/visual.html?time=0.5");
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass", { timeout: 10_000 });
   await attachJson(testInfo, "runtime-manifest", { time: 0.5, environment: await environment(page) });

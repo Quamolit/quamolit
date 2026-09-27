@@ -11,10 +11,21 @@ import {
 } from "../target/js/fade/quamolit.test.fade-migration-fixture.mjs";
 
 test("旧 fade 的 v=4 对应显式 0.25 秒进入、退出和打断连续性", () => {
-  for (const [time, value] of [[0, 0], [0.0625, 0.25], [0.125, 0.5], [0.25, 1], [1, 1]]) {
+  for (const [time, value] of [
+    [0, 0],
+    [0.0625, 0.25],
+    [0.125, 0.5],
+    [0.25, 1],
+    [1, 1],
+  ]) {
     assert.equal(enterOpacityAt(time), value);
   }
-  for (const [time, value] of [[0.5, 1], [0.5625, 0.75], [0.625, 0.5], [0.75, 0]]) {
+  for (const [time, value] of [
+    [0.5, 1],
+    [0.5625, 0.75],
+    [0.625, 0.5],
+    [0.75, 0],
+  ]) {
     assert.equal(exitOpacityAt(time), value);
   }
   assert.equal(interruptOpacityAt(0.125), enterOpacityAt(0.125));

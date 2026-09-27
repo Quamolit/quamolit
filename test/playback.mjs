@@ -1,5 +1,9 @@
 import { to_js_data as toJsData } from "../target/js/playback/calcit.core.mjs";
-import { start_clock as startClock, pause_clock as pauseClock, seek_clock as seekClock } from "../target/js/playback/quamolit.host-clock.mjs";
+import {
+  start_clock as startClock,
+  pause_clock as pauseClock,
+  seek_clock as seekClock,
+} from "../target/js/playback/quamolit.host-clock.mjs";
 import { playback_frame_at as playbackFrameAt } from "../target/js/playback/quamolit.test.playback-fixture.mjs";
 
 const canvas = document.querySelector("#playback");
@@ -34,25 +38,76 @@ function render() {
 }
 
 const actions = [
-  ["运行 0.5s", () => { state.clock = running; state.hostTime = 10.5; state.ready = false; }],
-  ["运行 1s", () => { state.clock = running; state.hostTime = 11; state.ready = false; }],
-  ["暂停 @0.5s", () => { state.clock = pauseClock(running, 10.5); state.hostTime = 20; state.ready = false; }],
-  ["资源 ready", () => { state.ready = true; }],
-  ["seek→0.25s", () => { state.clock = seekClock(pauseClock(running, 10.5), 20, 0.25); state.hostTime = 20; state.ready = false; }],
-  ["重置 0s", () => { state.clock = running; state.hostTime = 10; state.ready = false; }],
+  [
+    "运行 0.5s",
+    () => {
+      state.clock = running;
+      state.hostTime = 10.5;
+      state.ready = false;
+    },
+  ],
+  [
+    "运行 1s",
+    () => {
+      state.clock = running;
+      state.hostTime = 11;
+      state.ready = false;
+    },
+  ],
+  [
+    "暂停 @0.5s",
+    () => {
+      state.clock = pauseClock(running, 10.5);
+      state.hostTime = 20;
+      state.ready = false;
+    },
+  ],
+  [
+    "资源 ready",
+    () => {
+      state.ready = true;
+    },
+  ],
+  [
+    "seek→0.25s",
+    () => {
+      state.clock = seekClock(pauseClock(running, 10.5), 20, 0.25);
+      state.hostTime = 20;
+      state.ready = false;
+    },
+  ],
+  [
+    "重置 0s",
+    () => {
+      state.clock = running;
+      state.hostTime = 10;
+      state.ready = false;
+    },
+  ],
 ];
 
 for (const [label, apply] of actions) {
   const button = document.createElement("button");
   button.textContent = label;
   button.addEventListener("click", () => {
-    try { apply(); render(); }
-    catch (error) { status.dataset.result = "fail"; status.textContent = `FAIL · ${error.message}`; throw error; }
+    try {
+      apply();
+      render();
+    } catch (error) {
+      status.dataset.result = "fail";
+      status.textContent = `FAIL · ${error.message}`;
+      throw error;
+    }
   });
   document.querySelector("#actions").append(button);
 }
 
-try { render(); }
-catch (error) { status.dataset.result = "fail"; status.textContent = `FAIL · ${error.message}`; throw error; }
+try {
+  render();
+} catch (error) {
+  status.dataset.result = "fail";
+  status.textContent = `FAIL · ${error.message}`;
+  throw error;
+}
 
 window.quamolitPlaybackFixture = { render, state, canvas };

@@ -11,10 +11,16 @@ function rectAt(time, model = 40, ready = false, viewport = 100) {
 }
 
 test("声明式组件可乱序采样，且完整输入在同一时间失效", () => {
-  assert.deepEqual([1, 0, 0.5, 0.25, 1].map((time) => rectAt(time).x), [120, 80, 100, 90, 120]);
+  assert.deepEqual(
+    [1, 0, 0.5, 0.25, 1].map((time) => rectAt(time).x),
+    [120, 80, 100, 90, 120],
+  );
   assert.equal(rectAt(0.5).y, 62);
   assert.equal(rectAt(0.5, 41).y, 63);
   assert.equal(rectAt(0.5, 40, true).fill.g, 0.7);
   assert.equal(rectAt(0.5, 40, false, 110).width, 11);
-  assert.deepEqual(JSON.parse(JSON.stringify(toJsData(sceneAt(0.5, 40, false, 100)))), toJsData(sceneAt(0.5, 40, false, 100)));
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(toJsData(sceneAt(0.5, 40, false, 100)))),
+    toJsData(sceneAt(0.5, 40, false, 100)),
+  );
 });

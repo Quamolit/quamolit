@@ -42,19 +42,29 @@ function render() {
 }
 
 for (const button of document.querySelectorAll("#modes button")) {
-  button.addEventListener("click", () => { state.mode = button.dataset.mode; render(); });
+  button.addEventListener("click", () => {
+    state.mode = button.dataset.mode;
+    render();
+  });
 }
 for (const time of [0, 0.0625, 0.125, 0.25, 0.375, 0.5, 0.5625, 0.625, 0.75]) {
   const button = document.createElement("button");
   button.textContent = `${time}s`;
-  button.addEventListener("click", () => { state.time = time; render(); });
+  button.addEventListener("click", () => {
+    state.time = time;
+    render();
+  });
   document.querySelector("#times").append(button);
 }
 
 try {
   for (const [mode, time, alpha] of [
-    ["enter", 0.25, 1], ["enter", 0, 0], ["enter", 0.125, 0.5],
-    ["exit", 0.625, 0.5], ["interrupt", 0.125, 0.5], ["interrupt", 0.25, 0.25],
+    ["enter", 0.25, 1],
+    ["enter", 0, 0],
+    ["enter", 0.125, 0.5],
+    ["exit", 0.625, 0.5],
+    ["interrupt", 0.125, 0.5],
+    ["interrupt", 0.25, 0.25],
   ]) {
     state.mode = mode;
     state.time = time;

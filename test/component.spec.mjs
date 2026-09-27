@@ -6,7 +6,12 @@ test("声明式组件可乱序采样，并响应同时间 Model、资源和视�
   await page.goto("/test/component.html?time=0.5");
   const status = page.locator("#status");
   await expect(status).toContainText("t=0.5s · x=100 · y=62 · width=10 · ready=false · pixel=235,71,153,255");
-  for (const [time, x] of [["1s", 120], ["0s", 80], ["0.25s", 90], ["0.5s", 100]]) {
+  for (const [time, x] of [
+    ["1s", 120],
+    ["0s", 80],
+    ["0.25s", 90],
+    ["0.5s", 100],
+  ]) {
     await page.getByRole("button", { name: time, exact: true }).click();
     await expect(status).toContainText(`x=${x} · y=62`);
   }

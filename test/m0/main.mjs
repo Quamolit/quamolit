@@ -144,7 +144,8 @@ controls.reset.addEventListener("click", () => {
 try {
   const fixture = query.get("fixture") ?? "ui-transition";
   const count = Number(query.get("count") ?? (fixture === "mixed-ui" ? 1_000 : 10_000));
-  if (!FIXTURE_IDS.includes(fixture) || !INSTANCE_COUNTS.includes(count)) throw new RangeError("Invalid fixture or count URL parameter");
+  if (!FIXTURE_IDS.includes(fixture) || !INSTANCE_COUNTS.includes(count))
+    throw new RangeError("Invalid fixture or count URL parameter");
   controls.fixture.value = fixture;
   controls.count.value = String(count);
   makeManifest(query.has("events") ? { events: JSON.parse(query.get("events")) } : {});

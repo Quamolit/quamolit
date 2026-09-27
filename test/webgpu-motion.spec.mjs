@@ -10,12 +10,19 @@ test("硬件 WebGPU 按同一 Vec2 Motion 计划采样 10k 实例且热帧不重
   await expect(gpu).toHaveAttribute("data-kind", /ready|fallback|unavailable|failed/);
   const kind = await gpu.getAttribute("data-kind");
   console.log(`Vec2 GPU adapter: ${await gpu.getAttribute("data-adapter")}, kind=${kind}`);
-  test.skip(kind === "fallback" || kind === "unavailable", `当前 Chromium 无可用硬件 WebGPU：${await gpu.textContent()}`);
+  test.skip(
+    kind === "fallback" || kind === "unavailable",
+    `当前 Chromium 无可用硬件 WebGPU：${await gpu.textContent()}`,
+  );
   await expect(gpu).toHaveAttribute("data-kind", "ready");
-  await expect(gpu).toContainText("t=0.5s · motion=moving-rect@1 · draw=1 · upload=0 · copied=0 · uniform=64 · pipeline=1 · buffers=2 · pixel=234,88,12,255");
+  await expect(gpu).toContainText(
+    "t=0.5s · motion=moving-rect@1 · draw=1 · upload=0 · copied=0 · uniform=64 · pipeline=1 · buffers=2 · pixel=234,88,12,255",
+  );
   for (const time of [1, 0, 0.75, 0.25, 0.5]) {
     await page.getByRole("button", { name: `${time}s`, exact: true }).click();
-    await expect(gpu).toContainText(`t=${time}s · motion=moving-rect@1 · draw=1 · upload=0 · copied=0 · uniform=64 · pipeline=1 · buffers=2`);
+    await expect(gpu).toContainText(
+      `t=${time}s · motion=moving-rect@1 · draw=1 · upload=0 · copied=0 · uniform=64 · pipeline=1 · buffers=2`,
+    );
     await expect(cpu).toContainText(`t=${time}s`);
   }
   for (const time of [0.37, 0.81]) {

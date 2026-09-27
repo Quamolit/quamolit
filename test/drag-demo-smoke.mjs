@@ -22,13 +22,20 @@ test("Calcit 拖动状态保持锚点，非拥有者不能移动或释放", () =
 });
 
 test("滑块沿原 0.2 单位映射，并在 -4 至 40 夹取；Scene 身份稳定", () => {
-  const start = drag.initial(), down = drag.begin_pointer(start, 2, 100, 40);
+  const start = drag.initial(),
+    down = drag.begin_pointer(start, 2, 100, 40);
   assert.equal(to_js_data(drag.move_pointer(down, 2, 150, 40)).value, 20);
   assert.equal(to_js_data(drag.move_pointer(down, 2, 500, 40)).value, 40);
   assert.equal(to_js_data(drag.move_pointer(down, 2, -500, 40)).value, -4);
   const nodes = to_js_data(drag.scene_at(start)).nodes;
-  assert.deepEqual(nodes.map(node => node.id), ["drag-rect", "slider-track", "slider-knob", "slider-label"]);
-  assert.deepEqual(to_js_data(drag.scene_at(drag.move_pointer(down, 2, 150, 40))).nodes.map(node => node.id), nodes.map(node => node.id));
+  assert.deepEqual(
+    nodes.map((node) => node.id),
+    ["drag-rect", "slider-track", "slider-knob", "slider-label"],
+  );
+  assert.deepEqual(
+    to_js_data(drag.scene_at(drag.move_pointer(down, 2, 150, 40))).nodes.map((node) => node.id),
+    nodes.map((node) => node.id),
+  );
   assert.throws(() => drag.hit_at(start, NaN, 0));
   assert.throws(() => drag.begin_pointer(start, -1, 0, 0));
 });

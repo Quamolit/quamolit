@@ -1,5 +1,10 @@
 import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
-import { bound_scene_document_at as boundSceneDocumentAt, draw_reference_scene_at_$x_ as drawReferenceSceneAt, scene_document_at as sceneDocumentAt, scene_delta_at as sceneDeltaAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import {
+  bound_scene_document_at as boundSceneDocumentAt,
+  draw_reference_scene_at_$x_ as drawReferenceSceneAt,
+  scene_document_at as sceneDocumentAt,
+  scene_delta_at as sceneDeltaAt,
+} from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#scene");
 const context = canvas.getContext("2d", { willReadFrequently: true });
@@ -9,14 +14,18 @@ function renderAt(time) {
   if (!Number.isFinite(time)) throw new Error("时间必须有限");
   const wire = toJsData(boundSceneDocumentAt(time));
   const reference = toJsData(sceneDocumentAt(time));
-  if (JSON.stringify(wire.nodes.map((node) => node.content)) !== JSON.stringify(reference.nodes.map((node) => node.content))) {
+  if (
+    JSON.stringify(wire.nodes.map((node) => node.content)) !==
+    JSON.stringify(reference.nodes.map((node) => node.content))
+  ) {
     throw new Error("绑定采样与独立时间参考不一致");
   }
   const delta = toJsData(sceneDeltaAt(0, time));
   if (delta.timeChanged !== undefined) throw new Error("Scene diff 序列化字段错误");
   if (delta["time-changed"] !== (time !== 0)) throw new Error("Scene diff 时间标记错误");
   if (delta.changes.length !== (time === 0 ? 0 : 1)) throw new Error("Scene diff 更新数错误");
-  if (time !== 0 && (delta.changes[0][0] !== "updated" || !delta.changes[0][2].geometry)) throw new Error("Scene diff 几何变更错误");
+  if (time !== 0 && (delta.changes[0][0] !== "updated" || !delta.changes[0][2].geometry))
+    throw new Error("Scene diff 几何变更错误");
   if (wire.nodes.length !== 3) throw new Error("Scene IR 节点数错误");
   const instances = wire.nodes.find((node) => node.content[0] === "instances");
   if (instances.content[1].source.count !== 10000) throw new Error("实例图层计数错误");
@@ -44,7 +53,13 @@ for (const time of [-0.25, 0, 0.25, 0.5, 1]) {
 }
 
 try {
-  for (const [time, x] of [[1, 128], [0, 88], [0.5, 108], [0.25, 98], [1, 128]]) {
+  for (const [time, x] of [
+    [1, 128],
+    [0, 88],
+    [0.5, 108],
+    [0.25, 98],
+    [1, 128],
+  ]) {
     if (renderAt(time).centerX !== x) throw new Error(`乱序场景采样错误：${time}s`);
   }
   renderAt(Number(new URLSearchParams(location.search).get("time") ?? 0.5));

@@ -1,6 +1,7 @@
 /** Deterministic visible test positions; the middle stripe stays free for the version anchor. */
 export function instanceGrid(count, anchorX) {
-  if (!Number.isSafeInteger(count) || count < 1 || !Number.isFinite(anchorX)) throw new RangeError("valid fixture count and anchor required");
+  if (!Number.isSafeInteger(count) || count < 1 || !Number.isFinite(anchorX))
+    throw new RangeError("valid fixture count and anchor required");
   const positions = new Float32Array(count * 2);
   positions[0] = anchorX;
   positions[1] = 50;
