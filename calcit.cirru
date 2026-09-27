@@ -3878,10 +3878,19 @@
             let
                 selected $ = index $ :card model
                 focus $ if selected (card-value model time) 0
-                x $ * (card-x index) (- 1 focus)
-                y $ * (card-y index) (- 1 focus)
-                width $ + 150 $ * 540 focus
-                height $ + 96 $ * 350 focus
+                folder-scale $ &max 0.0001 $ folder-value model time
+                x $ +
+                  *
+                    -
+                      * (:folder model) 170
+                      , 340
+                    - 1 folder-scale
+                  * folder-scale $ * (card-x index) (- 1 focus)
+                y $ +
+                  * -20 $ - 1 folder-scale
+                  * folder-scale $ * (card-y index) (- 1 focus)
+                width $ * folder-scale $ + 150 (* 540 focus)
+                height $ * folder-scale $ + 96 (* 350 focus)
                 alpha $ * (folder-value model time)
                   if selected 1 $ - 1 $ * 0.96 (card-value model time)
                 label $ &list:nth

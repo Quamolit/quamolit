@@ -90,3 +90,26 @@ test("文字使用 Canvas 实际字宽也始终留在缩放卡片内", async ({ 
     if (time === 0.75) await page.screenshot({ path: testInfo.outputPath("finder-card-label-contained.png") });
   }
 });
+
+test("文件夹开合的中间帧不露出内部卡片", async ({ page }, testInfo) => {
+  await ready(page);
+  await page.evaluate(() => window.finderDemo.tour());
+  for (const time of [0.08, 0.2, 0.34, 1.72, 1.88, 2.23, 2.38, 3.78]) {
+    const overflow = await page.evaluate(time => {
+      const { scene, model } = window.finderDemo.seek(time);
+      const folder = scene.nodes.find(node => node.id === `folder-${model.folder}`)?.content[1];
+      if (!folder) return [];
+      return scene.nodes.filter(node => node.id.startsWith(`card-${model.folder}/`) && !node.id.endsWith("/label"))
+        .flatMap(node => {
+          const card = node.content[1];
+          return card.x < folder.x - 1e-7 ||
+            card.x + card.width > folder.x + folder.width + 1e-7 ||
+            card.y < folder.y - 1e-7 ||
+            card.y + card.height > folder.y + folder.height + 1e-7
+            ? [{ id: node.id, time, folder, card }] : [];
+        });
+    }, time);
+    expect(overflow).toEqual([]);
+    if (time === 0.2 || time === 2.38) await page.screenshot({ path: testInfo.outputPath(`finder-folder-contained-${time}.png`) });
+  }
+});
