@@ -1,6 +1,6 @@
-# Tidal Studio：图表 UI 的多组件出入场
+# Metric Flow：图表 UI 的多组件出入场
 
-`/demos/index.html?demo=tidal-bloom&t=5` 在统一页面的全屏 Canvas 中打开；`/examples/tidal-bloom/index.html?t=5` 是独立截图入口。保留 `tidal-bloom` URL ID，避免旧导航失效。
+`/demos/index.html?demo=tidal-bloom&t=5` 在统一页面的全屏 Canvas 中打开；`/examples/tidal-bloom/index.html?t=5` 是独立截图入口。作品现名 Metric Flow；`tidal-bloom` 仅作为历史 URL、源码目录及测试入口保留，避免旧链接失效，后续新增引用请使用作品新名称。
 
 ## 场景与组件
 

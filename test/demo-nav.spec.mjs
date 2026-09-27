@@ -34,6 +34,10 @@ test("恢复清单与艺术作品分类均可打开", async ({ page }) => {
   await page.getByLabel("查找演示").fill("");
   await page.getByLabel("分类", { exact: true }).selectOption("art");
   await expect(page.locator('a[data-demo="examples/tidal-bloom/index.html"]')).toBeVisible();
+  await expect(page.locator('a[data-demo="examples/tidal-bloom/index.html"]')).toHaveAttribute(
+    "aria-label",
+    /Metric Flow/,
+  );
   await expect(page.locator("#art .reserved")).toHaveCount(0);
   await expect(page.locator("#empty")).toBeHidden();
 });

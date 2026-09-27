@@ -22,7 +22,7 @@ test("图表 UI：组件错峰出入场、真实卸载与乱序重放", async ({
   expect((await at(7)).chartBarHeight).toEqual(later.chartBarHeight);
   for (const time of [0, 1.4, 3.7, 5, 7]) {
     await at(time);
-    await page.screenshot({ path: testInfo.outputPath(`tidal-studio-${time}.png`) });
+    await page.screenshot({ path: testInfo.outputPath(`metric-flow-${time}.png`) });
   }
   const painted = await page.locator("canvas").evaluate((canvas) => {
     const pixels = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
@@ -51,7 +51,7 @@ test("全屏与浮层：DPR 2 resize 不推进时间", async ({ browser }, testI
     expect(await page.evaluate(() => document.elementFromPoint(innerWidth / 2, innerHeight / 2).tagName)).toBe(
       "CANVAS",
     );
-    await page.screenshot({ path: testInfo.outputPath("tidal-studio-mobile.png") });
+    await page.screenshot({ path: testInfo.outputPath("metric-flow-mobile.png") });
   } finally {
     await context.close();
   }

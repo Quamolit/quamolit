@@ -17,6 +17,7 @@ test("图表 UI 组件进场、退场和真实增删按绝对时间可乱序重�
   const overlap = frame(4);
   const analytics = frame(7);
   assert.equal(start.nodes.length, 50);
+  assert.equal(content(start, "brand").text, "METRIC / FLOW");
   assert.equal(content(start, "hero-card").fill.a, 0);
   assert.equal(content(overview, "hero-card").fill.a, 1);
   assert.ok(content(overview, "hero-card").width > 356);

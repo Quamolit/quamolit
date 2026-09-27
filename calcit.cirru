@@ -5249,11 +5249,11 @@
               rect-node |board-shadow -242 -257 720 530 $ color 0 0.04 0.07 0.45
               rect-node |board -250 -265 720 530 $ color 0.055 0.135 0.17 0.97
               rect-node |board-accent -250 -265 720 4 $ color 0.35 0.84 0.76 1
-              text-node |brand "|TIDAL / STUDIO" -220 -231 18 $ color 0.89 0.94 0.91 1
+              text-node |brand "|METRIC / FLOW" -220 -231 18 $ color 0.89 0.94 0.91 1
               text-node |edition "|DESIGN MOTION / 2026" 240 -231 11 $ color 0.43 0.76 0.75 1
               rect-node |header-rule -220 -211 660 1 $ color 0.6 0.82 0.8 0.3
               text-node |footer "|DECLARATIVE UI   /   ABSOLUTE TIME" -220 251 11 $ color 0.52 0.72 0.72 1
-              text-node |footer-index "|01  /  03" 352 251 11 $ color 0.52 0.72 0.72 1
+              text-node |footer-index "|TWO VIEWS" 352 251 11 $ color 0.52 0.72 0.72 1
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ []

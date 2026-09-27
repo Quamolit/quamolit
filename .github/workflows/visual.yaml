@@ -215,13 +215,13 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Check Tidal Studio UI component motion and frames
+      - name: Check Metric Flow UI component motion and frames
         if: inputs.mutation != 'color'
         run: yarn test:tidal-bloom
         env:
           CI: "true"
 
-      - name: Upload Tidal Studio fixed-time evidence
+      - name: Upload Metric Flow fixed-time evidence
         if: always() && inputs.mutation != 'color'
         uses: actions/upload-artifact@v4
         with:
