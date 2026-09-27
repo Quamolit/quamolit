@@ -242,6 +242,21 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Check restored Raining fixed-seed frames
+        if: inputs.mutation != 'color'
+        run: yarn test:raining-demo
+        env:
+          CI: "true"
+
+      - name: Upload Raining fixed-tick evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-raining-${{ github.run_id }}
+          path: test-results/raining/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Check restored TodoList lifecycle and Canvas interaction
         if: inputs.mutation != 'color'
         run: yarn test:todolist
