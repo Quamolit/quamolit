@@ -28,10 +28,12 @@ calcit query def app.main/update-plan --raw
 
 页面可在“线性矩形 + 折线”与“双轴 smoothstep”之间切换，后者也可通过 `?motion=dual` 直接进入。双轴声明仍由 Calcit 的 `declare-dual` 创建，同一参数供 `start-dual` / `update-dual` 的 Canvas 参考和 GPU 程序使用。切换声明时重建计划，保留当前显式时间/Model，不在旧声明的相同版本上错误复用结构。
 
-第三个“10k Canvas 实例”模式也可通过 `?motion=instances` 进入。它复用 `app.main/instances-declaration` 和 `draw-instances!`，页面只提供 80 kB 的宿主 `Float32Array` 网格输入，并展示一次 Calcit→Canvas 边界调用、10k 次 Canvas 绘制的实际计数。浏览器门禁检查像素并保存 `instances-10k.png`。可用 `QUAMOLIT_CONSUMER_BENCH=1` 生成独立的静态 Canvas 帧样本；这不是 10k 独立动画或 GPU 验收，时间/Model 按钮在该模式禁用，以免误导。
+第三、第四个模式分别是 10k Canvas 参考与 10k WebGPU 图层，可用 `?motion=instances` / `?motion=instances-gpu` 进入。初始 80 kB 网格输入由页面提供；Calcit 的 `instances-declaration`、`instance-frame-at`、资源表与 `draw-resolved-instances!` / `draw-instances-gpu!` 决定声明、任意时间的一个实例位置、版本与上传。页面只把 Calcit 帧的两个数值装入原生 Float32Array。连续时间变更复制/上传 8 B，同版本重绘上传 0 B；GPU 不可用时页面可见地回退 Canvas。Canvas 仍逐实例调用 10k 次 `fillRect`，GPU 是单次实例 draw。两个模式切换时只保留一个 Canvas 节点。网格为 125×80、2×2 整数无重叠矩形，用于同源精确像素对照；小数重叠的画质差异另见 [#144](https://github.com/Quamolit/quamolit/issues/144)。这不代表 10k 实例各自独立运动。
+
+`QUAMOLIT_CONSUMER_BENCH=1` 另报静态 Canvas 与单脏记录动态 Canvas/GPU 负载；报告不把不同负载混算加速比。正式时长为每路径预热 5 秒、采样 30 秒、独立运行 3 次；短时参数只用于门禁烟测。
 
 从仓库根目录运行 `yarn test:consumer`，或 `QUAMOLIT_CONSUMER_REF=<已推送 SHA 或 tag> yarn test:consumer`。完整流程与验收边界见 [独立消费检验](../../docs/isolated-consumer.md)。该命令会新建系统临时目录，联网安装、编译并搬移可达产物；成功/失败都保留临时目录供排查，路径写入报告。模块缓存可以复用，不声称验证冷缓存下载性能。
 
 GPU 消费使用同一个 `declare` 的两个矩形：`start-rects` → `prepare-gpu`，成功分支得到参数程序，调用 `create-gpu!` / `install-gpu!` 后，热帧只调用 `draw-gpu! host program time`，不逐帧 CPU 采样。程序必须与 host 当前安装的程序一致；同时间输入变化由 `update-rects` 和 `gpu-reusable?` 判断，不可复用时重新准备和安装；结束调用 `dispose-gpu!`。这些应用函数只导入 Quamolit Calcit 模块，宿主片段在编译时内嵌，没有额外 JS 文件供使用者手动导入。
 
-现有页面仍展示完整混合 Canvas 场景，不因 GPU 支持范围删除折线。门禁额外验证矩形 GPU 子集和完整混合场景的明确回退；浏览器硬件专项无非软件 adapter 时标记 SKIP。独立消费者尚不含进入/退出/重排、真实资源表释放、完整调度器或硬件性能验收，不能据此关闭 #104 或 M2。
+现有页面仍展示完整混合 Canvas 场景，不因 GPU 支持范围删除折线。门禁额外验证矩形 GPU 子集、10k 动态实例 GPU 和完整混合场景的明确回退；浏览器硬件专项无非软件 adapter 时标记 SKIP。实例表验证 100 次变更只保留一个公开版本，GPU 图层卸载由公共 API 完成；完整 Presence 到 GPU buffer 的生命周期、device loss 恢复、10k 独立运动和跨设备性能尚未验收，不能据此关闭 #104 或 M2。

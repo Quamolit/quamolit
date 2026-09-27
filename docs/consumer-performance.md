@@ -12,9 +12,9 @@ QUAMOLIT_BENCH_POWER='填写实际供电状态' yarn bench:consumer
 QUAMOLIT_BENCH_WARMUP=0.2 QUAMOLIT_BENCH_DURATION=0.6 QUAMOLIT_BENCH_RUNS=1 yarn bench:consumer
 ```
 
-默认每条路径预热 5 秒、采样 30 秒、独立上下文运行 3 次，轮换路径顺序。先运行独立安装/编译/搬移及正确性门禁，再测搬移后的 `app.main`；没有加载仓库内部 JS 渲染器或 sampler。Calcit 消费者增加 CPU 批次的公共调用，所有声明、动画采样、失效与批次语义仍来自 Calcit。
+默认每条路径预热 5 秒、采样 30 秒、独立浏览器进程运行 3 次，轮换两矩形路径顺序。每次关闭进程以隔离 GPU device 与渲染器生命周期；上一版连续复用 Chromium 进程的正式长测曾在中途出现页面提前关闭，不能把未完成样本算入正式报告。先运行独立安装/编译/搬移及正确性门禁，再测搬移后的 `app.main`；没有加载仓库内部 JS 渲染器或 sampler。Calcit 消费者增加 CPU 批次的公共调用，所有声明、动画采样、失效与批次语义仍来自 Calcit。
 
-CI 在原有 `test:consumer` 步骤设置 `QUAMOLIT_CONSUMER_BENCH=1` 和短时参数，验证 Canvas 链路、格式和计数，以及独立的静态 10k Canvas 实例负载；无硬件的两条 GPU 路径明确 SKIP。桌面 `bench:consumer` 设置 REQUIRE_GPU，SKIP 会失败。`yarn test:bench` 检验配置与异常上传、热帧分配、未释放资源、结构重建等负例。
+CI 在原有 `test:consumer` 步骤设置 `QUAMOLIT_CONSUMER_BENCH=1` 和短时参数，验证 Canvas 链路、格式和计数，以及独立的静态 10k Canvas、单脏记录动态 10k Canvas/GPU 负载；无硬件的 GPU 路径明确 SKIP。桌面 `bench:consumer` 设置 REQUIRE_GPU，SKIP 会失败。`yarn test:bench` 检验配置与异常上传、热帧分配、未释放资源、结构重建等负例。
 
 ## 同源输入与比较边界
 
@@ -38,10 +38,12 @@ GPU 通过原生 device/queue 方法包装测实际调用量，热帧禁止新�
 - `cpuFrameMs`：从计划更新开始到绘制调用返回的完整 CPU 区间；不含浏览器内部 GPU 执行/呈现，也不包含测试记录样本的对象分配。rAF 间隔另报，不与 CPU 区间相加。
 - GPU timestamp、真实输入到显示延迟、Calcit/JS 每帧分配暂不可用；Canvas 实际上传量为 null，不假报 0。GPU live buffer 释放后必须回到 0。
 
-本协议采用当前 verification.md 的正式时长与分位数要求，仍不等于目标性能通过；刷新率校准只是 rAF 代理。独立消费者页面增加静态 10k Canvas instances 可视及像素门禁，基准报告以 `instances` 独立段和 `bench-canvas-instances-<run>.json` 记录逐帧 CPU 耗时、rAF、校验和、实例/字节计数；不与两矩形三路径作吞吐倍数比较。下一步补 10k 动画源、GPU、资源/输入变更、纯打包/编码阶段与同环境基线回归比较。当前不自动计算不同硬件、不同尺寸或不同负载的加速比。
+本协议采用当前 verification.md 的正式时长与分位数要求，仍不等于目标性能通过；刷新率校准只是 rAF 代理。`instances` 独立段继续记录静态 10k Canvas；`dynamicInstances` 段和 `bench-<canvas|gpu>-instances-dynamic-<run>.json` 记录同源 10k 单脏记录负载的 `sampleMs`、`patchMs`、`drawBoundaryMs`、完整 CPU 帧、rAF、每帧复制/上传字节、draw 次数、live 版本与终点校验和。GPU 冷帧 80 kB、热帧 8 B，Canvas 每帧重绘 10k；测量期间不读回 GPU，终点提交后立即捕获，避免浏览器呈现纹理轮换造成空帧。网格使用 125×80、2×2 整数无重叠矩形；小数重叠的栅格化差异另见 [#144](https://github.com/Quamolit/quamolit/issues/144)。不同负载不混算加速倍数；这不是 10k 个独立动画，也不证明设备恢复、输入到显示延迟或 GPU 执行时间。
 
 ## 本轮实际验证
 
 Calcit/runtime 0.22、Node 24、Chromium 153 / Apple Metal-3：三条路径的 0.2 秒预热、0.6 秒采样烟测均通过，并通过固定帧跨后端校验和、上传量和资源释放断言。headless CI 配置的 Canvas 烟测通过，GPU 明确 SKIP；8 项 `test:bench` 通过。
 
-首次正式长测完成第一轮 Canvas 与 CPU→GPU 后，测试浏览器提前关闭，第三条路径中断；原因未确认，没有生成有效的完整三轮基线，不引用部分 p95 作性能结论。中断后补了 RUNNING/PASS/FAIL 状态和关闭/崩溃诊断，测试确保新一轮失败不会遗留旧 PASS 报告。后续 0.2 秒预热、0.6 秒采样的 10k 静态 Canvas 烟测通过，约 36 帧、CPU p95 约 1.4ms；这是一次短时本机样本，不是正式性能结论。完整正式基线、10k 动态/GPU 负载、目标刷新率及吞吐仍未验收。
+首次正式长测完成第一轮 Canvas 与 CPU→GPU 后，测试浏览器提前关闭；下一次复用同一 Chromium 进程的正式长测在第二轮再次发生页面关闭。原因未确认，两个不完整报告均标 FAIL，不引用部分 p95。改为每条路径独立浏览器进程后，3 轮短时回归及正式长测全部通过。
+
+2026-09-27 正式报告：macOS arm64 / Apple M1 Pro、Chromium 153.0.8010.12、Calcit 0.24.3、非软件 `apple / metal-3`、DPR=1、320×180、供电状态 `unknown`；每路径预热 5 秒、采样 30 秒、独立运行 3 次，18 份逐帧原始样本，`formalDuration=true`。动态 10k 单脏记录的 CPU 完整帧 p95 三轮中位数：Canvas 1.5 ms，WebGPU 0.7 ms；rAF 间隔 p95 中位数分别 17.6/18.3 ms。两后端三轮终点 checksum 均为 `2349720069`，硬件画面专项四帧全图 RGBA 零差异。GPU 每个测量帧上传 8 B 位置（另有 64 B uniform），一层一次 draw，Canvas 每帧 10k 次 `fillRect`。这些是该夹具的 CPU 调用边界数据；未知供电、320×180、只有一个实例运动、无 GPU timestamp/显示延迟，不宣称达到 M2 的 10k 独立动画 60 FPS 目标，也不据此关闭 #38/#40/#51。

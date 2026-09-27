@@ -10,6 +10,10 @@
   :files $ {} $ 'app.main
     %{} 'FileEntry
       :defs $ {}
+        'InstanceFrame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct InstanceFrame (:index 'Number) (:x 'Number) (:y 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
         'browser-available? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn browser-available? () (browser/document-available?)
           :examples $ []
@@ -32,6 +36,19 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'JsObject)
             :args $ [] 'JsObject 'js-ffi.webgpu/DeviceHost 'String 'Number
+            :features $ #{} :js-ffi
+        'create-instances-gpu! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create-instances-gpu! (canvas device format)
+            js-await $ webgpu/create! canvas device format 10000
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.webgpu-batches/RectBatchHost)
+            :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String
+            :features $ #{} :js-ffi
+        'create-instances-table! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create-instances-table! () (resource/create-table!)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ []
             :features $ #{} :js-ffi
         'declare $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare (props model input ready viewport)
@@ -112,6 +129,12 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject
             :features $ #{} :js-ffi
+        'dispose-instances-gpu! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn dispose-instances-gpu! (batch) (webgpu/dispose! batch)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost
+            :features $ #{} :js-ffi
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context plan) (platform/clear-canvas! context 320 180) (retained/draw-plan! context plan)
           :examples $ []
@@ -130,6 +153,21 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject
+        'draw-instances-gpu! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-instances-gpu! (previous batch table version)
+            instance-gpu/draw-source! previous batch table $ instances-for-version version
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.instance-gpu/SourceDraw)
+            :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'JsObject 'Number
+        'draw-resolved-instances! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-resolved-instances! (context table version)
+            let
+                node $ instances-for-version version
+              canvas/draw-instances! context node $ resource/resolve table $ :source node
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject 'Number
+            :features $ #{} :js-ffi
         'gpu-reusable? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-reusable? (program plan) (gpu/reusable? program plan)
           :examples $ []
@@ -141,22 +179,67 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarProgram
             :features $ #{} :js-ffi
+        'instance-frame-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-frame-at (time)
+            InstanceFrame :index 5050 :x
+              * 108 $ - 1 time
+              , :y $ * 90 $ - 1 time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'app.main/InstanceFrame)
+            :args $ [] 'Number
         'instances-declaration $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn instances-declaration ()
-            scene/InstanceNode :source (scene/InstanceSource :id |consumer-particles :version 1 :count 10000) :width 3 :height 3 :fill $ motion/ColorRgba :r 0.917 :g 0.345 :b 0.047 :a 1
+            scene/InstanceNode :source (scene/InstanceSource :id |consumer-particles :version 1 :count 10000) :width 2 :height 2 :fill $ motion/ColorRgba :r 0.917 :g 0.345 :b 0.047 :a 1
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/InstanceNode)
             :args $ []
+        'instances-for-version $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instances-for-version (version)
+            scene/InstanceNode :source (scene/InstanceSource :id |consumer-particles :version version :count 10000) :width 2 :height 2 :fill $ motion/ColorRgba :r 0.917 :g 0.345 :b 0.047 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/InstanceNode)
+            :args $ [] 'Number
+        'instances-live-count $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instances-live-count (table) (resource/live-count table)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'JsObject
+            :features $ #{} :js-ffi
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
+        'patch-instances! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn patch-instances! (table previous version frame positions)
+            resource/register-patch! table
+              :source $ instances-for-version version
+              , previous (:index frame) positions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'JsObject 'Number 'Number 'app.main/InstanceFrame 'js-ffi.typed-arrays/Float32ArrayHost
+            :features $ #{} :js-ffi
         'prepare-gpu $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn prepare-gpu (plan) (gpu/prepare-program plan)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
             :args $ [] 'quamolit.retained-component/ComponentPlan
+        'register-instances! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn register-instances! (table positions)
+            resource/register! table
+              :source $ instances-for-version 1
+              , positions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'JsObject
+            :features $ #{} :js-ffi
+        'release-instances! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-instances! (table version)
+            resource/release! table $ :source $ instances-for-version version
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'JsObject 'Number
+            :features $ #{} :js-ffi
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () &unit
           :examples $ []
@@ -221,4 +304,4 @@
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.main
-          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas)
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu)

@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import os from "node:os";
+import { chromium } from "@playwright/test";
 import { percentile, median } from "./m0/bench-metrics.mjs";
-import { measureConsumerFrames, measureConsumerInstancesFrames } from "./consumer-bench-browser.mjs";
+import { measureConsumerFrames, measureConsumerInstancesFrames, measureConsumerDynamicInstancesFrames } from "./consumer-bench-browser.mjs";
 
 export function consumerBenchOptions(env = process.env) {
   const options = { warmupSeconds: Number(env.QUAMOLIT_BENCH_WARMUP ?? 5), durationSeconds: Number(env.QUAMOLIT_BENCH_DURATION ?? 30), runs: Number(env.QUAMOLIT_BENCH_RUNS ?? 3) };
@@ -50,14 +51,61 @@ export function summarizeConsumerRun(run) {
     checksum: run.checksum, adapter: run.adapter, coldCounters: run.coldCounters, beforeDispose: run.beforeDispose, afterDispose: run.afterDispose };
 }
 
-async function runConsumerBenchImpl(browser, url, artifacts, identity, env) {
-  const options = consumerBenchOptions(env), summaries = [], skipped = [], rawFiles = [], instanceSummaries = [];
+export function summarizeDynamicInstanceRun(run) {
+  assert.equal(run.result, "PASS");
+  assert.deepEqual(run.errors, []);
+  assert.deepEqual(run.pixelSize, [320, 180]);
+  assert.equal(run.devicePixelRatio, 1);
+  assert.equal(run.sourceCount, 10000);
+  assert.equal(run.inputBytes, 80000);
+  assert.equal(run.liveBeforeDispose, 1);
+  assert.equal(run.cold.uploadBytes, run.backend === "gpu-instances-dynamic" ? 80000 : null);
+  const samples = run.measure.samples;
+  assert.ok(samples.length >= 2);
+  for (const sample of samples) {
+    for (const key of ["cpuFrameMs", "sampleMs", "patchMs", "drawBoundaryMs"]) {
+      assert.ok(Number.isFinite(sample[key]) && sample[key] >= 0, key);
+    }
+    assert.equal(sample.copiedBytes, 8, "每个动态时间帧只复制一个实例");
+    assert.equal(sample.uploadBytes, run.backend === "gpu-instances-dynamic" ? 8 : null, "GPU 只上传脏区");
+    assert.equal(sample.drawCalls, run.backend === "gpu-instances-dynamic" ? 1 : 10000);
+    assert.equal(sample.live, 1, "长期运行只公开保留当前版本");
+    if (sample.rafIntervalMs !== null) assert.ok(Number.isFinite(sample.rafIntervalMs) && sample.rafIntervalMs > 0);
+  }
+  const metrics = Object.fromEntries(["cpuFrameMs", "sampleMs", "patchMs", "drawBoundaryMs", "rafIntervalMs"].map(key => {
+    const values = samples.map(sample => sample[key]).filter(value => value !== null);
+    return [key, { p50: percentile(values, 0.5), p95: percentile(values, 0.95), p99: percentile(values, 0.99) }];
+  }));
+  return { backend: run.backend, frames: samples.length, firstDrawMs: run.firstDrawMs, idleRafMedianMs: run.idleRafMedianMs,
+    metrics, checksum: run.checksum, adapter: run.adapter,
+    totals: { copiedBytes: samples.reduce((sum, sample) => sum + sample.copiedBytes, 0),
+      uploadBytes: run.backend === "gpu-instances-dynamic" ? samples.reduce((sum, sample) => sum + sample.uploadBytes, 0) : null } };
+}
+
+async function runConsumerBenchImpl(browser, url, artifacts, identity, env, launchBrowser) {
+  const options = consumerBenchOptions(env), summaries = [], skipped = [], rawFiles = [], instanceSummaries = [], dynamicSummaries = [];
   const backends = ["canvas", "gpu-cpu", "gpu-scalar"];
+  // 长测连续复用同一 Chromium 进程时，第二轮曾出现页面被浏览器提前关闭。
+  // 每个独立运行使用新的浏览器进程，同时隔离 WebGPU device 与渲染器生命周期。
+  async function openRun() {
+    const isolatedBrowser = await launchBrowser({ headless: env.QUAMOLIT_CONSUMER_HEADED !== "1" });
+    try {
+      const context = await isolatedBrowser.newContext({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 1 });
+      return { isolatedBrowser, context };
+    } catch (error) {
+      await isolatedBrowser.close();
+      throw error;
+    }
+  }
+  async function closeRun(run) {
+    await run.context.close();
+    await run.isolatedBrowser.close();
+  }
   for (let index = 0; index < options.runs; index++) {
     // 轮换后端次序，避免把固定排序/温度效应当作方案差异。
     const order = [...backends.slice(index % 3), ...backends.slice(0, index % 3)];
     for (const backend of order) {
-      const context = await browser.newContext({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 1 });
+      const isolated = await openRun(), { context } = isolated;
       try {
         const page = await context.newPage(), errors = [];
         page.on("crash", () => console.error(`consumer bench: renderer crashed (${backend}, run ${index + 1})`));
@@ -70,7 +118,7 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env) {
           run = await page.evaluate(measureConsumerFrames, { ...options, backend });
         } catch (error) {
           await writeFile(join(artifacts, "bench-report.json"), JSON.stringify({ schema: "quamolit.consumer-bench.v1", result: "FAIL",
-            ...identity, options, rawFiles, completed: summaries, interrupted: { backend, run: index + 1, browserConnected: browser.isConnected(), pageClosed: page.isClosed() }, error: error.stack }, null, 2));
+            ...identity, options, rawFiles, completed: summaries, interrupted: { backend, run: index + 1, browserConnected: isolated.isolatedBrowser.isConnected(), pageClosed: page.isClosed() }, error: error.stack }, null, 2));
           throw error;
         }
         assert.deepEqual(errors, []);
@@ -83,9 +131,9 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env) {
         await writeFile(join(artifacts, filename), JSON.stringify({ identity, options, run }, null, 2));
         rawFiles.push(filename); summaries.push({ run: index + 1, ...summary });
         console.log(`consumer bench ${backend} ${index + 1}/${options.runs}: ${summary.frames} frames, CPU p95 ${summary.metrics.cpuFrameMs.p95.toFixed(3)} ms`);
-      } finally { await context.close(); }
+      } finally { await closeRun(isolated); }
     }
-    const instanceContext = await browser.newContext({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 1 });
+    const staticRun = await openRun(), instanceContext = staticRun.context;
     try {
       const page = await instanceContext.newPage(), errors = [];
       page.on("pageerror", error => errors.push(error.message));
@@ -114,11 +162,40 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env) {
       await writeFile(join(artifacts, filename), JSON.stringify({ identity, options, run }, null, 2));
       rawFiles.push(filename); instanceSummaries.push(summary);
       console.log(`consumer bench canvas-instances ${index + 1}/${options.runs}: ${summary.frames} frames, CPU p95 ${summary.cpuFrameMs.p95.toFixed(3)} ms`);
-    } finally { await instanceContext.close(); }
+    } finally { await closeRun(staticRun); }
+    for (const backend of ["canvas-instances-dynamic", "gpu-instances-dynamic"]) {
+      const isolated = await openRun(), { context } = isolated;
+      try {
+        const page = await context.newPage(), errors = [];
+        page.on("pageerror", error => errors.push(error.message));
+        await page.goto(`${url}?fixture=1&motion=instances`);
+        await page.waitForFunction(() => window.consumer?.snapshot().mode === "instances");
+        await page.bringToFront();
+        const run = await page.evaluate(measureConsumerDynamicInstancesFrames, { ...options, backend });
+        assert.deepEqual(errors, []);
+        if (run.result === "SKIP") {
+          skipped.push({ run: index + 1, ...run });
+          if (env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") throw Error(`required GPU instances benchmark skipped: ${JSON.stringify(run)}`);
+          continue;
+        }
+        const summary = summarizeDynamicInstanceRun(run);
+        const filename = `bench-${backend}-${index + 1}.json`;
+        await writeFile(join(artifacts, filename), JSON.stringify({ identity, options, run }, null, 2));
+        rawFiles.push(filename); dynamicSummaries.push({ run: index + 1, ...summary });
+        console.log(`consumer bench ${backend} ${index + 1}/${options.runs}: ${summary.frames} frames, CPU p95 ${summary.metrics.cpuFrameMs.p95.toFixed(3)} ms`);
+      } finally { await closeRun(isolated); }
+    }
   }
   assert.ok(summaries.length > 0);
   assert.equal(new Set(summaries.map(s => s.checksum)).size, 1, "跨运行/跨后端的固定时间画面必须完全相同");
   assert.equal(new Set(instanceSummaries.map(s => s.checksum)).size, 1, "静态 10k 实例跨运行画面必须完全相同");
+  for (const backend of ["canvas-instances-dynamic", "gpu-instances-dynamic"]) {
+    assert.equal(new Set(dynamicSummaries.filter(summary => summary.backend === backend).map(summary => summary.checksum)).size,
+      dynamicSummaries.some(summary => summary.backend === backend) ? 1 : 0, `${backend} 跨运行画面必须相同`);
+  }
+  if (dynamicSummaries.some(summary => summary.backend === "gpu-instances-dynamic")) {
+    assert.equal(new Set(dynamicSummaries.map(summary => summary.checksum)).size, 1, "像素对齐动态实例在 Canvas/GPU 间的终点画面必须一致");
+  }
   const aggregates = Object.fromEntries(backends.map(backend => {
     const runs = summaries.filter(s => s.backend === backend);
     return [backend, runs.length ? { runs: runs.length, cpuP95MedianMs: median(runs.map(s => s.metrics.cpuFrameMs.p95)),
@@ -129,6 +206,14 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env) {
       summaries: instanceSummaries, cpuP95MedianMs: median(instanceSummaries.map(s => s.cpuFrameMs.p95)),
       rafP95MedianMs: median(instanceSummaries.map(s => s.rafIntervalMs.p95)),
       limitations: ["静态宿主网格输入，不代表 10k 独立动画", "10k Canvas fillRect，不等同 GPU instances", "只与自身同环境历史报告比较，不与两图元负载比较吞吐倍数"] },
+    dynamicInstances: { workload: "10k-instances-one-dirty-record-per-frame", sourceCount: 10000, inputBytes: 80000,
+      summaries: dynamicSummaries, backends: Object.fromEntries(["canvas-instances-dynamic", "gpu-instances-dynamic"].map(backend => {
+        const runs = dynamicSummaries.filter(summary => summary.backend === backend);
+        return [backend, runs.length ? { runs: runs.length,
+          cpuP95MedianMs: median(runs.map(summary => summary.metrics.cpuFrameMs.p95)),
+          rafP95MedianMs: median(runs.map(summary => summary.metrics.rafIntervalMs.p95)) } : null];
+      })),
+      limitations: ["每帧只有一个实例运动，不代表 10k 独立动画", "Canvas 每帧重绘 10k，GPU 每帧提交一层并上传 8 B 位置与 64 B uniform", "跨设备/尺寸及小数重叠栅格化另验收 #144"] },
     formalDuration: options.warmupSeconds >= 5 && options.durationSeconds >= 30 && options.runs >= 3,
     environment: { browser: browser.version(), node: process.version, os: `${os.platform()} ${os.release()} ${os.arch()}`, cpu: os.cpus()[0]?.model,
       power: env.QUAMOLIT_BENCH_POWER || "unknown", dpr: 1, pixelSize: [320, 180], fixture: "Calcit consumer dual smoothstep", nodes: 2, animatedNodes: 1,
@@ -136,16 +221,16 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env) {
       input: "t=abs((frameIndex%120)/60-1), model=40, ready=false, viewport=100", resourceState: "no textures/fonts" },
     unavailable: { gpuTimestampMs: "未启用，queue.submit CPU 时间不是 GPU 执行时间", inputToVisibleMs: "rAF 仅呈现节奏代理", allocationsPerFrame: "未测 Calcit/JS 分配；GPU 对象创建单独计数",
       packingMs: "drawBoundary 合并 Calcit 验证/打包/编码；queueWrite/queueSubmit 是其子区间，不能再次相加", canvasUploadBytes: "Canvas API 不暴露上传量" },
-    limitations: ["三路径对比仍只有 2 个图元，不能外推 1k/10k/100k 吞吐；10k Canvas 静态负载另报", "正式时长不等于硬件目标通过；需核对供电、设备、画质、显示刷新率", "输入延迟、资源恢复、10k 动态源和 GPU instances 待验收", "每帧测量/queue 包装本身有开销，小负载受时钟精度影响"] };
+    limitations: ["三路径对比仍只有 2 个图元，不能外推 1k/10k/100k 吞吐；10k 静态与单脏记录动态负载分别报告", "正式时长不等于硬件目标通过；需核对供电、设备、画质、显示刷新率", "输入延迟、资源恢复与 10k 独立运动待验收", "每帧测量本身有开销；GPU drawBoundary/queue.submit CPU 时间不是 GPU 执行时间"] };
   await writeFile(join(artifacts, "bench-report.json"), JSON.stringify(report, null, 2));
   return { schema: report.schema, formalDuration: report.formalDuration, aggregates, skipped, report: "bench-report.json" };
 }
 
-export async function runConsumerBench(browser, url, artifacts, identity, env = process.env) {
+export async function runConsumerBench(browser, url, artifacts, identity, env = process.env, launchBrowser = options => chromium.launch(options)) {
   const path = join(artifacts, "bench-report.json");
   await writeFile(path, JSON.stringify({ schema: "quamolit.consumer-bench.v1", result: "RUNNING", ...identity }, null, 2));
   try {
-    return await runConsumerBenchImpl(browser, url, artifacts, identity, env);
+    return await runConsumerBenchImpl(browser, url, artifacts, identity, env, launchBrowser);
   } catch (error) {
     const previous = JSON.parse(await readFile(path, "utf8"));
     await writeFile(path, JSON.stringify({ ...previous, result: "FAIL", error: error.stack }, null, 2));

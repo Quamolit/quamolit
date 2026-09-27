@@ -10,7 +10,7 @@ import { chromium } from "@playwright/test";
 import { verifyConsumer } from "./consumer-contract.mjs";
 import { verifyInstancesConsumer } from "./consumer-instances-contract.mjs";
 import { verifyGpuConsumer, verifyDualGpuConsumer } from "./consumer-gpu-contract.mjs";
-import { verifyGpuConsumerBrowser } from "./consumer-gpu-browser.mjs";
+import { verifyGpuConsumerBrowser, verifyGpuInstancesConsumerBrowser } from "./consumer-gpu-browser.mjs";
 import { runConsumerBench } from "./consumer-bench.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -148,33 +148,53 @@ try {
   await page.click('[data-mode="instances"]');
   const instancePage = await page.evaluate(() => window.consumer.snapshot());
   assert.equal(instancePage.mode, "instances");
-  assert.deepEqual(instancePage.source, { count: 10000, positionBytes: 80000 });
+  assert.deepEqual(instancePage.source, { count: 10000, positionBytes: 80000, version: 2, copiedBytes: 8, live: 1 });
   assert.deepEqual(instancePage.metrics, { "boundary-calls": 1, "canvas-calls": 10000, instances: 10000, "position-bytes-read": 80000 });
-  assert.equal(await page.locator('[data-time="0.5"]').isDisabled(), true);
+  assert.equal(await page.locator('[data-time="0.5"]').isDisabled(), false);
+  await page.click('[data-time="1"]');
+  const movedInstance = await page.evaluate(() => window.consumer.snapshot());
+  assert.equal(movedInstance.source.version, 3);
+  assert.equal(movedInstance.source.copiedBytes, 8);
+  assert.equal(movedInstance.source.live, 1);
   const instancePixels = await page.evaluate(() => {
     const context = document.querySelector("canvas").getContext("2d");
-    return [context.getImageData(6, 6, 1, 1).data[3], context.getImageData(319, 179, 1, 1).data[3]];
+    return [context.getImageData(1, 1, 1, 1).data[3], context.getImageData(9, 11, 1, 1).data[3], context.getImageData(319, 179, 1, 1).data[3]];
   });
-  assert.deepEqual(instancePixels, [255, 0], "10k 公共实例入口必须真正绘制画面");
+  assert.deepEqual(instancePixels, [255, 255, 0], "10k 公共实例源更新必须真正改变可见画面");
   await page.screenshot({ path: join(artifacts, "instances-10k.png"), fullPage: true });
-  await page.click('[data-mode="mixed"]');
+  const visibleGpu = await page.evaluate(() => window.consumer.setMode("instances-gpu"));
+  assert.equal(await page.locator("canvas").count(), 1, "后端切换后仍是一整页的单一 Canvas 舞台");
+  if (visibleGpu.mode === "instances-gpu") {
+    assert.equal(visibleGpu.metrics["upload-bytes"], 80000);
+    const changedGpu = await page.evaluate(() => window.consumer.set({ time: 0 }));
+    assert.equal(changedGpu.metrics["upload-bytes"], 8);
+    assert.equal(changedGpu.source.live, 1);
+    await page.screenshot({ path: join(artifacts, "instances-10k-gpu.png"), fullPage: true });
+  } else {
+    assert.equal(visibleGpu.mode, "instances");
+    assert.notEqual(await page.locator("#gpu-note").textContent(), "", "GPU 不可用时应可见地回退 Canvas");
+  }
+  await page.evaluate(() => window.consumer.setMode("mixed"));
+  assert.equal(await page.locator("canvas").count(), 1);
   const gpuBrowser = await verifyGpuConsumerBrowser(page, artifacts);
   const gpuDualBrowser = await verifyGpuConsumerBrowser(page, artifacts, true);
+  const gpuInstancesBrowser = await verifyGpuInstancesConsumerBrowser(page, artifacts);
   if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") {
     assert.equal(gpuBrowser.result, "PASS", `要求真实 GPU，但专项未运行：${JSON.stringify(gpuBrowser)}`);
     assert.equal(gpuDualBrowser.result, "PASS", `要求双轴真实 GPU，但专项未运行：${JSON.stringify(gpuDualBrowser)}`);
+    assert.equal(gpuInstancesBrowser.result, "PASS", `要求 10k 实例真实 GPU，但专项未运行：${JSON.stringify(gpuInstancesBrowser)}`);
   }
   assert.deepEqual(errors, []);
   assert.ok(requests.every(url => !/test\/host|quamolit\.test|js-ffi-assets|source-retired/.test(url)));
   const benchmark = process.env.QUAMOLIT_CONSUMER_BENCH === "1"
     ? await runConsumerBench(browser, url, artifacts, { candidate, harness, calcit: run("calcit", ["-v"], runtime).trim() }) : null;
-  const report = { result: "PASS", candidate, harness, temporary, resolvedModule, modules: [...modules].sort(), counts, instancesCounts, gpuCounts, gpuDualCounts, gpuBrowser, gpuDualBrowser, benchmark,
+  const report = { result: "PASS", candidate, harness, temporary, resolvedModule, modules: [...modules].sort(), counts, instancesCounts, gpuCounts, gpuDualCounts, gpuBrowser, gpuDualBrowser, gpuInstancesBrowser, benchmark,
     negativeControl: ["停止 CPU 时间采样被断言检出", "停止 GPU uniform 写入被断言检出", "停止双轴 CPU 参考更新被断言检出", "伪造实例计数被断言检出"],
     browser: await browser.version(), node: process.version, calcit: run("calcit", ["-v"], runtime).trim(),
     times: [1, 0, 0.5, 0.25, 1], sameTimeInvalidations: ["model", "resources", "viewport"], requests,
-    limitations: ["GPU 硬件结果独立见 gpuBrowser；设备 mock 不是硬件证据", "尚未验证逻辑生命周期集成、真实资源表释放与端到端性能", "模块缓存可复用；消费者目录和运行产物目录独立", "尚未验证仅 JS 片段修改后的显式重编译", "10k 静态实例已接入 Canvas 页面、像素检查与独立短时帧基准；动态源和 GPU 尚未验收"] };
+    limitations: ["GPU 硬件结果独立见 gpuBrowser/gpuInstancesBrowser；设备 mock 不是硬件证据", "尚未验证逻辑生命周期集成、device loss 恢复与动态实例端到端性能", "模块缓存可复用；消费者目录和运行产物目录独立", "尚未验证仅 JS 片段修改后的显式重编译"] };
   await writeFile(join(artifacts, "report.json"), JSON.stringify(report, null, 2));
-  console.log(JSON.stringify({ result: "PASS", candidate, counts, instancesCounts, gpuCounts, gpuBrowser, gpuDualBrowser, modules: modules.size, artifacts, runtime }, null, 2));
+  console.log(JSON.stringify({ result: "PASS", candidate, counts, instancesCounts, gpuCounts, gpuBrowser, gpuDualBrowser, gpuInstancesBrowser, modules: modules.size, artifacts, runtime }, null, 2));
 } catch (error) {
   await writeFile(join(artifacts, "report.json"), JSON.stringify({ result: "FAIL", candidate, temporary, error: error.stack }, null, 2));
   if (page) await page.screenshot({ path: join(artifacts, "failure.png"), fullPage: true }).catch(() => {});
