@@ -1,6 +1,7 @@
 // 页面只管理时钟/视口/DOM；旋转与 32 段顶点都在 Calcit。
 import { curve_points, draw_$x_, scene_at } from "../../target/js/curve/quamolit.examples.curve.mjs";
 import { to_js_data } from "../../target/js/curve/calcit.core.mjs";
+export function mountDemo() {
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), slider = document.querySelector("#time");
 const play = document.querySelector("#play"), panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
@@ -63,7 +64,7 @@ toggle.onclick = () => {
   toggle.setAttribute("aria-expanded", String(!panel.hidden));
   toggle.textContent = panel.hidden ? "展开面板" : "收起面板";
 };
-new ResizeObserver(draw).observe(canvas);
+const observer = new ResizeObserver(draw); observer.observe(canvas);
 let resolution;
 function watchDpr() {
   resolution?.removeEventListener("change", watchDpr);
@@ -71,7 +72,12 @@ function watchDpr() {
   resolution.addEventListener("change", watchDpr); draw();
 }
 watchDpr();
-document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
-window.addEventListener("pagehide", stop);
-window.curveDemo = { seek, snapshot, pause: stop, play: start };
+const listeners = new AbortController();
+document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); }, { signal: listeners.signal });
+window.addEventListener("pagehide", stop, { signal: listeners.signal });
+const api = { seek, snapshot, pause: stop, play: start };
+window.curveDemo = api;
 if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) start();
+return () => { stop(); listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.curveDemo === api) delete window.curveDemo; };
+}
+if (location.pathname.endsWith("/examples/curve/index.html")) mountDemo();

@@ -2,6 +2,7 @@
 import { initial, toggle, fold_value, slices_at, draw_$x_ } from "../../target/js/folding-fan/quamolit.examples.folding-fan.mjs";
 import { image_create, image_src_$x_, image_decode_$x_, image_natural_width, image_natural_height } from "../../target/js/folding-fan/js-ffi.browser.mjs";
 import { to_js_data } from "../../target/js/folding-fan/calcit.core.mjs";
+export function mountDemo() {
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), message = document.querySelector("#message"), slider = document.querySelector("#time");
 const play = document.querySelector("#play"), panel = document.querySelector("#panel"), panelToggle = document.querySelector("#panel-toggle");
@@ -69,7 +70,7 @@ panelToggle.onclick = () => {
   panel.hidden = !panel.hidden; panelToggle.setAttribute("aria-expanded", String(!panel.hidden));
   panelToggle.textContent = panel.hidden ? "展开面板" : "收起面板";
 };
-new ResizeObserver(draw).observe(canvas);
+const observer = new ResizeObserver(draw); observer.observe(canvas);
 let resolution;
 function watchDpr() {
   resolution?.removeEventListener("change", watchDpr);
@@ -77,9 +78,13 @@ function watchDpr() {
   resolution.addEventListener("change", watchDpr); draw();
 }
 watchDpr();
-document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
-window.addEventListener("pagehide", stop);
-window.foldingFanDemo = { seek, reset, clickToggle, snapshot, pause: stop, play: start };
+const listeners = new AbortController();
+document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); }, { signal: listeners.signal });
+window.addEventListener("pagehide", stop, { signal: listeners.signal });
+const api = { seek, reset, clickToggle, snapshot, pause: stop, play: start };
+window.foldingFanDemo = api;
+let disposed = false;
+async function loadImage() {
 const source = params.get("image") === "missing" ? new URL("./missing-lotus.jpg", import.meta.url) : new URL("../../assets/lotus.jpg", import.meta.url);
 image = image_create();
 image_src_$x_(image, source.href);
@@ -89,8 +94,14 @@ try {
   if (image_natural_width(image) !== 650 || image_natural_height(image) !== 432) throw new Error("荷花图片尺寸与 650 × 432 切片依据不符");
   resource = "ready";
 } catch (cause) { resource = "error"; error = `图片加载失败：${cause.message || cause}`; }
+if (disposed) return;
 if (resource === "loading") { resource = "error"; error = "图片加载失败：解码未完成"; }
 draw();
 if (resource === "ready" && !params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
   clickToggle(0); start(0.36);
 }
+}
+void loadImage();
+return () => { disposed = true; stop(); listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.foldingFanDemo === api) delete window.foldingFanDemo; };
+}
+if (location.pathname.endsWith("/examples/folding-fan/index.html")) mountDemo();

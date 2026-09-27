@@ -80,8 +80,16 @@ for (const entry of catalog.entries) {
     // 这个门禁验证入口与完整 Canvas 回退，不把 CI 软件 GPU 当作硬件验收。
     await page.addInitScript(() => Object.defineProperty(navigator, "gpu", { value: undefined, configurable: true }));
     await page.goto("demos/index.html");
+    if (entry.group === "originals") await page.evaluate(() => { window.__shellIdentity = crypto.randomUUID(); });
     await page.locator(`a[data-demo="${entry.path}"]`).click();
-    await expect(page).toHaveURL(new RegExp(`/preview/${entry.path.replaceAll(".", "\\.")}$`));
+    if (entry.group === "originals") {
+      await expect(page).toHaveURL(new RegExp(`/preview/demos/index\\.html\\?demo=${entry.id}$`));
+      await expect(page.locator("#app")).toHaveAttribute("data-view", "demo");
+      expect(await page.evaluate(() => window.__shellIdentity)).toBeTruthy();
+      await expect(page.locator("#scene")).toHaveCount(1);
+    } else {
+      await expect(page).toHaveURL(new RegExp(`/preview/${entry.path.replaceAll(".", "\\.")}$`));
+    }
     if (entry.path === "examples/retained-consumer/index.html") {
       await page.waitForFunction(() => window.consumer?.snapshot().browser);
     } else if (entry.path === "test/m0/index.html") {
@@ -92,9 +100,49 @@ for (const entry of catalog.entries) {
     await expect(page.locator("canvas").first()).toBeAttached();
     expect(errors).toEqual([]);
     await testInfo.attach("entry", { body: JSON.stringify({ ...entry, url: page.url(), browser: page.context().browser().version(), gpu: "forced-unavailable; fallback only", errors }, null, 2), contentType: "application/json" });
-    await page.getByRole("navigation", { name: "演示导航" }).getByRole("link").click();
+    if (entry.group === "originals") {
+      await page.getByRole("navigation", { name: "演示导航" }).getByRole("button", { name: /所有演示/ }).click();
+      await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+      expect(await page.evaluate(() => window.__shellIdentity)).toBeTruthy();
+    } else {
+      await page.getByRole("navigation", { name: "演示导航" }).getByRole("link").click();
+    }
     await page.getByLabel("分类", { exact: true }).selectOption("");
     await expect(page.locator("a[data-demo]")).toHaveCount(catalog.entries.length);
     expect(errors).toEqual([]);
   });
 }
+
+test("统一页面支持前后切换、历史记录和浮层卸载", async ({ page }) => {
+  await page.goto("demos/index.html?demo=curve&t=30");
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "demo");
+  expect(await page.evaluate(() => window.curveDemo.snapshot().time)).toBe(30);
+  await page.getByRole("button", { name: "下一个演示" }).click();
+  await expect(page.locator("#demo-title")).toContainText("Solar");
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  expect(await page.evaluate(() => ({ old: "curveDemo" in window, next: "solarDemo" in window, canvases: document.querySelectorAll("canvas").length }))).toEqual({ old: false, next: true, canvases: 1 });
+  await page.goBack();
+  await expect(page.locator("#demo-title")).toContainText("Curve");
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  await page.getByRole("button", { name: /所有演示/ }).click();
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+  expect(await page.evaluate(() => "curveDemo" in window)).toBe(false);
+});
+
+test("11 个原有动画复用一块全屏 Canvas，缩减动态效果时不等待淡入", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("demos/index.html?demo=folding-fan&t=0");
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  await page.locator("#scene").evaluate(canvas => { canvas.dataset.persistent = "yes"; });
+  await expect(page.locator("#scene")).toHaveCSS("position", "fixed");
+  for (const entry of catalog.entries.filter(item => item.group === "originals").slice(1)) {
+    await page.getByRole("button", { name: "下一个演示" }).click();
+    await expect(page).toHaveURL(new RegExp(`demo=${entry.id}$`));
+    await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+    await expect(page.locator("#scene")).toHaveAttribute("data-persistent", "yes");
+    await expect(page.locator("#scene")).toHaveCSS("transition-duration", "0s");
+  }
+  expect(await page.locator("canvas").count()).toBe(1);
+  expect(await page.locator("#scene").boundingBox()).toEqual({ x: 0, y: 0, width: 1280, height: 900 });
+});

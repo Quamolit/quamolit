@@ -3,6 +3,7 @@ import { scene_at, start_component, update_component } from "../../target/js/bin
 import { sample_plan_at, draw_plan_$x_ } from "../../target/js/binary-tree/quamolit.retained-component.mjs";
 import { draw_reference_$x_ } from "../../target/js/binary-tree/quamolit.canvas-reference.mjs";
 import { to_js_data, init_tags } from "../../target/js/binary-tree/calcit.core.mjs";
+export function mountDemo() {
 const tags = init_tags(["scene", "transforms", "transform-samples"]);
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), slider = document.querySelector("#time");
@@ -77,7 +78,7 @@ document.querySelector("#share").onclick = async () => {
   history.replaceState(null, "", url);
   try { await navigator.clipboard.writeText(url.href); } catch { /* URL 已更新，仍可手动复制。 */ }
 };
-new ResizeObserver(draw).observe(canvas);
+const observer = new ResizeObserver(draw); observer.observe(canvas);
 let resolution;
 function watchDpr() {
   resolution?.removeEventListener("change", watchDpr);
@@ -85,8 +86,13 @@ function watchDpr() {
   resolution.addEventListener("change", watchDpr); draw();
 }
 watchDpr();
-document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
-window.addEventListener("pagehide", stop);
-window.treeDemo = { seek, snapshot, pause: stop, play: start };
+const listeners = new AbortController();
+document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); }, { signal: listeners.signal });
+window.addEventListener("pagehide", stop, { signal: listeners.signal });
+const api = { seek, snapshot, pause: stop, play: start };
+window.treeDemo = api;
 // 显式链接时间和 reduced-motion 均默认暂停，便于分享/截图。
 if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) start();
+return () => { stop(); listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.treeDemo === api) delete window.treeDemo; };
+}
+if (location.pathname.endsWith("/examples/binary-tree/index.html")) mountDemo();

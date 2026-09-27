@@ -3,28 +3,42 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Quamolit · 演示导航</title>
+  <title>Quamolit · 动画实验室</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <header>
-    <span class="eyebrow">QUAMOLIT / 动画实验室</span>
-    <h1>从声明到中间帧，<br>把每一步都打开看看。</h1>
-    <p>原有动画将逐项恢复，艺术作品将持续扩充。动画使用全屏 Canvas，导航和控件置于 DOM 浮层；现有技术夹具单独保留。待恢复条目不是可运行演示。</p>
-    <div class="links"><a href="https://github.com/Quamolit/quamolit/blob/main/docs/roadmap.md">技术路线</a><a href="https://github.com/Quamolit/quamolit/milestones">Milestones</a><a href="https://github.com/Quamolit/quamolit/blob/main/docs/verification.md">检验规则</a></div>
-  </header>
-  <main>
-    <aside><strong>建议从这里开始</strong> 公共保留组件 → 独立消费者 → 目标打断与生命周期。GPU 实验会报告实际后端；回退成功不等于真实 GPU 验收。</aside>
-    <div class="filters">
-      <label>查找演示 <input id="search" type="search" placeholder="例如：重入、时间、GPU" autocomplete="off"></label>
-      <label>分类 <select id="group" aria-label="分类"><option value="">全部分类</option></select></label>
-      <output id="count" aria-live="polite"></output>
-    </div>
-    <div id="gallery"></div>
-    <p id="empty" hidden>没有匹配的演示。试试清空筛选。</p>
-    <noscript>此导航需要 JavaScript。也可查看仓库 demos/catalog.json 中的完整页面清单。</noscript>
-  </main>
-  <footer>本地运行 <code>yarn demo</code> · 静态构建 <code>yarn release:demos</code> · 新演示必须登记并通过导航门禁。</footer>
+  <canvas id="scene" aria-label="当前动画画布"></canvas>
+  <div id="app" data-view="gallery" data-transition="idle">
+    <main id="gallery-view" aria-label="演示画廊">
+      <header>
+        <span class="eyebrow">QUAMOLIT / 动画实验室</span>
+        <h1>从声明到中间帧，<br>把每一步都打开看看。</h1>
+        <p>原有动画在这一页的全屏 Canvas 中切换；控制和说明随当前演示作为 DOM 浮层更新。技术夹具保留独立检验入口。</p>
+        <div class="links"><a href="https://github.com/Quamolit/quamolit/blob/main/docs/roadmap.md">技术路线</a><a href="https://github.com/Quamolit/quamolit/milestones">Milestones</a><a href="https://github.com/Quamolit/quamolit/blob/main/docs/verification.md">检验规则</a></div>
+      </header>
+      <div class="gallery-content">
+        <aside class="gallery-note"><strong>建议从这里开始</strong> 原有动画可直接切换；公共组件、GPU 和生命周期夹具保留独立检验页。</aside>
+        <div class="filters">
+          <label>查找演示 <input id="search" type="search" placeholder="例如：折扇、时间、GPU" autocomplete="off"></label>
+          <label>分类 <select id="group" aria-label="分类"><option value="">全部分类</option></select></label>
+          <output id="count" aria-live="polite"></output>
+        </div>
+        <div id="gallery"></div>
+        <p id="empty" hidden>没有匹配的演示。试试清空筛选。</p>
+        <footer>本地运行 <code>yarn demo</code> · 静态构建 <code>yarn release:demos</code> · 新演示必须登记并通过导航门禁。</footer>
+      </div>
+    </main>
+    <section id="demo-view" aria-label="当前演示" inert>
+      <nav class="demo-nav" aria-label="演示导航">
+        <button id="back-to-gallery" type="button">☷ 所有演示</button>
+        <span id="demo-title"></span>
+        <button id="previous-demo" type="button" aria-label="上一个演示">←</button>
+        <button id="next-demo" type="button" aria-label="下一个演示">→</button>
+      </nav>
+      <div id="demo-content"></div>
+    </section>
+  </div>
+  <noscript>此导航需要 JavaScript。完整页面清单见仓库 demos/catalog.json。</noscript>
   <script type="module" src="./main.mjs"></script>
 </body>
 </html>

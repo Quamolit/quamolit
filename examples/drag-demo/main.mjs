@@ -1,6 +1,7 @@
 // 页面管理原生指针捕获、DPR 和 DOM；Model、命中和 Scene 更新均交给 Calcit。
 import * as drag from "../../target/js/drag-demo/quamolit.examples.drag-demo.mjs";
 import { to_js_data } from "../../target/js/drag-demo/calcit.core.mjs";
+export function mountDemo() {
 const canvas = document.querySelector("#scene"), context = canvas.getContext("2d");
 const panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
 const status = document.querySelector("#status"), message = document.querySelector("#message");
@@ -32,19 +33,20 @@ function finish(pointer) {
   draw(); return snapshot();
 }
 function safely(action) { try { message.textContent = ""; return action(); } catch (error) { message.textContent = error.message; } }
+const listeners = new AbortController();
 canvas.addEventListener("pointerdown", event => safely(() => {
   if (captured !== null) return;
   const point = logical(event), next = drag.begin_pointer(model, event.pointerId, point.x, point.y);
   if (to_js_data(next).pointer !== event.pointerId) return;
   model = next; captured = event.pointerId; canvas.setPointerCapture(captured); draw(); event.preventDefault();
-}));
+}), { signal: listeners.signal });
 canvas.addEventListener("pointermove", event => safely(() => {
   if (captured !== event.pointerId) return;
   const point = logical(event); model = drag.move_pointer(model, event.pointerId, point.x, point.y); draw(); event.preventDefault();
-}));
-for (const kind of ["pointerup", "pointercancel", "lostpointercapture"]) canvas.addEventListener(kind, event => safely(() => finish(event.pointerId)));
-window.addEventListener("blur", () => { if (captured !== null) finish(captured); });
-window.addEventListener("pagehide", () => { if (captured !== null) finish(captured); });
+}), { signal: listeners.signal });
+for (const kind of ["pointerup", "pointercancel", "lostpointercapture"]) canvas.addEventListener(kind, event => safely(() => finish(event.pointerId)), { signal: listeners.signal });
+window.addEventListener("blur", () => { if (captured !== null) finish(captured); }, { signal: listeners.signal });
+window.addEventListener("pagehide", () => { if (captured !== null) finish(captured); }, { signal: listeners.signal });
 function reset() { if (captured !== null) finish(captured); model = drag.initial(); draw(); return snapshot(); }
 function preset() {
   reset(); model = drag.begin_pointer(model, 1, 8, -4); model = drag.move_pointer(model, 1, 230, 115); model = drag.end_pointer(model, 1);
@@ -55,8 +57,12 @@ document.querySelector("#reset").onclick = () => safely(reset);
 document.querySelector("#preset").onclick = () => safely(preset);
 toggle.onclick = () => { panel.hidden = !panel.hidden; toggle.setAttribute("aria-expanded", String(!panel.hidden)); toggle.textContent = panel.hidden ? "展开面板" : "收起面板"; draw(); };
 if (innerWidth < 600) { panel.hidden = true; toggle.setAttribute("aria-expanded", "false"); toggle.textContent = "展开面板"; }
-new ResizeObserver(draw).observe(canvas);
+const observer = new ResizeObserver(draw); observer.observe(canvas);
 let resolution;
 function watchDpr() { resolution?.removeEventListener("change", watchDpr); resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`); resolution.addEventListener("change", watchDpr); draw(); }
 watchDpr();
-window.dragDemo = { snapshot, reset, preset, draw };
+const api = { snapshot, reset, preset, draw };
+window.dragDemo = api;
+return () => { if (captured !== null) finish(captured); listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.dragDemo === api) delete window.dragDemo; };
+}
+if (location.pathname.endsWith("/examples/drag-demo/index.html")) mountDemo();
