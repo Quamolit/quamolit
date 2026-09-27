@@ -6,7 +6,7 @@
     },
     {
       "id": "art",
-      "title": "艺术动画 · 生成图案"
+      "title": "艺术动画 · UI 与动态构图"
     },
     {
       "id": "public",
@@ -34,10 +34,10 @@
     {
       "id": "tidal-bloom",
       "path": "examples/tidal-bloom/index.html",
-      "title": "Tidal Bloom · 潮汐花纹",
+      "title": "Tidal Studio · 图表工作台",
       "group": "art",
-      "summary": "29 层谐波花环交错呼吸；Calcit 声明每条曲线及颜色，显式时间可拖动、乱序截图与分享。",
-      "status": "艺术作品 · Canvas",
+      "summary": "Calcit 声明两屏图表 UI；概览组件错峰退出并卸载，KPI、趋势图和渠道分项依次加入。",
+      "status": "图表 UI 出入场 · Canvas",
       "docs": "docs/tidal-bloom.md",
       "compile": "compile:tidal-bloom"
     },

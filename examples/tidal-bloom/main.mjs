@@ -1,4 +1,4 @@
-// 页面只负责时钟、画布和浮层；花纹的每个点、颜色和 Scene 节点都来自 Calcit。
+// 页面只负责时钟、画布和浮层；UI 组件、布局及渐变帧都来自 Calcit。
 import { draw_$x_, scene_at } from "../../target/js/tidal-bloom/quamolit.examples.tidal-bloom.mjs";
 import { to_js_data } from "../../target/js/tidal-bloom/calcit.core.mjs";
 
@@ -12,7 +12,7 @@ export function mountDemo() {
   const status = document.querySelector("#status");
   const params = new URLSearchParams(location.search);
   const initial = Number(params.get("t") ?? 0);
-  let time = Number.isFinite(initial) && initial >= 0 && initial <= 120 ? initial : 0;
+  let time = Number.isFinite(initial) && initial >= 0 && initial <= 8 ? initial : 0;
   let playing = false;
   let frame = null;
   let anchor = 0;
@@ -30,18 +30,20 @@ export function mountDemo() {
     }
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, width, height);
-    const scale = Math.min(width / 790, height / 790);
-    context.setTransform(scale, 0, 0, scale, width / 2, height / 2);
+    const scale = Math.min(width / 1000, height / 700);
+    // 桌面右置以避开控制浮层；窄屏居中整个工作台。
+    const centerX = width / 2 - (bounds.width < 680 ? 110 * scale : 0);
+    context.setTransform(scale, 0, 0, scale, centerX, height / 2);
     draw_$x_(context, time);
     paints++;
     slider.value = String(time);
-    status.textContent = `t = ${time.toFixed(2)} s · 29 层 Calcit 曲线 · 绘制 ${paints}`;
+    status.textContent = `t = ${time.toFixed(2)} s · ${time < 3.55 ? "概览" : time < 4.16 ? "视图切换" : "图表分析"} · 绘制 ${paints}`;
     status.dataset.result = "pass";
   }
 
   function sample(value) {
-    if (!Number.isFinite(value) || value < 0 || value > 120) {
-      throw new RangeError("动画时间必须在 0–120 秒内");
+    if (!Number.isFinite(value) || value < 0 || value > 8) {
+      throw new RangeError("动画时间必须在 0–8 秒内");
     }
     time = value;
     draw();
@@ -57,14 +59,14 @@ export function mountDemo() {
   function tick(now) {
     if (!playing) return;
     const next = anchor + Math.max(0, now - started) / 1000;
-    sample(Math.min(120, next));
-    if (next >= 120) stop();
+    sample(Math.min(8, next));
+    if (next >= 8) stop();
     else frame = requestAnimationFrame(tick);
   }
 
   function play() {
     if (playing) return;
-    if (time >= 120) sample(0);
+    if (time >= 8) sample(0);
     anchor = time;
     started = performance.now();
     playing = true;
@@ -80,9 +82,22 @@ export function mountDemo() {
 
   function snapshot() {
     const scene = to_js_data(scene_at(time));
-    return { time, playing, paints, width: canvas.width, height: canvas.height,
-      ringCount: scene.nodes.length, firstPoint: scene.nodes[0].content[1].points[0],
-      lastPoint: scene.nodes.at(-1).content[1].points.at(-1) };
+    const node = (id) => scene.nodes.find((entry) => entry.id === id);
+    return {
+      time,
+      playing,
+      paints,
+      width: canvas.width,
+      height: canvas.height,
+      nodeCount: scene.nodes.length,
+      heroWidth: node("hero-card")?.content[1].width ?? null,
+      queueX: node("queue-card")?.content[1].x ?? null,
+      progressWidth: node("hero-progress")?.content[1].width ?? null,
+      completionAlpha: node("hero-done")?.content[1].fill.a ?? null,
+      overviewVisible: Boolean(node("hero-card")),
+      analyticsVisible: Boolean(node("kpi-a-card")),
+      chartBarHeight: node("bar-value-11")?.content[1].height ?? null,
+    };
   }
 
   playButton.onclick = () => playing ? stop() : play();
