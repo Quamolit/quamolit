@@ -33,6 +33,8 @@
     "test:table-demo": "calcit analyze check-public --ns quamolit.examples.table && yarn compile:table && node --test test/table-smoke.mjs && playwright test --config test/table.playwright.config.mjs",
     "compile:drag-demo": "calcit --emit-path target/js/drag-demo/ --init-fn quamolit.examples.drag-demo/main! --reload-fn quamolit.examples.drag-demo/reload! calcit.cirru js",
     "test:drag-demo": "calcit analyze check-public --ns quamolit.examples.drag-demo && yarn compile:drag-demo && node --test test/drag-demo-smoke.mjs && playwright test --config test/drag-demo.playwright.config.mjs",
+    "compile:folding-fan": "calcit --emit-path target/js/folding-fan/ --init-fn quamolit.examples.folding-fan/main! --reload-fn quamolit.examples.folding-fan/reload! calcit.cirru js",
+    "test:folding-fan": "calcit analyze check-public --ns quamolit.examples.folding-fan && yarn compile:folding-fan && node --test test/folding-fan-smoke.mjs && playwright test --config test/folding-fan.playwright.config.mjs",
     "test:binary-tree": "calcit analyze check-public --ns quamolit.scene-ir --ns quamolit.scene-diff --ns quamolit.scene-binding --ns quamolit.presence --ns quamolit.canvas-reference --ns quamolit.canvas-strokes --ns quamolit.retained-path --ns quamolit.examples.binary-tree && calcit test quamolit.examples.binary-tree/frame-at --require-match && calcit test --tag retained-path --require-match && yarn compile:binary-tree && node --test test/binary-tree-smoke.mjs test/scene-polyline-smoke.mjs test/retained-path-smoke.mjs",
     "compile:demos": "node scripts/prepare-demos.mjs",
     "demo": "yarn compile:demos && vite --host 127.0.0.1 --open /demos/index.html",

@@ -23,14 +23,14 @@ test("导航分类、搜索、刷新与移动端可用", async ({ page }, testIn
   await page.screenshot({ path: testInfo.outputPath("gallery-mobile.png") });
 });
 
-test("恢复清单可搜索但不能假装打开，艺术分类有空状态", async ({ page }) => {
+test("恢复清单均可打开，艺术分类仍有空状态", async ({ page }) => {
   await page.goto("demos/index.html?group=originals");
-  await expect(page.locator("[data-planned]")).toHaveCount(catalog.planned.length);
+  await expect(page.locator("[data-planned]")).toHaveCount(0);
   await expect(page.locator("a[data-demo]")).toHaveCount(catalog.entries.filter(e => e.group === "originals").length);
   await page.getByLabel("查找演示").fill("折扇");
-  await expect(page.locator("[data-planned]")).toHaveCount(1);
+  await expect(page.locator('a[data-demo="examples/folding-fan/index.html"]')).toHaveCount(1);
   await page.reload();
-  await expect(page.locator("[data-planned=folding-fan]")).toBeVisible();
+  await expect(page.locator('a[data-demo="examples/folding-fan/index.html"]')).toBeVisible();
   await page.getByLabel("查找演示").fill("");
   await page.getByLabel("分类", { exact: true }).selectOption("art");
   await expect(page.locator("#art .reserved")).toContainText("尚无已交付作品");

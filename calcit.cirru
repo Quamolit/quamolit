@@ -4072,6 +4072,114 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.finder
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.folding-fan $ %{} 'FileEntry
+      :defs $ {}
+        'FanModel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct FanModel (:folded 'Bool) (:motion 'quamolit.transition/TransitionIntent) (:at 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'FanSlice $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct FanSlice (:index 'Number) (:source-x 'Number) (:source-width 'Number) (:angle 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context image model time)
+            each (slices-at model time)
+              fn (segment) (draw-slice! context image segment)
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.browser/ImageHost 'quamolit.examples.folding-fan/FanModel 'Number
+            :features $ #{} :js-ffi
+        'draw-image-crop! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-image-crop!
+            context image sx sy sw sh dx dy dw dh
+            , &unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(c,i,sx,sy,sw,sh,dx,dy,dw,dh)=>{c.drawImage(i,sx,sy,sw,sh,dx,dy,dw,dh);}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'JsObject 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number
+            :features $ #{} :js-ffi
+        'draw-slice! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-slice! (context image segment)
+            let
+                angle $ :angle segment
+                c $ cos angle
+                s $ sin angle
+              context .save!
+              context .transform! c s (- 0 s) c 0 0
+              draw-image-crop! (unsafe-coerce context 'JsObject) (unsafe-coerce image 'JsObject) (:source-x segment) 0 (:source-width segment) 432
+                - 0 $ / 650 48
+                , -432 (/ 650 24) 432
+              context .restore!
+              , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.browser/ImageHost 'quamolit.examples.folding-fan/FanSlice
+            :features $ #{} :js-ffi
+        'empty-slices $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-slices () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.examples.folding-fan/FanSlice
+        'fold-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn fold-value (model time)
+            transition/sample-transition (:motion model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.folding-fan/FanModel 'Number
+        'initial $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial ()
+            FanModel :folded false :motion
+              transition/start-transition |fold 0 0 0 0.36 $ motion/Easing :smoothstep
+              , :at 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.folding-fan/FanModel)
+            :args $ []
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'slices-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn slices-at (model time)
+            slices-from 0 (fold-value model time) (empty-slices)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.examples.folding-fan/FanModel 'Number
+            :return $ :: 'List 'quamolit.examples.folding-fan/FanSlice
+        'slices-from $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn slices-from (index progress acc)
+            if (>= index 24) acc $ recur (inc index) progress $ conj acc
+              FanSlice :index index :source-x
+                * index $ / 650 24
+                , :source-width (/ 650 24) :angle $ * (/ &PI 180) 6 progress $ - (+ index 0.5) 12
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number $ :: 'List 'quamolit.examples.folding-fan/FanSlice
+            :return $ :: 'List 'quamolit.examples.folding-fan/FanSlice
+        'toggle $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn toggle (model at)
+            assert |retroactive-fan-event $ >= at $ :at model
+            let
+                folded $ not $ :folded model
+                target $ if folded 1 0
+              struct-with model (:folded folded)
+                :motion $ transition/interrupt-transition (:motion model) target at 0.36 $ motion/Easing :smoothstep
+                :at at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.folding-fan/FanModel)
+            :args $ [] 'quamolit.examples.folding-fan/FanModel 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.folding-fan
+          :require (quamolit.transition :as transition) (quamolit.motion :as motion)
     'quamolit.examples.icons $ %{} 'FileEntry
       :defs $ {}
         'IconModel $ %{} 'CodeEntry (:doc |)

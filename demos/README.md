@@ -1,10 +1,10 @@
 # 演示导航与阶段成果入口
 
-恢复进度：原有 11 项中，10 项已有可运行 Canvas 切片，包括 [Binary Tree](../docs/binary-tree-restoration.md)、[TodoList](../docs/todolist-restoration.md)、[Clock](../docs/clock-restoration.md)、[Curve](../docs/curve-restoration.md)、[Solar](../docs/solar-restoration.md)、[Icons](../docs/icons-restoration.md)、[Raining](../docs/raining-restoration.md)、[Finder](../docs/finder-restoration.md)、[Table](../docs/table-restoration.md) 与 [Drag demo](../docs/drag-demo-restoration.md)。其余 Folding Fan 待恢复；GPU 集成待补。优先从“原有动画”进入实际动画。
+恢复进度：原有 11 项均已有可运行 Canvas 切片，包括 [Binary Tree](../docs/binary-tree-restoration.md)、[TodoList](../docs/todolist-restoration.md)、[Clock](../docs/clock-restoration.md)、[Curve](../docs/curve-restoration.md)、[Solar](../docs/solar-restoration.md)、[Icons](../docs/icons-restoration.md)、[Raining](../docs/raining-restoration.md)、[Finder](../docs/finder-restoration.md)、[Table](../docs/table-restoration.md)、[Drag demo](../docs/drag-demo-restoration.md) 与 [Folding Fan](../docs/folding-fan-restoration.md)。完整功能矩阵和 GPU 集成待补；优先从“原有动画”进入实际动画。
 
 统一入口为 `/demos/index.html`。页面清单由 `catalog.json` 管理，分为原有动画、公共 Calcit 路径、Motion/时间、组件/生命周期、实例/WebGPU 和参考/验证工具。可以搜索、分类筛选，筛选条件保存在 URL，刷新可复现。
 
-原有 11 项始终保留完整清单，其中 1 项尚无运行入口，艺术动画分类也尚无作品；待实现项不计入现有入口。详见[恢复验收与全屏约定](../docs/demo-restoration.md)。独立消费者默认展示全屏 Canvas 与可收起 DOM 浮层；`?fixture=1` 用于原固定像素诊断。Gallery 本身是作品目录，不需要背景画布；动画页面需要完整视口的舞台。
+原有 11 项始终保留完整清单，目前均有运行入口；艺术动画分类尚无作品。未来待实现项不计入现有入口。详见[恢复验收与全屏约定](../docs/demo-restoration.md)。独立消费者默认展示全屏 Canvas 与可收起 DOM 浮层；`?fixture=1` 用于原固定像素诊断。Gallery 本身是作品目录，不需要背景画布；动画页面需要完整视口的舞台。
 
 ```sh
 # 需要 Calcit 0.22.0、Node 24、caps 与 Yarn 4.12.0
