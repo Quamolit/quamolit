@@ -1,6 +1,13 @@
 import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
-import { gpu_translation_plan as gpuTranslationPlan, sample_vec2_at as sampleVec2At, scene_document_at as sceneDocumentAt } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
-import { frame_at as gpuTranslationFrameAt, require_ready as requireGpuTranslation } from "../target/js/motion/quamolit.gpu-vec2-translation.mjs";
+import {
+  gpu_translation_plan as gpuTranslationPlan,
+  sample_vec2_at as sampleVec2At,
+  scene_document_at as sceneDocumentAt,
+} from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import {
+  frame_at as gpuTranslationFrameAt,
+  require_ready as requireGpuTranslation,
+} from "../target/js/motion/quamolit.gpu-vec2-translation.mjs";
 import { InstanceSourceRegistry } from "./host/instance-sources.mjs";
 import { CanvasInstanceBatches } from "./host/canvas-instance-batches.mjs";
 import { WebGpuInstanceBatches } from "./host/webgpu-instance-batches.mjs";
@@ -81,8 +88,10 @@ async function renderAt(time) {
   currentTime = time;
   const sampled = toJsData(sampleVec2At(time));
   const translation = toJsData(gpuTranslationFrameAt(motionPlan, time));
-  const progress = translation.duration === 0 ? Number(time >= translation.start)
-    : Math.min(Math.max((time - translation.start) / translation.duration, 0), 1);
+  const progress =
+    translation.duration === 0
+      ? Number(time >= translation.start)
+      : Math.min(Math.max((time - translation.start) / translation.duration, 0), 1);
   const expectedX = translation.from.x + (translation.to.x - translation.from.x) * progress;
   const expectedY = translation.from.y + (translation.to.y - translation.from.y) * progress;
   if (Math.abs(sampled.x - expectedX) > 1e-12 || Math.abs(sampled.y - expectedY) > 1e-12) {
@@ -152,11 +161,23 @@ document.querySelector("#disable-gpu").addEventListener("click", () => {
   void scheduleRender(currentTime).catch(reportError);
 });
 document.querySelector("#retry-gpu").addEventListener("click", () => {
-  void (async () => { await openGpu(); await scheduleRender(currentTime); })().catch(reportError);
+  void (async () => {
+    await openGpu();
+    await scheduleRender(currentTime);
+  })().catch(reportError);
 });
-window.addEventListener("pagehide", () => { closeGpu("页面关闭"); registry.release(source.source); }, { once: true });
+window.addEventListener(
+  "pagehide",
+  () => {
+    closeGpu("页面关闭");
+    registry.release(source.source);
+  },
+  { once: true },
+);
 try {
   await openGpu();
   for (const time of [1, 0, 0.75, 0.25, 0.5]) await scheduleRender(time);
   await scheduleRender(initialTime);
-} catch (error) { reportError(error); }
+} catch (error) {
+  reportError(error);
+}

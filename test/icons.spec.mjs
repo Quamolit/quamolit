@@ -9,7 +9,7 @@ test("两组图标：连续点击打断、固定时间截图及乱序重采样",
   await ready(page);
   const start = await page.evaluate(() => window.iconsDemo.snapshot());
   expect(start.scene.nodes).toHaveLength(8);
-  expect(start.scene.nodes.slice(-2).map(node => node.content[0])).toEqual(["polygon", "polygon"]);
+  expect(start.scene.nodes.slice(-2).map((node) => node.content[0])).toEqual(["polygon", "polygon"]);
   await page.locator("#increase").click();
   const once = await page.evaluate(() => window.iconsDemo.seek(0.1));
   const twice = await page.evaluate(() => window.iconsDemo.clickIncrease(0.1));
@@ -37,13 +37,17 @@ test("全屏 DPR 2：暂停 resize 不推进 Model，浮层可收起", async ({ 
     await ready(page, 1);
     const original = await page.evaluate(() => window.iconsDemo.snapshot());
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect.poll(() => page.locator("canvas").evaluate(canvas => [canvas.width, canvas.height])).toEqual([780, 1688]);
+    await expect
+      .poll(() => page.locator("canvas").evaluate((canvas) => [canvas.width, canvas.height]))
+      .toEqual([780, 1688]);
     const after = await page.evaluate(() => window.iconsDemo.snapshot());
     expect(after.time).toBe(original.time);
     expect(after.model).toEqual(original.model);
     await page.locator("#panel-toggle").click();
     await expect(page.locator("#panel")).toBeHidden();
-    expect(await page.evaluate(() => document.elementFromPoint(innerWidth / 2, innerHeight / 2).tagName)).toBe("CANVAS");
+    expect(await page.evaluate(() => document.elementFromPoint(innerWidth / 2, innerHeight / 2).tagName)).toBe(
+      "CANVAS",
+    );
     await page.screenshot({ path: testInfo.outputPath("icons-390-dpr2.png") });
   } finally {
     await context.close();

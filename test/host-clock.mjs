@@ -28,22 +28,63 @@ function render() {
 }
 
 const actions = [
-  ["暂停 @10.5", () => { state.clock = pauseClock(state.clock, 10.5); state.hostTime = 20; }],
-  ["恢复 @20", () => { state.clock = resumeClock(state.clock, 20); state.hostTime = 20.25; }],
-  ["加速 2× @20.25", () => { state.clock = setClockSpeed(state.clock, 20.25, 2); state.hostTime = 20.35; }],
-  ["倒放 -1× @20.35", () => { state.clock = setClockSpeed(state.clock, 20.35, -1); state.hostTime = 20.6; }],
-  ["seek→0.2 @20.6", () => { state.clock = seekClock(state.clock, 20.6, 0.2); state.hostTime = 20.6; }],
+  [
+    "暂停 @10.5",
+    () => {
+      state.clock = pauseClock(state.clock, 10.5);
+      state.hostTime = 20;
+    },
+  ],
+  [
+    "恢复 @20",
+    () => {
+      state.clock = resumeClock(state.clock, 20);
+      state.hostTime = 20.25;
+    },
+  ],
+  [
+    "加速 2× @20.25",
+    () => {
+      state.clock = setClockSpeed(state.clock, 20.25, 2);
+      state.hostTime = 20.35;
+    },
+  ],
+  [
+    "倒放 -1× @20.35",
+    () => {
+      state.clock = setClockSpeed(state.clock, 20.35, -1);
+      state.hostTime = 20.6;
+    },
+  ],
+  [
+    "seek→0.2 @20.6",
+    () => {
+      state.clock = seekClock(state.clock, 20.6, 0.2);
+      state.hostTime = 20.6;
+    },
+  ],
 ];
 
 for (const [label, apply] of actions) {
   const button = document.createElement("button");
   button.textContent = label;
   button.addEventListener("click", () => {
-    try { apply(); render(); }
-    catch (error) { status.dataset.result = "fail"; status.textContent = `FAIL · ${error.message}`; throw error; }
+    try {
+      apply();
+      render();
+    } catch (error) {
+      status.dataset.result = "fail";
+      status.textContent = `FAIL · ${error.message}`;
+      throw error;
+    }
   });
   document.querySelector("#actions").append(button);
 }
 
-try { render(); }
-catch (error) { status.dataset.result = "fail"; status.textContent = `FAIL · ${error.message}`; throw error; }
+try {
+  render();
+} catch (error) {
+  status.dataset.result = "fail";
+  status.textContent = `FAIL · ${error.message}`;
+  throw error;
+}

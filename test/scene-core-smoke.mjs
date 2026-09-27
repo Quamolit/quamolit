@@ -5,14 +5,23 @@ import { scene_document_at as sceneDocumentAt } from "../target/js/motion/quamol
 import { validate_scene as validateScene } from "../target/js/motion/quamolit.scene-ir.mjs";
 
 test("typed Scene IR is valid and JSON-serializable without host handles", () => {
-  for (const [time, x] of [[1, 120], [0, 80], [0.5, 100], [0.25, 90], [1, 120]]) {
+  for (const [time, x] of [
+    [1, 120],
+    [0, 80],
+    [0.5, 100],
+    [0.25, 90],
+    [1, 120],
+  ]) {
     const document = sceneDocumentAt(time);
     assert.equal(validateScene(document), true);
     const plain = toJsData(document);
     const wire = JSON.parse(JSON.stringify(plain));
     assert.deepEqual(wire, plain);
     assert.equal(wire.nodes.length, 3);
-    assert.deepEqual(wire.nodes.map((node) => node.id), ["root", "badge", "particles"]);
+    assert.deepEqual(
+      wire.nodes.map((node) => node.id),
+      ["root", "badge", "particles"],
+    );
     assert.deepEqual(Object.keys(wire.nodes[1]), ["bindings", "content", "id", "interaction", "key", "parent"]);
     assert.equal(wire.nodes[1].content[0], "rect");
     assert.equal(wire.nodes[1].content[1].x, x);

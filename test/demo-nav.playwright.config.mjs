@@ -10,7 +10,13 @@ export default defineConfig({
   timeout: 30000,
   outputDir: "../test-results/demo-nav",
   reporter: "list",
-  use: { baseURL, browserName: "chromium", viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1, trace: "retain-on-failure" },
+  use: {
+    baseURL,
+    browserName: "chromium",
+    viewport: { width: 1280, height: 900 },
+    deviceScaleFactor: 1,
+    trace: "retain-on-failure",
+  },
   webServer: {
     command: "node test/demo-nav-server.mjs",
     cwd: fileURLToPath(new URL("../", import.meta.url)),

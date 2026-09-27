@@ -48,8 +48,16 @@ for (const seconds of samples) {
 slider.addEventListener("input", () => renderAt(Number(slider.value)));
 
 try {
-  for (const [seconds, expected] of [[1, [208, 48, 208]], [0.5, [144, 144, 144]], [-0.25, [48, 176, 88]], [1.25, [208, 88, 176]]]) {
-    assert([clampAt(seconds), repeatAt(seconds), mirrorAt(seconds)].every((value, index) => value === expected[index]), `乱序采样错误：${seconds}s`);
+  for (const [seconds, expected] of [
+    [1, [208, 48, 208]],
+    [0.5, [144, 144, 144]],
+    [-0.25, [48, 176, 88]],
+    [1.25, [208, 88, 176]],
+  ]) {
+    assert(
+      [clampAt(seconds), repeatAt(seconds), mirrorAt(seconds)].every((value, index) => value === expected[index]),
+      `乱序采样错误：${seconds}s`,
+    );
   }
   renderAt(Number(new URLSearchParams(location.search).get("time") ?? 0.5));
   window.quamolitKeyframesFixture = { renderAt, clampAt, repeatAt, mirrorAt, canvas };

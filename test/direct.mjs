@@ -4,7 +4,11 @@ const canvas = document.querySelector("#direct");
 const context = canvas.getContext("2d", { willReadFrequently: true });
 const status = document.querySelector("#status");
 const state = {
-  time: 0.5, model: 0, input: 0, ready: false, viewport: 100,
+  time: 0.5,
+  model: 0,
+  input: 0,
+  ready: false,
+  viewport: 100,
   versions: { model: 0, input: 0, resources: 0, viewport: 0 },
 };
 
@@ -16,8 +20,17 @@ function renderAt(seconds) {
   assert(Number.isFinite(seconds), "时间必须有限");
   state.time = seconds;
   const { model, input, ready, viewport, versions } = state;
-  const value = sampleAt(seconds, model, input, ready, viewport,
-    versions.model, versions.input, versions.resources, versions.viewport);
+  const value = sampleAt(
+    seconds,
+    model,
+    input,
+    ready,
+    viewport,
+    versions.model,
+    versions.input,
+    versions.resources,
+    versions.viewport,
+  );
   const x = Math.round(20 + value * 4);
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -38,19 +51,52 @@ for (const seconds of [-0.25, 0, 0.25, 0.5, 1, 1.25]) {
 }
 
 for (const [label, apply] of [
-  ["资源 ready", () => { state.ready = true; state.versions.resources += 1; }],
-  ["模型 +5", () => { state.model += 5; state.versions.model += 1; }],
-  ["输入 +2", () => { state.input += 2; state.versions.input += 1; }],
-  ["视口 150", () => { state.viewport = 150; state.versions.viewport += 1; }],
+  [
+    "资源 ready",
+    () => {
+      state.ready = true;
+      state.versions.resources += 1;
+    },
+  ],
+  [
+    "模型 +5",
+    () => {
+      state.model += 5;
+      state.versions.model += 1;
+    },
+  ],
+  [
+    "输入 +2",
+    () => {
+      state.input += 2;
+      state.versions.input += 1;
+    },
+  ],
+  [
+    "视口 150",
+    () => {
+      state.viewport = 150;
+      state.versions.viewport += 1;
+    },
+  ],
 ]) {
   const button = document.createElement("button");
   button.textContent = label;
-  button.addEventListener("click", () => { apply(); renderAt(state.time); });
+  button.addEventListener("click", () => {
+    apply();
+    renderAt(state.time);
+  });
   document.querySelector("#changes").append(button);
 }
 
 try {
-  for (const [seconds, expected] of [[1, 30], [0, 20], [0.5, 25], [0.25, 22.5], [1, 30]]) {
+  for (const [seconds, expected] of [
+    [1, 30],
+    [0, 20],
+    [0.5, 25],
+    [0.25, 22.5],
+    [1, 30],
+  ]) {
     assert(renderAt(seconds).value === expected, `乱序直接采样错误：${seconds}s`);
   }
   renderAt(Number(new URLSearchParams(location.search).get("time") ?? 0.5));

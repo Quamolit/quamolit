@@ -15,7 +15,9 @@ function render() {
   const { r, g, b, a } = rect.fill;
   context.fillStyle = `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a})`;
   context.fillRect(rect.x, rect.y, rect.width, rect.height);
-  const pixel = Array.from(context.getImageData(rect.x + rect.width / 2, rect.y + rect.height / 2, 1, 1).data).join(",");
+  const pixel = Array.from(context.getImageData(rect.x + rect.width / 2, rect.y + rect.height / 2, 1, 1).data).join(
+    ",",
+  );
   const expected = state.ready ? "0,179,102,255" : "235,71,153,255";
   if (pixel !== expected) throw new Error(`组件中间帧像素错误：${pixel} ≠ ${expected}`);
   status.dataset.result = "pass";
@@ -26,15 +28,33 @@ function render() {
 for (const time of [1, 0, 0.5, 0.25]) {
   const button = document.createElement("button");
   button.textContent = `${time}s`;
-  button.addEventListener("click", () => { state.time = time; render(); });
+  button.addEventListener("click", () => {
+    state.time = time;
+    render();
+  });
   document.querySelector("#times").append(button);
 }
-document.querySelector("#model").addEventListener("click", () => { state.model += 1; render(); });
-document.querySelector("#resource").addEventListener("click", () => { state.ready = !state.ready; render(); });
-document.querySelector("#viewport").addEventListener("click", () => { state.viewport = state.viewport === 100 ? 110 : 100; render(); });
+document.querySelector("#model").addEventListener("click", () => {
+  state.model += 1;
+  render();
+});
+document.querySelector("#resource").addEventListener("click", () => {
+  state.ready = !state.ready;
+  render();
+});
+document.querySelector("#viewport").addEventListener("click", () => {
+  state.viewport = state.viewport === 100 ? 110 : 100;
+  render();
+});
 
 try {
-  for (const [time, x] of [[1, 120], [0, 80], [0.5, 100], [0.25, 90], [1, 120]]) {
+  for (const [time, x] of [
+    [1, 120],
+    [0, 80],
+    [0.5, 100],
+    [0.25, 90],
+    [1, 120],
+  ]) {
     state.time = time;
     if (render().rect.x !== x) throw new Error(`乱序组件采样错误：${time}s`);
   }

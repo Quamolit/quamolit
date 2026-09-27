@@ -1,4 +1,7 @@
-import { sample_cpu_at as sampleAt, cpu_gpu_reason as gpuReason } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
+import {
+  sample_cpu_at as sampleAt,
+  cpu_gpu_reason as gpuReason,
+} from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const canvas = document.querySelector("#custom");
 const context = canvas.getContext("2d", { willReadFrequently: true });
@@ -32,7 +35,12 @@ for (const seconds of [0, 0.25, 0.5, 1]) {
 }
 
 try {
-  for (const [seconds, expected] of [[1, 12], [0, 10], [0.25, 10.5], [0.5, 11]]) {
+  for (const [seconds, expected] of [
+    [1, 12],
+    [0, 10],
+    [0.25, 10.5],
+    [0.5, 11],
+  ]) {
     assert(renderAt(seconds).value === expected, `乱序采样错误：${seconds}s`);
   }
   renderAt(Number(new URLSearchParams(location.search).get("time") ?? 0.5));

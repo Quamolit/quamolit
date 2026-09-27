@@ -35,10 +35,26 @@ test("mixed UI materializes exactly 1000 stable heterogeneous nodes in 20 groups
   const manifest = createManifest({ fixture: "mixed-ui", seed: 7 });
   assert.equal(manifest.mixedNodes.length, 1_000);
   assert.equal(new Set(manifest.mixedNodes.map((node) => node.id)).size, 1_000);
-  assert.deepEqual(Object.fromEntries(["rect", "circle", "line", "glyph"].map((kind) => [kind, manifest.mixedNodes.filter((node) => node.kind === kind).length])), { rect: 250, circle: 250, line: 250, glyph: 250 });
+  assert.deepEqual(
+    Object.fromEntries(
+      ["rect", "circle", "line", "glyph"].map((kind) => [
+        kind,
+        manifest.mixedNodes.filter((node) => node.kind === kind).length,
+      ]),
+    ),
+    { rect: 250, circle: 250, line: 250, glyph: 250 },
+  );
   assert.equal(manifest.mixedNodes[999].group, 19);
   assert.equal(manifest.mixedNodes.filter((node) => node.animated).length, 250);
-  assert.deepEqual(Object.fromEntries(["rect", "circle", "line", "glyph"].map((kind) => [kind, manifest.mixedNodes.filter((node) => node.kind === kind && node.animated).length])), { rect: 63, circle: 63, line: 62, glyph: 62 });
+  assert.deepEqual(
+    Object.fromEntries(
+      ["rect", "circle", "line", "glyph"].map((kind) => [
+        kind,
+        manifest.mixedNodes.filter((node) => node.kind === kind && node.animated).length,
+      ]),
+    ),
+    { rect: 63, circle: 63, line: 62, glyph: 62 },
+  );
   assert.deepEqual(manifest.mixedNodes[999], mixedNodeAt(7, 999));
   assert.notDeepEqual(manifest.mixedNodes[999], mixedNodeAt(8, 999));
   assert.deepEqual(sampleFixture(manifest, 0.5), sampleFixture(structuredClone(manifest), 0.5));
@@ -50,6 +66,9 @@ test("invalid fixture inputs fail rather than silently altering a baseline", () 
   assert.throws(() => createManifest({ dpr: 1.5 }), /dpr/);
   assert.throws(() => createManifest({ glyphState: "missing" }), /glyphState/);
   assert.equal(sampleFixture(createManifest({ glyphState: "error" }), 0).glyphState, "error");
-  assert.throws(() => createManifest({ events: [{ id: "bad", time: NaN, type: "target", value: 2, duration: 1 }] }), /finite/);
+  assert.throws(
+    () => createManifest({ events: [{ id: "bad", time: NaN, type: "target", value: 2, duration: 1 }] }),
+    /finite/,
+  );
   assert.throws(() => sampleFixture(createManifest(), -1), /non-negative/);
 });

@@ -6,7 +6,15 @@ import {
 const canvas = document.querySelector("#frame");
 const context = canvas.getContext("2d", { willReadFrequently: true });
 const status = document.querySelector("#status");
-const cases = [[0, 80], [0.25, 90], [0.5, 100], [0.625, 85], [0.75, 70], [1, 95], [1.25, 120]];
+const cases = [
+  [0, 80],
+  [0.25, 90],
+  [0.5, 100],
+  [0.625, 85],
+  [0.75, 70],
+  [1, 95],
+  [1.25, 120],
+];
 
 function renderAt(time) {
   if (!Number.isFinite(time)) throw new Error("时间必须有限");

@@ -11,10 +11,18 @@ function fixture() {
 
 function fakeContext() {
   return {
-    fillStyle: "#ffffff", globalAlpha: 1, calls: 0,
-    save() { this.saved = [this.fillStyle, this.globalAlpha]; },
-    restore() { [this.fillStyle, this.globalAlpha] = this.saved; },
-    fillRect() { this.calls++; },
+    fillStyle: "#ffffff",
+    globalAlpha: 1,
+    calls: 0,
+    save() {
+      this.saved = [this.fillStyle, this.globalAlpha];
+    },
+    restore() {
+      [this.fillStyle, this.globalAlpha] = this.saved;
+    },
+    fillRect() {
+      this.calls++;
+    },
   };
 }
 
@@ -29,8 +37,12 @@ test("10k instances use one batch call per warm frame, not 20k scalar reads", ()
   const context = fakeContext();
   const cold = batches.draw(context, instance);
   assert.deepEqual(cold, {
-    boundaryCalls: 1, canvasCalls: 10000, instances: 10000, positionBytesRead: 80000,
-    frameBoundaryCalls: 2, positionBytesCopied: 80000,
+    boundaryCalls: 1,
+    canvasCalls: 10000,
+    instances: 10000,
+    positionBytesRead: 80000,
+    frameBoundaryCalls: 2,
+    positionBytesCopied: 80000,
   });
   const warm = batches.draw(context, instance);
   assert.equal(warm.frameBoundaryCalls, 1);

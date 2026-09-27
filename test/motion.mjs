@@ -46,7 +46,13 @@ for (const seconds of samples) {
 slider.addEventListener("input", () => renderAt(Number(slider.value)));
 
 try {
-  for (const [seconds, expected] of [[1, 20], [0, 10], [0.5, 15], [0.25, 12.5], [1, 20]]) {
+  for (const [seconds, expected] of [
+    [1, 20],
+    [0, 10],
+    [0.5, 15],
+    [0.25, 12.5],
+    [1, 20],
+  ]) {
     assert(sampleAt(seconds) === expected, `乱序采样错误：${seconds}s`);
   }
   renderAt(Number(new URLSearchParams(location.search).get("time") ?? 0.5));

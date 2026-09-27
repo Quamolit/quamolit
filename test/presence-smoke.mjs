@@ -19,7 +19,10 @@ test("keyed list preserves identity on reorder and fades without paint-side stat
 test("exit releases once; reentry cancels release and restores opacity", () => {
   const removed = frame(1.25);
   assert.deepEqual(ids(removed), ["root", "b"]);
-  assert.deepEqual(removed.released.map(({ node }) => node.id), ["a"]);
+  assert.deepEqual(
+    removed.released.map(({ node }) => node.id),
+    ["a"],
+  );
   assert.equal(removed["needs-frame"], false);
   const revived = frame(1.375, true);
   assert.deepEqual(ids(revived), ["root", "b", "a"]);

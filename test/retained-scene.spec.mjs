@@ -5,7 +5,9 @@ test("保留计划按需绘制、乱序时间与同时间依赖更新", async ({
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/test/retained-scene.html?time=0.5");
   const status = page.locator("#status");
-  await expect(status).toContainText("t=0.5s · x=100 · dpr=1 · paints=1 · plan=1 · static=1 · samples=1 · copied=80000");
+  await expect(status).toContainText(
+    "t=0.5s · x=100 · dpr=1 · paints=1 · plan=1 · static=1 · samples=1 · copied=80000",
+  );
   await page.getByRole("button", { name: "1s", exact: true }).click();
   await expect(status).toContainText("t=1s · x=120 · dpr=1 · paints=2 · plan=1 · static=1 · samples=2 · copied=0");
   await page.getByRole("button", { name: "0s", exact: true }).click();

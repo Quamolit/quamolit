@@ -7,19 +7,35 @@ const scene = (model, time) => data(finder.scene_at(model, time)).nodes;
 
 test("五个旧文件夹及中文植物卡片，展开/聚焦/返回具有稳定身份", () => {
   const start = finder.initial();
-  assert.deepEqual(scene(start, 0).map(node => node.id), [
-    "folder-0", "folder-0/label", "folder-1", "folder-1/label", "folder-2", "folder-2/label",
-    "folder-3", "folder-3/label", "folder-4", "folder-4/label",
-  ]);
+  assert.deepEqual(
+    scene(start, 0).map((node) => node.id),
+    [
+      "folder-0",
+      "folder-0/label",
+      "folder-1",
+      "folder-1/label",
+      "folder-2",
+      "folder-2/label",
+      "folder-3",
+      "folder-3/label",
+      "folder-4",
+      "folder-4/label",
+    ],
+  );
   const open = finder.select_folder(start, 0, 0);
   assert.equal(finder.folder_value(open, 0.42), 1);
   assert.equal(scene(open, 0.42).length, 18);
-  assert.deepEqual(scene(open, 0.42).filter(node => node.id.startsWith("card-") && !node.id.endsWith("/label")).map(node => node.content[0]), ["rect", "rect", "rect", "rect"]);
+  assert.deepEqual(
+    scene(open, 0.42)
+      .filter((node) => node.id.startsWith("card-") && !node.id.endsWith("/label"))
+      .map((node) => node.content[0]),
+    ["rect", "rect", "rect", "rect"],
+  );
   assert.equal(data(finder.hit_at(start, 0, -340, -20)).kind, "folder");
   assert.deepEqual(data(finder.hit_at(open, 0.42, -245, -120)), { kind: "card", folder: 0, card: 0 });
   const focused = finder.select_card(open, 0, 0.42);
   assert.equal(finder.card_value(focused, 0.78), 1);
-  const card = scene(focused, 0.78).find(node => node.id === "card-0/0");
+  const card = scene(focused, 0.78).find((node) => node.id === "card-0/0");
   assert.equal(card.content[1].width, 690);
   assert.equal(card.content[1].height, 446);
   assert.equal(data(finder.hit_at(focused, 0.78, 400, 200)).kind, "back");
@@ -31,13 +47,19 @@ test("卡片文字随矩形共用局部缩放，所有中间帧均位于父卡�
     const focused = finder.select_card(open, 0, 0.42);
     for (const time of [0.42, 0.51, 0.6, 0.78]) {
       const nodes = scene(focused, time);
-      for (const node of nodes.filter(item => /^card-\d+\/\d+$/.test(item.id))) {
+      for (const node of nodes.filter((item) => /^card-\d+\/\d+$/.test(item.id))) {
         const rect = node.content[1];
-        const label = nodes.find(item => item.id === `${node.id}/label`).content[1];
+        const label = nodes.find((item) => item.id === `${node.id}/label`).content[1];
         assert.ok(Math.abs(label.size / rect.width - 18 / 150) < 1e-9, `${node.id} t=${time}: 字号须跟随卡片缩放`);
         assert.ok(label.x >= rect.x, `${node.id} t=${time}: 文字左端越界`);
-        assert.ok(label.x + label.text.length * label.size <= rect.x + rect.width, `${node.id} t=${time}: 文字右端越界`);
-        assert.ok(label.y - label.size >= rect.y && label.y <= rect.y + rect.height, `${node.id} t=${time}: 文字纵向越界`);
+        assert.ok(
+          label.x + label.text.length * label.size <= rect.x + rect.width,
+          `${node.id} t=${time}: 文字右端越界`,
+        );
+        assert.ok(
+          label.y - label.size >= rect.y && label.y <= rect.y + rect.height,
+          `${node.id} t=${time}: 文字纵向越界`,
+        );
       }
     }
   }
@@ -53,8 +75,10 @@ test("五组文件夹展开与收起时，内部卡片始终位于文件夹矩�
     ]) {
       for (const time of times) {
         const nodes = scene(model, time);
-        const parent = nodes.find(node => node.id === `folder-${folder}`).content[1];
-        for (const node of nodes.filter(item => item.id.startsWith(`card-${folder}/`) && !item.id.endsWith("/label"))) {
+        const parent = nodes.find((node) => node.id === `folder-${folder}`).content[1];
+        for (const node of nodes.filter(
+          (item) => item.id.startsWith(`card-${folder}/`) && !item.id.endsWith("/label"),
+        )) {
           const card = node.content[1];
           const epsilon = 1e-7;
           assert.ok(card.x >= parent.x - epsilon, `${node.id} t=${time}: 左边越界`);
@@ -83,7 +107,10 @@ test("返回和快速重入从当前采样值接续；非法切换不偷换身�
   const cardClosing = finder.back(focused, 0.76);
   assert.equal(finder.card_value(cardClosing, 0.76), cardPartial);
   const cardFocus = finder.card_value(cardClosing, 0.84);
-  assert.equal(data(finder.hit_at(cardClosing, 0.84, finder.card_x(1) * (1 - cardFocus), finder.card_y(1) * (1 - cardFocus))).kind, "card");
+  assert.equal(
+    data(finder.hit_at(cardClosing, 0.84, finder.card_x(1) * (1 - cardFocus), finder.card_y(1) * (1 - cardFocus))).kind,
+    "card",
+  );
   const cardReopened = finder.select_card(cardClosing, 1, 0.84);
   assert.equal(finder.card_value(cardReopened, 0.84), finder.card_value(cardClosing, 0.84));
   assert.equal(finder.card_value(cardReopened, 1.2), 1);

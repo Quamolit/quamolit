@@ -108,8 +108,10 @@ async function render(version, time = 0.5) {
       const gpuLayer = gpuLease.layer;
       const gpuMetrics = gpuLayer.draw(shape);
       const pixels = await Promise.all([
-        gpuLayer.readPixel(x, 50), gpuLayer.readPixel(version === 1 ? 60 : 40, 50),
-        gpuLayer.readPixel(0, 0), gpuLayer.readPixel(2, 0),
+        gpuLayer.readPixel(x, 50),
+        gpuLayer.readPixel(version === 1 ? 60 : 40, 50),
+        gpuLayer.readPixel(0, 0),
+        gpuLayer.readPixel(2, 0),
       ]);
       const actual = pixels.map((pixel) => pixel.join(","));
       if (actual[0] !== active || actual[1] !== inactive || actual[2] !== grid || actual[3] !== gap) {
@@ -139,11 +141,16 @@ document.querySelector("#disable-gpu").addEventListener("click", () => {
   void render(currentVersion).catch(reportError);
 });
 document.querySelector("#retry-gpu").addEventListener("click", () => {
-  void (async () => { await openGpu(); await render(currentVersion); })().catch(reportError);
+  void (async () => {
+    await openGpu();
+    await render(currentVersion);
+  })().catch(reportError);
 });
 window.addEventListener("pagehide", () => closeGpu("页面关闭"), { once: true });
 try {
   await openGpu();
   await render(2);
   await render(1);
-} catch (error) { reportError(error); }
+} catch (error) {
+  reportError(error);
+}

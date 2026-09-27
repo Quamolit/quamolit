@@ -1,0 +1,9 @@
+**/js-out*/**
+target/**
+dist/**
+dist-demos/**
+node_modules/**
+.calcit/**
+.yarn/**
+test-results/**
+playwright-report*/**

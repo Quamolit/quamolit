@@ -5,7 +5,9 @@ test("一个逻辑节点的万实例数据可按版本重绘且像素确定", as
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/test/instance-sources.html");
   const status = page.locator("#status");
-  await expect(status).toContainText("PASS · t=0.5s · version=1 · nodes=3 · instances=10000 · ffi=2 · copied=80000 · canvas=10000 · pixel=234,88,12,255");
+  await expect(status).toContainText(
+    "PASS · t=0.5s · version=1 · nodes=3 · instances=10000 · ffi=2 · copied=80000 · canvas=10000 · pixel=234,88,12,255",
+  );
   await page.locator("#v2").click();
   await expect(status).toHaveAttribute("data-version", "2");
   await expect(status).toContainText("ffi=1 · copied=0 · canvas=10000");
