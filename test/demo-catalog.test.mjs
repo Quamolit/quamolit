@@ -50,7 +50,7 @@ test("原有 11 项不可遗漏或以占位冒充可运行", async () => {
     assert.equal(entry.compile, undefined);
   }
   await access(join(root, "docs/demo-restoration.md"));
-  assert.ok(catalog.groups.find((g) => g.id === "art")?.empty);
+  assert.ok(catalog.entries.some((entry) => entry.group === "art" && entry.id === "tidal-bloom"));
 });
 test("所有演示页面已登记，路径、说明和编译入口存在", async () => {
   const pages = ["index.html", ...(await htmlFiles("test")), ...(await htmlFiles("examples"))].sort();

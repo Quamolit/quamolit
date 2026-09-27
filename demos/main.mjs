@@ -2,7 +2,9 @@
 import catalog from "./catalog.json";
 
 const originals = catalog.entries.filter(entry => entry.group === "originals");
+const inlineEntries = [...originals, ...catalog.entries.filter(entry => entry.group === "art")];
 const loaders = {
+  "tidal-bloom": [() => import("../examples/tidal-bloom/index.html?raw"), () => import("../examples/tidal-bloom/main.mjs")],
   "folding-fan": [() => import("../examples/folding-fan/index.html?raw"), () => import("../examples/folding-fan/main.mjs")],
   "drag-demo": [() => import("../examples/drag-demo/index.html?raw"), () => import("../examples/drag-demo/main.mjs")],
   table: [() => import("../examples/table/index.html?raw"), () => import("../examples/table/main.mjs")],
@@ -102,12 +104,13 @@ async function applyRoute() {
     if (route() !== target) return;
     const doc = new DOMParser().parseFromString(template.default, "text/html");
     content.append(...[...doc.body.children].filter(node => !["CANVAS", "NAV", "SCRIPT"].includes(node.tagName)));
-    document.querySelector("#demo-title").textContent = originals.find(entry => entry.id === target)?.title || target;
-    const index = originals.findIndex(entry => entry.id === target);
+    document.querySelector("#demo-title").textContent = inlineEntries.find(entry => entry.id === target)?.title || target;
+    const index = inlineEntries.findIndex(entry => entry.id === target);
     document.querySelector("#previous-demo").disabled = index <= 0;
-    document.querySelector("#next-demo").disabled = index >= originals.length - 1;
+    document.querySelector("#next-demo").disabled = index >= inlineEntries.length - 1;
     app.dataset.view = "demo";
     document.body.dataset.view = "demo";
+    document.body.dataset.demo = target;
     galleryView.inert = true;
     demoView.inert = false;
     dispose = module.mountDemo();
@@ -116,6 +119,7 @@ async function applyRoute() {
   } else {
     app.dataset.view = "gallery";
     document.body.dataset.view = "gallery";
+    delete document.body.dataset.demo;
     galleryView.inert = false;
     demoView.inert = true;
   }
@@ -128,6 +132,7 @@ function scheduleRoute() {
     content.replaceChildren();
     app.dataset.view = "gallery"; app.dataset.transition = "idle";
     document.body.dataset.view = "gallery"; document.body.dataset.transition = "idle";
+    delete document.body.dataset.demo;
     galleryView.inert = false; demoView.inert = true;
   });
 }
@@ -143,8 +148,8 @@ gallery.addEventListener("click", event => {
 document.querySelector("#back-to-gallery").addEventListener("click", () => navigate(null));
 for (const [button, offset] of [["#previous-demo", -1], ["#next-demo", 1]]) {
   document.querySelector(button).addEventListener("click", () => {
-    const index = originals.findIndex(entry => entry.id === activeId);
-    if (originals[index + offset]) navigate(originals[index + offset].id);
+    const index = inlineEntries.findIndex(entry => entry.id === activeId);
+    if (inlineEntries[index + offset]) navigate(inlineEntries[index + offset].id);
   });
 }
 window.addEventListener("popstate", () => {

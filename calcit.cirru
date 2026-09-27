@@ -4948,6 +4948,359 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.table
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.tidal-bloom $ %{} 'FileEntry
+      :defs $ {}
+        'activity-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn activity-nodes (time)
+            let
+                focus $ tween-at 0 18 0 1 time
+                done $ tween-at 18 24 0 1 time
+                first-height $ + 28 $ * 27 focus
+                second-height $ + 52 $ * -21 focus
+                third-height $ + 22 $ * 37 done
+                fourth-height $ + 45 $ * 15 focus
+              []
+                rect-node |activity-shadow -216 102 656 138 $ color 0 0.05 0.07 0.28
+                rect-node |activity-card -222 96 656 138 $ color 0.09 0.22 0.28 1
+                text-node |activity-heading "|03 / MOTION SYSTEM" -194 128 12 $ color 0.43 0.82 0.76 1
+                text-node |activity-title "|Components stay in rhythm" -194 159 17 $ color 0.91 0.94 0.89 1
+                rect-node |activity-progress-track -194 182 286 7 $ color 0.22 0.41 0.43 1
+                rect-node |activity-progress -194 182
+                  + 68 $ * 218 focus
+                  , 7 $ color 0.44 0.86 0.76 1
+                text-node |activity-caption "|One scene. Every moment." -194 212 12 $ color 0.56 0.73 0.72 1
+                text-node |activity-chart-label "|LIVE CURVE / 04" 166 128 11 $ color 0.57 0.74 0.72 1
+                rect-node |activity-bar-1 171 (- 213 first-height) 24 first-height $ color 0.42 0.85 0.76 1
+                rect-node |activity-bar-2 212 (- 213 second-height) 24 second-height $ color 0.91 0.47 0.35 1
+                rect-node |activity-bar-3 253 (- 213 third-height) 24 third-height $ color 0.69 0.77 0.53 1
+                rect-node |activity-bar-4 294 (- 213 fourth-height) 24 fourth-height $ color 0.44 0.69 0.88 1
+                rect-node |activity-bar-5 335
+                  - 213 $ + 30 $ * 25 done
+                  , 24
+                    + 30 $ * 25 done
+                    color 0.42 0.85 0.76 1
+                rect-node |activity-bar-6 376
+                  - 213 $ + 56 $ * -18 done
+                  , 24
+                    + 56 $ * -18 done
+                    color 0.91 0.47 0.35 1
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'analytics-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn analytics-nodes (time)
+            concat
+              if (< time 3.55) ([]) (kpi-nodes time)
+              if (< time 3.95) ([]) (chart-nodes time)
+              if (< time 4.65) ([]) (breakdown-nodes time)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'breakdown-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn breakdown-nodes (time)
+            let
+                reveal $ tween-at 4.65 0.65 0 1 time
+                a $ tween-at 4.85 0.7 0 1 time
+                b $ tween-at 5.05 0.7 0 1 time
+                c $ tween-at 5.25 0.7 0 1 time
+              concat
+                transition-nodes
+                  []
+                    rect-node |breakdown-card -222 141 656 92 $ color 0.14 0.31 0.35 1
+                    text-node |breakdown-heading "|CHANNEL MIX" -196 169 11 $ color 0.59 0.88 0.79 1
+                    text-node |breakdown-caption "|Three sources, one coherent journey" -196 214 12 $ color 0.8 0.88 0.81 1
+                  , reveal $ * 24 $ - 1 reveal
+                transition-nodes
+                  []
+                    text-node |channel-organic "|ORGANIC 48%" 74 170 11 $ color 0.93 0.94 0.85 1
+                    rect-node |channel-organic-track 74 185 100 7 $ color 0.22 0.46 0.46 1
+                    rect-node |channel-organic-fill 74 185 (* 88 a) 7 $ color 0.43 0.86 0.73 1
+                  , a $ * 16 $ - 1 a
+                transition-nodes
+                  []
+                    text-node |channel-social "|SOCIAL 32%" 190 170 11 $ color 0.93 0.94 0.85 1
+                    rect-node |channel-social-track 190 185 100 7 $ color 0.22 0.46 0.46 1
+                    rect-node |channel-social-fill 190 185 (* 64 b) 7 $ color 0.95 0.56 0.4 1
+                  , b $ * 16 $ - 1 b
+                transition-nodes
+                  []
+                    text-node |channel-direct "|DIRECT 20%" 306 170 11 $ color 0.93 0.94 0.85 1
+                    rect-node |channel-direct-track 306 185 100 7 $ color 0.22 0.46 0.46 1
+                    rect-node |channel-direct-fill 306 185 (* 42 c) 7 $ color 0.55 0.73 0.91 1
+                  , c $ * 16 $ - 1 c
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'chart-bar $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn chart-bar (index value time)
+            let
+                reveal $ tween-at
+                  + 4.2 $ * index 0.12
+                  , 0.8 0 1 time
+                height $ * value reveal
+                x $ + -176 $ * index 42
+              []
+                rect-node (str |bar-track- index) x -8 24 135 $ color 0.22 0.39 0.42 0.6
+                rect-node (str |bar-value- index) x (- 127 height) 24 height $ color 0.42 0.85 0.76 1
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'chart-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn chart-nodes (time)
+            let
+                reveal $ tween-at 3.95 0.75 0 1 time
+                bars $ concat (chart-bar 0 42 time) (chart-bar 1 76 time) (chart-bar 2 60 time) (chart-bar 3 105 time) (chart-bar 4 88 time) (chart-bar 5 120 time) (chart-bar 6 97 time) (chart-bar 7 128 time) (chart-bar 8 109 time) (chart-bar 9 134 time) (chart-bar 10 114 time) (chart-bar 11 126 time)
+              concat
+                transition-nodes
+                  []
+                    rect-node |chart-card -222 -69 656 200 $ color 0.1 0.24 0.3 1
+                    text-node |chart-heading "|AUDIENCE GROWTH" -196 -40 13 $ color 0.59 0.88 0.79 1
+                    text-node |chart-period "|LAST 12 WEEKS" 326 -40 11 $ color 0.57 0.75 0.76 1
+                    rect-node |chart-grid-1 -194 35 600 1 $ color 0.58 0.76 0.74 0.14
+                    rect-node |chart-grid-2 -194 79 600 1 $ color 0.58 0.76 0.74 0.14
+                    rect-node |chart-baseline -194 127 600 1 $ color 0.58 0.76 0.74 0.3
+                  , reveal $ * 30 $ - 1 reveal
+                transition-nodes bars reveal $ * 30 $ - 1 reveal
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'color $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn color (r g b alpha)
+            motion/ColorRgba :r r :g g :b b :a alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
+            :args $ [] 'Number 'Number 'Number 'Number
+        'declare-progress $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-progress (x model input resources viewport)
+            let
+                track $ rect-node |hero-progress-track x 15 310 10 $ color 0.76 0.77 0.7 1
+                fill $ struct-with
+                  rect-node |hero-progress x 15 68 10 $ color 0.91 0.42 0.29 1
+                  :bindings $ [] $ scene/ScalarBinding :target (scene/ScalarTarget :width) :motion-id |progress/width :version 0
+                draft $ struct-with
+                  text-node |hero-draft "|Draft in motion" x 52 13 $ color 0.25 0.37 0.39 1
+                  :bindings $ [] $ scene/ScalarBinding :target (scene/ScalarTarget :alpha) :motion-id |progress/draft :version 0
+                done $ struct-with
+                  text-node |hero-done "|Ready to share" x 52 13 $ color 0.25 0.37 0.39 0
+                  :bindings $ [] $ scene/ScalarBinding :target (scene/ScalarTarget :alpha) :motion-id |progress/done :version 0
+              component/ComponentDeclaration :scene
+                scene/SceneDocument :nodes $ [] track fill draft done
+                , :motions $ []
+                  motion/ScalarDescriptor :id |progress/width :version 0 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 18 :duration 24 :from 68 :to 310 :easing (motion/Easing :smoothstep)
+                  motion/ScalarDescriptor :id |progress/draft :version 0 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 18 :duration 24 :from 1 :to 0 :easing (motion/Easing :smoothstep)
+                  motion/ScalarDescriptor :id |progress/done :version 0 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 18 :duration 24 :from 0 :to 1 :easing (motion/Easing :smoothstep)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context time)
+            reference/draw-reference! context $ scene-at time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number
+        'hero-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hero-nodes (time)
+            let
+                focus $ tween-at 0 18 0 1 time
+                width $ + 356 $ * 122 focus
+              []
+                rect-node |hero-shadow -216 -172 width 258 $ color 0 0.05 0.07 0.33
+                rect-node |hero-card -222 -178 width 258 $ color 0.94 0.89 0.81 1
+                rect-node |hero-accent -222 -178 7 258 $ color 0.95 0.47 0.34 1
+                text-node |hero-eyebrow "|01 / CURRENT PROJECT" -190 -143 12 $ color 0.39 0.48 0.48 1
+                text-node |hero-title "|Make room for ideas" -190 -102 25 $ color 0.11 0.22 0.26 1
+                text-node |hero-subtitle "|Compose a living interface" -190 -69 14 $ color 0.33 0.43 0.44 1
+                rect-node |hero-rule -190 -36 294 1 $ color 0.23 0.37 0.39 0.25
+                text-node |hero-progress-heading "|SESSION PROGRESS" -190 -10 12 $ color 0.29 0.39 0.4 1
+                rect-node |hero-chip 92 -151 130 29 $ color 0.18 0.4 0.4 focus
+                text-node |hero-chip-label "|LIVE FOCUS" 109 -130 12 $ color 0.92 0.96 0.88 focus
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'kpi-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn kpi-nodes (time)
+            let
+                first-reveal $ tween-at 3.55 0.65 0 1 time
+                second $ tween-at 3.8 0.65 0 1 time
+                third $ tween-at 4.05 0.65 0 1 time
+              concat
+                transition-nodes
+                  []
+                    rect-node |kpi-a-card -222 -178 202 97 $ color 0.91 0.85 0.73 1
+                    text-node |kpi-a-label "|ACTIVE USERS" -202 -148 11 $ color 0.28 0.37 0.38 1
+                    text-node |kpi-a-value |24,860 -202 -107 28 $ color 0.08 0.2 0.24 1
+                    text-node |kpi-a-change |+18.6% -76 -111 13 $ color 0.22 0.46 0.4 1
+                  , first-reveal $ * 24 $ - 1 first-reveal
+                transition-nodes
+                  []
+                    rect-node |kpi-b-card -10 -178 202 97 $ color 0.16 0.37 0.4 1
+                    text-node |kpi-b-label |CONVERSION 10 -148 11 $ color 0.61 0.84 0.79 1
+                    text-node |kpi-b-value |8.42% 10 -107 28 $ color 0.95 0.95 0.87 1
+                    text-node |kpi-b-change |+2.4% 132 -111 13 $ color 0.59 0.89 0.74 1
+                  , second $ * 24 $ - 1 second
+                transition-nodes
+                  []
+                    rect-node |kpi-c-card 202 -178 232 97 $ color 0.16 0.29 0.38 1
+                    text-node |kpi-c-label "|TOTAL REVENUE" 222 -148 11 $ color 0.6 0.81 0.85 1
+                    text-node |kpi-c-value "|$ 182.4K" 222 -107 27 $ color 0.95 0.95 0.87 1
+                    text-node |kpi-c-change |+12.8% 378 -111 13 $ color 0.64 0.87 0.72 1
+                  , third $ * 24 $ - 1 third
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'overview-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn overview-nodes (time)
+            let
+                hero-visibility $ * (tween-at 0 0.65 0 1 time) (tween-at 3 0.8 1 0 time)
+                queue-visibility $ * (tween-at 0.22 0.65 0 1 time) (tween-at 3.18 0.8 1 0 time)
+                activity-visibility $ * (tween-at 0.44 0.65 0 1 time) (tween-at 3.36 0.8 1 0 time)
+                progress $ :scene $ component/sample-component-at
+                  progress-request $ * time 14
+                  , declare-progress
+              concat
+                if (< time 3.8)
+                  concat
+                    transition-nodes
+                      hero-nodes $ * time 14
+                      , hero-visibility $ * 22 $ - 1 hero-visibility
+                    transition-nodes (:nodes progress) hero-visibility $ * 22 $ - 1 hero-visibility
+                  []
+                if (< time 3.98)
+                  transition-nodes
+                    queue-nodes $ * time 14
+                    , queue-visibility $ * 25 $ - 1 queue-visibility
+                  []
+                if (< time 4.16)
+                  transition-nodes
+                    activity-nodes $ * time 14
+                    , activity-visibility $ * 28 $ - 1 activity-visibility
+                  []
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'progress-request $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn progress-request (time)
+            component/ComponentRequest :id |tidal-progress :time time :versions
+              direct/FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources 0 :viewport 0
+              , :props -190 :model 0 :input 0 :resources 0 :viewport 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'Number 'Number 'Number 'Number
+        'queue-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn queue-nodes (time)
+            let
+                focus $ tween-at 0 18 0 1 time
+                x $ + 146 $ * 126 focus
+                width $ - 286 $ * 124 focus
+                left $ + x 20
+              []
+                rect-node |queue-shadow (+ x 6) -172 width 258 $ color 0 0.05 0.07 0.27
+                rect-node |queue-card x -178 width 258 $ color 0.13 0.29 0.34 1
+                rect-node |queue-rule x -178 width 5 $ color 0.36 0.82 0.74 1
+                text-node |queue-heading "|02 / QUEUE" left -142 12 $ color 0.57 0.87 0.81 1
+                text-node |queue-count "|03 ACTIVE" left -107 19 $ color 0.92 0.94 0.88 1
+                rect-node |queue-row-1 (+ x 14) -82 (- width 28) 45 $ color 0.21 0.41 0.44 1
+                rect-node |queue-dot-1 (+ x 22) -66 9 9 $ color 0.94 0.48 0.34 1
+                text-node |queue-label-1 |Collect (+ x 42) -57 13 $ color 0.91 0.94 0.89 1
+                rect-node |queue-row-2 (+ x 14) -30 (- width 28) 45 $ color 0.17 0.36 0.41 1
+                rect-node |queue-dot-2 (+ x 22) -14 9 9 $ color 0.43 0.83 0.73 1
+                text-node |queue-label-2 |Sketch (+ x 42) -5 13 $ color 0.91 0.94 0.89 1
+                rect-node |queue-row-3 (+ x 14) 22 (- width 28) 45 $ color 0.17 0.36 0.41 1
+                rect-node |queue-dot-3 (+ x 22) 38 9 9 $ color 0.51 0.67 0.88 1
+                text-node |queue-label-3 |Review (+ x 42) 47 13 $ color 0.91 0.94 0.89 1
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'rect-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rect-node (id x y width height fill)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :rect $ scene/RectNode :x x :y y :width width :height height :fill fill
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'Number 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (time)
+            scene/SceneDocument :nodes $ concat (shell-nodes) (overview-nodes time) (analytics-nodes time)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+        'shell-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn shell-nodes ()
+            []
+              rect-node |board-shadow -242 -257 720 530 $ color 0 0.04 0.07 0.45
+              rect-node |board -250 -265 720 530 $ color 0.055 0.135 0.17 0.97
+              rect-node |board-accent -250 -265 720 4 $ color 0.35 0.84 0.76 1
+              text-node |brand "|METRIC / FLOW" -220 -231 18 $ color 0.89 0.94 0.91 1
+              text-node |edition "|DESIGN MOTION / 2026" 240 -231 11 $ color 0.43 0.76 0.75 1
+              rect-node |header-rule -220 -211 660 1 $ color 0.6 0.82 0.8 0.3
+              text-node |footer "|DECLARATIVE UI   /   ABSOLUTE TIME" -220 251 11 $ color 0.52 0.72 0.72 1
+              text-node |footer-index "|TWO VIEWS" 352 251 11 $ color 0.52 0.72 0.72 1
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'text-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn text-node (id label x y size fill)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+        'transition-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transition-node (node alpha shift)
+            match (:content node)
+              (:rect rect)
+                struct-with node $ :content $ scene/SceneContent :rect
+                  struct-with rect
+                    :y $ + (:y rect) shift
+                    :fill $ struct-with (:fill rect)
+                      :a $ * alpha $ :a (:fill rect)
+              (:text label)
+                struct-with node $ :content $ scene/SceneContent :text
+                  struct-with label
+                    :y $ + (:y label) shift
+                    :fill $ struct-with (:fill label)
+                      :a $ * alpha $ :a (:fill label)
+              _ node
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'quamolit.scene-ir/SceneNode 'Number 'Number
+        'transition-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transition-nodes (nodes alpha shift)
+            map nodes $ fn (node) (transition-node node alpha shift)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'Number 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'tween-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn tween-at (start duration from to time)
+            motion/sample-tween
+              motion/ScalarTween :start start :duration duration :from from :to to :easing $ motion/Easing :smoothstep
+              , time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.tidal-bloom
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference) (quamolit.component-sample :as component) (quamolit.direct-frame :as direct)
     'quamolit.examples.todolist $ %{} 'FileEntry
       :defs $ {}
         'Event $ %{} 'CodeEntry (:doc |)

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Metric Flow · 图表流转动画</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <canvas id="scene" aria-label="图表工作台中卡片、指标和图表依次进入退出的 UI 动画"></canvas>
+    <nav aria-label="演示导航"><a href="../../demos/index.html?group=art">← 艺术动画</a></nav>
+    <button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起控制</button>
+    <aside id="panel" aria-label="图表流转控制">
+      <span class="eyebrow">QUAMOLIT / UI MOTION 01</span>
+      <h1>Metric Flow<small>图表流转</small></h1>
+      <p>概览卡片逐个进场、渐变并退场；切换后 KPI、趋势柱图与渠道分项错峰进入。拖动时间可重建任意中间帧。</p>
+      <div class="buttons">
+        <button id="play">播放</button>
+        <button id="reset">回到起点</button>
+        <button id="share">复制当前画面链接</button>
+      </div>
+      <label>时间 <input id="time" type="range" min="0" max="8" step="0.01" value="0"></label>
+      <div class="buttons moments">
+        <button data-time="1.4">概览</button>
+        <button data-time="3.7">切换中</button>
+        <button data-time="5">图表生长</button>
+        <button data-time="7">分析完成</button>
+      </div>
+      <output id="status" aria-live="off"></output>
+      <a class="details" href="https://github.com/Quamolit/quamolit/blob/main/docs/tidal-bloom.md">构图、实现与检验</a>
+    </aside>
+    <script type="module" src="./main.mjs"></script>
+  </body>
+</html>
