@@ -3528,6 +3528,154 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.curve
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.drag-demo $ %{} 'FileEntry
+      :defs $ {}
+        'DragModel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct DragModel (:x 'Number) (:y 'Number) (:value 'Number) (:kind 'String) (:pointer 'Number) (:anchor-x 'Number) (:anchor-y 'Number) (:start-value 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'begin-pointer $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn begin-pointer (model pointer x y)
+            assert |invalid-pointer $ and (>= pointer 0)
+              = pointer $ floor pointer
+            let
+                kind $ hit-at model x y
+              if
+                or
+                  not= (:pointer model) -1
+                  = kind |none
+                , model $ struct-with model (:kind kind) (:pointer pointer)
+                  :anchor-x $ if (= kind |rect)
+                    - x $ :x model
+                    , x
+                  :anchor-y $ if (= kind |rect)
+                    - y $ :y model
+                    , y
+                  :start-value $ :value model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.drag-demo/DragModel)
+            :args $ [] 'quamolit.examples.drag-demo/DragModel 'Number 'Number 'Number
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context model)
+            reference/draw-reference! context $ scene-at model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.examples.drag-demo/DragModel
+        'empty-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-nodes () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'end-pointer $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn end-pointer (model pointer)
+            if
+              not= pointer $ :pointer model
+              , model $ struct-with model (:kind |none) (:pointer -1)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.drag-demo/DragModel)
+            :args $ [] 'quamolit.examples.drag-demo/DragModel 'Number
+        'hit-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-at (model x y)
+            assert |invalid-drag-point $ and (motion/finite-number? x) (motion/finite-number? y)
+            cond
+                and
+                  <=
+                    abs $ - x $ :x model
+                    , 50
+                  <=
+                    abs $ - y $ :y model
+                    , 30
+                , |rect
+              (and (<= (abs (- x 100)) 36) (<= (abs (- y 40)) 16))
+                , |slider
+              true |none
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.examples.drag-demo/DragModel 'Number 'Number
+        'initial $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial ()
+            DragModel :x 0 :y 0 :value 10 :kind |none :pointer -1 :anchor-x 0 :anchor-y 0 :start-value 10
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.drag-demo/DragModel)
+            :args $ []
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'move-pointer $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn move-pointer (model pointer x y)
+            assert |invalid-drag-point $ and (motion/finite-number? x) (motion/finite-number? y)
+            if
+              not= pointer $ :pointer model
+              , model $ cond
+                  = (:kind model) |rect
+                  struct-with model
+                    :x $ - x $ :anchor-x model
+                    :y $ - y $ :anchor-y model
+                (= (:kind model) |slider)
+                  struct-with model $ :value $ let
+                      next $ + (:start-value model)
+                        * 0.2 $ - x $ :anchor-x model
+                    cond
+                        < next -4
+                        , -4
+                      (> next 40) 40
+                      true next
+                true model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.drag-demo/DragModel)
+            :args $ [] 'quamolit.examples.drag-demo/DragModel 'Number 'Number 'Number
+        'rect-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rect-node (id x y width height r g b)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :target id) :content $ scene/SceneContent :rect $ scene/RectNode :x
+              - x $ / width 2
+              , :y
+                - y $ / height 2
+                , :width width :height height :fill
+                  motion/ColorRgba :r r :g g :b b :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'Number 'Number 'Number 'Number 'Number 'Number 'Number
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (model)
+            let
+                knob-x $ + 64 $ * 72
+                  /
+                    + (:value model) 4
+                    , 44
+                active-rect? $ = (:kind model) |rect
+                active-slider? $ = (:kind model) |slider
+                nodes $ conj
+                  conj
+                    conj
+                      conj (empty-nodes)
+                        rect-node |drag-rect (:x model) (:y model) 100 60 (if active-rect? 0.43 0.22) (if active-rect? 0.79 0.56) (if active-rect? 1 0.83)
+                      rect-node |slider-track 100 40 72 20 (if active-slider? 0.35 0.20) (if active-slider? 0.59 0.39) (if active-slider? 0.84 0.59)
+                    rect-node |slider-knob knob-x 40 12 30 0.86 0.92 1
+                  text-node |slider-label
+                    str "|long long title: " $ :value model
+                    , 64 7
+              scene/SceneDocument :nodes nodes
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.examples.drag-demo/DragModel
+        'text-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn text-node (id label x y)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size 18 :text label :fill
+              motion/ColorRgba :r 0.93 :g 0.95 :b 1 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'String 'Number 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.drag-demo
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
     'quamolit.examples.finder $ %{} 'FileEntry
       :defs $ {}
         'FinderEvent $ %{} 'CodeEntry (:doc |)

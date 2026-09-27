@@ -1,10 +1,10 @@
 # 演示导航与阶段成果入口
 
-恢复进度：原有 11 项中，9 项已有可运行 Canvas 切片，包括 [Binary Tree](../docs/binary-tree-restoration.md)、[TodoList](../docs/todolist-restoration.md)、[Clock](../docs/clock-restoration.md)、[Curve](../docs/curve-restoration.md)、[Solar](../docs/solar-restoration.md)、[Icons](../docs/icons-restoration.md)、[Raining](../docs/raining-restoration.md)、[Finder](../docs/finder-restoration.md) 与 [Table](../docs/table-restoration.md)。其余 Folding Fan、Drag demo 待恢复；GPU 集成待补。优先从“原有动画”进入实际动画。
+恢复进度：原有 11 项中，10 项已有可运行 Canvas 切片，包括 [Binary Tree](../docs/binary-tree-restoration.md)、[TodoList](../docs/todolist-restoration.md)、[Clock](../docs/clock-restoration.md)、[Curve](../docs/curve-restoration.md)、[Solar](../docs/solar-restoration.md)、[Icons](../docs/icons-restoration.md)、[Raining](../docs/raining-restoration.md)、[Finder](../docs/finder-restoration.md)、[Table](../docs/table-restoration.md) 与 [Drag demo](../docs/drag-demo-restoration.md)。其余 Folding Fan 待恢复；GPU 集成待补。优先从“原有动画”进入实际动画。
 
 统一入口为 `/demos/index.html`。页面清单由 `catalog.json` 管理，分为原有动画、公共 Calcit 路径、Motion/时间、组件/生命周期、实例/WebGPU 和参考/验证工具。可以搜索、分类筛选，筛选条件保存在 URL，刷新可复现。
 
-原有 11 项始终保留完整清单，其中 2 项尚无运行入口，艺术动画分类也尚无作品；待实现项不计入现有入口。详见[恢复验收与全屏约定](../docs/demo-restoration.md)。独立消费者默认展示全屏 Canvas 与可收起 DOM 浮层；`?fixture=1` 用于原固定像素诊断。Gallery 本身是作品目录，不需要背景画布；动画页面需要完整视口的舞台。
+原有 11 项始终保留完整清单，其中 1 项尚无运行入口，艺术动画分类也尚无作品；待实现项不计入现有入口。详见[恢复验收与全屏约定](../docs/demo-restoration.md)。独立消费者默认展示全屏 Canvas 与可收起 DOM 浮层；`?fixture=1` 用于原固定像素诊断。Gallery 本身是作品目录，不需要背景画布；动画页面需要完整视口的舞台。
 
 ```sh
 # 需要 Calcit 0.22.0、Node 24、caps 与 Yarn 4.12.0
@@ -33,6 +33,8 @@ yarn test:demo-nav
 `release:demos` 在独立、被忽略的 `dist-demos/` 构建所有页面，使用相对资源和导航链接，可部署在网站子路径。它不更改原 `release` 的 bootstrap 语义，也不自动部署。
 
 `test:demo-nav` 首先运行 3 项 Node 清单检查，再编译/打包；扫描排除编译目录及 Playwright 自动生成的 HTML 报告。浏览器只能访问 `dist-demos`，在 `/preview/` 子路径下依次从导航打开所有清单入口、检查状态/网络/运行错误并返回。额外验证搜索、分类、刷新、全屏布局与 Binary Tree 动画；TodoList 深度交互另由 `test:todolist` 验证。导航往返强制 GPU 不可用，不替代真实 GPU 验收。根占位/基准宿主页只有加载检查，其余有相应初始化状态断言。
+
+若本地 Vite 长驻 5190，测试可用 `QUAMOLIT_DEMO_TEST_PORT=5192 yarn test:demo-nav` 将发布产物服务器移至独立端口；CI 默认仍用 5190，不会复用开发服务器冒充发布产物。
 
 截图、每页信息与失败 trace 位于 `test-results/demo-nav/`。CI artifact `quamolit-demos-<run>` 包含 `dist-demos` 站点和导航测试证据；下载后可用任何静态 HTTP 服务器打开，不能直接用 file:// 运行 ESM。
 

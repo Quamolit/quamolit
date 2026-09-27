@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-const baseURL = "http://127.0.0.1:5190/preview/";
+const port = Number(process.env.QUAMOLIT_DEMO_TEST_PORT || 5190);
+const baseURL = `http://127.0.0.1:${port}/preview/`;
 export default defineConfig({
   testDir: ".",
   testMatch: ["demo-nav.spec.mjs", "binary-tree.spec.mjs"],

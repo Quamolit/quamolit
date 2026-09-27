@@ -287,6 +287,21 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Check restored Drag demo pointer interaction
+        if: inputs.mutation != 'color'
+        run: yarn test:drag-demo
+        env:
+          CI: "true"
+
+      - name: Upload Drag demo interaction evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-drag-demo-${{ github.run_id }}
+          path: test-results/drag-demo/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Check restored TodoList lifecycle and Canvas interaction
         if: inputs.mutation != 'color'
         run: yarn test:todolist

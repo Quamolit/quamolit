@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Drag demo · Quamolit 原有示例</title><link rel="stylesheet" href="./style.css"></head>
+<body>
+  <canvas id="scene" aria-label="可拖动的矩形与数值滑块"></canvas>
+  <nav aria-label="演示导航"><a href="../../demos/index.html?group=originals">← 所有演示</a></nav>
+  <button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起面板</button>
+  <aside id="panel" aria-label="拖拽说明">
+    <span class="eyebrow">QUAMOLIT / ORIGINAL 10</span>
+    <h1>Drag demo<br><small>把图形带出原来的边界</small></h1>
+    <p>拖动蓝色矩形改变位置；拖动右侧滑块改变数值。指针离开图形后仍保持拖动，抬起或取消时释放捕获。</p>
+    <div class="buttons"><button id="reset">重置</button><button id="preset">演示一段拖动</button></div>
+    <output id="status" aria-live="off"></output>
+    <p id="message" role="status"></p>
+    <p class="note">状态、命中、坐标更新与 Scene 由 Calcit 定义；DOM 只负责导航和说明，Canvas 覆盖整个视口。</p>
+    <a href="https://github.com/Quamolit/quamolit/blob/main/docs/drag-demo-restoration.md">行为依据与检验规则</a>
+  </aside>
+  <script type="module" src="./main.mjs"></script>
+</body></html>
