@@ -5,7 +5,7 @@
 ## 公共 Calcit 入口（`quamolit.examples.clock`）
 
 - `digits-at (time) -> List<Number>`：把秒数映射为 `[h十 h个 m十 m个 s十 s个]`，跨秒/分钟/小时进位并在 24 小时回绕。
-- `scene-at (time) -> SceneDocument`：六位数字各七段折线；每段的描边透明度由当前位数与前一秒位数决定，在 0.25 秒窗口内确定性渐变（同开同关为 1，开→关渐隐到 0，关→开渐显到 1）。
+- `scene-at (time) -> SceneDocument`：六位数字各七段折线；每段的描边透明度由当前位数与前一秒位数决定，在 0.25 秒窗口内确定性渐变（同开同关为 1，开→关渐隐到 0，关→开渐显到 1）。过渡时端点按旧版的 X ±120、Y ±160 范围散开，以位置、段和端点坐标为稳定 seed，随不透明度收拢；蓝青过渡色与稳定紫蓝色也恢复。
 - `draw! (context time)`：Canvas 参考绘制整场景。
 - 页面只注入逻辑时间、处理视口/DPR 与 DOM，不实现动画。
 
@@ -21,14 +21,13 @@
 yarn test:clock-demo
 ```
 
-- `calcit analyze check-public --ns quamolit.examples.clock` 15/15；
+- `calcit analyze check-public --ns quamolit.examples.clock` 16/16；
 - `calcit test --tag clock`：进位/回绕与稳定帧七段数（00:00:00 为 36、00:01:00 为 32）；
 - Node `test/clock-smoke.mjs`：注入时钟进位、重复采样一致、渐变窗口内存在部分透明度、窗口结束后全开/全关；
 - Playwright `test/clock.spec.mjs`：页面在 59.5/60/119.5/120 的位数、固定时间截图、重复采样一致，以及 DPR=2 窄屏 resize 不推进时间、浮层收起不误触。截图为 `test-results/clock/` 的 artifact。
 
 ## 与旧实现的差异与未完成
 
-- **未恢复随机散开**：旧 `comp-stroke` 在透明度过渡时给线段端点加 `rand-shift` 偏移；本切片用确定性渐变替换，保证乱序/重复采样可复现。这是有意的简化，需在后续切片单独引入固定 seed 才能恢复随机效果。
-- **颜色**：旧实现按透明度在两条 `hsl` 间切换；当前使用固定蓝色描边加透明度。颜色语义待补。
+- **随机序列差异**：旧 `comp-stroke` 每次挂载临时抽取四个 `rand-shift`；新实现在相同范围内用稳定 seed，视觉保留散开/收拢，但与旧版单次运行的随机位置不会逐像素相同。
 - **后端**：仅 Canvas 参考；GPU 路径与真实硬件证据未涉。
-- **其余 demo**：Solar、Curve 与 Icons 已有独立恢复切片；table、finder、raining、folding-fan、drag-demo 仍待恢复。不能据此关闭 #36 或 M3。
+- **全部旧 Demo** 已有入口，但各自的历史视觉差异仍按 [保真核对](demo-fidelity-audit.md) 跟进；不能据此关闭 #36 或 M3。

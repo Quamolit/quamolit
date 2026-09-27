@@ -1,4 +1,4 @@
-// 页面仅管理时钟、视口和 DOM；递归轨道及圆环顶点由 Calcit 生成。
+// 页面仅管理时钟、视口和 DOM；递归轨道及填充圆体由 Calcit 生成。
 import { draw_$x_, scene_at } from "../../target/js/solar/quamolit.examples.solar.mjs";
 import { to_js_data } from "../../target/js/solar/calcit.core.mjs";
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
@@ -20,7 +20,7 @@ function draw() {
   draw_$x_(context, time);
   paints++;
   slider.value = String(time);
-  status.textContent = `t = ${time.toFixed(2)} s\n5 层 · 10 个圆环 · 绘制 ${paints}`;
+  status.textContent = `t = ${time.toFixed(2)} s\n5 层 · 10 个填充圆体 · 绘制 ${paints}`;
   status.dataset.result = "pass";
 }
 function sample(t) {

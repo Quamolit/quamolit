@@ -4,7 +4,7 @@
 
 ## Calcit 场景与页面
 
-`quamolit.examples.solar/scene-at (time)` 返回五层共 10 个稳定 ID 的 `PolylineNode`。每圆 48 段加闭合点，共 49 点；逐层计算旋转后的偏移，大小依次乘 0.6。`draw!` 使用现有 Canvas 参考绘制器。动画、圆环顶点、递归变换全在 Calcit；`examples/solar/main.mjs` 只管理时间、全屏 Canvas 的 DPR/contain 变换、DOM 控件和截图接口。`?t=` 固定时间默认暂停，提供 0、1、3、10 秒按钮及分享链接。
+`quamolit.examples.solar/scene-at (time)` 返回五层共 10 个稳定 ID 的填充 `PolygonNode`。每圆 48 段加闭合点，共 49 点；逐层计算旋转后的偏移，大小依次乘 0.6。大圆恢复浅黄绿色填充及半透明蓝边，小圆恢复浅蓝色填充。`draw!` 使用 Canvas 参考绘制器。动画、圆体顶点、递归变换全在 Calcit；`examples/solar/main.mjs` 只管理时间、全屏 Canvas 的 DPR/contain 变换、DOM 控件和截图接口。`?t=` 固定时间默认暂停，提供 0、1、3、10 秒按钮及分享链接。
 
 ## 检验
 
@@ -17,6 +17,6 @@ yarn test:demo-nav
 
 ## 已知边界
 
-- 现有 Scene IR 尚无圆弧图元，以 48 段闭合折线近似原 Canvas arc；当前是描边轨道，旧版实心填充及细节配色未完整恢复。
+- Scene IR 尚无原生圆弧图元，以 48 段闭合多边形近似原 Canvas arc；极端放大时边缘仍可能显出分段。
 - 每次采样重建 490 个顶点。保留几何、分段画质策略、GPU 路径与真实设备性能尚未实现。
-- Icons 已有独立恢复切片；其余五个原 demo（table、finder、raining、folding-fan、drag-demo）仍待恢复。本切片不关闭 #36 或 M3。
+- 所有原有 demo 都有运行入口，但外观和过渡保真仍须逐项检验；本切片不单独关闭 #36 或 M3。

@@ -11,4 +11,4 @@ QUAMOLIT_DEMO_TEST_PORT=5192 yarn test:demo-nav
 
 本切片验收：Calcit 严格公开 API、Node 24 切片源区域/层序/乱序时间/中途打断、Scene JSON 往返及几何差分、资源尺寸失败零绘制、Chromium 初始/中间/终点截图、实际像素、图片失败、DPR 2 暂停 resize、浮层与发布子路径导航。此参考入口每帧仍完整构造 Scene 并遍历 24 片，不宣称已达到 #50 的保留执行计划或 WebGPU 纹理复用；这些性能工作留给后续里程碑。
 
-限制：尚未把图片节点接入公共 Scene IR、资源表或 WebGPU 纹理路径；分享链接记录 Toggle 时间，但多次 Toggle 后 seek 到较早输入之前，仍需要输入日志前缀重放/分支编辑的公共 Calcit 接口，见 [#132](https://github.com/Quamolit/quamolit/issues/132)。与历史视觉角度的像素级对照、缩放过滤质量、复杂遮挡语义及完整 M3 验收仍待 #53/#37，不以当前 Canvas 切片关闭 #36。
+限制：图片节点已接入公共 Scene IR 和 Canvas 资源解析，但 WebGPU 纹理路径未完成；分享链接记录 Toggle 时间，多次 Toggle 后 seek 到较早输入之前，仍需要输入日志前缀重放/分支编辑的公共 Calcit 接口，见 [#132](https://github.com/Quamolit/quamolit/issues/132)。与历史视觉角度的像素级对照、缩放过滤质量、复杂遮挡语义及完整 M3 验收仍待 #53/#37，不以当前 Canvas 切片关闭 #36。

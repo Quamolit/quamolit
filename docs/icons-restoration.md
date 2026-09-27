@@ -6,7 +6,7 @@
 
 - `initial ()` 创建显式 Model；`increase (model at)` 和 `toggle-play (model at)` 只修改目标意图。
 - `count-value`、`play-value` 在任意时间采样；用现有 `transition/interrupt-transition` 从打断瞬间的采样值接续，不丢连续点击。
-- `scene-at (model time)` 输出六个稳定 ID 的 Scene 节点：两条旋转加号线、前后数字文本、播放/暂停的左右闭合路径。`draw!` 走 Canvas 参考绘制。
+- `scene-at (model time)` 输出八个稳定 ID 的 Scene 节点：两块原有底色、两条旋转加号线、前后数字文本、播放/暂停的左右实心路径。`draw!` 走 Canvas 参考绘制。
 
 页面 `examples/icons/` 使用全屏 Canvas、可收起 DOM 控件、固定时间和分享链接。页面只持有 Model、转发事件及管理宿主时间/DPR，几何和插值不在 JS 中实现。`?t=` 进入暂停的确定时间，测试可直接注入事件时间与乱序采样。按钮触发约 0.34 秒宿主时间推进，供人直接观看中间帧。
 
@@ -21,6 +21,6 @@ yarn test:demo-nav
 
 ## 边界
 
-- Scene 当前只有开放折线，没有实心 Polygon/Path；原填充路径先用闭合描边轮廓呈现。文字交叉淡入简化了旧版位移，连续快速点击时以目标计数与加号角度连续性为主，旧版所有文字重叠细节尚未恢复。
+- 实心 Polygon 与原有底色已经恢复；文字交叉淡入的坐标、内容与旧版的逐帧状态机仍可能不同，连续快速点击时以目标计数与加号角度连续性为主，旧版所有文字重叠细节尚未恢复。
 - 目前通过 DOM 浮层按钮触发，不冒充已完成 #34 的独立 Canvas 命中/捕获。鼠标直接点击画布图标仍待接通。
-- GPU 图层和路径/文字同源绘制留给 #53/#40。其余五个原 demo（table、finder、raining、folding-fan、drag-demo）待恢复；本切片不关闭 #36 或 M3。
+- GPU 图层和路径/文字同源绘制留给 #53/#40。全部旧 Demo 已有入口，但保真差异见 [逐项核对](demo-fidelity-audit.md)；本切片不关闭 #36 或 M3。

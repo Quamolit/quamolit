@@ -8,7 +8,8 @@ async function ready(page, time = 0) {
 test("两组图标：连续点击打断、固定时间截图及乱序重采样", async ({ page }, testInfo) => {
   await ready(page);
   const start = await page.evaluate(() => window.iconsDemo.snapshot());
-  expect(start.scene.nodes).toHaveLength(6);
+  expect(start.scene.nodes).toHaveLength(8);
+  expect(start.scene.nodes.slice(-2).map(node => node.content[0])).toEqual(["polygon", "polygon"]);
   await page.locator("#increase").click();
   const once = await page.evaluate(() => window.iconsDemo.seek(0.1));
   const twice = await page.evaluate(() => window.iconsDemo.clickIncrease(0.1));

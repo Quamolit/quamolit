@@ -14,7 +14,7 @@
     <label>时间 tick（每秒 30 步） <input id="tick" type="range" min="0" max="900" step="1" value="0"></label>
     <div class="buttons"><button data-tick="0">0</button><button data-tick="30">30</button><button data-tick="75">75</button><button data-tick="120">120</button></div>
     <output id="status" aria-live="off"></output>
-    <p class="note">48 个固定槽位，雨滴出现、下落、溅开和消失均可乱序采样；当前是 Canvas2D 参考路径，GPU 粒子执行尚未接入。</p>
+    <p class="note">384 个确定性槽位还原密集雨幕，雨滴渐显、下落、随机宽度水花和消失均可乱序采样；当前是 Canvas2D 参考路径，GPU 粒子执行尚未接入。</p>
     <a href="https://github.com/Quamolit/quamolit/blob/main/docs/raining-restoration.md">行为依据与检验规则</a>
   </aside>
   <script type="module" src="./main.mjs"></script>
