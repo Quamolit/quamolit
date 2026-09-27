@@ -3895,9 +3895,11 @@
                   + 0.55 $ * focus 0.10
                   , alpha
                 text-node (str id |/label) label
-                  - x (/ width 2) -12
-                  + y 6
-                  + 18 $ * 22 focus
+                  +
+                    - x $ / width 2
+                    * 12 $ / width 150
+                  + y $ * 6 $ / width 150
+                  * 18 $ / width 150
                   , alpha
           :examples $ []
           :schema $ :: 'Fn $ {}

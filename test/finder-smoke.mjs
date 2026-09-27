@@ -25,6 +25,24 @@ test("五个旧文件夹及中文植物卡片，展开/聚焦/返回具有稳定
   assert.equal(data(finder.hit_at(focused, 0.78, 400, 200)).kind, "back");
 });
 
+test("卡片文字随矩形共用局部缩放，所有中间帧均位于父卡片内", () => {
+  for (let folder = 0; folder < 5; folder++) {
+    const open = finder.select_folder(finder.initial(), folder, 0);
+    const focused = finder.select_card(open, 0, 0.42);
+    for (const time of [0.42, 0.51, 0.6, 0.78]) {
+      const nodes = scene(focused, time);
+      for (const node of nodes.filter(item => /^card-\d+\/\d+$/.test(item.id))) {
+        const rect = node.content[1];
+        const label = nodes.find(item => item.id === `${node.id}/label`).content[1];
+        assert.ok(Math.abs(label.size / rect.width - 18 / 150) < 1e-9, `${node.id} t=${time}: 字号须跟随卡片缩放`);
+        assert.ok(label.x >= rect.x, `${node.id} t=${time}: 文字左端越界`);
+        assert.ok(label.x + label.text.length * label.size <= rect.x + rect.width, `${node.id} t=${time}: 文字右端越界`);
+        assert.ok(label.y - label.size >= rect.y && label.y <= rect.y + rect.height, `${node.id} t=${time}: 文字纵向越界`);
+      }
+    }
+  }
+});
+
 test("返回和快速重入从当前采样值接续；非法切换不偷换身份", () => {
   const open = finder.select_folder(finder.initial(), 0, 0);
   const partial = finder.folder_value(open, 0.16);

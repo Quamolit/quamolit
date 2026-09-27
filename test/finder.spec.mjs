@@ -68,3 +68,25 @@ test("固定预设日志可乱序采样；DPR 2 暂停 resize 不推进 Model", 
     await page.screenshot({ path: testInfo.outputPath("finder-390-dpr2.png") });
   } finally { await context.close(); }
 });
+
+test("文字使用 Canvas 实际字宽也始终留在缩放卡片内", async ({ page }, testInfo) => {
+  await ready(page);
+  await page.evaluate(() => window.finderDemo.tour());
+  for (const time of [0.55, 0.75, 0.91, 2.85]) {
+    const overflow = await page.evaluate(time => {
+      const nodes = window.finderDemo.seek(time).scene.nodes;
+      const context = document.querySelector("canvas").getContext("2d");
+      return nodes.filter(node => /^card-\d+\/\d+$/.test(node.id)).flatMap(node => {
+        const rect = node.content[1];
+        const label = nodes.find(item => item.id === `${node.id}/label`).content[1];
+        context.font = `${label.size}px monospace`;
+        const width = context.measureText(label.text).width;
+        return label.x < rect.x || label.x + width > rect.x + rect.width ||
+          label.y - label.size / 2 < rect.y || label.y + label.size / 2 > rect.y + rect.height
+          ? [{ id: node.id, time, rect, label, width }] : [];
+      });
+    }, time);
+    expect(overflow).toEqual([]);
+    if (time === 0.75) await page.screenshot({ path: testInfo.outputPath("finder-card-label-contained.png") });
+  }
+});
