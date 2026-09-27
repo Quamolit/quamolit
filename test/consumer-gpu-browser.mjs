@@ -118,3 +118,108 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
   }
   return report;
 }
+
+export async function verifyGpuInstancesConsumerBrowser(page, artifacts) {
+  const report = await page.evaluate(async () => {
+    const adapter = await navigator.gpu?.requestAdapter();
+    if (!adapter) return { result: "SKIP", reason: "adapter-unavailable" };
+    const info = adapter.info ?? {};
+    const identity = { vendor: info.vendor, architecture: info.architecture, device: info.device,
+      description: info.description, isFallbackAdapter: Boolean(info.isFallbackAdapter || adapter.isFallbackAdapter) };
+    if (identity.isFallbackAdapter || /swiftshader|software|llvmpipe/i.test(Object.values(identity).join(" "))) {
+      return { result: "SKIP", reason: "software-adapter", adapter: identity };
+    }
+    const app = await import("/target/js/app/app.main.mjs");
+    const core = await import("/target/js/app/calcit.core.mjs");
+    const { createInstancePositions } = await import("/instances-input.mjs");
+    const device = await adapter.requestDevice();
+    const errors = [], frames = [];
+    device.addEventListener("uncapturederror", event => errors.push(event.error.message));
+    device.pushErrorScope("validation");
+    const canvas = document.createElement("canvas"), reference = document.createElement("canvas"), captured = document.createElement("canvas");
+    for (const target of [canvas, reference, captured]) { target.width = 320; target.height = 180; }
+    const referenceContext = reference.getContext("2d"), capturedContext = captured.getContext("2d");
+    const table = app.create_instances_table_$x_();
+    app.register_instances_$x_(table, createInstancePositions(10000));
+    let batch, version = 1, previousGpuVersion = -1, previousTime = 0;
+    try {
+      batch = await app.create_instances_gpu_$x_(canvas, device, navigator.gpu.getPreferredCanvasFormat());
+      for (const time of [0, 1, 0.5, 1]) {
+        let copied = 0;
+        if (time !== previousTime) {
+          const frame = app.instance_frame_at(time), values = core.to_js_data(frame);
+          copied = app.patch_instances_$x_(table, version, version + 1, frame, new Float32Array([values.x, values.y]));
+          app.release_instances_$x_(table, version);
+          version++;
+          previousTime = time;
+        }
+        const metrics = core.to_js_data(app.draw_instances_gpu_$x_(previousGpuVersion, batch, table, version));
+        previousGpuVersion = version;
+        const bitmap = await createImageBitmap(canvas);
+        capturedContext.drawImage(bitmap, 0, 0); bitmap.close();
+        referenceContext.fillStyle = "white";
+        referenceContext.fillRect(0, 0, 320, 180);
+        app.draw_resolved_instances_$x_(referenceContext, table, version);
+        const locations = [[1, 1], [9, 11], [108, 90], [319, 179]];
+        const actual = locations.map(([x, y]) => Array.from(capturedContext.getImageData(x, y, 1, 1).data));
+        const expected = locations.map(([x, y]) => Array.from(referenceContext.getImageData(x, y, 1, 1).data));
+        frames.push({ time, version, copied, metrics, actual, expected, live: app.instances_live_count(table) });
+      }
+      const warm = core.to_js_data(app.draw_instances_gpu_$x_(version, batch, table, version));
+      const skipped = core.to_js_data(app.draw_instances_gpu_$x_(-1, batch, table, version));
+      await device.queue.onSubmittedWorkDone();
+      const actualImage = capturedContext.getImageData(0, 0, 320, 180);
+      const expectedImage = referenceContext.getImageData(0, 0, 320, 180);
+      const diffCanvas = document.createElement("canvas");
+      diffCanvas.width = 320; diffCanvas.height = 180;
+      const diffContext = diffCanvas.getContext("2d");
+      const diffImage = diffContext.createImageData(320, 180);
+      let differingPixels = 0, maximumChannelDifference = 0;
+      for (let index = 0; index < actualImage.data.length; index += 4) {
+        let changed = false;
+        for (let channel = 0; channel < 4; channel++) {
+          const difference = Math.abs(actualImage.data[index + channel] - expectedImage.data[index + channel]);
+          maximumChannelDifference = Math.max(maximumChannelDifference, difference);
+          changed ||= difference > 0;
+        }
+        if (changed) {
+          differingPixels++;
+          diffImage.data.set([255, 0, 0, 255], index);
+        }
+      }
+      diffContext.putImageData(diffImage, 0, 0);
+      return { result: "PASS", adapter: identity, frames, warm, skipped, errors,
+        actualPng: captured.toDataURL(), expectedPng: reference.toDataURL(), diffPng: diffCanvas.toDataURL(),
+        differingPixels, maximumChannelDifference,
+        liveBeforeDispose: app.instances_live_count(table) };
+    } finally {
+      if (batch) app.dispose_instances_gpu_$x_(batch);
+      app.release_instances_$x_(table, version);
+      const validation = await device.popErrorScope();
+      if (validation) errors.push(validation.message);
+      device.destroy();
+    }
+  });
+  if (report.result === "SKIP") return report;
+  for (const key of ["actualPng", "expectedPng", "diffPng"]) {
+    const filename = `dynamic-instances-${{ actualPng: "gpu", expectedPng: "canvas", diffPng: "diff" }[key]}.png`;
+    await writeFile(join(artifacts, filename), Buffer.from(report[key].split(",")[1], "base64"));
+    report[key] = filename;
+  }
+  assert.deepEqual(report.errors, []);
+  assert.equal(report.frames.length, 4);
+  assert.deepEqual(report.frames.map(frame => frame.copied), [0, 8, 8, 8]);
+  assert.deepEqual(report.frames.map(frame => frame.metrics["upload-bytes"]), [80000, 8, 8, 8]);
+  assert.deepEqual(report.frames.map(frame => frame.metrics.instances), [10000, 10000, 10000, 10000]);
+  assert.deepEqual(report.frames.map(frame => frame.live), [1, 1, 1, 1]);
+  for (const frame of report.frames) assert.deepEqual(frame.actual, frame.expected, `同源采样像素不一致: ${JSON.stringify(frame)}`);
+  assert.equal(report.differingPixels, 0, "像素对齐负载的整幅画面须与 Canvas 参考完全一致");
+  assert.equal(report.maximumChannelDifference, 0);
+  assert.deepEqual(report.frames.map(frame => frame.actual[0]), [
+    [255, 255, 255, 255], [234, 88, 12, 255], [255, 255, 255, 255], [234, 88, 12, 255],
+  ]);
+  assert.equal(report.warm["upload-bytes"], 0);
+  assert.equal(report.skipped["upload-bytes"], 80000);
+  assert.equal(report.liveBeforeDispose, 1);
+  return report;
+}

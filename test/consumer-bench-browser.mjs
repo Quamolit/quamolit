@@ -193,3 +193,107 @@ export async function measureConsumerInstancesFrames(options) {
       checksum, pixelSize: [320, 180], devicePixelRatio };
   } finally { canvas.remove(); }
 }
+
+// 同一个 Calcit 帧函数和版本化源，分别进入 Canvas 全量参考与 GPU 8 B 补丁路径。
+export async function measureConsumerDynamicInstancesFrames(options) {
+  const app = await import("/target/js/app/app.main.mjs");
+  const core = await import("/target/js/app/calcit.core.mjs");
+  const { createInstancePositions } = await import("/instances-input.mjs");
+  const gpu = options.backend === "gpu-instances-dynamic";
+  const canvas = document.createElement("canvas");
+  canvas.width = 320; canvas.height = 180;
+  document.body.append(canvas);
+  const positions = createInstancePositions(10000);
+  const table = app.create_instances_table_$x_();
+  app.register_instances_$x_(table, positions);
+  let device, batch, adapterInfo = null, context, version = 1, previousTime = 0, previousGpuVersion = -1, stepIndex = 0;
+  const errors = [];
+  const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+  try {
+    if (gpu) {
+      const adapter = await navigator.gpu?.requestAdapter();
+      if (!adapter) return { result: "SKIP", backend: options.backend, reason: "adapter-unavailable" };
+      const info = adapter.info ?? {};
+      adapterInfo = { vendor: info.vendor, architecture: info.architecture, device: info.device,
+        description: info.description, isFallbackAdapter: Boolean(info.isFallbackAdapter || adapter.isFallbackAdapter) };
+      if (adapterInfo.isFallbackAdapter || /software|swiftshader|llvmpipe/i.test(Object.values(adapterInfo).join(" "))) {
+        return { result: "SKIP", backend: options.backend, reason: "software-adapter", adapter: adapterInfo };
+      }
+      device = await adapter.requestDevice();
+      device.addEventListener("uncapturederror", event => errors.push(event.error.message));
+      device.pushErrorScope("validation");
+      batch = await app.create_instances_gpu_$x_(canvas, device, navigator.gpu.getPreferredCanvasFormat());
+    } else context = canvas.getContext("2d", { alpha: true });
+    function draw(time) {
+      const started = performance.now();
+      const sampled = app.instance_frame_at(time);
+      const values = core.to_js_data(sampled);
+      const sampleMs = performance.now() - started;
+      let copiedBytes = 0;
+      if (time !== previousTime) {
+        copiedBytes = app.patch_instances_$x_(table, version, version + 1, sampled, new Float32Array([values.x, values.y]));
+        app.release_instances_$x_(table, version);
+        version++; previousTime = time;
+      }
+      const patchMs = performance.now() - started - sampleMs;
+      let metrics;
+      if (gpu) {
+        metrics = core.to_js_data(app.draw_instances_gpu_$x_(previousGpuVersion, batch, table, version));
+        previousGpuVersion = version;
+      } else {
+        context.fillStyle = "white";
+        context.fillRect(0, 0, 320, 180);
+        metrics = core.to_js_data(app.draw_resolved_instances_$x_(context, table, version));
+      }
+      const ended = performance.now();
+      return { time, cpuFrameMs: ended - started, sampleMs, patchMs, drawBoundaryMs: ended - started - sampleMs - patchMs,
+        copiedBytes, uploadBytes: gpu ? metrics["upload-bytes"] : null, drawCalls: gpu ? metrics["draw-calls"] : metrics["canvas-calls"],
+        live: app.instances_live_count(table), version };
+    }
+    const coldStart = performance.now(), cold = draw(0), firstDrawMs = performance.now() - coldStart;
+    const calibration = [];
+    for (let i = 0; i < 31; i++) calibration.push(await frame());
+    const intervals = calibration.slice(1).map((time, index) => time - calibration[index]).sort((a, b) => a - b);
+    const idleRafMedianMs = (intervals[14] + intervals[15]) / 2;
+    async function phase(seconds, collect) {
+      const started = performance.now(), samples = [];
+      let frames = 0, previous = null;
+      while (performance.now() - started < seconds * 1000) {
+        const timestamp = await frame();
+        if (document.visibilityState !== "visible") throw Error("dynamic instances benchmark page became hidden");
+        const time = Math.abs((stepIndex++ % 120) / 60 - 1);
+        const result = draw(time);
+        if (collect) samples.push({ index: frames, rafIntervalMs: previous === null ? null : timestamp - previous, ...result });
+        previous = timestamp; frames++;
+      }
+      return { frames, elapsedMs: performance.now() - started, samples };
+    }
+    const warmup = await phase(options.warmupSeconds, false);
+    const measure = await phase(options.durationSeconds, true);
+    if (measure.samples.length < 2) throw Error("dynamic instances benchmark requires two measured frames");
+    draw(1);
+    const reference = document.createElement("canvas");
+    reference.width = 320; reference.height = 180;
+    const pixels = reference.getContext("2d", { alpha: true });
+    const bitmap = await createImageBitmap(canvas);
+    pixels.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    if (device) await device.queue.onSubmittedWorkDone();
+    let checksum = 0x811c9dc5;
+    for (const byte of pixels.getImageData(0, 0, 320, 180).data) checksum = Math.imul(checksum ^ byte, 0x01000193) >>> 0;
+    const pixelSamples = [[1, 1], [9, 11], [108, 90], [319, 179]].map(([x, y]) => Array.from(pixels.getImageData(x, y, 1, 1).data));
+    return { result: "PASS", backend: options.backend, adapter: adapterInfo, sourceCount: 10000,
+      inputBytes: positions.byteLength, firstDrawMs, cold, idleRafMedianMs, warmup, measure,
+      checksum, checksumTime: 1, pixelSamples, pixelSize: [320, 180], devicePixelRatio, errors,
+      liveBeforeDispose: app.instances_live_count(table) };
+  } finally {
+    if (batch) app.dispose_instances_gpu_$x_(batch);
+    if (device) {
+      const error = await device.popErrorScope();
+      if (error) errors.push(error.message);
+      device.destroy();
+    }
+    app.release_instances_$x_(table, version);
+    canvas.remove();
+  }
+}

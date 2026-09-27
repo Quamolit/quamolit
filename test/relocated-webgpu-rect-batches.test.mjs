@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFloat32RectBatch } from '../src/host/webgpu-rect-batches.mjs';
+import { create_$x_ as createFloat32RectBatch } from '../target/js/motion/quamolit.webgpu-batches.mjs';
 
 /** Deterministic host-double checks shared by Node and Chromium. */
 async function testWebGpuRectBatches(a) {
