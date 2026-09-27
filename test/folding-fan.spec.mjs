@@ -63,3 +63,48 @@ test("全屏 DPR 2 暂停 resize 与浮层收起", async ({ browser }, testInfo)
     await page.screenshot({ path: testInfo.outputPath("fan-mobile-dpr2.png") });
   } finally { await context.close(); }
 });
+
+test("历史 seek 只重放事件前缀；分支与刷新保持相同像素", async ({ page }, testInfo) => {
+  await ready(page, "?events=0,0.18");
+  const imported = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(imported.events.map(event => event.at)).toEqual([0, 0.18]);
+  expect(imported.time).toBe(0);
+  await ready(page, "?t=0.05&events=0,0.18");
+  const historical = await page.evaluate(() => ({ snapshot: window.foldingFanDemo.snapshot(), pixels: document.querySelector("canvas").toDataURL() }));
+  expect(historical.snapshot.events.map(event => event.at)).toEqual([0, 0.18]);
+  await ready(page, "?t=0.05&events=0");
+  const prefix = await page.evaluate(() => ({ snapshot: window.foldingFanDemo.snapshot(), pixels: document.querySelector("canvas").toDataURL() }));
+  expect(historical.snapshot.slices).toEqual(prefix.snapshot.slices);
+  expect(historical.pixels).toBe(prefix.pixels);
+  await page.evaluate(() => { window.foldingFanDemo.clickToggle(0.18); window.foldingFanDemo.seek(0.05); });
+  const branch = await page.evaluate(() => window.foldingFanDemo.clickToggle(0.05));
+  expect(branch.events.map(event => event.at)).toEqual([0, 0.05]);
+  await page.screenshot({ path: testInfo.outputPath("fan-historical-branch.png") });
+  const branchPixels = await page.locator("canvas").evaluate(canvas => canvas.toDataURL());
+  await page.locator("#share").click();
+  expect(new URL(page.url()).searchParams.get("events")).toBe("0,0.05");
+  await page.reload();
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  expect((await page.evaluate(() => window.foldingFanDemo.snapshot())).slices).toEqual(branch.slices);
+  expect(await page.locator("canvas").evaluate(canvas => canvas.toDataURL())).toBe(branchPixels);
+});
+
+test("100 次 Toggle URL 可重放，继续追加时保持有界", async ({ page }) => {
+  const times = Array.from({ length: 100 }, (_, index) => (index / 100).toFixed(2)).join(",");
+  await ready(page, `?t=1&events=${times}`);
+  const before = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(before.events).toHaveLength(100);
+  expect(before.model.folded).toBe(false);
+  expect(before.foldValue).toBeGreaterThan(0);
+  expect(before.foldValue).toBeLessThan(1);
+  const result = await page.evaluate(() => {
+    try { window.foldingFanDemo.clickToggle(1); return "unexpected-success"; }
+    catch (cause) { return String(cause); }
+  });
+  expect(result).toContain("fan-log-capacity");
+  await page.locator("#toggle-fold").click();
+  await expect(page.locator("#message")).toContainText("输入日志已满 100 条");
+  const after = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(after.events).toEqual(before.events);
+  expect(after.slices).toEqual(before.slices);
+});

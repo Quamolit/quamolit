@@ -4268,6 +4268,10 @@
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference)
     'quamolit.examples.folding-fan $ %{} 'FileEntry
       :defs $ {}
+        'FanEvent $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct FanEvent (:at 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
         'FanModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct FanModel (:folded 'Bool) (:motion 'quamolit.transition/TransitionIntent) (:at 'Number)
           :examples $ []
@@ -4276,6 +4280,25 @@
           :code $ quote $ defstruct FanSlice (:index 'Number) (:source-x 'Number) (:source-width 'Number) (:angle 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'append-event $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn append-event (log at)
+            assert |invalid-fan-event-time $ and (motion/finite-number? at) (>= at 0) (<= at 120)
+            assert |fan-log-capacity $ < (count log) 100
+            assert |nonmonotonic-fan-log $ or (empty? log)
+              >= at $ :at $ &list:nth log
+                dec $ count log
+            conj log $ FanEvent :at at
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.examples.folding-fan/FanEvent) 'Number
+            :return $ :: 'List 'quamolit.examples.folding-fan/FanEvent
+        'branch-toggle $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn branch-toggle (log at)
+            append-event (events-through log at) at
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.examples.folding-fan/FanEvent) 'Number
+            :return $ :: 'List 'quamolit.examples.folding-fan/FanEvent
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context image model time)
             images/draw-document! context (scene-at model time)
@@ -4287,12 +4310,30 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.browser/ImageHost 'quamolit.examples.folding-fan/FanModel 'Number
             :features $ #{} :js-ffi
+        'empty-events $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-events () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.examples.folding-fan/FanEvent
         'empty-slices $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-slices () ([])
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'quamolit.examples.folding-fan/FanSlice
+        'events-through $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn events-through (log time)
+            assert |invalid-fan-time $ and (motion/finite-number? time) (>= time 0)
+            filter log $ fn (event)
+              hint-fn $ {}
+                :args $ [] 'quamolit.examples.folding-fan/FanEvent
+                :return 'Bool
+              <= (:at event) time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.examples.folding-fan/FanEvent) 'Number
+            :return $ :: 'List 'quamolit.examples.folding-fan/FanEvent
         'fold-value $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn fold-value (model time)
             transition/sample-transition (:motion model) time
@@ -4317,6 +4358,17 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
+        'replay $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn replay (log time)
+            foldl (events-through log time) (initial)
+              fn (model event)
+                hint-fn $ {}
+                  :args $ [] 'quamolit.examples.folding-fan/FanModel 'quamolit.examples.folding-fan/FanEvent
+                  :return 'quamolit.examples.folding-fan/FanModel
+                toggle model $ :at event
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.folding-fan/FanModel)
+            :args $ [] (:: 'List 'quamolit.examples.folding-fan/FanEvent) 'Number
         'scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scene-at (model time)
             scene/SceneDocument :nodes $ map (slices-at model time) scene-node

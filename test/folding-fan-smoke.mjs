@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { to_js_data as data, assoc, init_tags as tags, _$n_list_$o_nth as listNth, _$n_enum_$o_assoc as enumAssoc, _$n_enum_$o_nth as enumNth } from "../target/js/folding-fan/calcit.core.mjs";
-import { initial, toggle, fold_value as foldValue, slices_at as slicesAt, scene_at as sceneAt, draw_$x_ as draw } from "../target/js/folding-fan/quamolit.examples.folding-fan.mjs";
+import { initial, toggle, empty_events as emptyEvents, append_event as appendEvent, events_through as eventsThrough, branch_toggle as branchToggle, replay, fold_value as foldValue, slices_at as slicesAt, scene_at as sceneAt, draw_$x_ as draw } from "../target/js/folding-fan/quamolit.examples.folding-fan.mjs";
 import { validate_scene as validateScene } from "../target/js/folding-fan/quamolit.scene-ir.mjs";
 import { diff_scene as diffScene } from "../target/js/folding-fan/quamolit.scene-diff.mjs";
 import { draw_document_$x_ as drawDocument } from "../target/js/folding-fan/quamolit.canvas-images.mjs";
@@ -46,6 +46,39 @@ test("绝对时间乱序重采样和 Toggle 中途打断连续", () => {
   assert.deepEqual(data(slicesAt(closing, 0.18)), atMid);
   assert.equal(foldValue(closing, 0.54), 0);
   assert.throws(() => toggle(opening, -0.1));
+});
+
+test("输入日志按时间前缀重放，同时间 Toggle 保持顺序", () => {
+  let log = appendEvent(emptyEvents(), 0);
+  log = appendEvent(log, 0.18);
+  const earlier = foldValue(replay(log, 0.05), 0.05);
+  assert.equal(earlier, foldValue(toggle(initial(), 0), 0.05));
+  assert.equal(foldValue(replay(log, 0.18), 0.18), 0.5);
+  assert.equal(foldValue(replay(log, 0.54), 0.54), 0);
+  assert.equal(foldValue(replay(log, 0.05), 0.05), earlier);
+  assert.deepEqual(data(eventsThrough(log, 0.05)), [{ at: 0 }]);
+  const sameTime = appendEvent(log, 0.18);
+  assert.deepEqual(data(sameTime).map(event => event.at), [0, 0.18, 0.18]);
+  assert.equal(data(replay(sameTime, 0.18)).folded, true);
+  assert.equal(foldValue(replay(sameTime, 0.18), 0.18), 0.5);
+});
+
+test("历史时间新 Toggle 截断未来，100 条日志有明确上限", () => {
+  let log = emptyEvents();
+  for (const at of [0, 0.18, 0.5]) log = appendEvent(log, at);
+  const branched = branchToggle(log, 0.05);
+  assert.deepEqual(data(branched).map(event => event.at), [0, 0.05]);
+  assert.deepEqual(data(log).map(event => event.at), [0, 0.18, 0.5]);
+  assert.equal(foldValue(replay(branched, 0.05), 0.05), foldValue(replay(log, 0.05), 0.05));
+  assert.deepEqual(data(branchToggle(log, 0.18)).map(event => event.at), [0, 0.18, 0.18]);
+  assert.throws(() => appendEvent(log, 0.1), /nonmonotonic-fan-log/);
+  for (const at of [-1, NaN, Infinity, 121]) assert.throws(() => appendEvent(log, at), /invalid-fan-event-time/);
+  assert.throws(() => replay(log, NaN), /invalid-fan-time/);
+  let full = emptyEvents();
+  for (let index = 0; index < 100; index++) full = appendEvent(full, index / 100);
+  assert.equal(data(full).length, 100);
+  assert.throws(() => appendEvent(full, 1), /fan-log-capacity/);
+  assert.equal(data(replay(full, 1)).folded, false);
 });
 
 test("折扇图片以纯数据 Scene 表达，时间变化仅标记几何", () => {
