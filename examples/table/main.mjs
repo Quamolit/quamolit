@@ -1,6 +1,7 @@
 // 宿主负责视口、编辑器和 URL；九格数据、命中与场景来自 Calcit。
 import * as table from "../../target/js/table/quamolit.examples.table.mjs";
 import { to_js_data } from "../../target/js/table/calcit.core.mjs";
+export function mountDemo() {
 const canvas = document.querySelector("#scene"), context = canvas.getContext("2d");
 const editor = document.querySelector("#editor"), panel = document.querySelector("#panel");
 const toggle = document.querySelector("#panel-toggle"), status = document.querySelector("#status");
@@ -42,26 +43,31 @@ function open(index) {
 }
 function set(index, value) { if (typeof value !== "string") throw new TypeError("格子文字必须是字符串"); commit(); cells = table.set_cell(cells, index, value); draw(); return snapshot(); }
 function safely(action) { try { message.textContent = ""; return action(); } catch (error) { message.textContent = error.message; } }
+const listeners = new AbortController();
 canvas.addEventListener("click", event => safely(() => {
   const bounds = canvas.getBoundingClientRect();
   const x = ((event.clientX - bounds.left) * canvas.width / bounds.width - view.x) / view.scale;
   const y = ((event.clientY - bounds.top) * canvas.height / bounds.height - view.y) / view.scale;
   const index = table.hit_at(x, y);
   if (index >= 0) open(index); else commit();
-}));
+}), { signal: listeners.signal });
 editor.addEventListener("keydown", event => {
   if (event.key === "Escape") { event.preventDefault(); cancel(); }
   else if (event.key === "Enter" && !event.isComposing) { event.preventDefault(); commit(); }
-});
-editor.addEventListener("blur", () => safely(commit));
+}, { signal: listeners.signal });
+editor.addEventListener("blur", () => safely(commit), { signal: listeners.signal });
 document.querySelector("#fill").onclick = () => safely(() => { commit(); ["风", "林", "火", "山", "海", "月", "花", "雨", "星"].forEach((text, index) => { cells = table.set_cell(cells, index, text); }); draw(); });
 document.querySelector("#reset").onclick = () => safely(() => { cancel(); cells = table.initial(); draw(); });
 document.querySelector("#share").onclick = async () => { commit(); const url = new URL(location.href); url.searchParams.set("cells", JSON.stringify(to_js_data(cells))); history.replaceState(null, "", url); try { await navigator.clipboard.writeText(url.href); } catch { /* URL 已更新。 */ } };
 toggle.onclick = () => { panel.hidden = !panel.hidden; toggle.setAttribute("aria-expanded", String(!panel.hidden)); toggle.textContent = panel.hidden ? "展开面板" : "收起面板"; draw(); };
 if (innerWidth < 600) { panel.hidden = true; toggle.setAttribute("aria-expanded", "false"); toggle.textContent = "展开面板"; }
-new ResizeObserver(draw).observe(canvas);
+const observer = new ResizeObserver(draw); observer.observe(canvas);
 let resolution;
 function watchDpr() { resolution?.removeEventListener("change", watchDpr); resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`); resolution.addEventListener("change", watchDpr); draw(); }
 watchDpr();
-window.tableDemo = { snapshot, open, set, commit, cancel, draw };
+const api = { snapshot, open, set, commit, cancel, draw };
+window.tableDemo = api;
 if (params.has("cells")) safely(() => { const saved = JSON.parse(params.get("cells")); if (!Array.isArray(saved) || saved.length !== 9 || saved.some(value => typeof value !== "string" || value.length > 80)) throw new TypeError("分享链接中的九格文字无效"); saved.forEach((value, index) => { cells = table.set_cell(cells, index, value); }); draw(); });
+return () => { listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.tableDemo === api) delete window.tableDemo; };
+}
+if (location.pathname.endsWith("/examples/table/index.html")) mountDemo();

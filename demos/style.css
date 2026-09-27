@@ -31,3 +31,50 @@ article p { font-size: 14px; color: #526978; margin: 0 0 22px; flex: 1; }
 a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #2e859b; outline-offset: 4px; }
 footer { color: #607987; font-size: 13px; padding-bottom: 48px; }
 @media(max-width:600px) { header,main,footer { padding: 20px; } header { padding-top: 34px; } .filters { align-items: stretch; } }
+
+/* 一个持久的全屏 Canvas；画廊和当前演示只是状态驱动的 DOM 浮层。 */
+:root { background: #07151d; }
+body { overflow: hidden; background: #07151d; }
+#scene { position: fixed; inset: 0; width: 100vw; height: 100dvh; z-index: 0; opacity: 0; transition: opacity 180ms ease; }
+/* Canvas 是 #app 的兄弟，过渡状态由 body 同步设置。 */
+body[data-view="demo"][data-transition="idle"] #scene { opacity: 1; }
+#app { position: relative; z-index: 1; pointer-events: none; }
+#gallery-view { position: fixed; inset: 0; overflow: auto; background: #eef3f6; color-scheme: light; pointer-events: auto; opacity: 1; transition: opacity 180ms ease; }
+#app[data-view="demo"] #gallery-view, #app[data-transition="leaving"] #gallery-view { opacity: 0; pointer-events: none; }
+#gallery-view header, #gallery-view .gallery-content { max-width: 1180px; margin: auto; padding: 28px; }
+#gallery-view header { padding-top: 58px; }
+#gallery-view .gallery-note { background: #dceaf0; border-left: 4px solid #28748b; padding: 18px 22px; border-radius: 0 8px 8px 0; }
+#gallery-view .gallery-note strong { display: block; }
+#gallery-view footer { padding: 28px 0 48px; }
+#demo-view { position: fixed; inset: 0; color: #cee6ec; font: 15px/1.65 system-ui,sans-serif; opacity: 0; transition: opacity 180ms ease; pointer-events: none; }
+#app[data-view="demo"][data-transition="idle"] #demo-view { opacity: 1; }
+#demo-view a { color: #8ed8ef; }
+#demo-view button { font: inherit; color: inherit; border: 1px solid #375560; background: #132d39; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+#demo-view button:hover { background: #214450; }
+#demo-view button:disabled { opacity: .45; cursor: default; }
+#demo-view .demo-nav { position: fixed; top: 14px; left: 20px; right: 20px; z-index: 4; display: flex; align-items: center; gap: 8px; pointer-events: auto; }
+#demo-title { margin: 0 auto 0 8px; font-size: 13px; letter-spacing: .05em; color: #a7cad6; }
+#demo-content #panel-toggle { position: fixed; left: 20px; top: 65px; z-index: 3; pointer-events: auto; }
+#demo-content #panel { position: fixed; right: 24px; top: 72px; width: min(350px,calc(100vw - 40px)); max-height: calc(100dvh - 96px); overflow: auto; padding: 25px; border: 1px solid #35505f; border-radius: 16px; background: #0d2330ed; box-shadow: 0 12px 44px #0008; pointer-events: auto; }
+#demo-content #panel[hidden] { display: none; }
+#demo-content .eyebrow { color: #88afba; font-size: 11px; letter-spacing: .14em; }
+#demo-content h1 { font-size: 31px; font-weight: 500; line-height: 1.35; margin: 20px 0; }
+#demo-content h1 small { font-size: 17px; color: #a3c7d0; }
+#demo-content p { font-size: 14px; }
+#demo-content .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+#demo-content label { display: grid; gap: 6px; }
+#demo-content input { width: 100%; accent-color: #6bd7f1; }
+#demo-content input:not([type="range"]):not([type="file"]) { border: 1px solid #375560; background: #09131e; color: inherit; }
+#demo-content output { display: block; white-space: pre-wrap; color: #a7d0db; font: 13px/1.8 ui-monospace,monospace; }
+#demo-content .note { font-size: 12px; color: #91acb5; }
+#demo-content #message { color: #efb784; min-height: 1.3em; }
+#demo-content #editor { position: fixed; z-index: 2; border: 2px solid #c6e5ff; border-radius: 9px; background: #233a55; color: white; padding: 0 10px; font: 21px/1.2 system-ui,sans-serif; pointer-events: auto; }
+#demo-content #editor[hidden] { display: none; }
+@media(max-width:600px) {
+  #gallery-view header, #gallery-view .gallery-content { padding: 20px; }
+  #gallery-view header { padding-top: 34px; }
+  #demo-content #panel { right: 20px; top: 116px; max-height: calc(100dvh - 132px); }
+}
+@media(prefers-reduced-motion: reduce) {
+  #scene, #gallery-view, #demo-view { transition-duration: 0ms; }
+}

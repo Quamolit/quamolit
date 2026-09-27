@@ -1,6 +1,7 @@
 // 页面仅管理宿主时钟、视口、URL 和控件；雨滴状态与几何由 Calcit 生成。
 import { draw_$x_, scene_at } from "../../target/js/raining/quamolit.examples.raining.mjs";
 import { to_js_data } from "../../target/js/raining/calcit.core.mjs";
+export function mountDemo() {
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), slider = document.querySelector("#tick"), seedInput = document.querySelector("#seed");
 const play = document.querySelector("#play"), panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
@@ -60,11 +61,16 @@ slider.oninput = () => seek(Number(slider.value));
 seedInput.onchange = () => { const next = Number(seedInput.value); if (Number.isInteger(next) && next >= 1 && next <= 1_000_000) setSeed(next); else seedInput.value = String(seed); };
 document.querySelectorAll("[data-tick]").forEach(button => button.onclick = () => seek(Number(button.dataset.tick)));
 toggle.onclick = () => { panel.hidden = !panel.hidden; toggle.setAttribute("aria-expanded", String(!panel.hidden)); toggle.textContent = panel.hidden ? "展开面板" : "收起面板"; };
-new ResizeObserver(draw).observe(canvas);
+const observer = new ResizeObserver(draw); observer.observe(canvas);
 let resolution;
 function watchDpr() { resolution?.removeEventListener("change", watchDpr); resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`); resolution.addEventListener("change", watchDpr); draw(); }
 watchDpr();
-document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
-window.addEventListener("pagehide", stop);
-window.rainingDemo = { seek, setSeed, snapshot, pause: stop, play: start };
+const listeners = new AbortController();
+document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); }, { signal: listeners.signal });
+window.addEventListener("pagehide", stop, { signal: listeners.signal });
+const api = { seek, setSeed, snapshot, pause: stop, play: start };
+window.rainingDemo = api;
 if (!params.has("tick") && !matchMedia("(prefers-reduced-motion: reduce)").matches) start();
+return () => { stop(); listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.rainingDemo === api) delete window.rainingDemo; };
+}
+if (location.pathname.endsWith("/examples/raining/index.html")) mountDemo();

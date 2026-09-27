@@ -1,6 +1,7 @@
 // 宿主只负责时钟、URL、DOM 与坐标逆变换；场景、命中、过渡和日志重放均在 Calcit。
 import * as finder from "../../target/js/finder/quamolit.examples.finder.mjs";
 import { to_js_data } from "../../target/js/finder/calcit.core.mjs";
+export function mountDemo() {
 const canvas = document.querySelector("#scene"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), message = document.querySelector("#message"), slider = document.querySelector("#time");
 const play = document.querySelector("#play"), panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
@@ -71,13 +72,15 @@ document.querySelector("#share").onclick = async () => {
 };
 toggle.onclick = () => { panel.hidden = !panel.hidden; toggle.setAttribute("aria-expanded", String(!panel.hidden)); toggle.textContent = panel.hidden ? "展开面板" : "收起面板"; draw(); };
 if (innerWidth < 600) { panel.hidden = true; toggle.setAttribute("aria-expanded", "false"); toggle.textContent = "展开面板"; }
-new ResizeObserver(draw).observe(canvas);
+const observer = new ResizeObserver(draw); observer.observe(canvas);
 let resolution;
 function watchDpr() { resolution?.removeEventListener("change", watchDpr); resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`); resolution.addEventListener("change", watchDpr); draw(); }
 watchDpr();
-document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
-window.addEventListener("pagehide", stop);
-window.finderDemo = { seek, send, snapshot, pause: stop, play: start, tour: () => { stop(); log = finder.demo_log(); sample(0); return snapshot(); } };
+const listeners = new AbortController();
+document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); }, { signal: listeners.signal });
+window.addEventListener("pagehide", stop, { signal: listeners.signal });
+const api = { seek, send, snapshot, pause: stop, play: start, tour: () => { stop(); log = finder.demo_log(); sample(0); return snapshot(); } };
+window.finderDemo = api;
 if (params.has("log")) safely(() => {
   const events = JSON.parse(params.get("log"));
   if (!Array.isArray(events) || events.length > 2000) throw new RangeError("日志格式或容量无效");
@@ -91,3 +94,6 @@ if (params.has("log")) safely(() => {
 });
 const requested = Number(params.get("t") || 0);
 safely(() => sample(Number.isFinite(requested) && requested >= 0 && requested <= 10 ? requested : 0));
+return () => { stop(); canvas.onclick = null; listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.finderDemo === api) delete window.finderDemo; };
+}
+if (location.pathname.endsWith("/examples/finder/index.html")) mountDemo();

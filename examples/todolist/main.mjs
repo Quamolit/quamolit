@@ -2,6 +2,7 @@
 import * as todo from "../../target/js/todolist/quamolit.examples.todolist.mjs";
 import { draw_plan_$x_ } from "../../target/js/todolist/quamolit.retained-component.mjs";
 import { init_tags, to_js_data } from "../../target/js/todolist/calcit.core.mjs";
+export function mountDemo() {
 const tags = init_tags(["model", "rows", "revision", "released", "plan-builds", "cursor", "time", "scene", "transforms"]);
 const canvas = document.querySelector("#scene"), ctx = canvas.getContext("2d");
 const panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
@@ -113,13 +114,18 @@ document.querySelector("#import").onchange=async event=>{
   const file=event.target.files[0];if(!file)return;
   try {if(file.size>1e6)throw Error("日志文件过大");const value=JSON.parse(await file.text());safely(()=>importEvents(value));}catch(error){message.textContent=error.message;}
 };
-new ResizeObserver(()=>{if(plan)draw();}).observe(canvas);
+const observer = new ResizeObserver(()=>{if(plan)draw();}); observer.observe(canvas);
 let resolution;
 function watchDpr(){resolution?.removeEventListener("change",watchDpr);resolution=matchMedia(`(resolution: ${devicePixelRatio||1}dppx)`);resolution.addEventListener("change",watchDpr);if(plan)draw();}
 watchDpr();
-document.addEventListener("visibilitychange",()=>{if(document.hidden)stop();});
-window.addEventListener("pagehide",stop);
-window.todoDemo={seek,snapshot,send,pause:stop,play:start,importEvents};
+const listeners = new AbortController();
+document.addEventListener("visibilitychange",()=>{if(document.hidden)stop();},{signal:listeners.signal});
+window.addEventListener("pagehide",stop,{signal:listeners.signal});
+const api={seek,snapshot,send,pause:stop,play:start,importEvents};
+window.todoDemo=api;
 const params=new URLSearchParams(location.search),requested=Number(params.get("t")||0);
 sample(Number.isFinite(requested)&&requested>=0?requested:0,true);
 if(!params.has("t")&&!matchMedia("(prefers-reduced-motion: reduce)").matches)start();
+return ()=>{stop();canvas.onclick=null;listeners.abort();observer.disconnect();resolution?.removeEventListener("change",watchDpr);if(window.todoDemo===api)delete window.todoDemo;};
+}
+if(location.pathname.endsWith("/examples/todolist/index.html"))mountDemo();
