@@ -35,7 +35,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | GPU 反例与失效 | 停止时间 uniform 写入会失败；同时间 Model/资源/视口变化不能复用旧程序；无效时间没有上传副作用；原混合折线场景明确返回 `cpu-transform-required`，不静默漏绘 |
 | GPU 浏览器专项 | 搬移后的同一矩形声明在非软件 adapter 比较 8 帧 × 230400 通道，默认精确像素；覆盖乱序/重复及同时间三类失效和上传量。无 GPU/软件 adapter 明确 SKIP，单独写入报告 |
 | 画面 | 实际画布 320×180、DPR=1；矩形内部粉色/绿色、静态横条灰色、变换折线蓝色与外部透明像素精确比较；初始/中间/终点截图 |
-| 公共 10k 实例 Canvas | 消费者 `instances-declaration` 声明 10000 实例，`draw-instances!` 走公共 [Canvas 实例入口](canvas-instances-reference.md)；Node 合同断言 1 次边界调用、10000 次 `fillRect`、80000 字节，非 Float32 源抛错；反例伪造计数被检出 |
+| 公共 10k 实例 Canvas | 消费者 `instances-declaration` 声明 10000 实例，`draw-instances!` 走公共 [Canvas 实例入口](canvas-instances-reference.md)；Node 合同断言 1 次边界调用、10000 次 `fillRect`、80000 字节，非 Float32 源抛错；反例伪造计数被检出。页面 `?motion=instances` 实际绘制静态网格，浏览器检查像素并截图；可选帧基准独立记录，不混入两矩形对比 |
 
 本地首次通过环境：Node 24.19.0、Calcit 0.22.0、Chromium 153.0.8010.12。加入 GPU 消费后可达编译闭包 22 个模块，唯一 npm 直接依赖是 Calcit runtime；并不声称这是最小体积，namespace 级依赖仍可能引入未使用的函数。
 
@@ -45,7 +45,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 ## 未完成验收与下一步
 
-同一个独立消费者已接 [三路径帧测量](consumer-performance.md)：`bench:consumer` 使用 Canvas、CPU 采样后 GPU 绘制、GPU 标准采样，提供实际 CPU 阶段、queue 上传/提交、rAF 和资源计数；先完成小负载测量链路，尚非 10k 实例或完整性能验收。
+同一个独立消费者已接 [帧测量](consumer-performance.md)：`bench:consumer` 对两矩形使用 Canvas、CPU 采样后 GPU 绘制、GPU 标准采样，提供实际 CPU 阶段、queue 上传/提交、rAF 和资源计数；另报静态 10k Canvas 实例逐帧样本。这仍非 10k 独立动画、GPU instances 或完整性能验收。
 
 双轴硬件原始结果见 [smoothstep xy 报告](evidence/isolated-consumer-dual-gpu.json)。候选库版本与测试源码版本分别记录；后者包含 revision、dirty 标记与 SHA256，不能误认为候选库提交已包含当时未提交的消费者扩展。
 

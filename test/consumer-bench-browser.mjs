@@ -145,3 +145,51 @@ export async function measureConsumerFrames(options) {
     canvas.remove();
   }
 }
+
+// 单独的静态密集实例负载；绝不和上面的两图元 Canvas/GPU 同源比较混算。
+export async function measureConsumerInstancesFrames(options) {
+  const app = await import("/target/js/app/app.main.mjs");
+  const core = await import("/target/js/app/calcit.core.mjs");
+  const { createInstancePositions } = await import("/instances-input.mjs");
+  const declaration = core.to_js_data(app.instances_declaration());
+  const positions = createInstancePositions(declaration.source.count);
+  const canvas = document.createElement("canvas");
+  canvas.width = 320; canvas.height = 180;
+  document.body.append(canvas);
+  const context = canvas.getContext("2d", { alpha: true });
+  const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+  function draw() {
+    context.clearRect(0, 0, 320, 180);
+    return core.to_js_data(app.draw_instances_$x_(context, positions));
+  }
+  try {
+    const firstDrawStart = performance.now();
+    const firstMetrics = draw();
+    const firstDrawMs = performance.now() - firstDrawStart;
+    const calibration = [];
+    for (let i = 0; i < 31; i++) calibration.push(await frame());
+    const intervals = calibration.slice(1).map((t, i) => t - calibration[i]).sort((a, b) => a - b);
+    const idleRafMedianMs = (intervals[14] + intervals[15]) / 2;
+    async function phase(seconds, collect) {
+      const started = performance.now(), samples = [];
+      let frames = 0, previous = null;
+      while (performance.now() - started < seconds * 1000) {
+        const timestamp = await frame();
+        if (document.visibilityState !== "visible") throw Error("benchmark page became hidden");
+        const drawStart = performance.now(), metrics = draw(), cpuFrameMs = performance.now() - drawStart;
+        if (collect) samples.push({ index: frames, cpuFrameMs, rafIntervalMs: previous === null ? null : timestamp - previous, metrics });
+        previous = timestamp; frames++;
+      }
+      return { frames, elapsedMs: performance.now() - started, samples };
+    }
+    const warmup = await phase(options.warmupSeconds, false);
+    const measure = await phase(options.durationSeconds, true);
+    if (measure.samples.length < 2) throw Error("instances benchmark requires two measured frames");
+    const pixels = context.getImageData(0, 0, 320, 180).data;
+    let checksum = 0x811c9dc5;
+    for (const byte of pixels) checksum = Math.imul(checksum ^ byte, 0x01000193) >>> 0;
+    return { result: "PASS", backend: "canvas-instances", sourceCount: declaration.source.count,
+      inputBytes: positions.byteLength, firstDrawMs, firstMetrics, idleRafMedianMs, warmup, measure,
+      checksum, pixelSize: [320, 180], devicePixelRatio };
+  } finally { canvas.remove(); }
+}

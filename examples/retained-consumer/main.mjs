@@ -1,6 +1,7 @@
 // 页面胶水只导入本应用的编译产物，不导入框架内部 JS 或测试夹具。
-import { start, update_plan, start_dual, update_dual, draw_$x_, browser_available_$q_ } from "./target/js/app/app.main.mjs";
+import { start, update_plan, start_dual, update_dual, draw_$x_, draw_instances_$x_, instances_declaration, browser_available_$q_ } from "./target/js/app/app.main.mjs";
 import { init_tags, to_js_data } from "./target/js/app/calcit.core.mjs";
+import { createInstancePositions } from "./instances-input.mjs";
 
 const tags = init_tags(["declarations", "plan-builds", "binding-samples", "transform-samples", "transforms", "scene"]);
 const canvas = document.querySelector("canvas");
@@ -22,9 +23,16 @@ if (/\/examples\/retained-consumer\/(?:index.html)?$/.test(location.pathname)) {
   nav.textContent = "← 所有演示";
 }
 let time = 0, model = 40, ready = false, viewport = 100;
-let mode = new URLSearchParams(location.search).get("motion") === "dual" ? "dual" : "mixed";
+const requestedMode = new URLSearchParams(location.search).get("motion");
+let mode = ["mixed", "dual", "instances"].includes(requestedMode) ? requestedMode : "mixed";
 let plan = (mode === "dual" ? start_dual : start)(time, model, ready, viewport);
+// Float32Array 是宿主提供的数据源；实例声明与实际 Canvas 绘制都走消费者的 Calcit 公共入口。
+const instanceCount = to_js_data(instances_declaration()).source.count;
+const positions = createInstancePositions(instanceCount);
+let instanceMetrics = null;
 function snapshot() {
+  if (mode === "instances") return { time, model, ready, viewport, mode, browser: browser_available_$q_(),
+    source: { count: instanceCount, positionBytes: positions.byteLength }, metrics: instanceMetrics };
   return { time, model, ready, viewport, mode, browser: browser_available_$q_(),
     declarations: plan.get(tags.declarations), builds: plan.get(tags["plan-builds"]),
     samples: plan.get(tags["binding-samples"]), transformSamples: plan.get(tags["transform-samples"]),
@@ -32,6 +40,7 @@ function snapshot() {
 }
 function show() {
   document.querySelectorAll("[data-mode]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.mode === mode)));
+  document.querySelectorAll("[data-time], #model, #ready, #viewport").forEach(button => { button.disabled = mode === "instances"; });
   if (fullscreen) {
     const { width, height } = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -43,12 +52,16 @@ function show() {
     const scale = Math.min(w / 320, h / 180);
     context.setTransform(scale, 0, 0, scale, (w - 320 * scale) / 2, (h - 180 * scale) / 2);
   }
-  draw_$x_(context, plan);
+  if (mode === "instances") {
+    context.clearRect(0, 0, 320, 180);
+    instanceMetrics = to_js_data(draw_instances_$x_(context, positions));
+  } else draw_$x_(context, plan);
   const { scene, transforms, ...counts } = snapshot();
   document.querySelector("#status").textContent = JSON.stringify(counts, null, 2);
   return snapshot();
 }
 function set(next = {}) {
+  if (mode === "instances") return show();
   const request = { time, model, ready, viewport, ...next };
   const updated = (mode === "dual" ? update_dual : update_plan)(plan, request.time, request.model, request.ready, request.viewport);
   ({ time, model, ready, viewport } = request);
@@ -56,9 +69,9 @@ function set(next = {}) {
   return show();
 }
 function setMode(next) {
-  if (!["mixed", "dual"].includes(next)) throw Error("unknown-consumer-mode");
+  if (!["mixed", "dual", "instances"].includes(next)) throw Error("unknown-consumer-mode");
   // 更换声明时建立新计划，不能让相同版本错误复用另一个声明的结构。
-  const nextPlan = (next === "dual" ? start_dual : start)(time, model, ready, viewport);
+  const nextPlan = next === "instances" ? plan : (next === "dual" ? start_dual : start)(time, model, ready, viewport);
   mode = next; plan = nextPlan;
   return show();
 }
