@@ -24,7 +24,7 @@ function draw() {
   paints++;
   slider.value = String(tick); seedInput.value = String(seed);
   const count = to_js_data(scene_at(seed, tick)).nodes.length;
-  status.textContent = `seed ${seed} · tick ${tick} · ${(tick / 30).toFixed(2)} s\n雨滴/水花 ${count} / 48 · 绘制 ${paints}`;
+  status.textContent = `seed ${seed} · tick ${tick} · ${(tick / 30).toFixed(2)} s\n雨滴/水花 ${count} / 384 · 绘制 ${paints}`;
   status.dataset.result = "pass";
 }
 function stop() { playing = false; if (raf !== null) cancelAnimationFrame(raf); raf = null; play.textContent = "播放"; }

@@ -22,6 +22,8 @@
 
 当前 [Binary Tree](binary-tree-restoration.md)、[TodoList](todolist-restoration.md)、[Clock](clock-restoration.md)、[Curve](curve-restoration.md)、[Solar](solar-restoration.md)、[Icons](icons-restoration.md)、[Raining](raining-restoration.md)、[Finder](finder-restoration.md)、[Table](table-restoration.md)、[Drag demo](drag-demo-restoration.md) 与 [Folding Fan](folding-fan-restoration.md) 均已提供可运行 Canvas 切片。`demos/catalog.json` 的 `planned` 仅登记尚无运行页面的未来项目，目前原有 11 项均在 `entries`。完整 Scene/GPU/功能矩阵及 M3 验收仍未完成；可运行不等于全部验收完成。
 
+[原有 11 个 Demo 动画保真核对](demo-fidelity-audit.md) 对照 `9b5bcdd` 逐项记录了已恢复的动态细节、固定时间画面和仍未完全等价的部分；导航能打开不能代替动画中间帧的检验。
+
 ## 全屏舞台与 DOM 浮层
 
 - 动画 Canvas 覆盖整个页面视口，位于导航和控制面板之后；不是嵌在侧栏旁的剩余空间，也不是要求调用浏览器 Fullscreen API。允许较大的可滚动 DOM 浮层，但提供可收起/恢复按钮和键盘焦点。

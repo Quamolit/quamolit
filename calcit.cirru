@@ -1914,6 +1914,7 @@
               (:instances instances) (raise |unsupported-reference-instances)
               (:text text) (draw-text! context text)
               (:image image) (raise |image-requires-resource-resolver)
+              (:polygon polygon) (draw-polygon! context polygon)
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -1941,8 +1942,34 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/InstanceNode 'JsObject
             :features $ #{} :js-ffi
+        'draw-polygon! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-polygon! (context polygon)
+            assert |invalid-scene-polygon $ scene/valid-polygon? polygon
+            context .save!
+            js-set context :fill-style $ color-css $ :fill polygon
+            js-set context :stroke-style $ color-css $ :stroke polygon
+            js-set context :line-width $ :width polygon
+            context .begin-path!
+            let
+                start $ &list:nth (:points polygon) 0
+              context .move-to! (:x start) (:y start)
+            each
+              rest $ :points polygon
+              fn (point)
+                context .line-to! (:x point) (:y point)
+            context .close-path!
+            fill-current-path! $ unsafe-coerce context 'JsObject
+            when
+              > (:width polygon) 0
+              context .stroke!
+            context .restore!
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/PolygonNode
+            :features $ #{} :js-ffi
         'draw-reference! $ %{} 'CodeEntry
-          :doc "|整场景预检后按声明顺序绘制顶层 rect/polyline；group、子节点和 instances 明确拒绝。调用方负责清屏、视口与绑定求值。"
+          :doc "|整场景预检后按声明顺序绘制顶层 rect/polyline/polygon/text；group、子节点、image 和 instances 明确拒绝。调用方负责清屏、视口与绑定求值。"
           :code $ quote $ defn draw-reference! (context document)
             assert |invalid-reference-scene $ scene/validate-scene document
             assert |unsupported-reference-scene $ every? (:nodes document) supported-flat-node?
@@ -1972,6 +1999,7 @@
                   (:polyline path) (raise |polyline-requires-draw-reference)
                   (:text text) (raise |text-requires-draw-reference)
                   (:image image) (raise |image-requires-resource-resolver)
+                  (:polygon polygon) (raise |polygon-requires-draw-reference)
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -2022,6 +2050,15 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/TextNode
             :features $ #{} :js-ffi
+        'fill-current-path! $ %{} 'CodeEntry
+          :doc "|Canvas 当前路径的最小浏览器 FFI；待 js-ffi 提供类型化 CanvasContextHost.fill! 后替换本地 inline。"
+          :code $ quote $ defn fill-current-path! (context) &unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(c)=>{c.fill();}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject
+            :features $ #{} :js-ffi
         'raw-draw-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-draw-instances! (context positions start amount width height fill-style alpha) (raise |js-only-canvas-instances)
           :examples $ []
@@ -2041,6 +2078,7 @@
                 (:instances instances) false
                 (:text text) true
                 (:image image) false
+                (:polygon polygon) true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -3437,6 +3475,16 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
+        'scatter-offset $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scatter-offset (position index coordinate spread)
+            let
+                seed $ + 0.5 (* position 77) (* index 31) (* coordinate 13)
+                value $ * 43758.5453 $ sin seed
+                fraction $ - value $ floor value
+              * spread $ - (* 2 fraction) 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number 'Number
         'scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scene-at (time)
             let
@@ -3455,9 +3503,11 @@
         'segment-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn segment-node (position index opacity)
             scene/SceneNode :id (str |clock- position |- index) :key (str |clock- position |- index) :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline $ scene/PolylineNode :points
-              segment-points index $ position-x position
+              segment-points index (position-x position) opacity position
               , :width 3 :stroke
-                motion/ColorRgba :r 0.1 :g 0.5 :b 0.95 :a opacity
+                if (< opacity 1)
+                  motion/ColorRgba :r 0.62 :g 0.9466666667 :b 0.98 :a opacity
+                  motion/ColorRgba :r 0.43 :g 0.43 :b 0.97 :a opacity
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'Number 'Number 'Number
@@ -3481,23 +3531,28 @@
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number 'Number 'Number 'Number
         'segment-points $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn segment-points (index ox)
+          :code $ quote $ defn segment-points (index ox opacity position)
             let
                 s $ &list:nth segments index
+                scatter $ - 1 opacity
               []
                 motion/Vec2 :x
-                  +
+                  + ox
                     * 60 $ &list:nth s 0
-                    , ox
-                  , :y $ * 100 $ &list:nth s 1
+                    * scatter $ scatter-offset position index 0 120
+                  , :y $ +
+                    * 100 $ &list:nth s 1
+                    * scatter $ scatter-offset position index 1 160
                 motion/Vec2 :x
-                  +
+                  + ox
                     * 60 $ &list:nth s 2
-                    , ox
-                  , :y $ * 100 $ &list:nth s 3
+                    * scatter $ scatter-offset position index 2 120
+                  , :y $ +
+                    * 100 $ &list:nth s 3
+                    * scatter $ scatter-offset position index 3 160
           :examples $ []
           :schema $ :: 'Fn $ {}
-            :args $ [] 'Number 'Number
+            :args $ [] 'Number 'Number 'Number 'Number
             :return $ :: 'List 'quamolit.motion/Vec2
         'segments $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def segments
@@ -3516,6 +3571,28 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number 'Number $ :: 'List 'quamolit.motion/Vec2
             :return $ :: 'List 'quamolit.motion/Vec2
+        'cubic-point $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cubic-point (p0 p1 p2 p3 u)
+            let
+                v $ - 1 u
+                a $ * v v v
+                b $ * 3 v v u
+                c $ * 3 v u u
+                d $ * u u u
+              motion/Vec2 :x
+                +
+                  * a $ :x p0
+                  * b $ :x p1
+                  * c $ :x p2
+                  * d $ :x p3
+                , :y $ +
+                  * a $ :y p0
+                  * b $ :y p1
+                  * c $ :y p2
+                  * d $ :y p3
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number
         'curve-degree $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def curve-degree (/ &PI 180)
           :examples $ []
@@ -3590,10 +3667,40 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
+        'sample-curve-segment $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-curve-segment (p0 p1 p2 p3 index acc)
+            if (> index 16) acc $ recur p0 p1 p2 p3 (inc index)
+              conj acc $ cubic-point p0 p1 p2 p3 $ / index 16
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number $ :: 'List 'quamolit.motion/Vec2
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'sampled-curve-from $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sampled-curve-from (k time start acc)
+            if (> k 32) acc $ let
+                controls $ curve-point k time
+                p1 $ &list:nth controls 0
+                p2 $ &list:nth controls 1
+                p3 $ &list:nth controls 2
+                next $ sample-curve-segment start p1 p2 p3 1 acc
+              recur (inc k) time p3 next
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'quamolit.motion/Vec2 $ :: 'List 'quamolit.motion/Vec2
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'sampled-curve-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sampled-curve-points (time)
+            let
+                start $ motion/Vec2 :x 0 :y -60
+              sampled-curve-from 1 time start $ [] start
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.motion/Vec2
         'scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scene-at (time)
             scene/SceneDocument :nodes $ [] $ scene/SceneNode :id |curve :key |curve :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content
-              scene/SceneContent :polyline $ scene/PolylineNode :points (curve-points time) :width 1 :stroke $ motion/ColorRgba :r 0.7 :g 0.2 :b 0.9 :a 1
+              scene/SceneContent :polyline $ scene/PolylineNode :points (sampled-curve-points time) :width 1 :stroke $ motion/ColorRgba :r 0.7 :g 0.2 :b 0.9 :a 1
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number
@@ -4259,6 +4366,12 @@
           :code $ quote $ defstruct IconModel (:count 'Number) (:increase 'quamolit.transition/TransitionIntent) (:playing 'Bool) (:play 'quamolit.transition/TransitionIntent) (:at 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'background-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn background-node (id x color)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :rect $ scene/RectNode :x x :y -30 :width 60 :height 60 :fill color
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'Number 'quamolit.motion/ColorRgba
         'count-value $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn count-value (model time)
             transition/sample-transition (:increase model) time
@@ -4271,6 +4384,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.examples.icons/IconModel 'Number
+        'filled-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn filled-node (id points color)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polygon $ scene/PolygonNode :points points :width 0 :fill color :stroke color
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String (:: 'List 'quamolit.motion/Vec2) 'quamolit.motion/ColorRgba
         'increase $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn increase (model at)
             assert |retroactive-icon-event $ >= at $ :at model
@@ -4321,7 +4440,8 @@
                 d $ motion/Vec2 :x
                   + 200 $ mix -5 0 progress
                   , :y $ mix -20 -10 progress
-              poly-node |play-left ([] a b c d a) 4 $ motion/ColorRgba :r 0.62 :g 0.89 :b 0.51 :a 1
+              filled-node |play-left ([] a b c d)
+                motion/ColorRgba :r 0.4 :g 0.8 :b 0.4 :a 1
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'Number
@@ -4336,7 +4456,8 @@
                 d $ motion/Vec2 :x
                   + 200 $ mix 5 0 progress
                   , :y $ mix 20 10 progress
-              poly-node |play-right ([] a b c d a) 4 $ motion/ColorRgba :r 0.62 :g 0.89 :b 0.51 :a 1
+              filled-node |play-right ([] a b c d)
+                motion/ColorRgba :r 0.4 :g 0.8 :b 0.4 :a 1
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'Number
@@ -4390,7 +4511,11 @@
                   > (:count model) 0
                   - (:count model) 1
                   , 0
-              scene/SceneDocument :nodes $ [] (plus-line |plus-h -20 0 20 0 angle) (plus-line |plus-v 0 -20 0 20 angle)
+              scene/SceneDocument :nodes $ []
+                background-node |increase-bg -230 $ motion/ColorRgba :r 0.99 :g 0.91 :b 0.99 :a 1
+                background-node |play-bg 170 $ motion/ColorRgba :r 0.98 :g 0.9266666667 :b 0.82 :a 1
+                plus-line |plus-h -20 0 20 0 angle
+                plus-line |plus-v 0 -20 0 20 angle
                 text-node |count-old (str old-count)
                   - 10 $ * 18 phase
                   - 1 phase
@@ -4403,8 +4528,8 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'quamolit.examples.icons/IconModel 'Number
-          :tests $ [] $ %{} 'TestEntry (:name |six-icon-paths)
-            :code $ quote $ assert= 6
+          :tests $ [] $ %{} 'TestEntry (:name |eight-icon-nodes)
+            :code $ quote $ assert= 8
               count $ :nodes $ scene-at (initial) 0
             :tags $ #{} :icons :unit
         'text-node $ %{} 'CodeEntry (:doc |)
@@ -4440,7 +4565,7 @@
       :defs $ {}
         'build-drops $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn build-drops (seed tick slot acc)
-            if (>= slot 48) acc $ let
+            if (>= slot 384) acc $ let
                 item $ drop-node seed tick slot
               recur seed tick (inc slot)
                 match item
@@ -4460,25 +4585,37 @@
           :code $ quote $ defn drop-node (seed tick slot)
             let
                 age $ + tick $ * slot 7
-                phase $ &number:rem age 120
-                cycle $ floor $ / age 120
+                phase $ &number:rem age 180
+                cycle $ floor $ / age 180
                 value $ hash-at seed slot cycle
                 x $ -
                   * (/ value 2147483647) 1000
                   , 500
-                id $ str |rain- slot |/ cycle
-              if (< phase 75)
-                %some $ rect-node id x
-                  - (* phase 8) 400
-                  , 3 30 0.88
-                if (< phase 86)
-                  %some $ rect-node id
-                    - x $ * (- phase 74) 2
+                source-y $ -
+                  *
+                    /
+                      hash-at seed (+ slot 384) cycle
+                      , 2147483647
                     , 200
-                      * (- phase 74) 4
-                      , 5 $ - 1
-                        / (- phase 75) 11
-                  %none
+                  , 400
+                y $ + source-y $ * phase 4
+                id $ str |rain- slot |/ cycle
+              if (> y 200) (%none)
+                if (>= y 160)
+                  %some $ rect-node id x y
+                    * 200 $ /
+                      hash-at seed (+ slot 768) tick
+                      , 2147483647
+                    * 6 $ /
+                      hash-at seed (+ slot 1152) tick
+                      , 2147483647
+                    * 0.5 $ /
+                      hash-at seed (+ slot 1536) tick
+                      , 2147483647
+                  %some $ rect-node id x y 3 30 $ if (< phase 30) (/ phase 30)
+                    if (>= y 120)
+                      / (- 200 y) 80
+                      , 1
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number 'Number 'Number
@@ -4509,7 +4646,7 @@
         'rect-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn rect-node (id x y w h alpha)
             scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :rect $ scene/RectNode :x x :y y :width w :height h :fill
-              motion/ColorRgba :r 0.47 :g 0.78 :b 0.96 :a alpha
+              motion/ColorRgba :r 0.64 :g 0.8533333333 :b 0.96 :a alpha
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'Number 'Number 'Number 'Number 'Number
@@ -4557,20 +4694,24 @@
                 next-y $ + y $ * (* ratio 0.6)
                   + (* 260 s) (* 40 c)
                 large $ circle-node (str |solar-large- level) x y (* 60 ratio)
-                  motion/ColorRgba :r 0.55 :g 0.78 :b 0.5 :a 1
+                  motion/ColorRgba :r 0.8533333333 :g 0.96 :b 0.64 :a 1
+                  motion/ColorRgba :r 0.4 :g 0.6666666667 :b 0.8 :a 0.5
+                  , 1
                 small $ circle-node (str |solar-small- level) small-x small-y (* 30 ratio)
-                  motion/ColorRgba :r 0.4 :g 0.76 :b 0.94 :a 1
+                  motion/ColorRgba :r 0.64 :g 0.8533333333 :b 0.96 :a 1
+                  motion/ColorRgba :r 0.64 :g 0.8533333333 :b 0.96 :a 1
+                  , 0
               recur (inc level) next-x next-y (* ratio 0.6) rotation time $ conj (conj acc large) small
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'circle-node $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn circle-node (id cx cy radius color)
-            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline $ scene/PolylineNode :points (circle-points cx cy radius) :width 2 :stroke color
+          :code $ quote $ defn circle-node (id cx cy radius fill stroke width)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polygon $ scene/PolygonNode :points (circle-points cx cy radius) :width width :fill fill :stroke stroke
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
-            :args $ [] 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+            :args $ [] 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba 'Number
         'circle-points $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn circle-points (cx cy radius)
             build-circle 0 cx cy radius $ empty-points
@@ -8836,6 +8977,7 @@
                 (:polyline path) (%none)
                 (:text text) (%none)
                 (:image image) (%none)
+                (:polygon polygon) (%none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.presence/PresenceItem
@@ -10183,6 +10325,7 @@
                     (:instances instances) (raise |unsupported-retained-path-scene)
                     (:text text) (raise |unsupported-retained-path-scene)
                     (:image image) (raise |unsupported-retained-path-scene)
+                    (:polygon polygon) (raise |unsupported-retained-path-scene)
                   context .restore!
             , &unit
           :examples $ []
@@ -10202,6 +10345,7 @@
                 (:instances instances) false
                 (:text text) false
                 (:image image) false
+                (:polygon polygon) false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -10374,6 +10518,7 @@
                       struct-with (:fill text) (:a value)
                   _ $ raise |unsupported-text-binding
               (:image image) (raise |unsupported-image-binding)
+              (:polygon polygon) (raise |unsupported-polygon-binding)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
             :args $ [] 'quamolit.scene-ir/SceneContent 'quamolit.scene-ir/ScalarTarget 'Number
@@ -10598,6 +10743,7 @@
             :polyline (:: 'List 'quamolit.motion/Vec2) 'Number
             :text 'Number 'Number 'Number 'String
             :image 'quamolit.scene-ir/Matrix2D 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number
+            :polygon (:: 'List 'quamolit.motion/Vec2) 'Number
           :examples $ []
           :schema $ :: 'EnumDef
         'IdentitySegment $ %{} 'CodeEntry
@@ -10607,7 +10753,7 @@
           :schema $ :: 'StructDef
         'PropertySignature $ %{} 'CodeEntry
           :doc "|Closed visual-property projection; separate from geometry and resource versions."
-          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba) (:text 'quamolit.motion/ColorRgba) (:image)
+          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba) (:text 'quamolit.motion/ColorRgba) (:image) (:polygon 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ :: 'EnumDef
         'ResourceSignature $ %{} 'CodeEntry
@@ -10905,6 +11051,8 @@
                 GeometrySignature :text (:x text) (:y text) (:size text) (:text text)
               (:image image)
                 GeometrySignature :image (:matrix image) (:sx image) (:sy image) (:sw image) (:sh image) (:dx image) (:dy image) (:dw image) (:dh image)
+              (:polygon polygon)
+                GeometrySignature :polygon (:points polygon) (:width polygon)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/GeometrySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -10969,6 +11117,8 @@
               (:text text)
                 PropertySignature :text $ :fill text
               (:image image) (PropertySignature :image)
+              (:polygon polygon)
+                PropertySignature :polygon (:fill polygon) (:stroke polygon)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/PropertySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -10983,6 +11133,7 @@
               (:text text) (ResourceSignature :none)
               (:image image)
                 ResourceSignature :image $ :source image
+              (:polygon polygon) (ResourceSignature :none)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/ResourceSignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -11034,6 +11185,15 @@
           :code $ quote $ defstruct Matrix2D (:a 'Number) (:b 'Number) (:c 'Number) (:d 'Number) (:e 'Number) (:f 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'PolygonNode $ %{} 'CodeEntry
+          :doc "|填充闭合多边形；points 至少三个，width=0 时只填充。用于 Solar 圆盘和 Icons 实心形变。"
+          :code $ quote $ defstruct PolygonNode
+            :points $ :: 'List 'quamolit.motion/Vec2
+            :width 'Number
+            :fill 'quamolit.motion/ColorRgba
+            :stroke 'quamolit.motion/ColorRgba
+          :examples $ []
+          :schema $ :: 'StructDef
         'PolylineNode $ %{} 'CodeEntry (:doc "|开放圆头/圆连接折线；至少两点，有限非负宽度，直通道 sRGB 颜色，不含宿主句柄。")
           :code $ quote $ defstruct PolylineNode
             :points $ :: 'List 'quamolit.motion/Vec2
@@ -11058,7 +11218,7 @@
           :schema $ :: 'EnumDef
         'SceneContent $ %{} 'CodeEntry
           :doc "|Closed primitive/group/instance-layer union, independent from execution plans."
-          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode) (:text 'quamolit.scene-ir/TextNode) (:image 'quamolit.scene-ir/ImageNode)
+          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode) (:text 'quamolit.scene-ir/TextNode) (:image 'quamolit.scene-ir/ImageNode) (:polygon 'quamolit.scene-ir/PolygonNode)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneDocument $ %{} 'CodeEntry
@@ -11108,6 +11268,7 @@
               (:polyline path) |polyline
               (:text text) |text
               (:image image) |image
+              (:polygon polygon) |polygon
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -11331,6 +11492,7 @@
                     <=
                       + (:sy image) (:sh image)
                       :height source
+              (:polygon polygon) (valid-polygon? polygon)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -11350,6 +11512,20 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
+        'valid-polygon? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-polygon? (polygon)
+            and
+              >=
+                count $ :points polygon
+                , 3
+              every? (:points polygon) finite-vec2?
+              finite-number? $ :width polygon
+              >= (:width polygon) 0
+              valid-color? $ :fill polygon
+              valid-color? $ :stroke polygon
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/PolygonNode
         'valid-polyline? $ %{} 'CodeEntry (:doc "|验证折线点数、有限坐标、有限非负宽度和颜色。")
           :code $ quote $ defn valid-polyline? (path)
             and
