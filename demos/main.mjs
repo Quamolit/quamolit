@@ -147,7 +147,13 @@ for (const [button, offset] of [["#previous-demo", -1], ["#next-demo", 1]]) {
     if (originals[index + offset]) navigate(originals[index + offset].id);
   });
 }
-window.addEventListener("popstate", scheduleRoute);
+window.addEventListener("popstate", () => {
+  const params = new URLSearchParams(location.search);
+  search.value = params.get("q") || "";
+  select.value = catalog.groups.some(group => group.id === params.get("group")) ? params.get("group") : "";
+  renderGallery();
+  scheduleRoute();
+});
 search.addEventListener("input", renderGallery);
 select.addEventListener("change", renderGallery);
 const params = new URLSearchParams(location.search);

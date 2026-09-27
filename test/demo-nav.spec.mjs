@@ -130,6 +130,18 @@ test("统一页面支持前后切换、历史记录和浮层卸载", async ({ pa
   expect(await page.evaluate(() => "curveDemo" in window)).toBe(false);
 });
 
+test("浏览器历史记录恢复画廊筛选和对应 HTML", async ({ page }) => {
+  await page.goto("demos/index.html?group=originals&q=曲线");
+  await expect(page.getByLabel("查找演示")).toHaveValue("曲线");
+  await page.getByRole("link", { name: "打开 Curve · 动态曲线" }).click();
+  await expect(page.locator("#demo-title")).toContainText("Curve");
+  await page.goBack();
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+  await expect(page.getByLabel("查找演示")).toHaveValue("曲线");
+  await expect(page.getByLabel("分类", { exact: true })).toHaveValue("originals");
+  await expect(page.locator("a[data-demo]")).toHaveCount(1);
+});
+
 test("11 个原有动画复用一块全屏 Canvas，缩减动态效果时不等待淡入", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("demos/index.html?demo=folding-fan&t=0");
