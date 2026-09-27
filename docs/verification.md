@@ -14,6 +14,8 @@
 
 `yarn test:binary-tree` 严格检查 Calcit 线段参考与原有摆动树，执行原生和 3 项 Node 合同；浏览器验证原有递归运动的独立矩阵/画面对照、负例和全屏播放控制。见 [Binary Tree 恢复边界](binary-tree-restoration.md)；不能据此宣称完整 Path IR 或 GPU 已实现。
 
+`yarn test:tidal-bloom` 检查首个[生成艺术作品](tidal-bloom.md)：Calcit 类型化环线组件、29 层闭合几何与合法颜色、绝对时间乱序重放；Chromium 保存 t=0/18/42 固定画面，并验证 DPR 2 窄屏、暂停 resize 与全屏 Canvas 浮层。它使用现有 Canvas 参考路径，不证明 GPU 绘制或新的性能目标。
+
 `yarn test:raining-demo` 检查 [Raining 恢复](raining-restoration.md)的严格类型、Calcit→JS 编译、Node 固定 seed/tick 乱序重放及 48 节点上界、Chromium 全屏中间帧/水花截图与 DPR 2 暂停 resize。它是解析式固定 tick 采样和 Canvas2D 参考，不证明 GPU 历史模拟或吞吐。
 
 `yarn test:finder-demo` 检查 [Finder 恢复](finder-restoration.md)的严格类型、Calcit 点击日志/Scene/命中、Node 打断连续性和非法切换、Chromium 实际画布点击、固定时间截图、分享像素重放与 DPR 2 暂停 resize。它不证明 #34 通用命中/指针捕获或 WebGPU 绘制。

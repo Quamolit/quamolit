@@ -2,11 +2,11 @@
 
 恢复进度：原有 11 项均已有可运行 Canvas 切片，包括 [Binary Tree](../docs/binary-tree-restoration.md)、[TodoList](../docs/todolist-restoration.md)、[Clock](../docs/clock-restoration.md)、[Curve](../docs/curve-restoration.md)、[Solar](../docs/solar-restoration.md)、[Icons](../docs/icons-restoration.md)、[Raining](../docs/raining-restoration.md)、[Finder](../docs/finder-restoration.md)、[Table](../docs/table-restoration.md)、[Drag demo](../docs/drag-demo-restoration.md) 与 [Folding Fan](../docs/folding-fan-restoration.md)。完整功能矩阵和 GPU 集成待补；优先从“原有动画”进入实际动画。
 
-统一入口为 `/demos/index.html`。原有 11 项现在使用同一个页面、同一块全屏 Canvas；`?demo=curve&t=30` 可直接打开固定时间，画廊、上一个/下一个、浏览器前进/后退都通过页面状态切换。切换时舞台和 DOM 控制浮层淡出、卸载旧入口，再挂载并淡入新入口；`prefers-reduced-motion` 会跳过过渡等待。每个入口的 `mountDemo()` 返回清理函数，停止时钟、事件与观察器。旧 `/examples/<id>/index.html` 保留作为兼容和逐项截图测试入口。
+统一入口为 `/demos/index.html`。原有 11 项与首个艺术作品 [Tidal Bloom](../docs/tidal-bloom.md) 使用同一个页面、同一块全屏 Canvas；`?demo=curve&t=30` 或 `?demo=tidal-bloom&t=18` 可直接打开固定时间，画廊、上一个/下一个、浏览器前进/后退都通过页面状态切换。切换时舞台和 DOM 控制浮层淡出、卸载旧入口，再挂载并淡入新入口；`prefers-reduced-motion` 会跳过过渡等待。每个入口的 `mountDemo()` 返回清理函数，停止时钟、事件与观察器。旧 `/examples/<id>/index.html` 保留作为兼容和逐项截图测试入口。
 
-页面清单由 `catalog.json` 管理，分为原有动画、公共 Calcit 路径、Motion/时间、组件/生命周期、实例/WebGPU 和参考/验证工具。搜索、分类筛选保存在 URL，刷新可复现。其余 26 项是技术夹具或工具，暂保留独立页面，不混作艺术动画；新增真正的作品应接入统一舞台而不是再建导航后独立页面。
+页面清单由 `catalog.json` 管理，分为原有动画、艺术动画、公共 Calcit 路径、Motion/时间、组件/生命周期、实例/WebGPU 和参考/验证工具。搜索、分类筛选保存在 URL，刷新可复现。其余技术夹具或工具暂保留独立页面，不混作艺术动画；新增真正的作品应接入统一舞台而不是再建导航后独立页面。
 
-原有 11 项始终保留完整清单，目前均有运行入口；艺术动画分类尚无作品。未来待实现项不计入现有入口。详见[恢复验收与全屏约定](../docs/demo-restoration.md)。独立消费者默认展示全屏 Canvas 与可收起 DOM 浮层；`?fixture=1` 用于原固定像素诊断。画廊状态保留舞台但用目录浮层覆盖；演示状态显示同一块完整视口的 Canvas。
+原有 11 项始终保留完整清单，目前均有运行入口；艺术动画分类从 Tidal Bloom 开始，不把技术夹具混入作品。未来待实现项不计入现有入口。详见[恢复验收与全屏约定](../docs/demo-restoration.md)。独立消费者默认展示全屏 Canvas 与可收起 DOM 浮层；`?fixture=1` 用于原固定像素诊断。画廊状态保留舞台但用目录浮层覆盖；演示状态显示同一块完整视口的 Canvas。
 
 ```sh
 # 需要项目 deps.cirru 声明的 Calcit、Node 24、caps 与 Yarn 4.12.0

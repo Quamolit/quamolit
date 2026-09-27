@@ -4948,6 +4948,101 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.table
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.tidal-bloom $ %{} 'FileEntry
+      :defs $ {}
+        'build-rings $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-rings (ring time acc)
+            if (> ring 28) acc $ recur (inc ring) time $ conj acc (ring-node ring time)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context time)
+            reference/draw-reference! context $ scene-at time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number
+        'empty-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-nodes () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'empty-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-points () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'point-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn point-at (ring index time)
+            let
+                theta $ +
+                  * 2 &PI $ / index 96
+                  * time 0.08
+                  * ring 0.12
+                ripple $ +
+                  * 18 $ sin $ + (* theta 7) (* time 0.45) (* ring 0.23)
+                  * 8 $ cos $ + (* theta 13) (* time -0.17) (* ring 0.41)
+                radius $ + 52 (* ring 9) ripple
+              motion/Vec2 :x
+                * radius $ cos theta
+                , :y $ * 0.74 radius $ sin theta
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'Number 'Number 'Number
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'ring-color $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn ring-color (ring time)
+            let
+                phase $ + (* ring 0.22) (* time 0.12)
+              motion/ColorRgba :r
+                + 0.46 $ * 0.24 $ sin phase
+                , :g
+                  + 0.54 $ * 0.26 $ sin (+ phase 2.1)
+                  , :b
+                    + 0.72 $ * 0.22 $ sin (+ phase 4.2)
+                    , :a 0.5
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
+            :args $ [] 'Number 'Number
+        'ring-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn ring-node (ring time)
+            let
+                id $ str |bloom- ring
+              scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline $ scene/PolylineNode :points
+                ring-points ring time 0 $ empty-points
+                , :width 1.5 :stroke (ring-color ring time)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'Number 'Number
+        'ring-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn ring-points (ring time index acc)
+            if (> index 96) acc $ recur ring time (inc index)
+              conj acc $ if (= index 96) (point-at ring 0 time) (point-at ring index time)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number $ :: 'List 'quamolit.motion/Vec2
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (time)
+            scene/SceneDocument :nodes $ build-rings 0 time $ empty-nodes
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.tidal-bloom
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
     'quamolit.examples.todolist $ %{} 'FileEntry
       :defs $ {}
         'Event $ %{} 'CodeEntry (:doc |)

@@ -21,6 +21,7 @@ h2 { font-size: 23px; }
 article { background: white; padding: 22px; border: 1px solid #d4e0e7; border-radius: 12px; display: flex; flex-direction: column; align-items: start; }
 .badge { font-size: 12px; padding: 3px 9px; border-radius: 20px; background: #edf2f6; color: #547081; }
 article[data-group="public"] { border-top: 4px solid #277a85; }
+article[data-group="art"] { border-top: 4px solid #aa7192; }
 article[data-planned] { background: #f8fafb; border-style: dashed; }
 .reserved { padding: 24px; border: 1px dashed #8da7b6; border-radius: 12px; color: #526978; }
 article[data-group="gpu"] .badge { color: #7a571e; background: #fbf0d7; }
@@ -70,10 +71,17 @@ body[data-view="demo"][data-transition="idle"] #scene { opacity: 1; }
 #demo-content #message { color: #efb784; min-height: 1.3em; }
 #demo-content #editor { position: fixed; z-index: 2; border: 2px solid #c6e5ff; border-radius: 9px; background: #233a55; color: white; padding: 0 10px; font: 21px/1.2 system-ui,sans-serif; pointer-events: auto; }
 #demo-content #editor[hidden] { display: none; }
+body[data-demo="tidal-bloom"] #scene { background: radial-gradient(ellipse at 53% 46%, #16324a 0%, #0b1e31 43%, #071423 78%); }
+body[data-demo="tidal-bloom"] #demo-content #panel { left: 24px; right: auto; top: auto; bottom: 24px; width: min(380px, calc(100vw - 48px)); border: 1px solid #62798780; border-radius: 20px; background: #071827da; backdrop-filter: blur(18px); }
+body[data-demo="tidal-bloom"] #demo-content #panel-toggle { top: 64px; }
+body[data-demo="tidal-bloom"] #demo-content h1 small { display: block; margin-top: 4px; }
+body[data-demo="tidal-bloom"] #demo-content .eyebrow { color: #d6c39c; }
+body[data-demo="tidal-bloom"] #demo-content input { accent-color: #e7c496; }
 @media(max-width:600px) {
   #gallery-view header, #gallery-view .gallery-content { padding: 20px; }
   #gallery-view header { padding-top: 34px; }
   #demo-content #panel { right: 20px; top: 116px; max-height: calc(100dvh - 132px); }
+  body[data-demo="tidal-bloom"] #demo-content #panel { left: 16px; right: auto; bottom: 16px; top: auto; width: calc(100vw - 32px); }
 }
 @media(prefers-reduced-motion: reduce) {
   #scene, #gallery-view, #demo-view { transition-duration: 0ms; }

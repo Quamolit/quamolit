@@ -6,8 +6,7 @@
     },
     {
       "id": "art",
-      "title": "艺术动画 · 未来作品",
-      "empty": "为全屏生成艺术、动态构图与粒子作品预留。尚无已交付作品；后续使用 Calcit 声明、显式时间与可重复种子。"
+      "title": "艺术动画 · 生成图案"
     },
     {
       "id": "public",
@@ -32,6 +31,16 @@
   ],
   "planned": [],
   "entries": [
+    {
+      "id": "tidal-bloom",
+      "path": "examples/tidal-bloom/index.html",
+      "title": "Tidal Bloom · 潮汐花纹",
+      "group": "art",
+      "summary": "29 层谐波花环交错呼吸；Calcit 声明每条曲线及颜色，显式时间可拖动、乱序截图与分享。",
+      "status": "艺术作品 · Canvas",
+      "docs": "docs/tidal-bloom.md",
+      "compile": "compile:tidal-bloom"
+    },
     {
       "id": "folding-fan",
       "path": "examples/folding-fan/index.html",

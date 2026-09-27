@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Tidal Bloom · Quamolit 艺术动画</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <canvas id="scene" aria-label="随时间缓慢呼吸的彩色谐波花环"></canvas>
+    <nav aria-label="演示导航"><a href="../../demos/index.html?group=art">← 艺术动画</a></nav>
+    <button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起控制</button>
+    <aside id="panel" aria-label="潮汐花纹控制">
+      <span class="eyebrow">QUAMOLIT / GENERATIVE 01</span>
+      <h1>Tidal Bloom<small>潮汐花纹</small></h1>
+      <p>二十九层曲线像潮汐一样错位呼吸。每一条线的几何与颜色都由 Calcit 对绝对时间直接采样，拖动时间可以立刻回到任意画面。</p>
+      <div class="buttons">
+        <button id="play">播放</button>
+        <button id="reset">回到起点</button>
+        <button id="share">复制当前画面链接</button>
+      </div>
+      <label>时间 <input id="time" type="range" min="0" max="120" step="0.01" value="0"></label>
+      <div class="buttons moments">
+        <button data-time="0">初潮</button>
+        <button data-time="18">交汇</button>
+        <button data-time="42">盛放</button>
+        <button data-time="72">回旋</button>
+      </div>
+      <output id="status" aria-live="off"></output>
+      <a class="details" href="https://github.com/Quamolit/quamolit/blob/main/docs/tidal-bloom.md">构图、实现与检验</a>
+    </aside>
+    <script type="module" src="./main.mjs"></script>
+  </body>
+</html>
