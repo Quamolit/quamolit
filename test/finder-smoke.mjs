@@ -25,6 +25,48 @@ test("五个旧文件夹及中文植物卡片，展开/聚焦/返回具有稳定
   assert.equal(data(finder.hit_at(focused, 0.78, 400, 200)).kind, "back");
 });
 
+test("卡片文字随矩形共用局部缩放，所有中间帧均位于父卡片内", () => {
+  for (let folder = 0; folder < 5; folder++) {
+    const open = finder.select_folder(finder.initial(), folder, 0);
+    const focused = finder.select_card(open, 0, 0.42);
+    for (const time of [0.42, 0.51, 0.6, 0.78]) {
+      const nodes = scene(focused, time);
+      for (const node of nodes.filter(item => /^card-\d+\/\d+$/.test(item.id))) {
+        const rect = node.content[1];
+        const label = nodes.find(item => item.id === `${node.id}/label`).content[1];
+        assert.ok(Math.abs(label.size / rect.width - 18 / 150) < 1e-9, `${node.id} t=${time}: 字号须跟随卡片缩放`);
+        assert.ok(label.x >= rect.x, `${node.id} t=${time}: 文字左端越界`);
+        assert.ok(label.x + label.text.length * label.size <= rect.x + rect.width, `${node.id} t=${time}: 文字右端越界`);
+        assert.ok(label.y - label.size >= rect.y && label.y <= rect.y + rect.height, `${node.id} t=${time}: 文字纵向越界`);
+      }
+    }
+  }
+});
+
+test("五组文件夹展开与收起时，内部卡片始终位于文件夹矩形内", () => {
+  for (let folder = 0; folder < 5; folder++) {
+    const opening = finder.select_folder(finder.initial(), folder, 0);
+    const closing = finder.back(opening, 0.21);
+    for (const [model, times] of [
+      [opening, [0, 0.04, 0.11, 0.21, 0.32, 0.42]],
+      [closing, [0.21, 0.26, 0.38, 0.52, 0.63]],
+    ]) {
+      for (const time of times) {
+        const nodes = scene(model, time);
+        const parent = nodes.find(node => node.id === `folder-${folder}`).content[1];
+        for (const node of nodes.filter(item => item.id.startsWith(`card-${folder}/`) && !item.id.endsWith("/label"))) {
+          const card = node.content[1];
+          const epsilon = 1e-7;
+          assert.ok(card.x >= parent.x - epsilon, `${node.id} t=${time}: 左边越界`);
+          assert.ok(card.x + card.width <= parent.x + parent.width + epsilon, `${node.id} t=${time}: 右边越界`);
+          assert.ok(card.y >= parent.y - epsilon, `${node.id} t=${time}: 上边越界`);
+          assert.ok(card.y + card.height <= parent.y + parent.height + epsilon, `${node.id} t=${time}: 下边越界`);
+        }
+      }
+    }
+  }
+});
+
 test("返回和快速重入从当前采样值接续；非法切换不偷换身份", () => {
   const open = finder.select_folder(finder.initial(), 0, 0);
   const partial = finder.folder_value(open, 0.16);
