@@ -25,7 +25,7 @@ const harness = {
   dirty: spawnSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).stdout.trim().length > 0,
   sha256: {},
 };
-for (const name of ["examples/retained-consumer/calcit.cirru", "examples/retained-consumer/main.mjs", "examples/retained-consumer/index.html",
+for (const name of ["examples/retained-consumer/calcit.cirru", "examples/retained-consumer/main.mjs", "examples/retained-consumer/instances-input.mjs", "examples/retained-consumer/index.html",
   "test/isolated-consumer.mjs", "test/consumer-gpu-contract.mjs", "test/consumer-gpu-browser.mjs", "test/consumer-instances-contract.mjs", "test/host/gpu-scalar-readback.mjs",
   "test/consumer-bench.mjs", "test/consumer-bench-browser.mjs"]) {
   harness.sha256[name] = createHash("sha256").update(await readFile(join(root, name))).digest("hex");
@@ -44,7 +44,7 @@ let server, browser, page;
 await writeFile(join(artifacts, "report.json"), JSON.stringify({ result: "RUNNING", candidate, temporary }, null, 2));
 try {
   await mkdir(source);
-  for (const file of ["calcit.cirru", "deps.cirru", "package.json", "yarn.lock", ".yarnrc.yml", "index.html", "main.mjs"]) {
+  for (const file of ["calcit.cirru", "deps.cirru", "package.json", "yarn.lock", ".yarnrc.yml", "index.html", "main.mjs", "instances-input.mjs"]) {
     await cp(join(fixture, file), join(source, file));
   }
   run("caps", ["--ci", "add", "Quamolit/quamolit", "-r", candidate], source);
@@ -82,7 +82,7 @@ try {
   const gpuAsset = join(resolvedModule, "src/host/gpu-component-create.mjs");
   assert.match(await readFile(gpuAsset, "utf8"), /sampleMotion/);
   assert.match(await readFile(join(runtime, "target/js/app/quamolit.gpu-scalar-program.mjs"), "utf8"), /sampleMotion/);
-  for (const file of ["package.json", "yarn.lock", ".yarnrc.yml", "index.html", "main.mjs", "node_modules"]) {
+  for (const file of ["package.json", "yarn.lock", ".yarnrc.yml", "index.html", "main.mjs", "instances-input.mjs", "node_modules"]) {
     await rename(join(source, file), join(runtime, file));
   }
   // 编译目录改名：实际执行从仅含产物与标准 runtime 的同级目录开始。
@@ -145,6 +145,19 @@ try {
   await page.screenshot({ path: join(artifacts, "dual-frame-0.5.png"), fullPage: true });
   await page.click('[data-mode="mixed"]');
   assert.equal(await page.evaluate(() => window.consumer.snapshot().scene.nodes[2].content[0]), "polyline");
+  await page.click('[data-mode="instances"]');
+  const instancePage = await page.evaluate(() => window.consumer.snapshot());
+  assert.equal(instancePage.mode, "instances");
+  assert.deepEqual(instancePage.source, { count: 10000, positionBytes: 80000 });
+  assert.deepEqual(instancePage.metrics, { "boundary-calls": 1, "canvas-calls": 10000, instances: 10000, "position-bytes-read": 80000 });
+  assert.equal(await page.locator('[data-time="0.5"]').isDisabled(), true);
+  const instancePixels = await page.evaluate(() => {
+    const context = document.querySelector("canvas").getContext("2d");
+    return [context.getImageData(6, 6, 1, 1).data[3], context.getImageData(319, 179, 1, 1).data[3]];
+  });
+  assert.deepEqual(instancePixels, [255, 0], "10k 公共实例入口必须真正绘制画面");
+  await page.screenshot({ path: join(artifacts, "instances-10k.png"), fullPage: true });
+  await page.click('[data-mode="mixed"]');
   const gpuBrowser = await verifyGpuConsumerBrowser(page, artifacts);
   const gpuDualBrowser = await verifyGpuConsumerBrowser(page, artifacts, true);
   if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") {
@@ -159,7 +172,7 @@ try {
     negativeControl: ["停止 CPU 时间采样被断言检出", "停止 GPU uniform 写入被断言检出", "停止双轴 CPU 参考更新被断言检出", "伪造实例计数被断言检出"],
     browser: await browser.version(), node: process.version, calcit: run("calcit", ["-v"], runtime).trim(),
     times: [1, 0, 0.5, 0.25, 1], sameTimeInvalidations: ["model", "resources", "viewport"], requests,
-    limitations: ["GPU 硬件结果独立见 gpuBrowser；设备 mock 不是硬件证据", "尚未验证逻辑生命周期集成、真实资源表释放与端到端性能", "模块缓存可复用；消费者目录和运行产物目录独立", "尚未验证仅 JS 片段修改后的显式重编译", "10k 实例仅验证 Canvas 公共入口计数，尚未接入页面/bench 与 GPU"] };
+    limitations: ["GPU 硬件结果独立见 gpuBrowser；设备 mock 不是硬件证据", "尚未验证逻辑生命周期集成、真实资源表释放与端到端性能", "模块缓存可复用；消费者目录和运行产物目录独立", "尚未验证仅 JS 片段修改后的显式重编译", "10k 静态实例已接入 Canvas 页面、像素检查与独立短时帧基准；动态源和 GPU 尚未验收"] };
   await writeFile(join(artifacts, "report.json"), JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ result: "PASS", candidate, counts, instancesCounts, gpuCounts, gpuBrowser, gpuDualBrowser, modules: modules.size, artifacts, runtime }, null, 2));
 } catch (error) {
