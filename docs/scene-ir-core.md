@@ -16,7 +16,7 @@ Scene 标量绑定已有 [CPU 参考解析器](scene-binding.md)。实例 typed-
 
 ## 后续支持扩展
 
-以下扩展修订上方初始切片的支持集：当前还包括开放折线与基础单行文字；矩形、折线、文字均允许叶节点 `:alpha` 标量绑定（乘原颜色 alpha），不是组隔离透明度。当前通用 Canvas 参考绘制顶层 rect/polyline/text，其他结构仍明确拒绝。
+以下扩展修订上方初始切片的支持集：当前还包括开放折线、基础单行文字和图片；矩形、折线、文字均允许叶节点 `:alpha` 标量绑定（乘原颜色 alpha），不是组隔离透明度。`canvas-reference` 参考入口仅绘制顶层 rect/polyline/text；图片须调用单独的 `canvas-images/draw-document!`，其他结构仍明确拒绝。
 
 `SceneContent :text` 保存 `TextNode { x, y, size, text, fill }`，字号必须有限且大于零。位置、字号、内容是几何签名，颜色是属性签名；没有字体资源引用。支持 monospace、左对齐、中线绘制，尚无 shaping、字体加载或 GPU 字形缓存。实现与验证见 [TodoList 恢复](todolist-restoration.md)。
 
@@ -27,3 +27,9 @@ Scene 标量绑定已有 [CPU 参考解析器](scene-binding.md)。实例 typed-
 新的 `quamolit.canvas-reference/draw-reference!` 按声明顺序混合绘制**顶层 rect/polyline**。先校验整个文档和能力集，group、子节点和 instances 均在任何绘制前报错，避免静默丢图。它不执行 group 的 transform/clip/opacity，也不支持 WebGPU。坐标使用调用方当前 Canvas 坐标系，调用方负责视口/DPR/清屏；每个图元保存与恢复绘图状态，当前 path 不恢复，宿主异常不保证事务回滚。旧 `draw-reference-rects!` 仅保留历史矩形夹具行为，遇到新 polyline 明确报错，不应作为新场景通用入口。
 
 树的 `scene-at(time, depth)` 与浏览器入口现已消费该正式 IR；旧 `RoundPolyline` API 委托同一 `draw-round-path!` 原语，没有另建 JS renderer。`yarn test:binary-tree` 验证序列化、身份、几何/属性失效、非法与不支持场景的零副作用；`test/scene-core.spec.mjs` 用原生 Canvas 独立像素参考验证半透明矩形/折线层序，并以倒序绘制作为负例。仍是全量参考实现，不能用这项集成声称跨帧缓存或 GPU 提速。下一步为 #50 的路径保留计划及同源全量/保留对照。
+
+## #53 图片 Scene 参考路径
+
+`SceneContent :image` 持有 `ImageNode { source, matrix, sx, sy, sw, sh, dx, dy, dw, dh }`，其中 `ImageSource { id, version, width, height }` 只有逻辑身份与原始像素尺寸；DOM 图片、解码状态和 GPU 纹理都在 Scene 外。源裁剪必须落在原始图片之内，源/目标尺寸必须为正，矩阵与坐标均须有限。`scene-diff` 把矩阵及裁剪/目标矩形归为 geometry，把 `ImageSource` 归为 resources；仅时间推进但图片不变不必更换资源。
+
+`quamolit.canvas-images/draw-document!` 是窄 Canvas2D 正确性参考入口：先校验所有节点并解析 `(id, version)` 到宿主图片，检查 `naturalWidth/Height`，再按声明顺序绘制顶层 image/rect/polyline/text。缺失或尺寸不符在绘制前报错，不留下半帧；该入口暂不支持 group、子节点、标量绑定、实例、WebGPU 图片纹理或跨帧图片句柄缓存。图片九参数 `drawImage` 调用 js-ffi 的类型化 `draw-image-crop!`，其余节点、资源与调度逻辑在 Calcit。折扇恢复示例已通过 `scene-at(model,time)` 使用这一路径；相关用例见 [折扇恢复](folding-fan-restoration.md)。

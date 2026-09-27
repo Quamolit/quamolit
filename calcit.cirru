@@ -1809,6 +1809,79 @@
             :args $ []
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.bootstrap
+    'quamolit.canvas-images $ %{} 'FileEntry
+      :defs $ {}
+        'draw-document! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-document! (context document lookup) (preflight! document lookup)
+            each (:nodes document)
+              fn (node)
+                match (:content node)
+                  (:image image)
+                    let
+                        source $ :source image
+                      draw-image! context
+                        lookup (:id source) (:version source)
+                        , image
+                  _ $ canvas/draw-content! context $ :content node
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument $ :: 'Fn
+              {} (:return 'js-ffi.browser/ImageHost)
+                :args $ [] 'String 'Number
+            :features $ #{} :js-ffi
+        'draw-image! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-image! (context host image)
+            let
+                m $ :matrix image
+              context .save!
+              context .transform! (:a m) (:b m) (:c m) (:d m) (:e m) (:f m)
+              try
+                js-ffi.canvas-batches/draw-image-crop! context host (:sx image) (:sy image) (:sw image) (:sh image) (:dx image) (:dy image) (:dw image) (:dh image)
+                fn (error) (context .restore!) (raise error)
+              context .restore!
+              , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.browser/ImageHost 'quamolit.scene-ir/ImageNode
+            :features $ #{} :js-ffi
+        'preflight! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn preflight! (document lookup)
+            assert |invalid-image-scene $ scene/validate-scene document
+            assert |unsupported-image-scene $ every? (:nodes document) supported-node?
+            each (:nodes document)
+              fn (node)
+                match (:content node)
+                  (:image image)
+                    let
+                        source $ :source image
+                        host $ lookup (:id source) (:version source)
+                      assert |missing-image-resource $ some? host
+                      assert |image-size-mismatch $ and
+                        = (:width source) (browser/image-natural-width host)
+                        = (:height source) (browser/image-natural-height host)
+                  _ &unit
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.scene-ir/SceneDocument $ :: 'Fn
+              {} (:return 'js-ffi.browser/ImageHost)
+                :args $ [] 'String 'Number
+            :features $ #{} :js-ffi
+        'supported-node? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn supported-node? (node)
+            and
+              empty? $ :parent node
+              empty? $ :bindings node
+              match (:content node)
+                (:image image) true
+                _ $ canvas/supported-flat-node? node
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneNode
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.canvas-images
+          :require (quamolit.scene-ir :as scene) (quamolit.canvas-reference :as canvas) (js-ffi.browser :as browser)
     'quamolit.canvas-reference $ %{} 'FileEntry
       :defs $ {}
         'InstancesMetrics $ %{} 'CodeEntry (:doc |)
@@ -1840,6 +1913,7 @@
               (:group group) (raise |unsupported-reference-group)
               (:instances instances) (raise |unsupported-reference-instances)
               (:text text) (draw-text! context text)
+              (:image image) (raise |image-requires-resource-resolver)
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -1897,6 +1971,7 @@
                   (:instances instances) &unit
                   (:polyline path) (raise |polyline-requires-draw-reference)
                   (:text text) (raise |text-requires-draw-reference)
+                  (:image image) (raise |image-requires-resource-resolver)
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -1965,6 +2040,7 @@
                 (:group group) false
                 (:instances instances) false
                 (:text text) true
+                (:image image) false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -4084,29 +4160,14 @@
           :schema $ :: 'StructDef
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context image model time)
-            each (slices-at model time)
-              fn (segment) (draw-slice! context image segment)
+            images/draw-document! context (scene-at model time)
+              fn (id version)
+                assert |unexpected-fan-image $ and (= id |lotus) (= version 1)
+                identity image
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.browser/ImageHost 'quamolit.examples.folding-fan/FanModel 'Number
-            :features $ #{} :js-ffi
-        'draw-slice! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn draw-slice! (context image segment)
-            let
-                angle $ :angle segment
-                c $ cos angle
-                s $ sin angle
-              context .save!
-              context .transform! c s (- 0 s) c 0 0
-              js-ffi.canvas-batches/draw-image-crop! context image (:source-x segment) 0 (:source-width segment) 432
-                - 0 $ / 650 48
-                , -432 (/ 650 24) 432
-              context .restore!
-              , &unit
-          :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.browser/ImageHost 'quamolit.examples.folding-fan/FanSlice
             :features $ #{} :js-ffi
         'empty-slices $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-slices () ([])
@@ -4138,6 +4199,28 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (model time)
+            scene/SceneDocument :nodes $ map (slices-at model time) scene-node
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.examples.folding-fan/FanModel 'Number
+        'scene-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-node (segment)
+            let
+                angle $ :angle segment
+                c $ cos angle
+                s $ sin angle
+                id $ str |fan-slice- $ :index segment
+                matrix $ scene/Matrix2D :a c :b s :c (- 0 s) :d c :e 0 :f 0
+                source $ scene/ImageSource :id |lotus :version 1 :width 650 :height 432
+                image $ scene/ImageNode :source source :matrix matrix :sx (:source-x segment) :sy 0 :sw (:source-width segment) :sh 432 :dx
+                  - 0 $ / 650 48
+                  , :dy -432 :dw (/ 650 24) :dh 432
+              scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :image image
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'quamolit.examples.folding-fan/FanSlice
         'slices-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn slices-at (model time)
             slices-from 0 (fold-value model time) (empty-slices)
@@ -4169,7 +4252,7 @@
             :args $ [] 'quamolit.examples.folding-fan/FanModel 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.folding-fan
-          :require (quamolit.transition :as transition) (quamolit.motion :as motion)
+          :require (quamolit.transition :as transition) (quamolit.motion :as motion) (quamolit.scene-ir :as scene) (quamolit.canvas-images :as images)
     'quamolit.examples.icons $ %{} 'FileEntry
       :defs $ {}
         'IconModel $ %{} 'CodeEntry (:doc |)
@@ -8752,6 +8835,7 @@
                 (:rect rect) (%none)
                 (:polyline path) (%none)
                 (:text text) (%none)
+                (:image image) (%none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.presence/PresenceItem
@@ -10098,6 +10182,7 @@
                     (:group group) (raise |unsupported-retained-path-scene)
                     (:instances instances) (raise |unsupported-retained-path-scene)
                     (:text text) (raise |unsupported-retained-path-scene)
+                    (:image image) (raise |unsupported-retained-path-scene)
                   context .restore!
             , &unit
           :examples $ []
@@ -10116,6 +10201,7 @@
                 (:group group) false
                 (:instances instances) false
                 (:text text) false
+                (:image image) false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -10287,6 +10373,7 @@
                     scene-ir/SceneContent :text $ struct-with text $ :fill
                       struct-with (:fill text) (:a value)
                   _ $ raise |unsupported-text-binding
+              (:image image) (raise |unsupported-image-binding)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
             :args $ [] 'quamolit.scene-ir/SceneContent 'quamolit.scene-ir/ScalarTarget 'Number
@@ -10510,6 +10597,7 @@
           :code $ quote $ defenum GeometrySignature (:group 'quamolit.scene-ir/Matrix2D 'quamolit.scene-ir/ClipSpec) (:rect 'Number 'Number 'Number 'Number) (:instances 'Number 'Number)
             :polyline (:: 'List 'quamolit.motion/Vec2) 'Number
             :text 'Number 'Number 'Number 'String
+            :image 'quamolit.scene-ir/Matrix2D 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number
           :examples $ []
           :schema $ :: 'EnumDef
         'IdentitySegment $ %{} 'CodeEntry
@@ -10519,12 +10607,12 @@
           :schema $ :: 'StructDef
         'PropertySignature $ %{} 'CodeEntry
           :doc "|Closed visual-property projection; separate from geometry and resource versions."
-          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba) (:text 'quamolit.motion/ColorRgba)
+          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba) (:text 'quamolit.motion/ColorRgba) (:image)
           :examples $ []
           :schema $ :: 'EnumDef
         'ResourceSignature $ %{} 'CodeEntry
           :doc "|Versioned external instance source, or none for non-resource nodes."
-          :code $ quote $ defenum ResourceSignature (:none) (:instances 'quamolit.scene-ir/InstanceSource)
+          :code $ quote $ defenum ResourceSignature (:none) (:instances 'quamolit.scene-ir/InstanceSource) (:image 'quamolit.scene-ir/ImageSource)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneChange $ %{} 'CodeEntry
@@ -10815,6 +10903,8 @@
                 GeometrySignature :polyline (:points path) (:width path)
               (:text text)
                 GeometrySignature :text (:x text) (:y text) (:size text) (:text text)
+              (:image image)
+                GeometrySignature :image (:matrix image) (:sx image) (:sy image) (:sw image) (:sh image) (:dx image) (:dy image) (:dw image) (:dh image)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/GeometrySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -10878,6 +10968,7 @@
                 PropertySignature :polyline $ :stroke path
               (:text text)
                 PropertySignature :text $ :fill text
+              (:image image) (PropertySignature :image)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/PropertySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -10890,6 +10981,8 @@
                 ResourceSignature :instances $ :source instances
               (:polyline path) (ResourceSignature :none)
               (:text text) (ResourceSignature :none)
+              (:image image)
+                ResourceSignature :image $ :source image
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/ResourceSignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -10917,6 +11010,14 @@
         'GroupNode $ %{} 'CodeEntry
           :doc "|Group transform, clip and isolated opacity declaration."
           :code $ quote $ defstruct GroupNode (:transform 'quamolit.scene-ir/Matrix2D) (:clip 'quamolit.scene-ir/ClipSpec) (:opacity 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ImageNode $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageNode (:source 'quamolit.scene-ir/ImageSource) (:matrix 'quamolit.scene-ir/Matrix2D) (:sx 'Number) (:sy 'Number) (:sw 'Number) (:sh 'Number) (:dx 'Number) (:dy 'Number) (:dw 'Number) (:dh 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ImageSource $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageSource (:id 'String) (:version 'Number) (:width 'Number) (:height 'Number)
           :examples $ []
           :schema $ :: 'StructDef
         'InstanceNode $ %{} 'CodeEntry
@@ -10957,7 +11058,7 @@
           :schema $ :: 'EnumDef
         'SceneContent $ %{} 'CodeEntry
           :doc "|Closed primitive/group/instance-layer union, independent from execution plans."
-          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode) (:text 'quamolit.scene-ir/TextNode)
+          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode) (:text 'quamolit.scene-ir/TextNode) (:image 'quamolit.scene-ir/ImageNode)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneDocument $ %{} 'CodeEntry
@@ -11006,6 +11107,7 @@
               (:instances instances) |instances
               (:polyline path) |polyline
               (:text text) |text
+              (:image image) |image
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -11197,6 +11299,38 @@
                   finite-number? $ :size text
                   > (:size text) 0
                   valid-color? $ :fill text
+              (:image image)
+                let
+                    source $ :source image
+                    matrix $ :matrix image
+                  and
+                    not $ empty? $ :id source
+                    finite-number? $ :version source
+                    >= (:version source) 0
+                    = (:version source)
+                      floor $ :version source
+                    finite-number? $ :width source
+                    finite-number? $ :height source
+                    > (:width source) 0
+                    > (:height source) 0
+                    every?
+                      [] (:a matrix) (:b matrix) (:c matrix) (:d matrix) (:e matrix) (:f matrix)
+                      , finite-number?
+                    every?
+                      [] (:sx image) (:sy image) (:sw image) (:sh image) (:dx image) (:dy image) (:dw image) (:dh image)
+                      , finite-number?
+                    >= (:sx image) 0
+                    >= (:sy image) 0
+                    > (:sw image) 0
+                    > (:sh image) 0
+                    > (:dw image) 0
+                    > (:dh image) 0
+                    <=
+                      + (:sx image) (:sw image)
+                      :width source
+                    <=
+                      + (:sy image) (:sh image)
+                      :height source
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneContent
