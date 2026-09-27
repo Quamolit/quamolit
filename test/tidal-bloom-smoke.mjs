@@ -3,12 +3,18 @@ import { test } from "node:test";
 import { to_js_data as toJsData } from "../target/js/tidal-bloom/calcit.core.mjs";
 import {
   declare_progress as declareProgress,
+  initial_model as initialModel,
+  interactive_scene_at as interactiveSceneAt,
   scene_at as sceneAt,
+  set_view as setView,
+  view_active_$q_ as viewActive,
+  view_position_at as viewPositionAt,
 } from "../target/js/tidal-bloom/quamolit.examples.tidal-bloom.mjs";
 
 const frame = (time) => toJsData(sceneAt(time));
 const node = (scene, id) => scene.nodes.find((entry) => entry.id === id);
 const content = (scene, id) => node(scene, id).content[1];
+const interactiveFrame = (model, time) => toJsData(interactiveSceneAt(model, time));
 
 test("图表 UI 组件进场、退场和真实增删按绝对时间可乱序重放", () => {
   const start = frame(0);
@@ -75,4 +81,43 @@ test("进度组件公开 Scene 绑定与版本化 Motion 描述，而非宿主 J
     to: 310,
     easing: ["smoothstep"],
   });
+});
+
+test("交互 Model 在反向打断时保持位置连续，且历史帧可乱序重放", () => {
+  const initial = initialModel(0);
+  const entering = setView(initial, 1, 0);
+  const quarter = viewPositionAt(entering, 0.3);
+  const reversing = setView(entering, 0, 0.3);
+  assert.equal(quarter, 0.15625);
+  assert.equal(viewPositionAt(reversing, 0.3), quarter);
+  assert.ok(viewPositionAt(reversing, 0.6) < quarter);
+  const interrupted = setView(reversing, 1, 0.6);
+  assert.equal(viewPositionAt(interrupted, 0.6), viewPositionAt(reversing, 0.6));
+  assert.deepEqual(interactiveFrame(interrupted, 0.3), interactiveFrame(reversing, 0.3));
+  assert.equal(interactiveFrame(interrupted, 0).nodes.length, 50);
+  const midway = interactiveFrame(initialModel(0.5), 0);
+  assert.equal(node(midway, "hero-card"), undefined);
+  assert.ok(node(midway, "kpi-a-card"));
+  assert.equal(node(midway, "chart-card"), undefined);
+  assert.equal(node(interactiveFrame(interrupted, 1.8), "hero-card"), undefined);
+  assert.ok(node(interactiveFrame(interrupted, 1.8), "bar-value-11"));
+  assert.equal(viewActive(interrupted, 1.8), false);
+  assert.equal(toJsData(interrupted).events.length, 3);
+  assert.throws(() => setView(interrupted, 0.4, 0.8));
+  assert.throws(() => setView(interrupted, 0, 0.4));
+});
+
+test("交互视图往返 100 次后仅保留当前屏组件，并可分享中间位置", () => {
+  let model = initialModel(0);
+  for (let index = 0; index < 100; index++) {
+    model = setView(model, index % 2 === 0 ? 1 : 0, index * 1.2);
+    const scene = interactiveFrame(model, index * 1.2 + 1.2);
+    assert.equal(new Set(scene.nodes.map((entry) => entry.id)).size, scene.nodes.length);
+    assert.equal(Boolean(node(scene, "hero-card")), index % 2 !== 0);
+    assert.equal(Boolean(node(scene, "kpi-a-card")), index % 2 === 0);
+    assert.equal(viewActive(model, index * 1.2 + 1.2), false);
+  }
+  assert.equal(toJsData(model).events.length, 100);
+  const shared = initialModel(0.42);
+  assert.deepEqual(interactiveFrame(shared, 0), interactiveFrame(shared, 10));
 });

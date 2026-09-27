@@ -14,6 +14,8 @@ h1 { margin: 12px 0 10px; font-size: 32px; font-weight: 500; line-height: 1.2; l
 h1 small { display: block; margin-top: 4px; color: #d0e4e5; font-size: 17px; font-weight: 400; letter-spacing: 0; }
 p { margin: 10px 0; color: #c1d6da; font-size: 14px; }
 .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.view-controls { margin: 14px 0 8px; }
+.view-controls button { border-color: #a5cdb8; background: #24564e; }
 .moments button { font-size: 13px; }
 label { display: grid; gap: 7px; color: #e2e8e2; }
 input { width: 100%; accent-color: #e7c496; }

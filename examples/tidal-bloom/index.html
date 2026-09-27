@@ -13,13 +13,17 @@
     <aside id="panel" aria-label="图表流转控制">
       <span class="eyebrow">QUAMOLIT / UI MOTION 01</span>
       <h1>Metric Flow<small>图表流转</small></h1>
-      <p>概览卡片逐个进场、渐变并退场；切换后 KPI、趋势柱图与渠道分项错峰进入。拖动时间可重建任意中间帧。</p>
+      <p>操作视图按钮可在过渡途中反向切换；卡片退场后卸载，KPI、趋势柱图和渠道分项错峰加入。下方时间轴保留固定帧回放。</p>
+      <div class="buttons view-controls" role="group" aria-label="切换图表视图">
+        <button id="view-overview">打开概览</button>
+        <button id="view-analytics">打开分析</button>
+      </div>
       <div class="buttons">
         <button id="play">播放</button>
         <button id="reset">回到起点</button>
         <button id="share">复制当前画面链接</button>
       </div>
-      <label>时间 <input id="time" type="range" min="0" max="8" step="0.01" value="0"></label>
+      <label>固定时间回放 <input id="time" type="range" min="0" max="8" step="0.01" value="0"></label>
       <div class="buttons moments">
         <button data-time="1.4">概览</button>
         <button data-time="3.7">切换中</button>

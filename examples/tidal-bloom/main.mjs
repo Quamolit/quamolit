@@ -1,5 +1,15 @@
 // 页面只负责时钟、画布和浮层；UI 组件、布局及渐变帧都来自 Calcit。
-import { draw_$x_, scene_at } from "../../target/js/tidal-bloom/quamolit.examples.tidal-bloom.mjs";
+import {
+  draw_$x_,
+  draw_interactive_$x_,
+  initial_model,
+  interactive_scene_at,
+  scene_at,
+  set_view,
+  timeline_position_at,
+  view_active_$q_,
+  view_position_at,
+} from "../../target/js/tidal-bloom/quamolit.examples.tidal-bloom.mjs";
 import { to_js_data } from "../../target/js/tidal-bloom/calcit.core.mjs";
 
 export function mountDemo() {
@@ -12,7 +22,11 @@ export function mountDemo() {
   const status = document.querySelector("#status");
   const params = new URLSearchParams(location.search);
   const initial = Number(params.get("t") ?? 0);
+  const sharedProgress = Number(params.get("progress"));
   let time = Number.isFinite(initial) && initial >= 0 && initial <= 8 ? initial : 0;
+  let mode = params.has("t") ? "timeline" : "interactive";
+  let model = initial_model(params.has("progress") && Number.isFinite(sharedProgress) && sharedProgress >= 0 && sharedProgress <= 1
+    ? sharedProgress : 0);
   let playing = false;
   let frame = null;
   let anchor = 0;
@@ -34,16 +48,21 @@ export function mountDemo() {
     // 桌面右置以避开控制浮层；窄屏居中整个工作台。
     const centerX = width / 2 - (bounds.width < 680 ? 110 * scale : 0);
     context.setTransform(scale, 0, 0, scale, centerX, height / 2);
-    draw_$x_(context, time);
+    if (mode === "interactive") draw_interactive_$x_(context, model, time);
+    else draw_$x_(context, time);
     paints++;
-    slider.value = String(time);
-    status.textContent = `t = ${time.toFixed(2)} s · ${time < 3.55 ? "概览" : time < 4.16 ? "视图切换" : "图表分析"} · 绘制 ${paints}`;
+    slider.disabled = mode === "interactive";
+    if (mode === "timeline") slider.value = String(time);
+    const position = mode === "interactive" ? view_position_at(model, time) : timeline_position_at(time);
+    status.textContent = mode === "interactive"
+      ? `交互切换 · ${position < 0.01 ? "概览" : position > 0.99 ? "图表分析" : `过渡 ${(position * 100).toFixed(0)}%`} · 绘制 ${paints}`
+      : `t = ${time.toFixed(2)} s · ${time < 3.55 ? "概览" : time < 4.16 ? "视图切换" : "图表分析"} · 绘制 ${paints}`;
     status.dataset.result = "pass";
   }
 
   function sample(value) {
-    if (!Number.isFinite(value) || value < 0 || value > 8) {
-      throw new RangeError("动画时间必须在 0–8 秒内");
+    if (!Number.isFinite(value) || value < 0 || (mode === "timeline" && value > 8)) {
+      throw new RangeError("动画时间无效");
     }
     time = value;
     draw();
@@ -59,14 +78,18 @@ export function mountDemo() {
   function tick(now) {
     if (!playing) return;
     const next = anchor + Math.max(0, now - started) / 1000;
-    sample(Math.min(8, next));
-    if (next >= 8) stop();
+    sample(mode === "timeline" ? Math.min(8, next) : next);
+    if (mode === "timeline" ? next >= 8 : !view_active_$q_(model, time)) stop();
     else frame = requestAnimationFrame(tick);
   }
 
   function play() {
     if (playing) return;
-    if (time >= 8) sample(0);
+    if (mode === "interactive" && !view_active_$q_(model, time)) {
+      chooseView(view_position_at(model, time) >= 0.5 ? 0 : 1);
+      return;
+    }
+    if (mode === "timeline" && time >= 8) sample(0);
     anchor = time;
     started = performance.now();
     playing = true;
@@ -76,15 +99,40 @@ export function mountDemo() {
 
   function seek(value) {
     stop();
+    mode = "timeline";
     sample(value);
     return snapshot();
   }
 
+  function seekInteractive(value) {
+    if (mode !== "interactive") throw new Error("当前不是交互视图");
+    stop();
+    sample(value);
+    return snapshot();
+  }
+
+  function chooseView(target) {
+    if (target !== 0 && target !== 1) throw new RangeError("未知视图");
+    stop();
+    if (mode !== "interactive") {
+      model = initial_model(timeline_position_at(time));
+      time = 0;
+      mode = "interactive";
+    }
+    model = set_view(model, target, time);
+    draw();
+    if (view_active_$q_(model, time)) play();
+    return snapshot();
+  }
+
   function snapshot() {
-    const scene = to_js_data(scene_at(time));
+    const scene = to_js_data(mode === "interactive" ? interactive_scene_at(model, time) : scene_at(time));
     const node = (id) => scene.nodes.find((entry) => entry.id === id);
     return {
       time,
+      mode,
+      position: mode === "interactive" ? view_position_at(model, time) : timeline_position_at(time),
+      eventCount: mode === "interactive" ? to_js_data(model).events.length : 0,
       playing,
       paints,
       width: canvas.width,
@@ -102,9 +150,17 @@ export function mountDemo() {
 
   playButton.onclick = () => playing ? stop() : play();
   document.querySelector("#reset").onclick = () => seek(0);
+  document.querySelector("#view-overview").onclick = () => chooseView(0);
+  document.querySelector("#view-analytics").onclick = () => chooseView(1);
   document.querySelector("#share").onclick = async () => {
     const url = new URL(location.href);
-    url.searchParams.set("t", String(time));
+    if (mode === "interactive") {
+      url.searchParams.delete("t");
+      url.searchParams.set("progress", String(view_position_at(model, time)));
+    } else {
+      url.searchParams.delete("progress");
+      url.searchParams.set("t", String(time));
+    }
     history.replaceState(null, "", url);
     try { await navigator.clipboard.writeText(url.href); } catch { /* URL 已更新。 */ }
   };
@@ -129,15 +185,17 @@ export function mountDemo() {
   const listeners = new AbortController();
   document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); }, { signal: listeners.signal });
   window.addEventListener("pagehide", stop, { signal: listeners.signal });
-  const api = { seek, snapshot, pause: stop, play };
+  const api = { seek, seekInteractive, snapshot, chooseView, pause: stop, play };
   window.tidalBloomDemo = api;
-  if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();
+  window.metricFlowDemo = api;
+  if (!params.has("t") && !params.has("progress") && !matchMedia("(prefers-reduced-motion: reduce)").matches) chooseView(1);
   return () => {
     stop();
     listeners.abort();
     observer.disconnect();
     resolution?.removeEventListener("change", watchDpr);
     if (window.tidalBloomDemo === api) delete window.tidalBloomDemo;
+    if (window.metricFlowDemo === api) delete window.metricFlowDemo;
   };
 }
 

@@ -36,8 +36,8 @@
       "path": "examples/tidal-bloom/index.html",
       "title": "Metric Flow · 图表流转",
       "group": "art",
-      "summary": "Calcit 声明两屏图表 UI；概览组件错峰退出并卸载，KPI、趋势图和渠道分项依次加入。",
-      "status": "图表 UI 出入场 · Canvas",
+      "summary": "Calcit Model 驱动概览与分析屏反复切换；卡片错峰退场并卸载，KPI、趋势图和渠道分项依次加入，可中途反向。",
+      "status": "交互图表 UI · Canvas",
       "docs": "docs/tidal-bloom.md",
       "compile": "compile:tidal-bloom"
     },

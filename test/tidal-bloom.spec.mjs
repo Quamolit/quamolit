@@ -56,3 +56,68 @@ test("全屏与浮层：DPR 2 resize 不推进时间", async ({ browser }, testI
     await context.close();
   }
 });
+
+test("真实视图按钮：切换途中反向、再次进入与分享中间帧", async ({ page }, testInfo) => {
+  await ready(page, 1.4);
+  await page.locator("#view-analytics").click();
+  const at = (time) => page.evaluate((value) => window.metricFlowDemo.seekInteractive(value), time);
+  const quarter = await at(0.3);
+  expect(quarter.mode).toBe("interactive");
+  expect(quarter.position).toBeGreaterThan(0);
+  expect(quarter.overviewVisible).toBe(true);
+  expect(quarter.analyticsVisible).toBe(false);
+  await page.screenshot({ path: testInfo.outputPath("metric-flow-interrupt-before.png") });
+  await page.locator("#view-overview").click();
+  const reversed = await page.evaluate(() => window.metricFlowDemo.snapshot());
+  expect(reversed.position).toBeCloseTo(quarter.position, 4);
+  expect(reversed.eventCount).toBe(2);
+  const turning = await at(0.6);
+  expect(turning.position).toBeLessThan(quarter.position);
+  await page.locator("#view-analytics").click();
+  const entering = await page.evaluate(() => window.metricFlowDemo.snapshot());
+  expect(entering.position).toBeCloseTo(turning.position, 4);
+  const complete = await at(1.8);
+  expect(complete.overviewVisible).toBe(false);
+  expect(complete.analyticsVisible).toBe(true);
+  expect(complete.chartBarHeight).toBe(126);
+  expect(complete.eventCount).toBe(3);
+  await page.screenshot({ path: testInfo.outputPath("metric-flow-interactive-analytics.png") });
+  await page.locator("#view-overview").click();
+  const returning = await at(2.4);
+  expect(returning.analyticsVisible).toBe(true);
+  expect(returning.overviewVisible).toBe(false);
+  await page.locator("#share").click();
+  await expect(page).toHaveURL(/progress=/);
+  await page.reload();
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  const shared = await page.evaluate(() => window.metricFlowDemo.snapshot());
+  expect(shared.mode).toBe("interactive");
+  expect(shared.position).toBeCloseTo(returning.position, 6);
+  await page.screenshot({ path: testInfo.outputPath("metric-flow-shared-intermediate.png") });
+});
+
+test("交互切换到终点后停止连续绘制，输入可重新唤醒", async ({ page }) => {
+  await ready(page, 1.4);
+  await page.locator("#view-analytics").click();
+  await expect.poll(() => page.evaluate(() => window.metricFlowDemo.snapshot().playing)).toBe(false);
+  const settled = await page.evaluate(() => window.metricFlowDemo.snapshot());
+  expect(settled.position).toBe(1);
+  await page.waitForTimeout(250);
+  expect((await page.evaluate(() => window.metricFlowDemo.snapshot())).paints).toBe(settled.paints);
+  await page.locator("#view-overview").click();
+  await expect.poll(() => page.evaluate(() => window.metricFlowDemo.snapshot().position)).toBeLessThan(1);
+});
+
+test("默认进入交互切换；缩减动态效果下静止等待操作", async ({ page }) => {
+  await page.goto("http://127.0.0.1:5180/examples/tidal-bloom/index.html");
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  await expect.poll(() => page.evaluate(() => window.metricFlowDemo.snapshot().position)).toBe(1);
+  await page.locator("#play").click();
+  await expect.poll(() => page.evaluate(() => window.metricFlowDemo.snapshot().position)).toBeLessThan(1);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.reload();
+  const reduced = await page.evaluate(() => window.metricFlowDemo.snapshot());
+  expect(reduced.mode).toBe("interactive");
+  expect(reduced.position).toBe(0);
+  expect(reduced.playing).toBe(false);
+});

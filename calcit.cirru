@@ -4950,6 +4950,12 @@
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
     'quamolit.examples.tidal-bloom $ %{} 'FileEntry
       :defs $ {}
+        'MetricFlowModel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct MetricFlowModel (:initial 'Number) (:intent 'quamolit.transition/TransitionIntent)
+            :events $ :: 'List 'quamolit.transition/TransitionEvent
+            :at 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
         'activity-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn activity-nodes (time)
             let
@@ -5103,6 +5109,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number
+        'draw-interactive! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-interactive! (context model time)
+            reference/draw-reference! context $ interactive-scene-at model time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.examples.tidal-bloom/MetricFlowModel 'Number
         'hero-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hero-nodes (time)
             let
@@ -5123,6 +5135,59 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'initial-model $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-model (position)
+            assert |invalid-view-position $ and (motion/finite-number? position) (>= position 0) (<= position 1)
+            MetricFlowModel :initial position :intent
+              transition/start-transition |metric-flow/view position position 0 0 $ motion/Easing :smoothstep
+              , :events ([]) :at 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.tidal-bloom/MetricFlowModel)
+            :args $ [] 'Number
+        'interactive-analytics-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interactive-analytics-nodes (position)
+            concat
+              if (<= position 0.38) ([])
+                kpi-nodes $ + 3.55 $ * 2 (- position 0.38)
+              if (<= position 0.56) ([])
+                chart-nodes $ + 3.95 $ * 5.5 (- position 0.56)
+              if (<= position 0.72) ([])
+                breakdown-nodes $ + 4.65 $ * 5.5 (- position 0.72)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'interactive-overview-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interactive-overview-nodes (position)
+            let
+                hero-alpha $ tween-at 0 0.42 1 0 position
+                queue-alpha $ tween-at 0.12 0.45 1 0 position
+                activity-alpha $ tween-at 0.24 0.45 1 0 position
+                progress $ :scene $ component/sample-component-at (progress-request 42) declare-progress
+              concat
+                if (< position 0.42)
+                  concat
+                    transition-nodes (hero-nodes 42) hero-alpha $ * 24 $ - 1 hero-alpha
+                    transition-nodes (:nodes progress) hero-alpha $ * 24 $ - 1 hero-alpha
+                  []
+                if (< position 0.57)
+                  transition-nodes (queue-nodes 42) queue-alpha $ * 26 $ - 1 queue-alpha
+                  []
+                if (< position 0.69)
+                  transition-nodes (activity-nodes 42) activity-alpha $ * 28 $ - 1 activity-alpha
+                  []
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'interactive-scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interactive-scene-at (model time)
+            let
+                position $ view-position-at model time
+              scene/SceneDocument :nodes $ concat (shell-nodes) (interactive-overview-nodes position) (interactive-analytics-nodes position)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.examples.tidal-bloom/MetricFlowModel 'Number
         'kpi-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn kpi-nodes (time)
             let
@@ -5243,6 +5308,24 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number
+        'set-view $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn set-view (model target at)
+            assert |invalid-view-target $ or (= target 0) (= target 1)
+            assert |invalid-view-event-time $ and (motion/finite-number? at)
+              >= at $ :at model
+            assert |view-event-capacity $ <
+              count $ :events model
+              , 2000
+            if
+              = target $ :to $ :tween (:intent model)
+              , model $ struct-with model
+                :intent $ transition/interrupt-transition (:intent model) target at 1.2 $ motion/Easing :smoothstep
+                :events $ conj (:events model)
+                  transition/TransitionEvent :at at :to target :duration 1.2 :easing $ motion/Easing :smoothstep
+                :at at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.tidal-bloom/MetricFlowModel)
+            :args $ [] 'quamolit.examples.tidal-bloom/MetricFlowModel 'Number 'Number
         'shell-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn shell-nodes ()
             []
@@ -5264,6 +5347,11 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+        'timeline-position-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn timeline-position-at (time) (tween-at 3 1.16 0 1 time)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
         'transition-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn transition-node (node alpha shift)
             match (:content node)
@@ -5298,9 +5386,28 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number 'Number 'Number 'Number 'Number
+        'view-active? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn view-active? (model time)
+            transition/transition-active? (:intent model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.examples.tidal-bloom/MetricFlowModel 'Number
+        'view-position-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn view-position-at (model time)
+            assert |invalid-view-time $ and (motion/finite-number? time) (>= time 0)
+            if
+              < time $ :at model
+              transition/sample-replay
+                transition/start-transition |metric-flow/view (:initial model) (:initial model) 0 0 $ motion/Easing :smoothstep
+                :events model
+                , time
+              transition/sample-transition (:intent model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.tidal-bloom/MetricFlowModel 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.tidal-bloom
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference) (quamolit.component-sample :as component) (quamolit.direct-frame :as direct)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference) (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.transition :as transition)
     'quamolit.examples.todolist $ %{} 'FileEntry
       :defs $ {}
         'Event $ %{} 'CodeEntry (:doc |)

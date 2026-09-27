@@ -1,6 +1,6 @@
 # Metric Flow：图表 UI 的多组件出入场
 
-`/demos/index.html?demo=tidal-bloom&t=5` 在统一页面的全屏 Canvas 中打开；`/examples/tidal-bloom/index.html?t=5` 是独立截图入口。作品现名 Metric Flow；`tidal-bloom` 仅作为历史 URL、源码目录及测试入口保留，避免旧链接失效，后续新增引用请使用作品新名称。
+`/demos/index.html?demo=tidal-bloom` 在统一页面的全屏 Canvas 中打开交互演示；无 `t` 时自动从概览切向分析（缩减动态效果除外），可随时点按钮反向。`?t=5` 和 `/examples/tidal-bloom/index.html?t=5` 是固定时间截图入口。作品现名 Metric Flow；`tidal-bloom` 仅作为历史 URL、源码目录及测试入口保留，避免旧链接失效。
 
 ## 场景与组件
 
@@ -10,12 +10,18 @@
 
 `transition-node` 对矩形与文字统一处理透明度和位移，`transition-nodes` 把此动作施加到组件节点列表；具体组件只声明自己的几何和内容。概览进度仍由正式 `ComponentDeclaration` 和版本化 `ScalarDescriptor` 绑定宽度及文字透明度，再由 `sample-component-at` 求值。分析屏的其余编排目前使用 Calcit 纯组件函数与 `ScalarTween`，可为后续更通用的声明式 presence/transition API 提供真实需求。
 
-这里展示的是固定两屏编排和真正的 Scene 节点增删，不是任意用户交互的完整生命周期，也未接入保留式 `ExecutionDeclaration`。Canvas2D 是参考绘制；本作品不宣称 WebGPU 加速或性能提升。下一步可将视图切换事件与可中断 Model 接入框架，让多次增删、重排、重入也保持稳定身份。
+## 交互切换
+
+“打开概览 / 打开分析”是实际输入，不是跳转到时间轴预设点。Calcit `MetricFlowModel` 保存初始位置、带 key 的 `TransitionIntent` 和有序事件；`set-view` 在输入时间采样当前姿态后重新建立 tween，因此切换中反向不会跳变。`view-position-at` 可以乱序重放事件前缀。`interactive-scene-at` 把位置转换为两屏组件的错峰进退场：项目卡片、队列、活动图依次卸载，KPI、柱图、渠道卡片分段加入；到两端时仅保留当前屏节点。终点后宿主停止请求连续帧，新输入再唤醒。
+
+原 0–8 秒固定时间轴继续作为视觉回归和演示回放；点击固定点或滑块会切回此模式。交互模式的“播放”会继续当前过渡，已停帧时切向另一屏。“复制当前画面链接”保存 `progress`，可复原该中间画面，但目前不保存完整事件历史。交互事件日志上限为 2000 条，后续应接有界检查点。Canvas2D 是参考绘制；尚未接入保留式 `ExecutionDeclaration`、真实资源与指针捕获释放或 WebGPU 绘制，不宣称性能提升。下一阶段再将这些作品内的进退场规则抽成通用 Calcit 组件 API。
 
 ## 体验与检验
 
-- 播放全程 8 秒；快捷点位为概览 `t=1.4`、切换中 `t=3.7`、图表生长 `t=5`、分析完成 `t=7`。滑块支持任意时间 seek，浮层可收起；缩减动态效果下不自动播放。
-- `yarn test:tidal-bloom` 检查 Calcit 类型、编译、真实节点增删、错峰动画、几何与透明度、乱序重放，并保存 Chromium 固定时间截图。还验证 DPR 2 窄屏与全屏 Canvas。
+- 交互按钮可反复切换；固定回放全程 8 秒，快捷点位为概览 `t=1.4`、切换中 `t=3.7`、图表生长 `t=5`、分析完成 `t=7`。滑块支持任意时间 seek，浮层可收起；缩减动态效果下不自动播放。
+- `yarn test:tidal-bloom` 检查 Calcit 类型、编译、打断连续性、事件重放、100 次往返、真实节点增删、错峰动画、终点停帧，并保存 Chromium 固定时间及交互截图。还验证 DPR 2 窄屏与全屏 Canvas。
 - `yarn test:demo-nav` 检查统一导航、同页切换及原有 demo 回归。
 
 截图位于 `test-results/tidal-bloom/`。视觉评审重点是切换阶段的新旧画面重叠是否可读、图表逐项进入是否明确，以及工作台在不同视口下是否仍完整呈现。
+
+后续作品可从折线/面积图的路径生长、堆叠图的数据重排、热力图的筛选进退场中选择不同构图；每件都应有实际 UI 状态变化和独立的 Calcit 组件声明，而不是只把本页柱图换色或改数据。
