@@ -2,7 +2,7 @@
 
 本目录是单独的 Calcit/Yarn 项目，不是 Quamolit workspace 子包。主要源码是 `calcit.cirru` 中的 `app.main`；通过统一 Calcit 执行入口声明静态横条、标量 Motion 矩形及 CPU 变换折线，使用同一个 ComponentPlan 绘制 Canvas。JS 入口只连接页面按钮、传入 Canvas 原生上下文与展示诊断计数，不实现动画或渲染循环。
 
-使用 Calcit 0.22.0、Node.js 24 和 Yarn 4.12.0：
+使用 Calcit 0.24.3、Node.js 24 和 Yarn 4.12.0：
 
 ```sh
 cd examples/retained-consumer
@@ -12,7 +12,7 @@ calcit query def app.main/declare --raw
 calcit query def app.main/update-plan --raw
 ```
 
-`deps.cirru` 固定 #118 已推送的候选提交 `12edc27020adf7f9ed55a4ad7adaa7d9e4c123fb`，用于 GPU 公共 API 验证；它不是发布 tag。要验证另一已推送提交或发布 tag，使用 `caps --ci add Quamolit/quamolit -r <完整 SHA 或 tag>`，再编译。不需要 npm 的 Quamolit 包或 `@calcit/js-ffi` 包；当前路径唯一 npm 直接依赖是 `@calcit/procs`。
+`deps.cirru` 固定一个已推送的 Quamolit 候选提交，用于公共 API 验证；它不是发布 tag。要验证另一已推送提交或发布 tag，使用 `caps --ci add Quamolit/quamolit -r <完整 SHA 或 tag>`，再编译。不需要 npm 的 Quamolit 包或 `@calcit/js-ffi` 包；当前路径唯一 npm 直接依赖是 `@calcit/procs`。
 
 从 Quamolit 根目录可运行 `yarn vite examples/retained-consumer --host 127.0.0.1 --port 5183` 查看页面。Vite 只是开发服务器，不是 Calcit 消费者的运行时依赖。点击时间按钮可乱序查看中间帧，在相同时间修改 Model、资源 ready 与宽度版本，观察声明次数及画面更新。
 
@@ -27,6 +27,8 @@ calcit query def app.main/update-plan --raw
 ## 隔离门禁
 
 页面可在“线性矩形 + 折线”与“双轴 smoothstep”之间切换，后者也可通过 `?motion=dual` 直接进入。双轴声明仍由 Calcit 的 `declare-dual` 创建，同一参数供 `start-dual` / `update-dual` 的 Canvas 参考和 GPU 程序使用。切换声明时重建计划，保留当前显式时间/Model，不在旧声明的相同版本上错误复用结构。
+
+第三个“10k Canvas 实例”模式也可通过 `?motion=instances` 进入。它复用 `app.main/instances-declaration` 和 `draw-instances!`，页面只提供 80 kB 的宿主 `Float32Array` 网格输入，并展示一次 Calcit→Canvas 边界调用、10k 次 Canvas 绘制的实际计数。浏览器门禁检查像素并保存 `instances-10k.png`。可用 `QUAMOLIT_CONSUMER_BENCH=1` 生成独立的静态 Canvas 帧样本；这不是 10k 独立动画或 GPU 验收，时间/Model 按钮在该模式禁用，以免误导。
 
 从仓库根目录运行 `yarn test:consumer`，或 `QUAMOLIT_CONSUMER_REF=<已推送 SHA 或 tag> yarn test:consumer`。完整流程与验收边界见 [独立消费检验](../../docs/isolated-consumer.md)。该命令会新建系统临时目录，联网安装、编译并搬移可达产物；成功/失败都保留临时目录供排查，路径写入报告。模块缓存可以复用，不声称验证冷缓存下载性能。
 
