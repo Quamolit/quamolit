@@ -6,6 +6,8 @@
 
 ## 当前可执行门禁
 
+`yarn test:scene-hit` 检查 [Scene 独立命中内核](scene-ir-core.md)：严格公共类型、90° 旋转逆投影、祖先矩形裁剪、完全透明 group 仍可交互、重叠节点逆绘制层序、group target 后备、奇异矩阵拒绝、多边形填充与折线 stroke，以及编译后的候选计划排除非交互装饰节点。测试完全不依赖 Canvas，`HitPlan` 可跨同一 Scene 的多次指针查询复用；便利入口 `hit-test` 每次都会重新编译，实时宿主应缓存计划。该门禁尚不覆盖 cubic-path、instances、指针捕获/冒泡、节点卸载、resize/DPR 或浏览器事件桥，不能据此关闭 #34。
+
 `yarn bench:consumer` 将[同源帧测量](consumer-performance.md)接到独立安装/搬移消费者，默认桌面真实 GPU、预热 5 秒/采样 30 秒/3 次。两矩形三路径、静态 10k Canvas、单脏记录动态 10k Canvas/GPU 分开报告；不能把不同负载计算成加速比，单脏记录不等于 10k 独立动画。CI 的 `test:consumer` 短时模式检查 Canvas 链路/格式/计数，GPU 缺失单独 SKIP。`test:bench` 包含异常上传、热帧资源增长、未释放和结构重建的负例。
 
 `yarn test:gpu-component` 验证[公共计划 GPU 连接](gpu-component-plan.md)：严格类型、原生差量、Node 编译后 file/inline 调用、1000 时间帧缓存身份及六类版本失效、浏览器整层回退、异步 GPU 初始化期间的输入与非软件 GPU 专项。初始化竞态使用 mock，不算硬件验证。硬件不可用时专项明确 skip，不能记为通过；当前不测吞吐或标准动画 shader 采样。`yarn bench:gpu-component` 仅测 CPU 批次准备阶段，不能代替正式端到端验收。
