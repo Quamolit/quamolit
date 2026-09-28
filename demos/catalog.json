@@ -32,6 +32,16 @@
   "planned": [],
   "entries": [
     {
+      "id": "cohort-pulse",
+      "path": "examples/cohort-pulse/index.html",
+      "title": "Cohort Pulse · 留存热力图",
+      "group": "art",
+      "summary": "筛选风险群组时安全行退出、风险行重排，42 个热力单元保持稳定身份；摘要与事件详情可独立打断切换。",
+      "status": "交互热力图 UI · Canvas",
+      "docs": "docs/cohort-pulse.md",
+      "compile": "compile:cohort-pulse"
+    },
+    {
       "id": "signal-weave",
       "path": "examples/signal-weave/index.html",
       "title": "Signal Weave · 增长曲线",

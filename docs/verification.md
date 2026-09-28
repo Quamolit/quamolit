@@ -18,6 +18,8 @@
 
 `yarn test:signal-weave` 检查[折线／面积图作品](signal-weave.md)：Calcit 逐段增长的路径与填充面积、12 个稳定采样点、活动情境的对照线和指标／洞察卡片；Node 检查打断、乱序重放与 100 次往返，Chromium 检查按钮、分享视觉位置、初始／中间／终点截图、DPR 2 暂停 resize 和停帧。Canvas2D 是参考，不证明 GPU 或性能目标。
 
+`yarn test:cohort-pulse` 检查[留存热力图作品](cohort-pulse.md)：Calcit 筛选模型驱动 6 个群组和 42 个热力单元的错峰进入、退出与重排，终点卸载安全行；独立面板模型在摘要和事件详情间交叉渐变。Node 检查稳定 key、打断、乱序重放、事件前缀分支及 100 次往返，Chromium 检查分享视觉位置、固定画面、DPR 2、浮层收起和终点停帧。它仍使用 Canvas2D 参考路径，不证明 WebGPU 或新的性能目标。
+
 `yarn test:raining-demo` 检查 [Raining 恢复](raining-restoration.md)的严格类型、Calcit→JS 编译、Node 固定 seed/tick 乱序重放及 48 节点上界、Chromium 全屏中间帧/水花截图与 DPR 2 暂停 resize。它是解析式固定 tick 采样和 Canvas2D 参考，不证明 GPU 历史模拟或吞吐。
 
 `yarn test:finder-demo` 检查 [Finder 恢复](finder-restoration.md)的严格类型、Calcit 点击日志/Scene/命中、Node 打断连续性和非法切换、Chromium 实际画布点击、固定时间截图、分享像素重放与 DPR 2 暂停 resize。它不证明 #34 通用命中/指针捕获或 WebGPU 绘制。
