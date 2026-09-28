@@ -5467,6 +5467,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.folding-fan/FanModel)
             :args $ [] (:: 'List 'quamolit.examples.folding-fan/FanEvent) 'Number
+        'resource-initial $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resource-initial ()
+            resource/initial-state $ resource/image-resource |lotus 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceState)
+            :args $ []
         'scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scene-at (model time)
             scene/SceneDocument :nodes $ map (slices-at model time) scene-node
@@ -5520,7 +5526,7 @@
             :args $ [] 'quamolit.examples.folding-fan/FanModel 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.folding-fan
-          :require (quamolit.transition :as transition) (quamolit.motion :as motion) (quamolit.scene-ir :as scene) (quamolit.canvas-images :as images)
+          :require (quamolit.transition :as transition) (quamolit.motion :as motion) (quamolit.scene-ir :as scene) (quamolit.canvas-images :as images) (quamolit.resource-lifecycle :as resource)
     'quamolit.examples.icons $ %{} 'FileEntry
       :defs $ {}
         'IconModel $ %{} 'CodeEntry (:doc |)
@@ -12237,6 +12243,150 @@
         :code $ quote $ ns quamolit.replay-archive
           :require (quamolit.fixed-step :as fixed) (quamolit.motion :as motion)
             calcit.test :refer $ is= is-throws
+    'quamolit.resource-lifecycle $ %{} 'FileEntry
+      :defs $ {}
+        'ResourceAction $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum ResourceAction (:load 'Number 'quamolit.resource-lifecycle/ResourceIdentity) (:install 'Number 'quamolit.resource-lifecycle/ResourceIdentity) (:release 'Number) (:wake-frame 'Number) (:show-error 'Number 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ResourceIdentity $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ResourceIdentity (:kind 'quamolit.resource-lifecycle/ResourceKind) (:id 'String) (:version 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ResourceKind $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum ResourceKind (:image) (:texture) (:geometry) (:font) (:glyph) (:buffer) (:pipeline)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ResourcePhase $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum ResourcePhase (:idle) (:loading) (:ready) (:error 'String) (:closed)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ResourceState $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ResourceState (:generation 'Number) (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:phase 'quamolit.resource-lifecycle/ResourcePhase) (:attempts 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ResourceTransition $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ResourceTransition (:state 'quamolit.resource-lifecycle/ResourceState)
+            :actions $ :: 'List 'quamolit.resource-lifecycle/ResourceAction
+          :examples $ []
+          :schema $ :: 'StructDef
+        'close-resource $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn close-resource (state)
+            let
+                next $ struct-with state
+                  :generation $ + 1 $ :generation state
+                  :phase $ ResourcePhase :closed
+              if
+                phase-holds-host? $ :phase state
+                transition next $ [] $ ResourceAction :release (:generation state)
+                transition next $ empty-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceState
+        'empty-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-actions () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.resource-lifecycle/ResourceAction
+        'image-resource $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn image-resource (id version)
+            resource (ResourceKind :image) id version
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceIdentity)
+            :args $ [] 'String 'Number
+        'initial-state $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-state (descriptor)
+            ResourceState :generation 0 :identity descriptor :phase (ResourcePhase :idle) :attempts 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceState)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceIdentity
+        'phase-holds-host? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn phase-holds-host? (phase)
+            match phase
+              (:loading) true
+              (:ready) true
+              _ false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.resource-lifecycle/ResourcePhase
+        'request-resource $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn request-resource (state descriptor)
+            let
+                reusable? $ and
+                  = descriptor $ :identity state
+                  match (:phase state)
+                    (:loading) true
+                    (:ready) true
+                    _ false
+              if reusable?
+                transition state $ empty-actions
+                let
+                    generation $ + 1 $ :generation state
+                    next $ ResourceState :generation generation :identity descriptor :phase (ResourcePhase :loading) :attempts $ + 1 (:attempts state)
+                    load $ ResourceAction :load generation descriptor
+                  if
+                    phase-holds-host? $ :phase state
+                    transition next $ []
+                      ResourceAction :release $ :generation state
+                      , load
+                    transition next $ [] load
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceState 'quamolit.resource-lifecycle/ResourceIdentity
+        'resource $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resource (kind id version)
+            assert |invalid-resource-id $ and (string? id)
+              > (count id) 0
+            assert |invalid-resource-version $ valid-version? version
+            ResourceIdentity :kind kind :id id :version version
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceIdentity)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceKind 'String 'Number
+        'resource-failed $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resource-failed (state generation message)
+            if
+              or
+                not= generation $ :generation state
+                not= (:phase state) (ResourcePhase :loading)
+              transition state $ [] $ ResourceAction :release generation
+              transition
+                struct-with state $ :phase $ ResourcePhase :error message
+                [] (ResourceAction :release generation) (ResourceAction :show-error generation message) (ResourceAction :wake-frame generation)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceState 'Number 'String
+        'resource-ready $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resource-ready (state generation)
+            if
+              or
+                not= generation $ :generation state
+                not= (:phase state) (ResourcePhase :loading)
+              transition state $ [] $ ResourceAction :release generation
+              transition
+                struct-with state $ :phase $ ResourcePhase :ready
+                []
+                  ResourceAction :install generation $ :identity state
+                  ResourceAction :wake-frame generation
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceState 'Number
+        'transition $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transition (state actions) (ResourceTransition :state state :actions actions)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceState $ :: 'List 'quamolit.resource-lifecycle/ResourceAction
+        'valid-version? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-version? (version)
+            and (number? version)
+              = 0 $ - version version
+              >= version 0
+              = version $ round version
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.resource-lifecycle
     'quamolit.retained-component $ %{} 'FileEntry
       :defs $ {}
         'BoundScalar $ %{} 'CodeEntry (:doc "|构建时解析的标量绑定：节点索引、目标与描述符，不含宿主句柄。")

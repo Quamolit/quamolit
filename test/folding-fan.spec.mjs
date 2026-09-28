@@ -132,7 +132,12 @@ test("图片失败明确报错，不冒充正常渲染", async ({ page }) => {
   await page.goto("http://127.0.0.1:5180/examples/folding-fan/index.html?image=missing&t=0");
   await expect(page.locator("#status")).toHaveAttribute("data-result", "error");
   await expect(page.locator("#message")).toContainText("图片加载失败");
-  expect((await page.evaluate(() => window.foldingFanDemo.snapshot())).resource).toBe("error");
+  const failed = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(failed.resource).toBe("error");
+  expect(failed.resourceState.attempts).toBe(1);
+  await page.evaluate(() => window.foldingFanDemo.loadResource());
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "error");
+  expect((await page.evaluate(() => window.foldingFanDemo.snapshot())).resourceState.attempts).toBe(2);
 });
 test("全屏 DPR 2 暂停 resize 与浮层收起", async ({ browser }, testInfo) => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 });
