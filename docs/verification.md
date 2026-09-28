@@ -34,7 +34,7 @@
 
 `yarn test:drag-demo` 检查 [Drag demo 恢复](drag-demo-restoration.md)的严格 Calcit 指针 Model/命中/Scene、Node 锚点和滑块边界，以及 Chromium 的真实指针捕获、跨图形边界拖动、取消、DPR 2 resize、浮层和空闲停帧。它不证明 #34 通用事件层序或 WebGPU 绘制。
 
-`yarn test:folding-fan` 检查 [Folding Fan 恢复](folding-fan-restoration.md)的严格 Calcit 24 片裁剪/层序/时间采样、纯数据图片 Scene 与几何差分、Node 打断与乱序、100 条有界输入日志的前缀重放/历史分支、资源预检零绘制；Chromium 初始/中间/终点及历史分支截图、URL 刷新像素一致、图片失败、DPR 2 暂停 resize 与全屏浮层。图片已接公共 Scene IR 和窄 Canvas 参考入口；完整资源表及 WebGPU 纹理路径未实现。
+`yarn test:folding-fan` 检查 [Folding Fan 恢复](folding-fan-restoration.md)的严格 Calcit 24 片裁剪/层序/时间采样、纯数据图片 Scene 与几何差分、Node 打断与乱序、100 条有界输入日志的前缀重放/历史分支、资源预检零绘制；Chromium 初始/中间/终点分别保存带浮层与纯 Canvas 截图，并在 DPR 1/2 下把当前 Scene 路径与历史直接绘制路径做整帧 RGBA 零差异比较，锁定浏览器默认图片平滑设置；另覆盖 URL 刷新像素一致、图片失败、暂停 resize 与全屏浮层。图片已接公共 Scene IR 和窄 Canvas 参考入口；完整资源表、跨浏览器采样矩阵及 WebGPU 纹理路径未实现。
 
 全屏与恢复导航：`test:demo-nav` 检查 3 项 Node 清单及全部浏览器入口；原有 11 项均可从导航打开，艺术分类保持明确空状态，并覆盖 DPR 1/2、桌面/窄屏、暂停 resize 后状态不变、像素和浮层键盘操作。跨物理显示器 DPR 切换、旧 11 个动画的完整验收与真实 GPU 尚未完成。见[恢复清单](demo-restoration.md)。
 
