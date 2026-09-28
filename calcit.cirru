@@ -14192,6 +14192,129 @@
         :code $ quote $ ns quamolit.scene-pointer
           :require (quamolit.scene-ir :as scene) (quamolit.scene-hit :as hit)
             calcit.test :refer $ is=
+    'quamolit.scene-pointer-browser $ %{} 'FileEntry
+      :defs $ {}
+        'PointerBoundsHost $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ deftrait PointerBoundsHost (:left 'Number) (:top 'Number)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+          :schema $ :: 'Trait
+        'PointerEventHost $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ deftrait PointerEventHost (:pointer-id 'Number) (:client-x 'Number) (:client-y 'Number)
+            .prevent-default! $ :: 'Fn $ {}
+              :args $ [] 'quamolit.scene-pointer-browser/PointerEventHost
+              :return 'Unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+            :names $ {} (:client-x |clientX) (:client-y |clientY) (:pointer-id |pointerId) (:prevent-default! |preventDefault)
+          :schema $ :: 'Trait
+        'PointerSurfaceHost $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ deftrait PointerSurfaceHost
+            .get-pointer-bounds $ :: 'Fn $ {}
+              :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost
+              :return 'quamolit.scene-pointer-browser/PointerBoundsHost
+            .set-pointer-capture! $ :: 'Fn $ {}
+              :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'Number
+              :return 'Unit
+            .release-pointer-capture! $ :: 'Fn $ {}
+              :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'Number
+              :return 'Unit
+            .has-pointer-capture? $ :: 'Fn $ {}
+              :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'Number
+              :return 'Bool
+            .add-pointer-listener! $ :: 'Fn $ {}
+              :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'String $ :: 'Fn
+                {}
+                  :args $ [] 'quamolit.scene-pointer-browser/PointerEventHost
+                  :return 'Unit
+              :return 'Unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+            :names $ {} (:add-pointer-listener! |addEventListener) (:get-pointer-bounds |getBoundingClientRect) (:has-pointer-capture? |hasPointerCapture) (:release-pointer-capture! |releasePointerCapture) (:set-pointer-capture! |setPointerCapture)
+          :schema $ :: 'Trait
+        'capture-dispatch! $ %{} 'CodeEntry
+          :doc "|捕获本次路由最内层 target，并幂等同步 DOM setPointerCapture；业务也可改用 capture-target 选择祖先。"
+          :code $ quote $ defn capture-dispatch! (surface input routed)
+            let
+                state $ pointer/capture-dispatch (:state routed) (:dispatch routed)
+              ensure-native-capture! surface input state
+              , state
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerState)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerInput 'quamolit.scene-pointer/PointerUpdate
+            :features $ #{} :js-ffi
+        'ensure-native-capture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn ensure-native-capture! (surface input state)
+            match (:capture state)
+              (:none) &unit
+              (:captured pointer-id _ _)
+                if
+                  = pointer-id $ :pointer-id input
+                  if (surface .has-pointer-capture? pointer-id) &unit $ surface .set-pointer-capture! pointer-id
+                  , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerInput 'quamolit.scene-pointer/PointerState
+            :features $ #{} :js-ffi
+        'pointer-event-host $ %{} 'CodeEntry
+          :doc "|临时把非空浏览器事件对象收窄为 PointerEventHost；只暴露 #34 当前所需原始字段。"
+          :code $ quote $ defn pointer-event-host (value)
+            assert-type (contract/expect-object |PointerEvent.host value) (quote quamolit.scene-pointer-browser/PointerEventHost)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer-browser/PointerEventHost)
+            :args $ [] 'T
+            :features $ #{} :js-ffi
+            :generics $ [] 'T
+        'pointer-input-from-event $ %{} 'CodeEntry
+          :doc "|把 PointerEvent client 坐标减去元素边界，得到 HitPlan 使用的 CSS px；不乘 DPR。"
+          :code $ quote $ defn pointer-input-from-event (surface phase event)
+            let
+                bounds $ surface .get-pointer-bounds
+                pointer-id $ .-pointer-id event
+                x $ - (.-client-x event) (.-left bounds)
+                y $ - (.-client-y event) (.-top bounds)
+              pointer/PointerInput :pointer-id pointer-id :phase phase :x x :y y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerInput)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerPhase 'quamolit.scene-pointer-browser/PointerEventHost
+            :features $ #{} :js-ffi
+        'pointer-surface-host $ %{} 'CodeEntry
+          :doc "|临时把非空浏览器对象收窄为 PointerSurfaceHost；上游 js-ffi #149 发布等价接口后删除。"
+          :code $ quote $ defn pointer-surface-host (value)
+            assert-type (contract/expect-object |PointerSurface.host value)
+              quote quamolit.scene-pointer-browser/PointerSurfaceHost
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.scene-pointer-browser/PointerSurfaceHost
+            :args $ [] 'T
+            :features $ #{} :js-ffi
+            :generics $ [] 'T
+        'release-native-capture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-native-capture! (surface input routed)
+            let
+                pointer-id $ :pointer-id input
+              if (:capture-released routed)
+                if (surface .has-pointer-capture? pointer-id) (surface .release-pointer-capture! pointer-id) &unit
+                , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerInput 'quamolit.scene-pointer/PointerUpdate
+            :features $ #{} :js-ffi
+        'route-event! $ %{} 'CodeEntry
+          :doc "|归一化一个浏览器事件、执行纯 Calcit 路由，并只按 capture-released 决策同步原生释放。"
+          :code $ quote $ defn route-event! (surface plan state phase event)
+            let
+                input $ pointer-input-from-event surface phase event
+                routed $ pointer/route-pointer plan state input
+              release-native-capture! surface input routed
+              , routed
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerUpdate)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState 'quamolit.scene-pointer/PointerPhase 'quamolit.scene-pointer-browser/PointerEventHost
+            :features $ #{} :js-ffi
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.scene-pointer-browser
+          :require (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (js-ffi.contract :as contract)
     'quamolit.test.component-fixture $ %{} 'FileEntry
       :defs $ {}
         'declare-badge $ %{} 'CodeEntry (:doc |)
@@ -15758,6 +15881,109 @@
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.scene-hit :as hit)
             calcit.test :refer $ is=
             quamolit.scene-pointer :as pointer
+    'quamolit.test.scene-pointer-browser-fixture $ %{} 'FileEntry
+      :defs $ {}
+        'BrowserPointerTrace $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct BrowserPointerTrace (:down-target 'String) (:move-target 'String) (:move-captured 'Bool) (:up-released 'Bool) (:capture-cleared 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'capture-cleared? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn capture-cleared? (state)
+            match (:capture state)
+              (:none) true
+              (:captured _ _ _) false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-pointer/PointerState
+        'dispatch-captured? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn dispatch-captured? (dispatch)
+            match dispatch
+              (:none) false
+              (:routed route) (:captured route)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-pointer/PointerDispatch
+        'dispatch-target $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn dispatch-target (dispatch)
+            match dispatch
+              (:none) |
+              (:routed route)
+                :target $ -> (:targets route) (first) (.unwrap)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.scene-pointer/PointerDispatch
+        'exercise-browser-capture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn exercise-browser-capture! (surface down-event move-event up-event)
+            let
+                plan $ hit/compile-hit-plan $ fixture/routing-scene
+                down-input $ browser/pointer-input-from-event surface (pointer/PointerPhase :down) down-event
+                down $ browser/route-event! surface plan (pointer/initial-pointer-state) (pointer/PointerPhase :down) down-event
+                captured $ browser/capture-dispatch! surface down-input down
+                moved $ browser/route-event! surface plan captured (pointer/PointerPhase :move) move-event
+                ended $ browser/route-event! surface plan (:state moved) (pointer/PointerPhase :up) up-event
+              BrowserPointerTrace :down-target
+                dispatch-target $ :dispatch down
+                , :move-target
+                  dispatch-target $ :dispatch moved
+                  , :move-captured
+                    dispatch-captured? $ :dispatch moved
+                    , :up-released (:capture-released ended) :capture-cleared $ capture-cleared? $ :state ended
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.test.scene-pointer-browser-fixture/BrowserPointerTrace
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer-browser/PointerEventHost 'quamolit.scene-pointer-browser/PointerEventHost 'quamolit.scene-pointer-browser/PointerEventHost
+            :features $ #{} :js-ffi
+        'install-browser-capture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn install-browser-capture! (element)
+            let
+                surface $ browser/pointer-surface-host element
+                plan $ hit/compile-hit-plan $ fixture/routing-scene
+                state* $ atom $ pointer/initial-pointer-state
+                count* $ atom 0
+                handle! $ fn (phase event)
+                  let
+                      input $ browser/pointer-input-from-event surface phase event
+                      routed $ browser/route-event! surface plan @state* phase event
+                      next-state $ if
+                        = phase $ pointer/PointerPhase :down
+                        browser/capture-dispatch! surface input routed
+                        :state routed
+                      target $ dispatch-target $ :dispatch routed
+                    reset! state* next-state
+                    swap! count* inc
+                    dom/element-set-attribute! element |data-target target
+                    dom/element-set-attribute! element |data-captured $ str $ dispatch-captured? (:dispatch routed)
+                    dom/element-set-attribute! element |data-released $ str $ :capture-released routed
+                    dom/element-set-attribute! element |data-count $ str @count*
+              surface .add-pointer-listener! |pointerdown $ fn (event)
+                handle! (pointer/PointerPhase :down) event
+                , &unit
+              surface .add-pointer-listener! |pointermove $ fn (event)
+                handle! (pointer/PointerPhase :move) event
+                , &unit
+              surface .add-pointer-listener! |pointerup $ fn (event)
+                handle! (pointer/PointerPhase :up) event
+                , &unit
+              surface .add-pointer-listener! |pointercancel $ fn (event)
+                handle! (pointer/PointerPhase :cancel) event
+                , &unit
+              dom/element-set-attribute! element |data-ready |true
+              , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.browser/DomElementHost
+            :features $ #{} :js-ffi
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! ()
+            match (dom/query-selector |#pointer-surface)
+              (:none) (raise |missing-pointer-surface)
+              (:some element) (install-browser-capture! element)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.test.scene-pointer-browser-fixture
+          :require (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as browser) (quamolit.test.scene-hit-fixture :as fixture) (js-ffi.browser :as dom)
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")

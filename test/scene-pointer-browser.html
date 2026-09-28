@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quamolit Scene Pointer Browser Fixture</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #111827;
+      }
+      #pointer-surface {
+        display: block;
+        width: 200px;
+        height: 100px;
+        margin: 50px 0 0 100px;
+        background: linear-gradient(90deg, #38bdf8 0 40%, #172033 40% 50%, #a78bfa 50% 90%, #172033 90%);
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="pointer-surface" width="200" height="100"></canvas>
+    <script type="module">
+      import { main_$x_ as main } from "/target/js/scene-pointer-browser/quamolit.test.scene-pointer-browser-fixture.mjs";
+      main();
+    </script>
+  </body>
+</html>

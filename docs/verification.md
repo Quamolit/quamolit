@@ -10,6 +10,8 @@
 
 `yarn test:scene-pointer` 检查 [Scene 指针路由](scene-pointer.md)：严格公共类型、叶节点到祖先 target 的冒泡顺序、捕获后移出命中范围仍投递、其他 pointer id 不继承捕获、`up/cancel` 释放、捕获源节点消失、父 target 卸载后叶节点重挂载，以及退出节点仍可见但 interaction 已禁用时的恰好一次清理。它是可乱序重放的纯 Calcit 状态机，不调用 DOM；当前不验证浏览器坐标归一化、DPR/resize、原生 `setPointerCapture`、任意嵌套退出子树屏蔽或 cubic-path/instances 命中，因此仍不能关闭 #34。
 
+`yarn test:scene-pointer-browser` 严格检查临时类型化 PointerEvent/DOM capture adapter：Node 最小宿主替身验证 client 坐标到 CSS px、画布外捕获路由、`setPointerCapture/releasePointerCapture` 各一次及终点无残留；Chromium 用真实鼠标 PointerEvent 验证移出画布后继续投递、抬起释放、DPR 2 不误乘坐标和 `pointercancel` 清理。通用浏览器接口缺口跟踪于 js-ffi #149；该门禁尚不覆盖 `lostpointercapture`、窗口失焦或 resize 中途拖拽。
+
 `yarn bench:consumer` 将[同源帧测量](consumer-performance.md)接到独立安装/搬移消费者，默认桌面真实 GPU、预热 5 秒/采样 30 秒/3 次。两矩形三路径、静态 10k Canvas、单脏记录动态 10k Canvas/GPU 分开报告；不能把不同负载计算成加速比，单脏记录不等于 10k 独立动画。CI 的 `test:consumer` 短时模式检查 Canvas 链路/格式/计数，GPU 缺失单独 SKIP。`test:bench` 包含异常上传、热帧资源增长、未释放和结构重建的负例。
 
 `yarn test:gpu-component` 验证[公共计划 GPU 连接](gpu-component-plan.md)：严格类型、原生差量、Node 编译后 file/inline 调用、1000 时间帧缓存身份及六类版本失效、浏览器整层回退、异步 GPU 初始化期间的输入与非软件 GPU 专项。初始化竞态使用 mock，不算硬件验证。硬件不可用时专项明确 skip，不能记为通过；当前不测吞吐或标准动画 shader 采样。`yarn bench:gpu-component` 仅测 CPU 批次准备阶段，不能代替正式端到端验收。
@@ -67,6 +69,7 @@ yarn test:fade-migration
 yarn test:scene-core
 yarn test:scene-hit
 yarn test:scene-pointer
+yarn test:scene-pointer-browser
 yarn test:instance-sources
 yarn test:canvas-batches
 yarn test:webgpu-instances
