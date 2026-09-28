@@ -36,7 +36,7 @@
       "path": "examples/tidal-bloom/index.html",
       "title": "Metric Flow · 图表流转",
       "group": "art",
-      "summary": "Calcit Model 驱动概览与分析屏反复切换；卡片错峰退场并卸载，KPI、趋势图和渠道分项依次加入，可中途反向。",
+      "summary": "Calcit Model 驱动概览与分析屏反复切换；图表中的访客／营收系列也可中途反向渐变，12 根趋势柱保持稳定身份。",
       "status": "交互图表 UI · Canvas",
       "docs": "docs/tidal-bloom.md",
       "compile": "compile:tidal-bloom"

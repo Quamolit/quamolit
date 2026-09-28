@@ -4950,6 +4950,12 @@
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
     'quamolit.examples.tidal-bloom $ %{} 'FileEntry
       :defs $ {}
+        'ChartSeriesModel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ChartSeriesModel (:initial 'Number) (:intent 'quamolit.transition/TransitionIntent)
+            :events $ :: 'List 'quamolit.transition/TransitionEvent
+            :at 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
         'MetricFlowModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct MetricFlowModel (:initial 'Number) (:intent 'quamolit.transition/TransitionIntent)
             :events $ :: 'List 'quamolit.transition/TransitionEvent
@@ -5075,6 +5081,65 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'chart-series-bar $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn chart-series-bar (index from to reveal series)
+            let
+                value $ +
+                  * from $ - 1 series
+                  * to series
+                height $ * value reveal
+                x $ + -176 $ * index 42
+                fill $ color
+                  + 0.42 $ * series 0.43
+                  + 0.85 $ * series -0.16
+                  + 0.76 $ * series -0.28
+                  , 1
+              concat
+                transition-nodes
+                  [] $ rect-node (str |bar-track- index) x -8 24 135 $ color 0.22 0.39 0.42 0.6
+                  , reveal 0
+                [] $ rect-node (str |bar-value- index) x (- 127 height) 24 height fill
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number 'Number 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'chart-series-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn chart-series-nodes (position series)
+            let
+                reveal $ tween-at 0.56 0.31 0 1 position
+              concat
+                transition-nodes
+                  []
+                    rect-node |chart-card -222 -69 656 200 $ color 0.1 0.24 0.3 1
+                    text-node |chart-heading "|TRAFFIC / SALES" -196 -40 13 $ color 0.59 0.88 0.79 1
+                    rect-node |chart-grid-1 -194 35 600 1 $ color 0.58 0.76 0.74 0.14
+                    rect-node |chart-grid-2 -194 79 600 1 $ color 0.58 0.76 0.74 0.14
+                    rect-node |chart-baseline -194 127 600 1 $ color 0.58 0.76 0.74 0.3
+                  , reveal $ * 30 $ - 1 reveal
+                transition-nodes
+                  [] $ text-node |chart-visitors-label |VISITORS 258 -40 11 $ color 0.57 0.75 0.76 1
+                  * reveal $ - 1 series
+                  , 0
+                transition-nodes
+                  [] $ text-node |chart-revenue-label |REVENUE 344 -40 11 $ color 0.94 0.73 0.48 1
+                  * reveal series
+                  , 0
+                chart-series-bar 0 42 121 reveal series
+                chart-series-bar 1 76 108 reveal series
+                chart-series-bar 2 60 88 reveal series
+                chart-series-bar 3 105 63 reveal series
+                chart-series-bar 4 88 48 reveal series
+                chart-series-bar 5 120 72 reveal series
+                chart-series-bar 6 97 108 reveal series
+                chart-series-bar 7 128 81 reveal series
+                chart-series-bar 8 109 68 reveal series
+                chart-series-bar 9 134 104 reveal series
+                chart-series-bar 10 114 125 reveal series
+                chart-series-bar 11 126 93 reveal series
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'color $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn color (r g b alpha)
             motion/ColorRgba :r r :g g :b b :a alpha
@@ -5115,6 +5180,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.examples.tidal-bloom/MetricFlowModel 'Number
+        'draw-interactive-with-series! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-interactive-with-series! (context model series-model time)
+            reference/draw-reference! context $ interactive-scene-with-series-at model series-model time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.examples.tidal-bloom/MetricFlowModel 'quamolit.examples.tidal-bloom/ChartSeriesModel 'Number
         'hero-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hero-nodes (time)
             let
@@ -5144,6 +5215,15 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.tidal-bloom/MetricFlowModel)
             :args $ [] 'Number
+        'initial-series-model $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-series-model (position)
+            assert |invalid-series-position $ and (motion/finite-number? position) (>= position 0) (<= position 1)
+            ChartSeriesModel :initial position :intent
+              transition/start-transition |metric-flow/series position position 0 0 $ motion/Easing :smoothstep
+              , :events ([]) :at 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.tidal-bloom/ChartSeriesModel)
+            :args $ [] 'Number
         'interactive-analytics-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn interactive-analytics-nodes (position)
             concat
@@ -5156,6 +5236,18 @@
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'interactive-analytics-with-series-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interactive-analytics-with-series-nodes (position series)
+            concat
+              if (<= position 0.38) ([])
+                kpi-nodes $ + 3.55 $ * 2 (- position 0.38)
+              if (<= position 0.56) ([]) (chart-series-nodes position series)
+              if (<= position 0.72) ([])
+                breakdown-nodes $ + 4.65 $ * 5.5 (- position 0.72)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'interactive-overview-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn interactive-overview-nodes (position)
@@ -5188,6 +5280,15 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'quamolit.examples.tidal-bloom/MetricFlowModel 'Number
+        'interactive-scene-with-series-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interactive-scene-with-series-at (model series-model time)
+            let
+                position $ view-position-at model time
+                series $ series-position-at series-model time
+              scene/SceneDocument :nodes $ concat (shell-nodes) (interactive-overview-nodes position) (interactive-analytics-with-series-nodes position series)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.examples.tidal-bloom/MetricFlowModel 'quamolit.examples.tidal-bloom/ChartSeriesModel 'Number
         'kpi-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn kpi-nodes (time)
             let
@@ -5308,6 +5409,43 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number
+        'series-active? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn series-active? (model time)
+            transition/transition-active? (:intent model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.examples.tidal-bloom/ChartSeriesModel 'Number
+        'series-position-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn series-position-at (model time)
+            assert |invalid-series-time $ and (motion/finite-number? time) (>= time 0)
+            if
+              < time $ :at model
+              transition/sample-replay
+                transition/start-transition |metric-flow/series (:initial model) (:initial model) 0 0 $ motion/Easing :smoothstep
+                :events model
+                , time
+              transition/sample-transition (:intent model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.tidal-bloom/ChartSeriesModel 'Number
+        'set-series $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn set-series (model target at)
+            assert |invalid-series-target $ or (= target 0) (= target 1)
+            assert |invalid-series-event-time $ and (motion/finite-number? at)
+              >= at $ :at model
+            assert |series-event-capacity $ <
+              count $ :events model
+              , 2000
+            if
+              = target $ :to $ :tween (:intent model)
+              , model $ struct-with model
+                :intent $ transition/interrupt-transition (:intent model) target at 0.9 $ motion/Easing :smoothstep
+                :events $ conj (:events model)
+                  transition/TransitionEvent :at at :to target :duration 0.9 :easing $ motion/Easing :smoothstep
+                :at at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.tidal-bloom/ChartSeriesModel)
+            :args $ [] 'quamolit.examples.tidal-bloom/ChartSeriesModel 'Number 'Number
         'set-view $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn set-view (model target at)
             assert |invalid-view-target $ or (= target 0) (= target 1)
