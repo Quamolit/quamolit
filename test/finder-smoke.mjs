@@ -91,7 +91,7 @@ test("五组文件夹展开与收起时，内部卡片始终位于文件夹矩�
   }
 });
 
-test("返回和快速重入从当前采样值接续；非法切换不偷换身份", () => {
+test("返回、快速重入和跨项切换都从各自当前采样值接续", () => {
   const open = finder.select_folder(finder.initial(), 0, 0);
   const partial = finder.folder_value(open, 0.16);
   const closing = finder.back(open, 0.16);
@@ -101,7 +101,13 @@ test("返回和快速重入从当前采样值接续；非法切换不偷换身�
   const reopened = finder.select_folder(closing, 0, 0.24);
   assert.equal(finder.folder_value(reopened, 0.24), finder.folder_value(closing, 0.24));
   assert.equal(finder.folder_value(reopened, 0.66), 1);
-  assert.throws(() => finder.select_folder(reopened, 1, 0.3), /switch-before-folder-closed/);
+  const beforeFolderSwitch = scene(reopened, 0.3);
+  const switchedFolder = finder.select_folder(reopened, 1, 0.3);
+  assert.deepEqual(scene(switchedFolder, 0.3), beforeFolderSwitch, "切换文件夹的事件帧不跳变");
+  assert.ok(finder.folder_item_value(switchedFolder, 0, 0.42) > 0, "旧文件夹继续退出");
+  assert.ok(finder.folder_item_value(switchedFolder, 1, 0.42) > 0, "新文件夹同时进入");
+  const switchedAgain = finder.select_folder(switchedFolder, 2, 0.42);
+  assert.deepEqual(scene(switchedAgain, 0.42), scene(switchedFolder, 0.42), "连续切换仍保持完整 Scene 连续");
   const focused = finder.select_card(reopened, 1, 0.66);
   const cardPartial = finder.card_value(focused, 0.76);
   const cardClosing = finder.back(focused, 0.76);
@@ -111,9 +117,12 @@ test("返回和快速重入从当前采样值接续；非法切换不偷换身�
     data(finder.hit_at(cardClosing, 0.84, finder.card_x(1) * (1 - cardFocus), finder.card_y(1) * (1 - cardFocus))).kind,
     "card",
   );
-  const cardReopened = finder.select_card(cardClosing, 1, 0.84);
-  assert.equal(finder.card_value(cardReopened, 0.84), finder.card_value(cardClosing, 0.84));
-  assert.equal(finder.card_value(cardReopened, 1.2), 1);
+  const beforeCardSwitch = scene(cardClosing, 0.84);
+  const cardSwitched = finder.select_card(cardClosing, 2, 0.84);
+  assert.deepEqual(scene(cardSwitched, 0.84), beforeCardSwitch, "切换卡片的事件帧不跳变");
+  assert.ok(finder.card_item_value(cardSwitched, 0, 1, 0.96) > 0, "旧卡片继续退出");
+  assert.ok(finder.card_item_value(cardSwitched, 0, 2, 0.96) > 0, "新卡片同时进入");
+  assert.equal(finder.card_value(cardSwitched, 1.2), 1);
 });
 
 test("点击日志任意时间重放，历史分支可裁剪", () => {
@@ -128,4 +137,26 @@ test("点击日志任意时间重放，历史分支可裁剪", () => {
   const branch = finder.append_event(finder.events_through(log, 1.3), 1.3, "back", 0, -1);
   assert.equal(data(branch).length, 4);
   assert.throws(() => finder.append_event(log, -1, "back", 0, -1), /invalid-finder-time/);
+});
+
+test("跨文件夹和卡片的快速切换可以由同一输入日志乱序重放", () => {
+  let log = finder.empty_events();
+  for (const event of [
+    [0, "folder", 0, -1],
+    [0.42, "back", 0, -1],
+    [0.56, "folder", 1, -1],
+    [0.98, "card", 1, 0],
+    [1.34, "back", 1, -1],
+    [1.46, "card", 1, 1],
+  ]) {
+    log = finder.append_event(log, ...event);
+  }
+  const folderMiddle = finder.replay(log, 0.72);
+  const folderValues = data(finder.folder_values(folderMiddle, 0.72));
+  assert.ok(folderValues[0] > 0 && folderValues[1] > 0, "日志重放保留文件夹交叉出入");
+  const cardMiddle = finder.replay(log, 1.59);
+  const cardValues = data(finder.card_values(cardMiddle, 1.59));
+  assert.ok(cardValues[4] > 0 && cardValues[5] > 0, "日志重放保留卡片交叉出入");
+  assert.deepEqual(data(finder.scene_at(finder.replay(log, 0.72), 0.72)), data(finder.scene_at(folderMiddle, 0.72)));
+  assert.deepEqual(data(finder.scene_at(finder.replay(log, 1.59), 1.59)), data(finder.scene_at(cardMiddle, 1.59)));
 });

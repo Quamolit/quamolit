@@ -19,6 +19,60 @@ async function clickLogical(page, x, y) {
   await page.mouse.click(position.x, position.y);
 }
 
+async function captureWithAndWithoutOverlay(page, testInfo, name) {
+  await page.screenshot({ path: testInfo.outputPath(`${name}-overlay.png`) });
+  await page.locator("#panel-toggle").click();
+  await expect(page.locator("#panel")).toBeHidden();
+  await page.locator("nav, #panel-toggle").evaluateAll((elements) => {
+    for (const element of elements) element.hidden = true;
+  });
+  await page.screenshot({ path: testInfo.outputPath(`${name}-canvas.png`) });
+  await page.locator("nav, #panel-toggle").evaluateAll((elements) => {
+    for (const element of elements) element.hidden = false;
+  });
+  await page.locator("#panel-toggle").click();
+  await expect(page.locator("#panel")).toBeVisible();
+}
+
+test("文件夹和卡片未完全关闭时可直接点击另一项", async ({ page }, testInfo) => {
+  await ready(page);
+  await page.evaluate(() => window.finderDemo.send("folder", 0, -1, 0, false));
+  await page.evaluate(() => window.finderDemo.seek(0.42));
+  await page.evaluate(() => window.finderDemo.send("back", 0, -1, 0.42, false));
+  const folderStart = await page.evaluate(() => window.finderDemo.seek(0.56));
+  await captureWithAndWithoutOverlay(page, testInfo, "finder-folder-switch-start");
+  const folderOne = folderStart.scene.nodes.find((node) => node.id === "folder-1").content[1];
+  await clickLogical(page, folderOne.x + folderOne.width / 2, folderOne.y + folderOne.height / 2);
+  const folderEvent = await page.evaluate(() => window.finderDemo.seek(0.56));
+  expect(folderEvent.model.folder).toBe(1);
+  expect(folderEvent.scene).toEqual(folderStart.scene);
+  const folderMiddle = await page.evaluate(() => window.finderDemo.seek(0.72));
+  expect(folderMiddle.folderValues[0]).toBeGreaterThan(0);
+  expect(folderMiddle.folderValues[1]).toBeGreaterThan(0);
+  await captureWithAndWithoutOverlay(page, testInfo, "finder-folder-switch-middle");
+  const folderEnd = await page.evaluate(() => window.finderDemo.seek(0.98));
+  expect(folderEnd.folderValues[0]).toBe(0);
+  expect(folderEnd.folderValues[1]).toBe(1);
+  await captureWithAndWithoutOverlay(page, testInfo, "finder-folder-switch-end");
+
+  await page.evaluate(() => window.finderDemo.send("card", 1, 0, 0.98, false));
+  await page.evaluate(() => window.finderDemo.seek(1.34));
+  await page.evaluate(() => window.finderDemo.send("back", 1, -1, 1.34, false));
+  const cardStart = await page.evaluate(() => window.finderDemo.seek(1.46));
+  const cardOne = cardStart.scene.nodes.find((node) => node.id === "card-1/1").content[1];
+  await clickLogical(page, cardOne.x + cardOne.width / 2, cardOne.y + cardOne.height / 2);
+  const cardEvent = await page.evaluate(() => window.finderDemo.seek(1.46));
+  expect(cardEvent.model.card).toBe(1);
+  expect(cardEvent.scene).toEqual(cardStart.scene);
+  const cardMiddle = await page.evaluate(() => window.finderDemo.seek(1.59));
+  expect(cardMiddle.cardValues[4]).toBeGreaterThan(0);
+  expect(cardMiddle.cardValues[5]).toBeGreaterThan(0);
+  await captureWithAndWithoutOverlay(page, testInfo, "finder-card-switch-middle");
+  const cardEnd = await page.evaluate(() => window.finderDemo.seek(1.82));
+  expect(cardEnd.cardValues[4]).toBe(0);
+  expect(cardEnd.cardValues[5]).toBe(1);
+});
+
 test("Canvas 点击文件夹与卡片、返回、快速打断和分享重放", async ({ page }, testInfo) => {
   await ready(page);
   const start = await page.evaluate(() => window.finderDemo.snapshot());
