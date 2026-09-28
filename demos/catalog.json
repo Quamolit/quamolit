@@ -32,6 +32,16 @@
   "planned": [],
   "entries": [
     {
+      "id": "layered-dashboard",
+      "path": "examples/layered-dashboard/index.html",
+      "title": "Layered Signals · 分层数据看板",
+      "group": "art",
+      "summary": "Calcit Scene 驱动整页看板淡入与缩放；图表由嵌套裁剪逐段揭示，重叠信号块使用真正隔离的组透明度。",
+      "status": "嵌套裁剪与隔离合成 · Canvas",
+      "docs": "docs/layered-dashboard.md",
+      "compile": "compile:layered-dashboard"
+    },
+    {
       "id": "cohort-pulse",
       "path": "examples/cohort-pulse/index.html",
       "title": "Cohort Pulse · 留存热力图",

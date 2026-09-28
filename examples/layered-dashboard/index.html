@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Layered Signals · Quamolit</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <canvas aria-label="分层数据看板动画"></canvas>
+    <button id="panel-toggle" aria-expanded="true">收起控制</button>
+    <aside id="panel">
+      <nav aria-label="演示导航"><a href="../../demos/index.html?group=art">← 动画目录</a></nav>
+      <p class="eyebrow">QUAMOLIT / SCENE COMPOSITING</p>
+      <h1>Layered Signals</h1>
+      <p>嵌套裁剪逐步揭示柱图；整个看板与重叠信号块分别做隔离透明度合成。</p>
+      <label>逻辑时间 <output id="time-output">0.00</output></label>
+      <input id="time" type="range" min="0" max="1" step="0.01" value="0" />
+      <div class="actions"><button id="play">播放</button><button id="reset">重置</button></div>
+      <p id="status">准备中</p>
+    </aside>
+    <script type="module" src="./main.mjs"></script>
+  </body>
+</html>

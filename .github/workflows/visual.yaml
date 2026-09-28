@@ -237,6 +237,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check nested clip and isolated group opacity
+        if: inputs.mutation != 'color'
+        run: yarn test:layered-dashboard
+        env:
+          CI: "true"
+
       - name: Upload Metric Flow fixed-time evidence
         if: always() && inputs.mutation != 'color'
         uses: actions/upload-artifact@v4
@@ -261,6 +267,15 @@ jobs:
         with:
           name: quamolit-cohort-pulse-${{ github.run_id }}
           path: test-results/cohort-pulse/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Layered Signals fixed-time evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-layered-dashboard-${{ github.run_id }}
+          path: test-results/layered-dashboard/
           if-no-files-found: error
           retention-days: 14
 
