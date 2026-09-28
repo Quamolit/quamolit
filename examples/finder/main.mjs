@@ -39,7 +39,21 @@ function start(limit = 10) {
   anchor = time; started = performance.now(); until = Math.min(10, limit);
   playing = true; play.textContent = "暂停时间"; raf = requestAnimationFrame(frame);
 }
-function snapshot() { return { time, model: to_js_data(model), events: to_js_data(log), scene: to_js_data(finder.scene_at(model, time)), playing, paints, width: canvas.width, height: canvas.height, view: { ...view } }; }
+function snapshot() {
+  return {
+    time,
+    model: to_js_data(model),
+    events: to_js_data(log),
+    scene: to_js_data(finder.scene_at(model, time)),
+    folderValues: to_js_data(finder.folder_values(model, time)),
+    cardValues: to_js_data(finder.card_values(model, time)),
+    playing,
+    paints,
+    width: canvas.width,
+    height: canvas.height,
+    view: { ...view },
+  };
+}
 function seek(next) { stop(); sample(next); return snapshot(); }
 function send(kind, folder = -1, card = -1, at = time, autoplay = true) {
   if (!Number.isFinite(at) || at < 0 || at > 10) throw new RangeError("事件时间无效");

@@ -4171,33 +4171,32 @@
           :examples $ []
           :schema $ :: 'StructDef
         'FinderModel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct FinderModel (:folder 'Number) (:card 'Number) (:folder-motion 'quamolit.transition/TransitionIntent) (:card-motion 'quamolit.transition/TransitionIntent) (:at 'Number)
+          :code $ quote $ defstruct FinderModel (:folder 'Number) (:card 'Number)
+            :folder-motions $ :: 'List 'quamolit.transition/TransitionIntent
+            :card-motions $ :: 'List 'quamolit.transition/TransitionIntent
+            :at 'Number
           :examples $ []
           :schema $ :: 'StructDef
         'add-card $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn add-card (model time index acc)
+          :code $ quote $ defn add-card (model time folder index acc)
             let
-                selected $ = index $ :card model
-                focus $ if selected (card-value model time) 0
-                folder-scale $ &max 0.0001 $ folder-value model time
+                focus $ card-item-value model folder index time
+                folder-focus $ &max 0.0001 $ folder-item-value model folder time
+                folder-card-focus $ max-card-value-for-folder model folder time 0 0
                 x $ +
                   *
-                    -
-                      * (:folder model) 170
-                      , 340
-                    - 1 folder-scale
-                  * folder-scale $ * (card-x index) (- 1 focus)
+                    - (* folder 170) 340
+                    - 1 folder-focus
+                  * folder-focus $ * (card-x index) (- 1 focus)
                 y $ +
-                  * -20 $ - 1 folder-scale
-                  * folder-scale $ * (card-y index) (- 1 focus)
-                width $ * folder-scale $ + 150 (* 540 focus)
-                height $ * folder-scale $ + 96 (* 350 focus)
-                alpha $ * (folder-value model time)
-                  if selected 1 $ - 1 $ * 0.96 (card-value model time)
-                label $ &list:nth
-                  cards-for $ :folder model
-                  , index
-                id $ str |card- (:folder model) |/ index
+                  * -20 $ - 1 folder-focus
+                  * folder-focus $ * (card-y index) (- 1 focus)
+                width $ * folder-focus $ + 150 (* 540 focus)
+                height $ * folder-focus $ + 96 (* 350 focus)
+                alpha $ * folder-focus $ if (> focus 0.001) 1
+                  - 1 $ * 0.96 folder-card-focus
+                label $ &list:nth (cards-for folder) index
+                id $ str |card- folder |/ index
               conj
                 conj acc $ rect-node id x y width height
                   + 0.20 $ * focus 0.08
@@ -4213,25 +4212,20 @@
                   , alpha
           :examples $ []
           :schema $ :: 'Fn $ {}
-            :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'add-folder $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn add-folder (model time index acc)
             let
-                focus $ if
-                  = index $ :folder model
-                  folder-value model time
-                  , 0
+                focus $ folder-item-value model index time
+                max-focus $ max-folder-value model time
                 center-x $ *
                   - (* index 170) 340
                   - 1 focus
                 center-y $ * -20 $ - 1 focus
                 width $ + 140 $ * 560 focus
                 height $ + 100 $ * 420 focus
-                alpha $ if
-                  = index $ :folder model
-                  , 1 $ - 1
-                    * 0.92 $ folder-value model time
+                alpha $ if (> focus 0.001) 1 $ - 1 (* 0.92 max-focus)
                 id $ str |folder- index
               conj
                 conj acc $ rect-node id center-x center-y width height
@@ -4265,29 +4259,32 @@
           :code $ quote $ defn back (model at)
             assert |retroactive-finder-event $ >= at $ :at model
             if
-              > (card-value model at) 0.001
+              > (max-card-value model at) 0.001
               struct-with model
-                :card-motion $ transition/interrupt-transition (:card-motion model) 0 at 0.36 $ motion/Easing :smoothstep
+                :card-motions $ retarget-motions (:card-motions model) -1 at 0.36
                 :at at
               struct-with model
-                :folder-motion $ transition/interrupt-transition (:folder-motion model) 0 at 0.42 $ motion/Easing :smoothstep
+                :folder-motions $ retarget-motions (:folder-motions model) -1 at 0.42
                 :at at
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.finder/FinderModel)
             :args $ [] 'quamolit.examples.finder/FinderModel 'Number
+        'build-card-items $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-card-items (model time folder index acc)
+            if
+              >= index $ count $ cards-for folder
+              , acc $ recur model time folder (inc index) (add-card model time folder index acc)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'build-cards $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn build-cards (model time index acc)
-            let
-                total $ count $ cards-for (:folder model)
-              if (>= index total)
-                if
-                  >= (:card model) 0
-                  add-card model time (:card model) acc
-                  , acc
-                recur model time (inc index)
-                  if
-                    = index $ :card model
-                    , acc $ add-card model time index acc
+          :code $ quote $ defn build-cards (model time folder acc)
+            if (>= folder 5) acc $ recur model time (inc folder)
+              if
+                > (folder-item-value model folder time) 0.000001
+                build-card-items model time folder 0 acc
+                , acc
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
@@ -4299,12 +4296,51 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'card-global-index $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn card-global-index (folder card)
+            assert |invalid-finder-card $ and (>= card 0)
+              < card $ count $ cards-for folder
+            + (card-offset folder) card
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
+        'card-item-target $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn card-item-target (model folder card)
+            motion-target (:card-motions model) (card-global-index folder card)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number
+        'card-item-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn card-item-value (model folder card time)
+            motion-value (:card-motions model) (card-global-index folder card) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number 'Number
+        'card-offset $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn card-offset (folder)
+            assert |invalid-finder-folder $ and (>= folder 0) (< folder 5)
+            &list:nth ([] 0 4 7 11 16) folder
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
         'card-value $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn card-value (model time)
-            transition/sample-transition (:card-motion model) time
+            if
+              and
+                >= (:folder model) 0
+                >= (:card model) 0
+              card-item-value model (:folder model) (:card model) time
+              , 0
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.examples.finder/FinderModel 'Number
+        'card-values $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn card-values (model time)
+            sample-motion-values (:card-motions model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number
+            :return $ :: 'List 'Number
         'card-x $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn card-x (index)
             + -245 $ * 165 $ &number:rem index 4
@@ -4363,6 +4399,12 @@
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'quamolit.examples.finder/FinderEvent
+        'empty-motions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-motions () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.transition/TransitionIntent
         'empty-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-nodes () ([])
           :examples $ []
@@ -4380,6 +4422,18 @@
           :schema $ :: 'Fn $ {}
             :args $ [] (:: 'List 'quamolit.examples.finder/FinderEvent) 'Number
             :return $ :: 'List 'quamolit.examples.finder/FinderEvent
+        'folder-item-target $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn folder-item-target (model index)
+            motion-target (:folder-motions model) index
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number
+        'folder-item-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn folder-item-value (model index time)
+            motion-value (:folder-motions model) index time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number
         'folder-name $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn folder-name (index)
             cond
@@ -4395,93 +4449,89 @@
             :args $ [] 'Number
         'folder-value $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn folder-value (model time)
-            transition/sample-transition (:folder-motion model) time
+            folder-item-value model (:folder model) time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.examples.finder/FinderModel 'Number
+        'folder-values $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn folder-values (model time)
+            sample-motion-values (:folder-motions model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number
+            :return $ :: 'List 'Number
         'hit-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hit-at (model time x y)
             assert |invalid-finder-hit $ and (motion/finite-number? time) (motion/finite-number? x) (motion/finite-number? y)
             let
-                folder-focus $ folder-value model time
-                card-focus $ card-value model time
+                folder $ :folder model
+                card-hit $ if
+                  and (>= folder 0)
+                    = 1 $ folder-item-target model folder
+                    > (folder-item-value model folder time) 0.05
+                  hit-card-index model time folder
+                    dec $ count $ cards-for folder
+                    , x y
+                  , -1
+                folder-hit $ hit-folder-index model time 4 x y
               cond
-                  > card-focus 0.001
-                  let
-                      index $ :card model
-                      center-x $ * (card-x index) (- 1 card-focus)
-                      center-y $ * (card-y index) (- 1 card-focus)
-                      width $ + 150 $ * 540 card-focus
-                      height $ + 96 $ * 350 card-focus
-                    if
-                      and
-                        = 0 $ :to $ :tween (:card-motion model)
-                        <=
-                          abs $ - x center-x
-                          / width 2
-                        <=
-                          abs $ - y center-y
-                          / height 2
-                      FinderHit :kind |card :folder (:folder model) :card index
-                      FinderHit :kind |back :folder (:folder model) :card index
-                (>= folder-focus 0.999)
-                  let
-                      col $ floor $ / (+ x 320) 165
-                      row $ floor $ / (+ y 168) 130
-                      index $ + col $ * row 4
-                    if
-                      and (>= index 0)
-                        < index $ count $ cards-for (:folder model)
-                        <=
-                          abs $ - x $ card-x index
-                          , 75
-                        <=
-                          abs $ - y $ card-y index
-                          , 48
-                      FinderHit :kind |card :folder (:folder model) :card index
-                      FinderHit :kind |back :folder (:folder model) :card -1
-                (> folder-focus 0.001)
-                  let
-                      index $ :folder model
-                      center-x $ *
-                        - (* index 170) 340
-                        - 1 folder-focus
-                      center-y $ * -20 $ - 1 folder-focus
-                      width $ + 140 $ * 560 folder-focus
-                      height $ + 100 $ * 420 folder-focus
-                    if
-                      and
-                        = 0 $ :to $ :tween (:folder-motion model)
-                        <=
-                          abs $ - x center-x
-                          / width 2
-                        <=
-                          abs $ - y center-y
-                          / height 2
-                      FinderHit :kind |folder :folder index :card -1
-                      FinderHit :kind |back :folder index :card -1
-                true $ let
-                    index $ floor $ / (+ x 410) 170
-                    center $ - (* index 170) 340
+                  >= card-hit 0
                   if
-                    and (>= index 0) (< index 5)
-                      <=
-                        abs $ - x center
-                        , 70
-                      <=
-                        abs $ + y 20
-                        , 50
-                    FinderHit :kind |folder :folder index :card -1
-                    FinderHit :kind |none :folder -1 :card -1
+                    = 0 $ card-item-target model folder card-hit
+                    FinderHit :kind |card :folder folder :card card-hit
+                    FinderHit :kind |back :folder folder :card card-hit
+                (>= folder-hit 0)
+                  if
+                    = 0 $ folder-item-target model folder-hit
+                    FinderHit :kind |folder :folder folder-hit :card -1
+                    FinderHit :kind |back :folder folder-hit :card -1
+                (> (max-card-value model time) 0.001)
+                  FinderHit :kind |back :folder folder :card $ :card model
+                (> (max-folder-value model time) 0.001)
+                  FinderHit :kind |back :folder folder :card -1
+                true $ FinderHit :kind |none :folder -1 :card -1
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.finder/FinderHit)
             :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number 'Number
+        'hit-card-index $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-card-index (model time folder index x y)
+            if (< index 0) -1 $ let
+                focus $ card-item-value model folder index time
+                folder-focus $ folder-item-value model folder time
+                center-x $ +
+                  *
+                    - (* folder 170) 340
+                    - 1 folder-focus
+                  * folder-focus $ * (card-x index) (- 1 focus)
+                center-y $ +
+                  * -20 $ - 1 folder-focus
+                  * folder-focus $ * (card-y index) (- 1 focus)
+                width $ * folder-focus $ + 150 (* 540 focus)
+                height $ * folder-focus $ + 96 (* 350 focus)
+              if (point-in-rect? x y center-x center-y width height) index $ recur model time folder (dec index) x y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number 'Number 'Number 'Number
+        'hit-folder-index $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-folder-index (model time index x y)
+            if (< index 0) -1 $ let
+                focus $ folder-item-value model index time
+                center-x $ *
+                  - (* index 170) 340
+                  - 1 focus
+                center-y $ * -20 $ - 1 focus
+                width $ + 140 $ * 560 focus
+                height $ + 100 $ * 420 focus
+              if (point-in-rect? x y center-x center-y width height) index $ recur model time (dec index) x y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number 'Number 'Number
         'initial $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initial ()
-            FinderModel :folder -1 :card -1 :folder-motion
-              transition/start-transition |folder-focus 0 0 0 0.42 $ motion/Easing :smoothstep
-              , :card-motion
-                transition/start-transition |card-focus 0 0 0 0.36 $ motion/Easing :smoothstep
+            FinderModel :folder -1 :card -1 :folder-motions
+              make-motions 0 5 |folder-focus- 0.42 $ empty-motions
+              , :card-motions
+                make-motions 0 18 |card-focus- 0.36 $ empty-motions
                 , :at 0
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.finder/FinderModel)
@@ -4491,6 +4541,77 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
+        'make-motions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-motions (index total prefix duration acc)
+            if (>= index total) acc $ recur (inc index) total prefix duration $ conj acc
+              transition/start-transition (str prefix index) 0 0 0 duration $ motion/Easing :smoothstep
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'String 'Number $ :: 'List 'quamolit.transition/TransitionIntent
+            :return $ :: 'List 'quamolit.transition/TransitionIntent
+        'max-card-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn max-card-value (model time)
+            max-motion-value (:card-motions model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number
+        'max-card-value-for-folder $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn max-card-value-for-folder (model folder time index acc)
+            if
+              >= index $ count $ cards-for folder
+              , acc $ recur model folder time (inc index)
+                &max acc $ card-item-value model folder index time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number 'Number 'Number
+        'max-folder-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn max-folder-value (model time)
+            max-motion-value (:folder-motions model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number
+        'max-motion-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn max-motion-value (motions time)
+            foldl motions 0 $ fn (acc intent)
+              hint-fn $ {}
+                :args $ [] 'Number 'quamolit.transition/TransitionIntent
+                :return 'Number
+              &max acc $ transition/sample-transition intent time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] (:: 'List 'quamolit.transition/TransitionIntent) 'Number
+        'motion-target $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn motion-target (motions index)
+            if
+              and (>= index 0)
+                < index $ count motions
+              :to $ :tween $ &list:nth motions index
+              , 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] (:: 'List 'quamolit.transition/TransitionIntent) 'Number
+        'motion-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn motion-value (motions index time)
+            if
+              and (>= index 0)
+                < index $ count motions
+              transition/sample-transition (&list:nth motions index) time
+              , 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] (:: 'List 'quamolit.transition/TransitionIntent) 'Number 'Number
+        'point-in-rect? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn point-in-rect? (x y center-x center-y width height)
+            and
+              <=
+                abs $ - x center-x
+                / width 2
+              <=
+                abs $ - y center-y
+                / height 2
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number
         'rect-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn rect-node
             id x y w h r g b alpha
@@ -4520,6 +4641,23 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.finder/FinderModel)
             :args $ [] (:: 'List 'quamolit.examples.finder/FinderEvent) 'Number
+        'retarget-motions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn retarget-motions (motions target-index at duration)
+            map-indexed motions $ fn (index intent)
+              transition/interrupt-transition intent
+                if (= index target-index) 1 0
+                , at duration $ motion/Easing :smoothstep
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.transition/TransitionIntent) 'Number 'Number 'Number
+            :return $ :: 'List 'quamolit.transition/TransitionIntent
+        'sample-motion-values $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-motion-values (motions time)
+            map motions $ fn (intent) (transition/sample-transition intent time)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.transition/TransitionIntent) 'Number
+            :return $ :: 'List 'Number
         'scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scene-at (model time)
             scene/SceneDocument :nodes $ build-cards model time 0 $ build-folders model time 0 (empty-nodes)
@@ -4531,14 +4669,13 @@
             assert |retroactive-finder-event $ >= at $ :at model
             assert |folder-not-open $ and
               >= (:folder model) 0
-              >= (folder-value model at) 0.999
+              >= (folder-value model at) 0.05
             assert |invalid-finder-card $ and (>= index 0)
               < index $ count $ cards-for (:folder model)
-            assert |switch-before-card-closed $ or
-              = index $ :card model
-              <= (card-value model at) 0.001
             struct-with model (:card index)
-              :card-motion $ transition/interrupt-transition (:card-motion model) 1 at 0.36 $ motion/Easing :smoothstep
+              :card-motions $ retarget-motions (:card-motions model)
+                card-global-index (:folder model) index
+                , at 0.36
               :at at
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.finder/FinderModel)
@@ -4547,16 +4684,32 @@
           :code $ quote $ defn select-folder (model index at)
             assert |invalid-finder-folder $ and (>= index 0) (< index 5)
             assert |retroactive-finder-event $ >= at $ :at model
-            assert |switch-before-folder-closed $ or
-              = index $ :folder model
-              <= (folder-value model at) 0.001
             struct-with model (:folder index) (:card -1)
-              :folder-motion $ transition/interrupt-transition (:folder-motion model) 1 at 0.42 $ motion/Easing :smoothstep
-              :card-motion $ transition/start-transition |card-focus 0 0 at 0.36 $ motion/Easing :smoothstep
+              :folder-motions $ retarget-motions (:folder-motions model) index at 0.42
+              :card-motions $ retarget-motions (:card-motions model) -1 at 0.36
               :at at
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.finder/FinderModel)
             :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |cross-switch-continuity)
+            :code $ quote $ let
+                opened $ select-folder (initial) 0 0
+                closing $ back opened 0.42
+                before $ scene-at closing 0.56
+                switched $ select-folder closing 1 0.56
+                card-open $ select-card
+                  select-folder (initial) 0 0
+                  , 0 0.42
+                card-close $ back card-open 0.78
+                card-before $ scene-at card-close 0.88
+                card-switch $ select-card card-close 1 0.88
+              assert= before $ scene-at switched 0.56
+              assert |old-folder-remains-visible $ > (folder-item-value switched 0 0.72) 0
+              assert |new-folder-enters-concurrently $ > (folder-item-value switched 1 0.72) 0
+              assert= card-before $ scene-at card-switch 0.88
+              assert |old-card-remains-visible $ > (card-item-value card-switch 0 0 1.02) 0
+              assert |new-card-enters-concurrently $ > (card-item-value card-switch 0 1 1.02) 0
+            :tags $ #{} :finder :unit
         'text-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text-node (id label x y size alpha)
             scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill

@@ -26,7 +26,7 @@
 
 `yarn test:raining-demo` 检查 [Raining 恢复](raining-restoration.md)的严格类型、Calcit→JS 编译、Node 固定 seed/tick 乱序重放及 48 节点上界、Chromium 全屏中间帧/水花截图与 DPR 2 暂停 resize。它是解析式固定 tick 采样和 Canvas2D 参考，不证明 GPU 历史模拟或吞吐。
 
-`yarn test:finder-demo` 检查 [Finder 恢复](finder-restoration.md)的严格类型、Calcit 点击日志/Scene/命中、Node 打断连续性和非法切换、Chromium 实际画布点击、固定时间截图、分享像素重放与 DPR 2 暂停 resize。它不证明 #34 通用命中/指针捕获或 WebGPU 绘制。
+`yarn test:finder-demo` 检查 [Finder 恢复](finder-restoration.md)的严格类型、Calcit 点击日志/Scene/命中，以及 5 个文件夹和 18 张卡片各自意图的连续打断；Node 验证跨文件夹／卡片和连续 A→B→C 切换的事件帧 Scene 相等与并行出入，Chromium 以真实画布点击保存切换开始／中间／终点的浮层和纯 Canvas 截图，并继续覆盖分享像素重放与 DPR 2 暂停 resize。它不证明 #34 通用命中/指针捕获或 WebGPU 绘制。
 
 `yarn test:icons-demo` 检查 [Icons 恢复](icons-restoration.md)的严格类型、历史数字交叉位移、1/4 秒线性数字过渡与 1/6 秒线性播放图标变形；Node 使用独立手算中间值检查快速打断和命中区域，Chromium 使用真实 Canvas 点击并保存初始／中间／终点的浮层与纯画布截图，同时覆盖 DPR 2、暂停 resize 和空闲停帧。它只恢复该作品的历史语义与 Canvas2D 参考效果，不证明通用事件系统或 WebGPU 绘制。
 
