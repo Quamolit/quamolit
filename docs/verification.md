@@ -10,7 +10,7 @@
 
 `yarn test:scene-pointer` 检查 [Scene 指针路由](scene-pointer.md)：严格公共类型、叶节点到祖先 target 的冒泡顺序、捕获后移出命中范围仍投递、其他 pointer id 不继承捕获、`up/cancel` 释放、捕获源节点消失、父 target 卸载后叶节点重挂载，以及退出节点仍可见但 interaction 已禁用时的恰好一次清理。它是可乱序重放的纯 Calcit 状态机，不调用 DOM；当前不验证浏览器坐标归一化、DPR/resize、原生 `setPointerCapture`、任意嵌套退出子树屏蔽或 cubic-path/instances 命中，因此仍不能关闭 #34。
 
-`yarn test:scene-pointer-browser` 严格检查临时类型化 PointerEvent/DOM capture adapter：Node 最小宿主替身验证 client 坐标到 CSS px、画布外捕获路由、`setPointerCapture/releasePointerCapture` 各一次、显式 surface dispose 及终点无残留；Chromium 用真实鼠标 PointerEvent 验证移出画布后继续投递、抬起释放、DPR 2 不误乘坐标和 `pointercancel` 清理，并以确定性 DOM `lostpointercapture`、窗口 `blur` 事件验证逻辑所有者与原生 capture 均清空。拖拽中移动并 resize surface 后，第二 pointer id 立即按新边界命中，原捕获 pointer 仍可在画布外完成释放。通用浏览器接口缺口跟踪于 js-ffi #149；该门禁尚未把 dispose 接到实际 demo，也不覆盖 resize 与节点退出并发。
+`yarn test:scene-pointer-browser` 严格检查临时类型化 PointerEvent/DOM capture adapter：Node 最小宿主替身验证 client 坐标到 CSS px、画布外捕获路由、`setPointerCapture/releasePointerCapture` 各一次、显式 surface dispose 及终点无残留；Chromium 用真实鼠标 PointerEvent 验证移出画布后继续投递、抬起释放、DPR 2 不误乘坐标和 `pointercancel` 清理，并以确定性 DOM `lostpointercapture`、窗口 `blur` 事件验证逻辑所有者与原生 capture 均清空。拖拽中移动并 resize surface 后，第二 pointer id 立即按新边界命中，原捕获 pointer 仍可在画布外完成释放。通用浏览器接口缺口跟踪于 js-ffi #149；实际 demo dispose 由 `yarn test:drag-demo` 覆盖，尚未覆盖 resize 与节点退出并发。
 
 `yarn bench:consumer` 将[同源帧测量](consumer-performance.md)接到独立安装/搬移消费者，默认桌面真实 GPU、预热 5 秒/采样 30 秒/3 次。两矩形三路径、静态 10k Canvas、单脏记录动态 10k Canvas/GPU 分开报告；不能把不同负载计算成加速比，单脏记录不等于 10k 独立动画。CI 的 `test:consumer` 短时模式检查 Canvas 链路/格式/计数，GPU 缺失单独 SKIP。`test:bench` 包含异常上传、热帧资源增长、未释放和结构重建的负例。
 
@@ -38,7 +38,7 @@
 
 `yarn test:table-demo` 检查 [Table 恢复](table-restoration.md)的严格 Calcit 九格数据/命中/Scene、Node 中文写入与非法索引、Chromium 画布点击与临时输入框、Enter/Esc/失焦、分享重放和 DPR 2 resize。它不证明 #34 通用命中索引或 WebGPU 文字能力。
 
-`yarn test:drag-demo` 检查 [Drag demo 恢复](drag-demo-restoration.md)的严格 Calcit 指针 Model/命中/Scene、Node 锚点和滑块边界，以及 Chromium 的真实指针捕获、跨图形边界拖动、取消、DPR 2 resize、浮层和空闲停帧。它不证明 #34 通用事件层序或 WebGPU 绘制。
+`yarn test:drag-demo` 检查 [Drag demo 恢复](drag-demo-restoration.md)的严格 Calcit 指针 Model、Scene HitPlan、统一 PointerState、Node 锚点和滑块边界，以及 Chromium 的真实指针捕获、跨图形边界拖动、取消、DPR 2 resize、浮层、空闲停帧和实际页面卸载。卸载后原生捕获必须释放、全局 API 必须移除、后续 pointer 事件不得再修改 Model。它不证明 #34 的任意退出子树/cubic-path/instances 或 WebGPU 绘制。
 
 `yarn test:folding-fan` 检查 [Folding Fan 恢复](folding-fan-restoration.md)的严格 Calcit 24 片裁剪/层序/时间采样、纯数据图片 Scene 与几何差分、Node 打断与乱序、100 条有界输入日志的前缀重放/历史分支、资源预检零绘制；Chromium 初始/中间/终点分别保存带浮层与纯 Canvas 截图，并在 DPR 1/2 下把当前 Scene 路径与历史直接绘制路径做整帧 RGBA 零差异比较，锁定浏览器默认图片平滑设置；另覆盖 URL 刷新像素一致、图片失败、暂停 resize 与全屏浮层。图片已接公共 Scene IR 和窄 Canvas 参考入口；完整资源表、跨浏览器采样矩阵及 WebGPU 纹理路径未实现。
 

@@ -4293,8 +4293,22 @@
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
     'quamolit.examples.drag-demo $ %{} 'FileEntry
       :defs $ {}
+        '*drag-model $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defatom *drag-model (initial)
+          :examples $ []
+        '*drag-pointer-state $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defatom *drag-pointer-state (pointer/initial-pointer-state)
+          :examples $ []
+        '*drag-view $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defatom *drag-view
+            DragView :scale-x 1 :scale-y 1 :x 0 :y 0
+          :examples $ []
         'DragModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct DragModel (:x 'Number) (:y 'Number) (:value 'Number) (:kind 'String) (:pointer 'Number) (:anchor-x 'Number) (:anchor-y 'Number) (:start-value 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'DragView $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct DragView (:scale-x 'Number) (:scale-y 'Number) (:x 'Number) (:y 'Number)
           :examples $ []
           :schema $ :: 'StructDef
         'begin-pointer $ %{} 'CodeEntry (:doc |)
@@ -4318,6 +4332,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.drag-demo/DragModel)
             :args $ [] 'quamolit.examples.drag-demo/DragModel 'Number 'Number 'Number
+        'current-model $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn current-model () @*drag-model
+          :examples $ []
+        'current-pointer $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn current-pointer () (:pointer @*drag-model)
+          :examples $ []
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context model)
             reference/draw-reference! context $ scene-at model
@@ -4338,6 +4358,49 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.drag-demo/DragModel)
             :args $ [] 'quamolit.examples.drag-demo/DragModel 'Number
+        'handle-lost-capture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn handle-lost-capture! (event)
+            let
+                pointer-id $ pointer-browser/pointer-id-from-event event
+                reconciled $ pointer/lose-pointer-capture @*drag-pointer-state pointer-id
+                model @*drag-model
+                next-model $ end-pointer model pointer-id
+              reset! *drag-pointer-state $ :state reconciled
+              reset! *drag-model next-model
+              or (:capture-released reconciled) (not= model next-model)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerEventHost
+            :features $ #{} :js-ffi
+        'handle-pointer-event! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn handle-pointer-event! (surface phase event)
+            let
+                model @*drag-model
+                raw-input $ pointer-browser/pointer-input-from-event surface phase event
+                input $ logical-pointer-input raw-input @*drag-view
+                routed $ pointer/route-pointer
+                  hit/compile-hit-plan $ scene-at model
+                  , @*drag-pointer-state input
+                pointer-id $ :pointer-id input
+                down? $ = phase $ pointer/PointerPhase :down
+                next-model $ cond
+                    and down? $ = (:pointer model) -1
+                    begin-pointer model pointer-id (:x input) (:y input)
+                  (= phase (pointer/PointerPhase :move))
+                    move-pointer model pointer-id (:x input) (:y input)
+                  (or (= phase (pointer/PointerPhase :up)) (= phase (pointer/PointerPhase :cancel)))
+                    end-pointer model pointer-id
+                  true model
+                accepted-down? $ and down? $ = (:pointer next-model) pointer-id
+                next-state $ if accepted-down? (pointer-browser/capture-dispatch! surface input routed) (:state routed)
+              if (not accepted-down?) (pointer-browser/release-native-capture! surface input routed)
+              reset! *drag-pointer-state next-state
+              reset! *drag-model next-model
+              not= model next-model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerPhase 'quamolit.scene-pointer-browser/PointerEventHost
+            :features $ #{} :js-ffi
         'hit-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hit-at (model x y)
             assert |invalid-drag-point $ and (motion/finite-number? x) (motion/finite-number? y)
@@ -4362,6 +4425,66 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.drag-demo/DragModel)
             :args $ []
+        'install-drag-pointer! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn install-drag-pointer! (element render!)
+            let
+                surface $ pointer-browser/pointer-surface-host element
+                route! $ fn (phase host-event)
+                  let
+                      typed-host $ dom/event-host host-event
+                      event $ pointer-browser/pointer-event-host host-event
+                    typed-host .prevent-default!
+                    if (handle-pointer-event! surface phase event) (render!) &unit
+                    , &unit
+                on-down $ fn (event)
+                  route! (pointer/PointerPhase :down) event
+                on-move $ fn (event)
+                  route! (pointer/PointerPhase :move) event
+                on-up $ fn (event)
+                  route! (pointer/PointerPhase :up) event
+                on-cancel $ fn (event)
+                  route! (pointer/PointerPhase :cancel) event
+                on-lost $ fn (host-event)
+                  if
+                    handle-lost-capture! $ pointer-browser/pointer-event-host host-event
+                    render!
+                    , &unit
+                on-host-loss $ fn (_event)
+                  if (release-drag-pointer! surface) (render!) &unit
+              reset-demo!
+              dom/element-add-event-listener! element |pointerdown on-down
+              dom/element-add-event-listener! element |pointermove on-move
+              dom/element-add-event-listener! element |pointerup on-up
+              dom/element-add-event-listener! element |pointercancel on-cancel
+              dom/element-add-event-listener! element |lostpointercapture on-lost
+              dom/add-event-listener! |blur on-host-loss
+              dom/add-event-listener! |pagehide on-host-loss
+              fn () (dom/element-remove-event-listener! element |pointerdown on-down) (dom/element-remove-event-listener! element |pointermove on-move) (dom/element-remove-event-listener! element |pointerup on-up) (dom/element-remove-event-listener! element |pointercancel on-cancel) (dom/element-remove-event-listener! element |lostpointercapture on-lost) (dom/remove-event-listener! |blur on-host-loss) (dom/remove-event-listener! |pagehide on-host-loss) (release-drag-pointer! surface) &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'js-ffi.browser/DomElementHost $ :: 'Fn
+              {} (:return 'Unit)
+                :args $ []
+            :features $ #{} :js-ffi
+            :return $ :: 'Fn $ {} (:return 'Unit)
+              :args $ []
+        'logical-pointer-input $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn logical-pointer-input (input view)
+            let
+                pointer-id $ :pointer-id input
+                phase $ :phase input
+                input-x $ :x input
+                input-y $ :y input
+                view-x $ :x view
+                view-y $ :y view
+                scale-x $ :scale-x view
+                scale-y $ :scale-y view
+              pointer/PointerInput :pointer-id pointer-id :phase phase :x
+                / (- input-x view-x) scale-x
+                , :y $ / (- input-y view-y) scale-y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerInput)
+            :args $ [] 'quamolit.scene-pointer/PointerInput 'quamolit.examples.drag-demo/DragView
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () &unit
           :examples $ []
@@ -4390,6 +4513,19 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.drag-demo/DragModel)
             :args $ [] 'quamolit.examples.drag-demo/DragModel 'Number 'Number 'Number
+        'preset-demo! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn preset-demo! ()
+            let
+                moved-rect $ move-pointer
+                  begin-pointer (initial) 1 8 -4
+                  , 1 230 115
+                moved-slider $ move-pointer
+                  begin-pointer (end-pointer moved-rect 1) 2 100 40
+                  , 2 180 40
+              reset! *drag-model $ end-pointer moved-slider 2
+              reset! *drag-pointer-state $ pointer/initial-pointer-state
+              , &unit
+          :examples $ []
         'rect-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn rect-node (id x y width height r g b)
             scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :target id) :content $ scene/SceneContent :rect $ scene/RectNode :x
@@ -4401,11 +4537,32 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'Number 'Number 'Number 'Number 'Number 'Number 'Number
+        'release-drag-pointer! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-drag-pointer! (surface)
+            let
+                before @*drag-pointer-state
+                model @*drag-model
+                reconciled $ pointer/clear-pointer-capture before
+                next-model $ end-pointer model $ :pointer model
+              pointer-browser/release-state-native-capture! surface before
+              reset! *drag-pointer-state $ :state reconciled
+              reset! *drag-model next-model
+              or (:capture-released reconciled) (not= model next-model)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost
+            :features $ #{} :js-ffi
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
+        'reset-demo! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reset-demo! ()
+            reset! *drag-model $ initial
+            reset! *drag-pointer-state $ pointer/initial-pointer-state
+            , &unit
+          :examples $ []
         'scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scene-at (model)
             let
@@ -4429,6 +4586,14 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'quamolit.examples.drag-demo/DragModel
+        'set-drag-view! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn set-drag-view! (scale-x scale-y x y)
+            assert |invalid-drag-view $ and (motion/finite-number? scale-x) (> scale-x 0) (motion/finite-number? scale-y) (> scale-y 0) (motion/finite-number? x) (motion/finite-number? y)
+            reset! *drag-view $ DragView :scale-x scale-x :scale-y scale-y :x x :y y
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'Number 'Number 'Number 'Number
         'text-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text-node (id label x y)
             scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size 18 :text label :fill
@@ -4438,7 +4603,7 @@
             :args $ [] 'String 'String 'Number 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.drag-demo
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
+          :require ([] quamolit.scene-ir :as scene) ([] quamolit.motion :as motion) ([] quamolit.canvas-reference :as reference) ([] quamolit.scene-hit :as hit) ([] quamolit.scene-pointer :as pointer) ([] quamolit.scene-pointer-browser :as pointer-browser) ([] js-ffi.browser :as dom)
     'quamolit.examples.finder $ %{} 'FileEntry
       :defs $ {}
         'FinderEvent $ %{} 'CodeEntry (:doc |)

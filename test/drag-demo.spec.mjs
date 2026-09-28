@@ -85,3 +85,29 @@ test("取消捕获、DPR 2 暂停 resize 与浮层不误触", async ({ browser }
     await context.close();
   }
 });
+
+test("实际 demo 卸载会释放捕获并移除指针监听器", async ({ page }) => {
+  await ready(page);
+  const down = await logicalPoint(page, 0, 0);
+  await page.mouse.move(down.x, down.y);
+  await page.mouse.down();
+  expect((await page.evaluate(() => window.dragDemo.snapshot())).captured).toBe(1);
+  const disposed = await page.evaluate(() => {
+    const api = window.dragDemo;
+    api.dispose();
+    const canvas = document.querySelector("canvas"),
+      before = api.snapshot();
+    canvas.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 900, clientY: 700, bubbles: true }));
+    return {
+      before,
+      after: api.snapshot(),
+      apiRemoved: window.dragDemo === undefined,
+      nativeCapture: canvas.hasPointerCapture(1),
+    };
+  });
+  expect(disposed.apiRemoved).toBe(true);
+  expect(disposed.nativeCapture).toBe(false);
+  expect(disposed.before.captured).toBeNull();
+  expect(disposed.after.model).toEqual(disposed.before.model);
+  await page.mouse.up();
+});
