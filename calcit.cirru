@@ -1903,6 +1903,26 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.motion/ColorRgba
+        'draw-circle! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-circle! (context circle)
+            assert |invalid-scene-circle $ scene/valid-circle? circle
+            context .save!
+            js-set context :fill-style $ color-css $ :fill circle
+            js-set context :stroke-style $ color-css $ :stroke circle
+            js-set context :line-width $ :width circle
+            context .begin-path!
+            context .arc! (:cx circle) (:cy circle) (:radius circle) 0 (* 2 &PI) false
+            context .close-path!
+            context .fill!
+            when
+              > (:width circle) 0
+              context .stroke!
+            context .restore!
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/CircleNode
+            :features $ #{} :js-ffi
         'draw-content! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-content! (context content)
             match content
@@ -1915,10 +1935,36 @@
               (:text text) (draw-text! context text)
               (:image image) (raise |image-requires-resource-resolver)
               (:polygon polygon) (draw-polygon! context polygon)
+              (:cubic-path path) (draw-cubic-path! context path)
+              (:circle circle) (draw-circle! context circle)
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneContent
+            :features $ #{} :js-ffi
+        'draw-cubic-path! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-cubic-path! (context path)
+            assert |invalid-scene-cubic-path $ scene/valid-cubic-path? path
+            context .save!
+            js-set context :stroke-style $ color-css $ :stroke path
+            js-set context :line-width $ :width path
+            context .begin-path!
+            let
+                start $ :start path
+              context .move-to! (:x start) (:y start)
+            each (:segments path)
+              fn (segment)
+                let
+                    control-1 $ :control-1 segment
+                    control-2 $ :control-2 segment
+                    end $ :end segment
+                  context .bezier-curve-to! (:x control-1) (:y control-1) (:x control-2) (:y control-2) (:x end) (:y end)
+            context .stroke!
+            context .restore!
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/CubicPathNode
             :features $ #{} :js-ffi
         'draw-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-instances! (context instances positions)
@@ -2000,6 +2046,8 @@
                   (:text text) (raise |text-requires-draw-reference)
                   (:image image) (raise |image-requires-resource-resolver)
                   (:polygon polygon) (raise |polygon-requires-draw-reference)
+                  (:cubic-path path) (raise |cubic-path-requires-draw-reference)
+                  (:circle circle) (raise |circle-requires-draw-reference)
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -2070,6 +2118,8 @@
                 (:text text) true
                 (:image image) false
                 (:polygon polygon) true
+                (:cubic-path path) true
+                (:circle circle) true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -3872,6 +3922,16 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number 'Number $ :: 'List 'quamolit.motion/Vec2
             :return $ :: 'List 'quamolit.motion/Vec2
+        'build-curve-segments $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-curve-segments (k time acc)
+            if (> k 32) acc $ let
+                controls $ curve-point k time
+                segment $ scene/CubicSegment :control-1 (&list:nth controls 0) :control-2 (&list:nth controls 1) :end $ &list:nth controls 2
+              recur (inc k) time $ conj acc segment
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number $ :: 'List 'quamolit.scene-ir/CubicSegment
+            :return $ :: 'List 'quamolit.scene-ir/CubicSegment
         'cubic-point $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn cubic-point (p0 p1 p2 p3 u)
             let
@@ -3902,8 +3962,8 @@
           :code $ quote $ defn curve-point (k time)
             let
                 rotation $ curve-rotation time
-                theta $ * 11.25 k
-                a1 $ + (- theta rotation 11.25) 10
+                theta $ * curve-unit k
+                a1 $ + (- theta rotation curve-unit) 10
                 a2 $ - (+ theta rotation) 10
               []
                 motion/Vec2 :x
@@ -3946,12 +4006,22 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'curve-unit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ def curve-unit
+            / (* 2 &PI) 32
+          :examples $ []
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context time)
             reference/draw-reference! context $ scene-at time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number
+        'empty-cubic-segments $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-cubic-segments () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/CubicSegment
         'empty-vec2s $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-vec2s () ([])
           :examples $ []
@@ -4000,15 +4070,26 @@
             :return $ :: 'List 'quamolit.motion/Vec2
         'scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scene-at (time)
-            scene/SceneDocument :nodes $ [] $ scene/SceneNode :id |curve :key |curve :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content
-              scene/SceneContent :polyline $ scene/PolylineNode :points (sampled-curve-points time) :width 1 :stroke $ motion/ColorRgba :r 0.7 :g 0.2 :b 0.9 :a 1
+            let
+                start $ motion/Vec2 :x 0 :y -60
+                segments $ build-curve-segments 1 time $ empty-cubic-segments
+                stroke $ motion/ColorRgba :r 0.92 :g 0.28 :b 0.92 :a 1
+                path $ scene/CubicPathNode :start start :segments segments :width 1 :stroke stroke
+              scene/SceneDocument :nodes $ [] $ scene/SceneNode :id |curve :key |curve :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content (scene/SceneContent :cubic-path path)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number
-          :tests $ [] $ %{} 'TestEntry (:name |single-polyline)
-            :code $ quote $ assert= 1
-              count $ :nodes $ scene-at 0
-            :tags $ #{} :curve :unit
+          :tests $ [] $ %{} 'TestEntry (:name |native-cubic-path)
+            :code $ quote $ let
+                document $ scene-at 0
+                node $ &list:nth (:nodes document) 0
+              assert= true $ match (:content node)
+                (:cubic-path path)
+                  and
+                    = 32 $ count $ :segments path
+                    scene/valid-cubic-path? path
+                _ false
+            :tags $ #{} :curve
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.curve
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
@@ -5529,7 +5610,7 @@
                   + (* 260 s) (* 40 c)
                 large $ circle-node (str |solar-large- level) x y (* 60 ratio)
                   motion/ColorRgba :r 0.8533333333 :g 0.96 :b 0.64 :a 1
-                  motion/ColorRgba :r 0.4 :g 0.6666666667 :b 0.8 :a 0.5
+                  motion/ColorRgba :r 0.44 :g 0.6533333333 :b 0.76 :a 0.5
                   , 1
                 small $ circle-node (str |solar-small- level) small-x small-y (* 30 ratio)
                   motion/ColorRgba :r 0.64 :g 0.8533333333 :b 0.96 :a 1
@@ -5542,7 +5623,7 @@
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'circle-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn circle-node (id cx cy radius fill stroke width)
-            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polygon $ scene/PolygonNode :points (circle-points cx cy radius) :width width :fill fill :stroke stroke
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :circle $ scene/CircleNode :cx cx :cy cy :radius radius :width width :fill fill :stroke stroke
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba 'Number
@@ -5591,10 +5672,17 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number
-          :tests $ [] $ %{} 'TestEntry (:name |five-recursive-levels)
-            :code $ quote $ assert= 10
-              count $ :nodes $ scene-at 0
-            :tags $ #{} :solar :unit
+          :tests $ [] $ %{} 'TestEntry (:name |five-native-circle-levels)
+            :code $ quote $ let
+                document $ scene-at 0
+              do
+                assert= 10 $ count $ :nodes document
+                assert= true $ every? (:nodes document)
+                  fn (node)
+                    match (:content node)
+                      (:circle circle) (scene/valid-circle? circle)
+                      _ false
+            :tags $ #{} :solar
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.solar
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
@@ -10453,6 +10541,8 @@
                 (:text text) (%none)
                 (:image image) (%none)
                 (:polygon polygon) (%none)
+                (:cubic-path path) (%none)
+                (:circle circle) (%none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.presence/PresenceItem
@@ -11801,6 +11891,8 @@
                     (:text text) (raise |unsupported-retained-path-scene)
                     (:image image) (raise |unsupported-retained-path-scene)
                     (:polygon polygon) (raise |unsupported-retained-path-scene)
+                    (:cubic-path path) (raise |unsupported-retained-path-scene)
+                    (:circle circle) (raise |unsupported-retained-path-scene)
                   context .restore!
             , &unit
           :examples $ []
@@ -11821,6 +11913,8 @@
                 (:text text) false
                 (:image image) false
                 (:polygon polygon) false
+                (:cubic-path path) false
+                (:circle circle) false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -11994,6 +12088,8 @@
                   _ $ raise |unsupported-text-binding
               (:image image) (raise |unsupported-image-binding)
               (:polygon polygon) (raise |unsupported-polygon-binding)
+              (:cubic-path path) (raise |unsupported-cubic-path-binding)
+              (:circle circle) (raise |unsupported-circle-binding)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
             :args $ [] 'quamolit.scene-ir/SceneContent 'quamolit.scene-ir/ScalarTarget 'Number
@@ -12219,6 +12315,8 @@
             :text 'Number 'Number 'Number 'String
             :image 'quamolit.scene-ir/Matrix2D 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number
             :polygon (:: 'List 'quamolit.motion/Vec2) 'Number
+            :cubic-path 'quamolit.motion/Vec2 (:: 'List 'quamolit.scene-ir/CubicSegment) 'Number
+            :circle 'Number 'Number 'Number 'Number
           :examples $ []
           :schema $ :: 'EnumDef
         'IdentitySegment $ %{} 'CodeEntry
@@ -12228,7 +12326,7 @@
           :schema $ :: 'StructDef
         'PropertySignature $ %{} 'CodeEntry
           :doc "|Closed visual-property projection; separate from geometry and resource versions."
-          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba) (:text 'quamolit.motion/ColorRgba) (:image) (:polygon 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba)
+          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba) (:text 'quamolit.motion/ColorRgba) (:image) (:polygon 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba) (:cubic-path 'quamolit.motion/ColorRgba) (:circle 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ :: 'EnumDef
         'ResourceSignature $ %{} 'CodeEntry
@@ -12528,6 +12626,10 @@
                 GeometrySignature :image (:matrix image) (:sx image) (:sy image) (:sw image) (:sh image) (:dx image) (:dy image) (:dw image) (:dh image)
               (:polygon polygon)
                 GeometrySignature :polygon (:points polygon) (:width polygon)
+              (:cubic-path path)
+                GeometrySignature :cubic-path (:start path) (:segments path) (:width path)
+              (:circle circle)
+                GeometrySignature :circle (:cx circle) (:cy circle) (:radius circle) (:width circle)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/GeometrySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -12594,6 +12696,10 @@
               (:image image) (PropertySignature :image)
               (:polygon polygon)
                 PropertySignature :polygon (:fill polygon) (:stroke polygon)
+              (:cubic-path path)
+                PropertySignature :cubic-path $ :stroke path
+              (:circle circle)
+                PropertySignature :circle (:fill circle) (:stroke circle)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/PropertySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -12609,6 +12715,8 @@
               (:image image)
                 ResourceSignature :image $ :source image
               (:polygon polygon) (ResourceSignature :none)
+              (:cubic-path path) (ResourceSignature :none)
+              (:circle circle) (ResourceSignature :none)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/ResourceSignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -12624,6 +12732,10 @@
             calcit.test :refer $ is= is-throws
     'quamolit.scene-ir $ %{} 'FileEntry
       :defs $ {}
+        'CircleNode $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct CircleNode (:cx 'Number) (:cy 'Number) (:radius 'Number) (:width 'Number) (:fill 'quamolit.motion/ColorRgba) (:stroke 'quamolit.motion/ColorRgba)
+          :examples $ []
+          :schema $ :: 'StructDef
         'ClipRect $ %{} 'CodeEntry (:doc "|Group-local rectangular clip in CSS pixels.")
           :code $ quote $ defstruct ClipRect (:x 'Number) (:y 'Number) (:width 'Number) (:height 'Number)
           :examples $ []
@@ -12633,6 +12745,17 @@
           :code $ quote $ defenum ClipSpec (:none) (:rect 'quamolit.scene-ir/ClipRect)
           :examples $ []
           :schema $ :: 'EnumDef
+        'CubicPathNode $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct CubicPathNode (:start 'quamolit.motion/Vec2)
+            :segments $ :: 'List 'quamolit.scene-ir/CubicSegment
+            :width 'Number
+            :stroke 'quamolit.motion/ColorRgba
+          :examples $ []
+          :schema $ :: 'StructDef
+        'CubicSegment $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct CubicSegment (:control-1 'quamolit.motion/Vec2) (:control-2 'quamolit.motion/Vec2) (:end 'quamolit.motion/Vec2)
+          :examples $ []
+          :schema $ :: 'StructDef
         'GroupNode $ %{} 'CodeEntry
           :doc "|Group transform, clip and isolated opacity declaration."
           :code $ quote $ defstruct GroupNode (:transform 'quamolit.scene-ir/Matrix2D) (:clip 'quamolit.scene-ir/ClipSpec) (:opacity 'Number)
@@ -12693,7 +12816,7 @@
           :schema $ :: 'EnumDef
         'SceneContent $ %{} 'CodeEntry
           :doc "|Closed primitive/group/instance-layer union, independent from execution plans."
-          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode) (:text 'quamolit.scene-ir/TextNode) (:image 'quamolit.scene-ir/ImageNode) (:polygon 'quamolit.scene-ir/PolygonNode)
+          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode) (:text 'quamolit.scene-ir/TextNode) (:image 'quamolit.scene-ir/ImageNode) (:polygon 'quamolit.scene-ir/PolygonNode) (:cubic-path 'quamolit.scene-ir/CubicPathNode) (:circle 'quamolit.scene-ir/CircleNode)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneDocument $ %{} 'CodeEntry
@@ -12744,6 +12867,8 @@
               (:text text) |text
               (:image image) |image
               (:polygon polygon) |polygon
+              (:cubic-path path) |cubic-path
+              (:circle circle) |circle
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -12864,6 +12989,20 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] (:: 'List 'quamolit.scene-ir/ScalarBinding) 'quamolit.scene-ir/SceneContent
+        'valid-circle? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-circle? (circle)
+            and
+              finite-number? $ :cx circle
+              finite-number? $ :cy circle
+              finite-number? $ :radius circle
+              > (:radius circle) 0
+              finite-number? $ :width circle
+              >= (:width circle) 0
+              valid-color? $ :fill circle
+              valid-color? $ :stroke circle
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/CircleNode
         'valid-color? $ %{} 'CodeEntry (:doc "|Validate straight-alpha sRGB channels.")
           :code $ quote $ defn valid-color? (color)
             and
@@ -12968,9 +13107,32 @@
                       + (:sy image) (:sh image)
                       :height source
               (:polygon polygon) (valid-polygon? polygon)
+              (:cubic-path path) (valid-cubic-path? path)
+              (:circle circle) (valid-circle? circle)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneContent
+        'valid-cubic-path? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-cubic-path? (path)
+            and
+              finite-vec2? $ :start path
+              not $ empty? $ :segments path
+              every? (:segments path) valid-cubic-segment?
+              finite-number? $ :width path
+              > (:width path) 0
+              valid-color? $ :stroke path
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/CubicPathNode
+        'valid-cubic-segment? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-cubic-segment? (segment)
+            and
+              finite-vec2? $ :control-1 segment
+              finite-vec2? $ :control-2 segment
+              finite-vec2? $ :end segment
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/CubicSegment
         'valid-node? $ %{} 'CodeEntry
           :doc "|Check local numeric, resource, binding and interaction invariants."
           :code $ quote $ defn valid-node? (node)

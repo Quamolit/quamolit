@@ -18,7 +18,7 @@
     <label>时间（秒） <input id="time" type="range" min="0" max="120" step="0.01" value="0"></label>
     <div class="buttons"><button data-time="0">0 s</button><button data-time="1">1 s</button><button data-time="3">3 s</button><button data-time="10">10 s</button></div>
     <output id="status" aria-live="off"></output>
-    <p class="note">Canvas2D · 绝对时间采样，可乱序截图。填充圆体由 48 段闭合多边形近似；每帧重建几何，GPU 与保留缓存仍待完成。</p>
+    <p class="note">Canvas2D · 绝对时间采样，可乱序截图。Scene 直接声明圆体，参考绘制器调用原生圆弧；GPU 与保留缓存留待后续。</p>
     <a href="https://github.com/Quamolit/quamolit/blob/main/docs/solar-restoration.md">行为依据与检验规则</a>
   </aside>
   <script type="module" src="./main.mjs"></script>

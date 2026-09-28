@@ -4,7 +4,7 @@
 
 ## Calcit 场景与页面
 
-`quamolit.examples.solar/scene-at (time)` 返回五层共 10 个稳定 ID 的填充 `PolygonNode`。每圆 48 段加闭合点，共 49 点；逐层计算旋转后的偏移，大小依次乘 0.6。大圆恢复浅黄绿色填充及半透明蓝边，小圆恢复浅蓝色填充。`draw!` 使用 Canvas 参考绘制器。动画、圆体顶点、递归变换全在 Calcit；`examples/solar/main.mjs` 只管理时间、全屏 Canvas 的 DPR/contain 变换、DOM 控件和截图接口。`?t=` 固定时间默认暂停，提供 0、1、3、10 秒按钮及分享链接。
+`quamolit.examples.solar/scene-at (time)` 返回五层共 10 个稳定 ID 的填充 `CircleNode`，逐层计算旋转后的圆心偏移，半径依次乘 0.6。大圆恢复浅黄绿色填充及半透明蓝边，小圆恢复浅蓝色填充。`draw!` 由 Canvas 参考绘制器通过 js-ffi 已有的类型化 `arc!` 调用原生圆弧。动画、圆体和递归变换全在 Calcit；`examples/solar/main.mjs` 只管理时间、全屏 Canvas 的 DPR/contain 变换、DOM 控件和截图接口。`?t=` 固定时间默认暂停，提供 0、1、3、10 秒按钮及分享链接。
 
 ## 检验
 
@@ -13,10 +13,10 @@ yarn test:solar-demo
 yarn test:demo-nav
 ```
 
-前者覆盖 Calcit 严格公共类型、两项原生测试、Node 的几何/乱序重复采样，以及 Chromium 的固定时间截图与 DPR 2 暂停 resize。截图在 CI 的 `test-results/solar/` artifact。导航测试要求 Solar 从 `planned` 移入 `entries` 并能从发布产物往返。
+前者覆盖 Calcit 严格公共类型、Node 的几何/乱序重复采样、10 次原生 `arc` 调用，以及 Chromium 的初始/中间/结束“浮层 + Canvas”和纯 Canvas 截图、DPR 2 暂停 resize。截图在 CI 的 `test-results/solar/` artifact。导航测试要求 Solar 从 `planned` 移入 `entries` 并能从发布产物往返。
 
 ## 已知边界
 
-- Scene IR 尚无原生圆弧图元，以 48 段闭合多边形近似原 Canvas arc；极端放大时边缘仍可能显出分段。
-- 每次采样重建 490 个顶点。保留几何、分段画质策略、GPU 路径与真实设备性能尚未实现。
+- **已消除 48 边近似**：最大半径 60 的旧多边形弦高误差为 `60 * (1 - cos(PI/48)) ≈ 0.1285` 逻辑像素；4 倍放大且 DPR=2 时约 `1.0277` 设备像素。生产绘制改为原生 arc 后不再受该分段边界限制。
+- 保留几何、GPU 路径与真实设备性能尚未实现；当前阶段按计划暂不做性能优化。
 - 所有原有 demo 都有运行入口，但外观和过渡保真仍须逐项检验；本切片不单独关闭 #36 或 M3。

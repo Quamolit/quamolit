@@ -5,7 +5,9 @@ import {
   curve_points as curvePoints,
   sampled_curve_points as sampledCurvePoints,
   scene_at as sceneAt,
+  draw_$x_ as draw,
 } from "../target/js/curve/quamolit.examples.curve.mjs";
+import { validate_scene as validateScene } from "../target/js/curve/quamolit.scene-ir.mjs";
 
 test("32 段闭合曲线顶点数固定且只由绝对时间决定", () => {
   assert.equal(toJsData(curvePoints(0)).length, 98, "首尾闭合的 1 + 32 * 3 + 1 个控制点");
@@ -14,14 +16,16 @@ test("32 段闭合曲线顶点数固定且只由绝对时间决定", () => {
   assert.notDeepEqual(toJsData(curvePoints(0)), toJsData(curvePoints(50)), "旋转随时间改变顶点");
 });
 
-test("Scene 保留 32 段三次贝塞尔轮廓，不把控制点直接连成尖角", () => {
+test("Scene 直接保留 32 段原生三次贝塞尔，不把生产绘制降级为折线", () => {
   const scene = toJsData(sceneAt(30));
   const controls = toJsData(curvePoints(30));
   const sampled = toJsData(sampledCurvePoints(30));
+  assert.equal(validateScene(sceneAt(30)), true);
   assert.equal(scene.nodes.length, 1);
-  assert.equal(scene.nodes[0].content[0], "polyline");
+  assert.equal(scene.nodes[0].content[0], "cubic-path");
+  assert.equal(scene.nodes[0].content[1].segments.length, 32);
+  assert.deepEqual(scene.nodes[0].content[1].start, controls[0]);
   assert.equal(sampled.length, 1 + 32 * 16);
-  assert.deepEqual(scene.nodes[0].content[1].points, sampled);
   assert.notDeepEqual(sampled, controls);
   for (let segment = 0; segment < 32; segment += 1) {
     const [p0, p1, p2, p3] = controls.slice(segment * 3, segment * 3 + 4);
@@ -36,4 +40,63 @@ test("Scene 保留 32 段三次贝塞尔轮廓，不把控制点直接连成尖�
     const midpoint = sampled[segment * 16 + 8];
     assert.ok(Math.hypot(midpoint.x - expected.x, midpoint.y - expected.y) < 1e-9);
   }
+});
+
+test("旧 16 步折线在 4 倍放大与 DPR2 下超过 1px，生产路径调用 32 次原生 bezierCurveTo", () => {
+  const controls = toJsData(curvePoints(30));
+  const cubic = (p0, p1, p2, p3, t) => {
+    const u = 1 - t;
+    return {
+      x: u ** 3 * p0.x + 3 * u ** 2 * t * p1.x + 3 * u * t ** 2 * p2.x + t ** 3 * p3.x,
+      y: u ** 3 * p0.y + 3 * u ** 2 * t * p1.y + 3 * u * t ** 2 * p2.y + t ** 3 * p3.y,
+    };
+  };
+  const distanceToSegment = (point, start, end) => {
+    const dx = end.x - start.x,
+      dy = end.y - start.y,
+      position = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy)));
+    return Math.hypot(point.x - start.x - position * dx, point.y - start.y - position * dy);
+  };
+  let maximumError = 0;
+  for (let segment = 0; segment < 32; segment += 1) {
+    const [p0, p1, p2, p3] = controls.slice(segment * 3, segment * 3 + 4);
+    const approximation = Array.from({ length: 17 }, (_, index) => cubic(p0, p1, p2, p3, index / 16));
+    for (let index = 0; index <= 1024; index += 1) {
+      const point = cubic(p0, p1, p2, p3, index / 1024);
+      let error = Infinity;
+      for (let edge = 0; edge < 16; edge += 1)
+        error = Math.min(error, distanceToSegment(point, approximation[edge], approximation[edge + 1]));
+      maximumError = Math.max(maximumError, error);
+    }
+  }
+  assert.ok(maximumError * 4 * 2 > 1, `旧折线边界误差应超过 1 设备像素，实际 ${maximumError * 8}`);
+
+  const calls = [];
+  const context = {
+    strokeStyle: "initial",
+    lineWidth: 7,
+    save() {
+      this.saved = [this.strokeStyle, this.lineWidth];
+    },
+    restore() {
+      [this.strokeStyle, this.lineWidth] = this.saved;
+    },
+    beginPath() {
+      calls.push("begin");
+    },
+    moveTo() {
+      calls.push("move");
+    },
+    bezierCurveTo() {
+      calls.push("bezier");
+    },
+    stroke() {
+      calls.push("stroke");
+    },
+  };
+  draw(context, 30);
+  assert.equal(calls.filter((call) => call === "bezier").length, 32);
+  assert.deepEqual(calls.slice(0, 2), ["begin", "move"]);
+  assert.equal(calls.at(-1), "stroke");
+  assert.deepEqual([context.strokeStyle, context.lineWidth], ["initial", 7]);
 });
