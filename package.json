@@ -97,7 +97,7 @@
     "test:bench": "node --test test/m0/bench-metrics.test.mjs test/consumer-bench.test.mjs",
     "bench": "node test/m0/bench.mjs",
     "test:visual": "caps --ci && yarn compile:visual && playwright test --config test/m0/playwright.config.mjs",
-    "compile:visual": "mkdir -p target/js/motion && calcit --emit-path target/js/motion/ --init-fn quamolit.test.frame-fixture/main! --reload-fn quamolit.test.frame-fixture/reload! calcit.cirru js",
+    "compile:visual": "mkdir -p target/js/visual && calcit --emit-path target/js/visual/ --init-fn quamolit.test.frame-fixture/main! --reload-fn quamolit.test.frame-fixture/reload! calcit.cirru js",
     "release": "yarn vite build --base=./"
   },
   "packageManager": "yarn@4.12.0"

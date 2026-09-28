@@ -15213,6 +15213,7 @@
                 tween $ ScalarTween :start 0 :duration 1 :from 10 :to 20 :easing $ Easing :linear
                 descriptor $ ScalarDescriptor :id |old-fade :version 1 :motion $ ScalarMotion :tween tween
               assert |invalid-bound-scene-fixture $ scene-ir/validate-scene $ bound-scene-document-at 0
+              assert |missing-webgpu-host-exports $ and (fn? webgpu-batches/clear!) (fn? webgpu-batches/read-pixel!) (fn? webgpu-batches/read-translation!)
               [] (sample-scalar descriptor 1) (sample-scalar descriptor 0) (sample-scalar descriptor 0.5) (sample-scalar descriptor 0.25) (sample-scalar descriptor 1)
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -15513,18 +15514,19 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.motion-fixture
           :require
-            quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color ScalarComposeOp ScalarComposition sample-scalar-composition CpuScalarDescriptor CpuGpuStatus CpuScalarRegistry register-cpu-scalar sample-cpu-scalar
-            quamolit.fixed-step :refer $ start-simulation advance-simulation
-            quamolit.direct-frame :as direct-frame
-            quamolit.host-clock :as host-clock
-            quamolit.scene-ir :as scene-ir
-            quamolit.scene-diff :as scene-diff
-            quamolit.scene-binding :as scene-binding
-            quamolit.transition :as transition
-            quamolit.presence :as presence
-            quamolit.motion-gpu :as motion-gpu
-            quamolit.canvas-reference :as canvas-reference
-            quamolit.gpu-vec2-translation :as gpu-translation
+            [] quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color ScalarComposeOp ScalarComposition sample-scalar-composition CpuScalarDescriptor CpuGpuStatus CpuScalarRegistry register-cpu-scalar sample-cpu-scalar
+            [] quamolit.fixed-step :refer $ start-simulation advance-simulation
+            [] quamolit.direct-frame :as direct-frame
+            [] quamolit.host-clock :as host-clock
+            [] quamolit.scene-ir :as scene-ir
+            [] quamolit.scene-diff :as scene-diff
+            [] quamolit.scene-binding :as scene-binding
+            [] quamolit.transition :as transition
+            [] quamolit.presence :as presence
+            [] quamolit.motion-gpu :as motion-gpu
+            [] quamolit.canvas-reference :as canvas-reference
+            [] quamolit.gpu-vec2-translation :as gpu-translation
+            [] quamolit.webgpu-batches :as webgpu-batches
     'quamolit.test.playback-fixture $ %{} 'FileEntry
       :defs $ {}
         'PlaybackFixtureFrame $ %{} 'CodeEntry (:doc |)
@@ -16743,7 +16745,7 @@
               :args $ [] 'quamolit.webgpu-batches/RectBatchHost
               :return 'quamolit.webgpu-batches/RectMetrics
               :features $ #{} :js-ffi
-            draw! batch 0 0 (color 1 1 1 1) 1 (%none) (%some 0)
+            draw! batch 0 0 (color 1 1 1 1) 1 (no-translation) (%some 0)
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
@@ -16832,6 +16834,12 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
             :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number 'quamolit.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'quamolit.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number)
             :features $ #{} :js-ffi
+        'no-translation $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn no-translation () (%none)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'calcit.core/Option 'quamolit.webgpu-batches/RectTranslation
         'raw-create! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-create! (canvas device format capacity) (raise |js-only-webgpu-batch)
           :examples $ []

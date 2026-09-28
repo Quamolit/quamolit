@@ -353,6 +353,15 @@
       "compile": "compile:motion"
     },
     {
+      "path": "test/scene-pointer-browser.html",
+      "title": "Scene 指针捕获与释放",
+      "group": "lifecycle",
+      "summary": "纯 Calcit 路由浏览器夹具：真实 Pointer Capture、DPR、失焦、resize 与显式 surface 卸载。",
+      "status": "交互参考",
+      "docs": "docs/scene-pointer.md",
+      "compile": "compile:scene-pointer-browser"
+    },
+    {
       "path": "test/retained-scene.html",
       "title": "旧保留计划与停帧",
       "group": "lifecycle",
