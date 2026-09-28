@@ -26,6 +26,8 @@
 
 `yarn test:finder-demo` 检查 [Finder 恢复](finder-restoration.md)的严格类型、Calcit 点击日志/Scene/命中、Node 打断连续性和非法切换、Chromium 实际画布点击、固定时间截图、分享像素重放与 DPR 2 暂停 resize。它不证明 #34 通用命中/指针捕获或 WebGPU 绘制。
 
+`yarn test:icons-demo` 检查 [Icons 恢复](icons-restoration.md)的严格类型、历史数字交叉位移、1/4 秒线性数字过渡与 1/6 秒线性播放图标变形；Node 使用独立手算中间值检查快速打断和命中区域，Chromium 使用真实 Canvas 点击并保存初始／中间／终点的浮层与纯画布截图，同时覆盖 DPR 2、暂停 resize 和空闲停帧。它只恢复该作品的历史语义与 Canvas2D 参考效果，不证明通用事件系统或 WebGPU 绘制。
+
 `yarn test:table-demo` 检查 [Table 恢复](table-restoration.md)的严格 Calcit 九格数据/命中/Scene、Node 中文写入与非法索引、Chromium 画布点击与临时输入框、Enter/Esc/失焦、分享重放和 DPR 2 resize。它不证明 #34 通用命中索引或 WebGPU 文字能力。
 
 `yarn test:drag-demo` 检查 [Drag demo 恢复](drag-demo-restoration.md)的严格 Calcit 指针 Model/命中/Scene、Node 锚点和滑块边界，以及 Chromium 的真实指针捕获、跨图形边界拖动、取消、DPR 2 resize、浮层和空闲停帧。它不证明 #34 通用事件层序或 WebGPU 绘制。
