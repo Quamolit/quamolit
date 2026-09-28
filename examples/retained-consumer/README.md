@@ -30,7 +30,7 @@ calcit query def app.main/update-plan --raw
 
 Presence 模式的 Scene、稳定 key、协调、任意时间采样、是否继续请求帧、显式结算和 ComponentPlan 都在消费方 Calcit 中。页面 JS 只提交“重排 / 移除 / 重入 / 结算”事件并绘制返回计划。移除后橙色卡片继续淡出但立即停止交互；动画中途重入从当前 alpha 继续；退出终点只有显式结算才返回一次释放通知。隔离 Node 合同另用两个实例节点共享同一 `(id,version)`，让 Calcit 计算引用和释放决定，再由公共实例资源表实际释放：连续 100 次单调版本装卸均回到 live=0。
 
-第三、第四个模式分别是 10k Canvas 参考与 10k WebGPU 图层，可用 `?motion=instances` / `?motion=instances-gpu` 进入。初始 80 kB 网格输入由页面提供；Calcit 的 `instances-declaration`、`instance-frame-at`、资源表与 `draw-resolved-instances!` / `draw-instances-gpu!` 决定声明、任意时间的一个实例位置、版本与上传。页面只把 Calcit 帧的两个数值装入原生 Float32Array。连续时间变更复制/上传 8 B，同版本重绘上传 0 B；GPU 不可用时页面可见地回退 Canvas。Canvas 仍逐实例调用 10k 次 `fillRect`，GPU 是单次实例 draw。两个模式切换时只保留一个 Canvas 节点。网格为 125×80、2×2 整数无重叠矩形，用于同源精确像素对照；小数重叠的画质差异另见 [#144](https://github.com/Quamolit/quamolit/issues/144)。这不代表 10k 实例各自独立运动。
+第三、第四个模式分别是 10k Canvas 参考与 10k WebGPU 图层，可用 `?motion=instances` / `?motion=instances-gpu` 进入。初始 80 kB 网格输入由页面提供；Calcit 的 `instances-declaration`、`instance-frame-at`、资源表与 `draw-resolved-instances!` / `draw-instances-gpu!` 决定声明、任意时间的一个实例位置、版本与上传。页面只把 Calcit 帧的两个数值装入原生 Float32Array。连续时间变更复制/上传 8 B，同版本重绘上传 0 B；GPU 不可用或恢复中时页面可见地使用同源 Canvas。WebGPU 的 generation、迟到结果、回退和重建动作由纯 Calcit [`quamolit.device-recovery`](../../docs/device-recovery.md) 决定；按钮可以主动模拟 device loss，沿用当前 Model/资源版本重建，任意时刻只保留一代 GPU 句柄。Canvas 仍逐实例调用 10k 次 `fillRect`，GPU 是单次实例 draw。两个模式切换时只保留一个 Canvas 节点。网格为 125×80、2×2 整数无重叠矩形，用于同源精确像素对照；小数重叠的画质差异另见 [#144](https://github.com/Quamolit/quamolit/issues/144)。这不代表 10k 实例各自独立运动。
 
 `QUAMOLIT_CONSUMER_BENCH=1` 另报静态 Canvas 与单脏记录动态 Canvas/GPU 负载；报告不把不同负载混算加速比。正式时长为每路径预热 5 秒、采样 30 秒、独立运行 3 次；短时参数只用于门禁烟测。
 
@@ -38,4 +38,4 @@ Presence 模式的 Scene、稳定 key、协调、任意时间采样、是否继�
 
 GPU 消费使用同一个 `declare` 的两个矩形：`start-rects` → `prepare-gpu`，成功分支得到参数程序，调用 `create-gpu!` / `install-gpu!` 后，热帧只调用 `draw-gpu! host program time`，不逐帧 CPU 采样。程序必须与 host 当前安装的程序一致；同时间输入变化由 `update-rects` 和 `gpu-reusable?` 判断，不可复用时重新准备和安装；结束调用 `dispose-gpu!`。这些应用函数只导入 Quamolit Calcit 模块，宿主片段在编译时内嵌，没有额外 JS 文件供使用者手动导入。
 
-现有页面仍展示完整混合 Canvas 场景，不因 GPU 支持范围删除折线。门禁额外验证矩形 GPU 子集、10k 动态实例 GPU 和完整混合场景的明确回退；浏览器硬件专项无非软件 adapter 时标记 SKIP。实例表验证 100 次变更只保留一个公开版本，GPU 图层卸载由公共 API 完成；Presence 已接入真实 CPU 实例资源表释放，但 device loss 后 GPU buffer 重建、10k 独立运动和跨设备性能尚未验收，不能据此关闭 #104 或 M2。
+现有页面仍展示完整混合 Canvas 场景，不因 GPU 支持范围删除折线。门禁额外验证矩形 GPU 子集、10k 动态实例 GPU 和完整混合场景的明确回退；浏览器硬件专项无非软件 adapter 时标记 SKIP。实例表验证 100 次变更只保留一个公开版本，Presence 已接入真实 CPU 实例资源表释放；恢复协议另验证 100 次 loss/rebuild、迟到结果隔离与最终 GPU live=0，并在可用硬件上主动恢复一次。纹理/字体/图片、多图层共享 device、10k 独立运动和跨设备性能尚未验收，不能据此关闭 #51/#104 或 M2。

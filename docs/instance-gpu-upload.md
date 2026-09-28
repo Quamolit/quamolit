@@ -43,7 +43,7 @@ gpu/draw-source! previous batch table instances
 - 同一版本的热帧不新增上传，也不重复解析；调用次数按资源版本增长。
 - 全量上传字节等于 `count * 8`（交错 x/y 的 f32），单实例补丁为 8 B；缺失源由资源表显式失败，不产生上传副作用。
 - 同尺寸、连续版本的补丁不新建 GPU buffer/pipeline；跳版本回退完整快照，不能把基于错误旧 buffer 的差量当成正确画面。
-- 该绑定只做「版本 → 上传」决策；device loss 后重建、pipeline/bind group 生命周期仍由 `quamolit.webgpu-batches` 与 #51 的后续切片负责。
+- 该绑定只做「版本 → 上传」决策；单图层 device generation 与重建已由 [`quamolit.device-recovery`](device-recovery.md) 接到独立消费者，pipeline/bind group 的创建和销毁仍由 `quamolit.webgpu-batches` 执行。
 
 ## 测试与边界
 
@@ -51,5 +51,5 @@ gpu/draw-source! previous batch table instances
 
 ## 尚未完成
 
-- 公共 `create!`/`draw-source!`/`dispose!` 已在专项浏览器测试接入真实设备，但尚未成为独立消费者页面的默认后端或完整图层调度入口。
-- device loss 后基于 Model/资源版本重建、`ready/error/loading`、与 Presence/#49 释放通知的实际接线归 #51 后续切片；本测试释放 batch/device，不等于这些生命周期已完成。
+- 公共 `create!`/`draw-source!`/`dispose!` 已成为独立消费者 `instances-gpu` 模式的实际后端，但尚不是完整 Scene 图层调度入口。
+- device loss 后基于 Model/实例源版本的同一图层重建已接通；通用 `loading/ready/error` 资源、纹理/字体/图片、多图层共享 device 与 Presence 释放通知仍归 #51 后续切片。

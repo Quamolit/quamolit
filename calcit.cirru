@@ -3206,6 +3206,206 @@
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.cursor
+    'quamolit.device-recovery $ %{} 'FileEntry
+      :defs $ {}
+        'CreateOutcome $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum CreateOutcome (:ready) (:failed 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ProbeOutcome $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum ProbeOutcome (:ready) (:fallback 'String) (:failed 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'RecoveryAction $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum RecoveryAction (:probe 'Number 'Number) (:create 'Number 'Number) (:install 'Number 'Number) (:release 'Number) (:show-fallback 'Number 'String) (:show-failure 'Number 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'RecoveryPhase $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum RecoveryPhase (:idle) (:probing) (:creating) (:ready) (:fallback 'String) (:failed 'String) (:closed)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'RecoveryState $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RecoveryState (:generation 'Number) (:phase 'quamolit.device-recovery/RecoveryPhase) (:resource-version 'Number) (:attempts 'Number) (:losses 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RecoveryTransition $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RecoveryTransition (:state 'quamolit.device-recovery/RecoveryState)
+            :actions $ :: 'List 'quamolit.device-recovery/RecoveryAction
+          :examples $ []
+          :schema $ :: 'StructDef
+        'close-recovery $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn close-recovery (state)
+            let
+                next $ struct-with state
+                  :generation $ + 1 $ :generation state
+                  :phase $ RecoveryPhase :closed
+              if
+                phase-holds-host? $ :phase state
+                transition next $ [] $ RecoveryAction :release (:generation state)
+                transition next $ empty-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState
+        'create-failed $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create-failed (message) (CreateOutcome :failed message)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/CreateOutcome)
+            :args $ [] 'String
+        'create-ready $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create-ready () (CreateOutcome :ready)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/CreateOutcome)
+            :args $ []
+        'create-resolved $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create-resolved (state generation outcome)
+            if
+              or
+                not= generation $ :generation state
+                not= (:phase state) (RecoveryPhase :creating)
+              transition state $ [] $ RecoveryAction :release generation
+              match outcome
+                (:ready)
+                  transition
+                    struct-with state $ :phase $ RecoveryPhase :ready
+                    [] $ RecoveryAction :install generation $ :resource-version state
+                (:failed message)
+                  transition
+                    struct-with state $ :phase $ RecoveryPhase :failed message
+                    [] (RecoveryAction :release generation) (RecoveryAction :show-failure generation message)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number 'quamolit.device-recovery/CreateOutcome
+        'device-lost $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn device-lost (state generation message)
+            if
+              and
+                = generation $ :generation state
+                = (:phase state) (RecoveryPhase :ready)
+              let
+                  next-generation $ + 1 generation
+                  version $ :resource-version state
+                  next $ RecoveryState :generation next-generation :phase (RecoveryPhase :probing) :resource-version version :attempts
+                    + 1 $ :attempts state
+                    , :losses $ + 1 (:losses state)
+                transition next $ [] (RecoveryAction :release generation) (RecoveryAction :show-fallback generation message) (RecoveryAction :probe next-generation version)
+              transition state $ empty-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number 'String
+        'empty-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-actions () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.device-recovery/RecoveryAction
+        'initial-state $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-state (version)
+            assert |invalid-recovery-resource-version $ valid-resource-version? version
+            RecoveryState :generation 0 :phase (RecoveryPhase :idle) :resource-version version :attempts 0 :losses 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryState)
+            :args $ [] 'Number
+        'phase-holds-host? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn phase-holds-host? (phase)
+            match phase
+              (:probing) true
+              (:creating) true
+              (:ready) true
+              _ false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.device-recovery/RecoveryPhase
+        'probe-failed $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn probe-failed (message) (ProbeOutcome :failed message)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/ProbeOutcome)
+            :args $ [] 'String
+        'probe-fallback $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn probe-fallback (message) (ProbeOutcome :fallback message)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/ProbeOutcome)
+            :args $ [] 'String
+        'probe-ready $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn probe-ready () (ProbeOutcome :ready)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/ProbeOutcome)
+            :args $ []
+        'probe-resolved $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn probe-resolved (state generation outcome)
+            if
+              or
+                not= generation $ :generation state
+                not= (:phase state) (RecoveryPhase :probing)
+              match outcome
+                (:failed message)
+                  transition state $ empty-actions
+                _ $ transition state $ [] (RecoveryAction :release generation)
+              match outcome
+                (:ready)
+                  transition
+                    struct-with state $ :phase $ RecoveryPhase :creating
+                    [] $ RecoveryAction :create generation $ :resource-version state
+                (:fallback message)
+                  transition
+                    struct-with state $ :phase $ RecoveryPhase :fallback message
+                    [] (RecoveryAction :release generation) (RecoveryAction :show-fallback generation message)
+                (:failed message)
+                  transition
+                    struct-with state $ :phase $ RecoveryPhase :failed message
+                    [] $ RecoveryAction :show-failure generation message
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number 'quamolit.device-recovery/ProbeOutcome
+        'request-open $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn request-open (state version)
+            assert |invalid-recovery-resource-version $ valid-resource-version? version
+            let
+                same-version? $ = version $ :resource-version state
+                reusable? $ and same-version? $ match (:phase state)
+                  (:probing) true
+                  (:creating) true
+                  (:ready) true
+                  _ false
+              if reusable?
+                transition state $ empty-actions
+                let
+                    generation $ + 1 $ :generation state
+                    next $ RecoveryState :generation generation :phase (RecoveryPhase :probing) :resource-version version :attempts
+                      + 1 $ :attempts state
+                      , :losses $ :losses state
+                    probe $ RecoveryAction :probe generation version
+                  if
+                    phase-holds-host? $ :phase state
+                    transition next $ []
+                      RecoveryAction :release $ :generation state
+                      , probe
+                    transition next $ [] probe
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number
+        'transition $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transition (state actions) (RecoveryTransition :state state :actions actions)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState $ :: 'List 'quamolit.device-recovery/RecoveryAction
+        'update-resource-version $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-resource-version (state version)
+            assert |invalid-recovery-resource-version $ valid-resource-version? version
+            struct-with state $ :resource-version version
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryState)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number
+        'valid-resource-version? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-resource-version? (version)
+            and (number? version)
+              = 0 $ - version version
+              >= version 0
+              = version $ round version
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.device-recovery
     'quamolit.direct-frame $ %{} 'FileEntry
       :defs $ {}
         'DirectFrame $ %{} 'CodeEntry
