@@ -1,5 +1,7 @@
 import { defineConfig } from "@playwright/test";
 import { fileURLToPath } from "node:url";
+process.env.NO_PROXY = ["127.0.0.1", "localhost", process.env.NO_PROXY].filter(Boolean).join(",");
+process.env.no_proxy = ["127.0.0.1", "localhost", process.env.no_proxy].filter(Boolean).join(",");
 const port = Number(process.env.QUAMOLIT_DEMO_TEST_PORT || 5190);
 const baseURL = `http://127.0.0.1:${port}/preview/`;
 export default defineConfig({
