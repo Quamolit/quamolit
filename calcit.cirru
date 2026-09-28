@@ -33,7 +33,7 @@
               -> children
                 map-indexed $ fn (idx x) ([] idx x)
                 filter $ fn (entry)
-                  some? $ last entry
+                  option:some? $ last entry
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] $ :: 'List 'Dynamic
