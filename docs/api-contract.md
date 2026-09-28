@@ -30,6 +30,7 @@
 | `quamolit.ui-motion/tween-at`、`stagger-at`、`morph-number`、`presence-frame` | 已实现的图表 UI 公共动画构件；纯 Calcit、无宿主状态 | [图表 UI 动画构件](ui-motion-components.md)；三个作品实际消费，Canvas/WebGPU 资源生命周期仍在下层 |
 | `quamolit.presence/start-presence`、`reconcile-presence`、`sample-presence`、`settle-presence` | 已实现的 Scene 逻辑实例生命周期参考；非宿主资源管理器 | [进入退出](presence-lifecycle.md)；重排、fade、重入、一次性逻辑释放通知；#34/#51 宿主清理未完成 |
 | `PresenceInstanceResources`（JS 宿主适配器） | 已实现的 instances Float32 快照所有权；非通用资源表 | [Presence 宿主资源跟踪](presence-resources.md)；退出期间保留、终点最后引用释放、100 次装卸计数回基线；GPU/指针捕获未覆盖 |
+| `quamolit.device-recovery` 的 `RecoveryState` / `RecoveryTransition` | 已实现的单图层 device generation 恢复协议；非完整资源表 | [device loss 恢复](device-recovery.md)；纯 Calcit 决策、迟到结果隔离、Canvas 回退、同版本自动重建与实际 batch/device 释放 |
 | 完整 Scene IR / 完整 Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；现有切片不持有 DOM/GPU 句柄 |
 | 完整 WebGPU/Canvas2D 双后端、资源表、命中索引 | 仅矩形实例切片可运行；完整能力尚未实现 | #40/#33/#51/#34 |
 
