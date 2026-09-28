@@ -13025,6 +13025,402 @@
           :require (quamolit.scene-ir :as scene-ir)
             quamolit.motion :refer $ finite-number? ColorRgba
             calcit.test :refer $ is= is-throws
+    'quamolit.scene-hit $ %{} 'FileEntry
+      :defs $ {}
+        'HitOutcome $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum HitOutcome (:miss 'Number) (:hit 'quamolit.scene-hit/HitResult)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'HitPlan $ %{} 'CodeEntry
+          :doc "|预编译的独立命中计划：保留完整 Scene 节点和逆绘制顺序的交互候选，可在同一 Scene 的多次指针查询间复用。"
+          :code $ quote $ defstruct HitPlan
+            :nodes $ :: 'List 'quamolit.scene-ir/SceneNode
+            :candidates $ :: 'List 'quamolit.scene-ir/SceneNode
+          :examples $ []
+          :schema $ :: 'StructDef
+        'HitResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct HitResult (:target 'String) (:node-id 'String) (:visited 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PointProjection $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum PointProjection (:singular) (:point 'Number 'Number)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'candidate-count $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn candidate-count (plan)
+            count $ :candidates plan
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.scene-hit/HitPlan
+        'compile-hit-plan $ %{} 'CodeEntry
+          :doc "|校验 Scene 并排除无 target 或暂不支持的叶图元，生成可缓存候选索引；Scene 改变后必须重新编译。"
+          :code $ quote $ defn compile-hit-plan (document)
+            do
+              assert |invalid-scene-hit-document $ scene/validate-scene document
+              let
+                  nodes $ :nodes document
+                  candidates $ filter (reverse nodes)
+                    fn (node)
+                      and
+                        supported-leaf? $ :content node
+                        not $ empty? $ effective-target nodes node
+                HitPlan :nodes nodes :candidates candidates
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'quamolit.scene-ir/SceneDocument
+          :tests $ [] $ %{} 'TestEntry (:name |exclude-noninteractive)
+            :code $ quote $ let
+                color $ motion/ColorRgba :r 0.2 :g 0.4 :b 0.6 :a 1
+                target $ scene/SceneNode :id |target :parent | :key |target :bindings ([]) :interaction (scene/SceneInteraction :target |tap) :content $ scene/SceneContent :rect
+                  scene/RectNode :x 0 :y 0 :width 80 :height 80 :fill color
+                decoration $ scene/SceneNode :id |decoration :parent | :key |decoration :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :rect
+                  scene/RectNode :x 0 :y 0 :width 80 :height 80 :fill color
+                plan $ compile-hit-plan $ scene/SceneDocument :nodes ([] target decoration)
+              is= 1 $ candidate-count plan
+              match (hit-test-plan plan 20 20)
+                (:hit result)
+                  is= 1 $ :visited result
+                (:miss _) (is= |hit |miss)
+            :tags $ #{} :scene-hit
+        'effective-target $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn effective-target (nodes node)
+            match (:interaction node)
+              (:target target) target
+              (:none)
+                if
+                  empty? $ :parent node
+                  , | $ effective-target nodes $ scene/node-for-id nodes (:parent node)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-ir/SceneNode
+        'first-point $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn first-point (points)
+            -> (first points) (.unwrap)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] $ :: 'List 'quamolit.motion/Vec2
+        'hit-test $ %{} 'CodeEntry
+          :doc "|一次性编译并查询 Scene 的便利入口；高频指针事件应改用 compile-hit-plan 与 hit-test-plan。"
+          :code $ quote $ defn hit-test (document x y)
+            hit-test-plan (compile-hit-plan document) x y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitOutcome)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'Number 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |group-fallback-and-reorder)
+            :code $ quote $ let
+                color $ motion/ColorRgba :r 0.3 :g 0.5 :b 0.7 :a 1
+                matrix $ identity-matrix
+                group $ scene/SceneNode :id |panel :parent | :key |panel :bindings ([]) :interaction (scene/SceneInteraction :target |panel-action) :content $ scene/SceneContent :group
+                  scene/GroupNode :transform matrix :clip (scene/ClipSpec :none) :opacity 1
+                a $ scene/SceneNode :id |a :parent |panel :key |a :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :rect
+                  scene/RectNode :x 0 :y 0 :width 60 :height 60 :fill color
+                b $ scene/SceneNode :id |b :parent |panel :key |b :bindings ([]) :interaction (scene/SceneInteraction :target |b-action) :content $ scene/SceneContent :rect
+                  scene/RectNode :x 20 :y 20 :width 60 :height 60 :fill color
+                normal $ scene/SceneDocument :nodes $ [] group a b
+                reordered $ scene/SceneDocument :nodes $ [] group b a
+              match (hit-test normal 30 30)
+                (:hit result)
+                  is= |b-action $ :target result
+                (:miss _) (is= |hit |miss)
+              match (hit-test reordered 30 30)
+                (:hit result)
+                  is= |panel-action $ :target result
+                (:miss _) (is= |hit |miss)
+              match (hit-test normal 10 10)
+                (:hit result)
+                  is= |panel-action $ :target result
+                (:miss _) (is= |hit |miss)
+            :tags $ #{} :scene-hit
+        'hit-test-plan $ %{} 'CodeEntry
+          :doc "|在已编译 HitPlan 上执行纯 Calcit 命中查询；返回目标、实际叶节点和已访问候选数。"
+          :code $ quote $ defn hit-test-plan (plan x y)
+            scan-candidates (:nodes plan) (:candidates plan) 0 x y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitOutcome)
+            :args $ [] 'quamolit.scene-hit/HitPlan 'Number 'Number
+        'identity-matrix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn identity-matrix ()
+            scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ []
+        'inside-ancestor-clips? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn inside-ancestor-clips? (nodes parent-id x y)
+            if (empty? parent-id) true $ let
+                parent $ scene/node-for-id nodes parent-id
+                outer-ok? $ inside-ancestor-clips? nodes (:parent parent) x y
+              if (not outer-ok?) false $ match (:content parent)
+                (:group group)
+                  let
+                      world $ multiply-matrix
+                        world-for-parent nodes $ :parent parent
+                        :transform group
+                    match (inverse-point world x y)
+                      (:singular) false
+                      (:point local-x local-y)
+                        match (:clip group)
+                          (:none) true
+                          (:rect clip)
+                            point-in-rect? local-x local-y (:x clip) (:y clip) (:width clip) (:height clip)
+                _ false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'String 'Number 'Number
+        'inverse-point $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn inverse-point (matrix x y)
+            let
+                a $ :a matrix
+                b $ :b matrix
+                c $ :c matrix
+                d $ :d matrix
+                e $ :e matrix
+                f $ :f matrix
+                determinant $ - (* a d) (* b c)
+              if (= determinant 0) (PointProjection :singular)
+                let
+                    shifted-x $ - x e
+                    shifted-y $ - y f
+                  PointProjection :point
+                    /
+                      - (* d shifted-x) (* c shifted-y)
+                      , determinant
+                    /
+                      - (* a shifted-y) (* b shifted-x)
+                      , determinant
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/PointProjection)
+            :args $ [] 'quamolit.scene-ir/Matrix2D 'Number 'Number
+        'last-point $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn last-point (points)
+            if
+              empty? $ rest points
+              first-point points
+              recur $ rest points
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] $ :: 'List 'quamolit.motion/Vec2
+        'local-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn local-hit? (content x y)
+            match content
+              (:rect rect)
+                point-in-rect? x y (:x rect) (:y rect) (:width rect) (:height rect)
+              (:circle circle)
+                <=
+                  +
+                    *
+                      - x $ :cx circle
+                      - x $ :cx circle
+                    *
+                      - y $ :cy circle
+                      - y $ :cy circle
+                  * (:radius circle) (:radius circle)
+              (:text text)
+                point-in-rect? x y (:x text)
+                  - (:y text)
+                    / (:size text) 2
+                  * (:size text) 0.6 $ count $ :text text
+                  :size text
+              (:image image)
+                match
+                  inverse-point (:matrix image) x y
+                  (:singular) false
+                  (:point local-x local-y)
+                    point-in-rect? local-x local-y (:dx image) (:dy image) (:dw image) (:dh image)
+              (:polyline path)
+                polyline-hit? (:points path) (:width path) x y
+              (:polygon polygon)
+                or
+                  polygon-hit? (:points polygon) x y
+                  polyline-hit? (:points polygon) (:width polygon) x y
+              _ false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneContent 'Number 'Number
+        'matrix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn matrix (a b c d e f)
+            scene/Matrix2D :a a :b b :c c :d d :e e :f f
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |basic)
+              :code $ quote $ is= 0
+                :a $ matrix 0 1 0 0 100 100
+              :tags $ #{} :scene-hit
+            %{} 'TestEntry (:name |rotation)
+              :code $ quote $ is= -1
+                :c $ matrix 0 1 -1 0 100 100
+              :tags $ #{} :scene-hit
+        'multiply-matrix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn multiply-matrix (parent child-matrix)
+            let
+                pa $ :a parent
+                pb $ :b parent
+                pc $ :c parent
+                pd $ :d parent
+                pe $ :e parent
+                pf $ :f parent
+                ca $ :a child-matrix
+                cb $ :b child-matrix
+                cc $ :c child-matrix
+                cd $ :d child-matrix
+                ce $ :e child-matrix
+                cf $ :f child-matrix
+                ma $ + (* pa ca) (* pc cb)
+                mb $ + (* pb ca) (* pd cb)
+                mc $ + (* pa cc) (* pc cd)
+                md $ + (* pb cc) (* pd cd)
+                me $ + (* pa ce) (* pc cf) pe
+                mf $ + (* pb ce) (* pd cf) pf
+              scene/Matrix2D :a ma :b mb :c mc :d md :e me :f mf
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] 'quamolit.scene-ir/Matrix2D 'quamolit.scene-ir/Matrix2D
+        'node-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn node-hit? (nodes node x y)
+            and
+              inside-ancestor-clips? nodes (:parent node) x y
+              match
+                inverse-point
+                  world-for-parent nodes $ :parent node
+                  , x y
+                (:singular) false
+                (:point local-x local-y)
+                  local-hit? (:content node) local-x local-y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-ir/SceneNode 'Number 'Number
+        'point-in-rect? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn point-in-rect? (x y left top width height)
+            and (>= x left)
+              <= x $ + left width
+              >= y top
+              <= y $ + top height
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number
+        'polygon-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn polygon-hit? (points x y)
+            if
+              < (count points) 3
+              , false $ polygon-scan points (last-point points) x y false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.motion/Vec2) 'Number 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |square)
+            :code $ quote $ let
+                points $ [] (motion/Vec2 :x 0 :y 0) (motion/Vec2 :x 10 :y 0) (motion/Vec2 :x 10 :y 10) (motion/Vec2 :x 0 :y 10)
+              is= true $ polygon-hit? points 5 5
+              is= false $ polygon-hit? points 15 5
+            :tags $ #{} :scene-hit
+        'polygon-scan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn polygon-scan (remaining previous x y inside?)
+            if (empty? remaining) inside? $ let
+                current $ first-point remaining
+                current-x $ :x current
+                current-y $ :y current
+                previous-x $ :x previous
+                previous-y $ :y previous
+                crosses? $ and
+                  not $ = (> current-y y) (> previous-y y)
+                  < x $ + current-x $ /
+                    * (- previous-x current-x) (- y current-y)
+                    - previous-y current-y
+              recur (rest remaining) current x y $ if crosses? (not inside?) inside?
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.motion/Vec2) 'quamolit.motion/Vec2 'Number 'Number 'Bool
+        'polyline-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn polyline-hit? (points width x y)
+            if
+              or (<= width 0) (empty? points)
+                empty? $ rest points
+              , false $ if
+                segment-hit? (first-point points)
+                  first-point $ rest points
+                  , width x y
+                , true $ recur (rest points) width x y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.motion/Vec2) 'Number 'Number 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |stroke-width)
+            :code $ quote $ let
+                points $ [] (motion/Vec2 :x 0 :y 0) (motion/Vec2 :x 10 :y 0)
+              is= true $ polyline-hit? points 4 5 1
+              is= false $ polyline-hit? points 4 5 3
+            :tags $ #{} :scene-hit
+        'scan-candidates $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scan-candidates (nodes candidates visited x y)
+            if (empty? candidates) (HitOutcome :miss visited)
+              let
+                  node $ scene/first-node candidates
+                  target $ effective-target nodes node
+                if
+                  or (empty? target)
+                    not $ supported-leaf? $ :content node
+                  recur nodes (rest candidates) visited x y
+                  let
+                      next-visited $ inc visited
+                    if (node-hit? nodes node x y)
+                      HitOutcome :hit $ HitResult :target target :node-id (:id node) :visited next-visited
+                      recur nodes (rest candidates) next-visited x y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitOutcome)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) (:: 'List 'quamolit.scene-ir/SceneNode) 'Number 'Number 'Number
+        'segment-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn segment-hit? (from to width x y)
+            let
+                from-x $ :x from
+                from-y $ :y from
+                dx $ - (:x to) from-x
+                dy $ - (:y to) from-y
+                length-squared $ + (* dx dx) (* dy dy)
+                raw-t $ if (= length-squared 0) 0 $ /
+                  +
+                    * (- x from-x) dx
+                    * (- y from-y) dy
+                  , length-squared
+                t $ if (< raw-t 0) 0 $ if (> raw-t 1) 1 raw-t
+                offset-x $ - x $ + from-x (* t dx)
+                offset-y $ - y $ + from-y (* t dy)
+                radius $ / width 2
+              <=
+                + (* offset-x offset-x) (* offset-y offset-y)
+                * radius radius
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number 'Number 'Number
+        'supported-leaf? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn supported-leaf? (content)
+            match content
+              (:rect _) true
+              (:circle _) true
+              (:text _) true
+              (:image _) true
+              (:polyline _) true
+              (:polygon _) true
+              _ false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneContent
+        'world-for-parent $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn world-for-parent (nodes parent-id)
+            if (empty? parent-id) (identity-matrix)
+              let
+                  parent $ scene/node-for-id nodes parent-id
+                match (:content parent)
+                  (:group group)
+                    multiply-matrix
+                      world-for-parent nodes $ :parent parent
+                      :transform group
+                  _ $ raise |invalid-scene-parent
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'String
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.scene-hit
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion)
+            calcit.test :refer $ is=
     'quamolit.scene-ir $ %{} 'FileEntry
       :defs $ {}
         'CircleNode $ %{} 'CodeEntry (:doc |)
@@ -14918,6 +15314,67 @@
           :require (quamolit.retained-component :as retained) (quamolit.component-sample :as component) (quamolit.test.component-fixture :as badge) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as canvas) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component)
             calcit.test :refer $ is= is-throws
             quamolit.scene-binding :as binding
+    'quamolit.test.scene-hit-fixture $ %{} 'FileEntry
+      :defs $ {}
+        'rotated-scene $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rotated-scene ()
+            let
+                color $ motion/ColorRgba :r 0.4 :g 0.6 :b 0.8 :a 1
+                transform $ hit/matrix 0 1 -1 0 100 100
+                clip-rect $ scene/ClipRect :x 0 :y 0 :width 100 :height 100
+                clip $ scene/ClipSpec :rect clip-rect
+                group $ scene/GroupNode :transform transform :clip clip :opacity 0
+                root $ scene/SceneNode :id |root :parent | :key |root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group group
+                back-rect $ scene/RectNode :x 10 :y 10 :width 140 :height 60 :fill color
+                back $ scene/SceneNode :id |back :parent |root :key |back :bindings ([]) :interaction (scene/SceneInteraction :target |back-action) :content $ scene/SceneContent :rect back-rect
+                front-rect $ scene/RectNode :x 20 :y 20 :width 60 :height 60 :fill color
+                front $ scene/SceneNode :id |front :parent |root :key |front :bindings ([]) :interaction (scene/SceneInteraction :target |front-action) :content $ scene/SceneContent :rect front-rect
+              scene/SceneDocument :nodes $ [] root back front
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ []
+        'singular-scene $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn singular-scene ()
+            let
+                color $ motion/ColorRgba :r 0.2 :g 0.4 :b 0.6 :a 1
+                group $ scene/SceneNode :id |singular :parent | :key |singular :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group
+                  scene/GroupNode :transform (hit/matrix 0 0 0 0 0 0) :clip (scene/ClipSpec :none) :opacity 1
+                child $ scene/SceneNode :id |singular-target :parent |singular :key |singular-target :bindings ([]) :interaction (scene/SceneInteraction :target |tap) :content $ scene/SceneContent :rect
+                  scene/RectNode :x 0 :y 0 :width 80 :height 80 :fill color
+              scene/SceneDocument :nodes $ [] group child
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ []
+        'verify-hit-semantics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn verify-hit-semantics () true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ []
+          :tests $ []
+            %{} 'TestEntry (:name |rotation-clip-opacity)
+              :code $ quote $ let
+                  document $ rotated-scene
+                match (hit/hit-test document 70 130)
+                  (:hit result)
+                    do
+                      is= |front-action $ :target result
+                      is= |front $ :node-id result
+                      is= 1 $ :visited result
+                  (:miss _) (is= |hit |miss)
+                match (hit/hit-test document 70 230)
+                  (:miss visited) (is= 2 visited)
+                  (:hit _) (is= |miss |hit)
+              :tags $ #{} :scene-hit
+            %{} 'TestEntry (:name |singular-transform)
+              :code $ quote $ match
+                hit/hit-test (singular-scene) 20 20
+                (:miss visited) (is= 1 visited)
+                (:hit _) (is= |miss |hit)
+              :tags $ #{} :scene-hit
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.test.scene-hit-fixture
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.scene-hit :as hit)
+            calcit.test :refer $ is=
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")

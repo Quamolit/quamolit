@@ -101,6 +101,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check independent Scene hit plan
+        if: inputs.mutation != 'color'
+        run: yarn test:scene-hit
+        env:
+          CI: "true"
+
       - name: Check versioned instance data boundary
         if: inputs.mutation != 'color'
         run: yarn test:instance-sources
