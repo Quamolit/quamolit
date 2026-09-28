@@ -14037,6 +14037,18 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-hit/HitPlan 'String 'String
+        'clear-pointer-capture $ %{} 'CodeEntry
+          :doc "|宿主失焦或画布卸载时幂等清空任意活动捕获，并只在首次清理时返回 capture-released=true。"
+          :code $ quote $ defn clear-pointer-capture (state)
+            match (:capture state)
+              (:none) (PointerReconcile :state state :capture-released false)
+              (:captured _ _ _)
+                PointerReconcile :state
+                  struct-with state $ :capture $ PointerCapture :none
+                  , :capture-released true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
+            :args $ [] 'quamolit.scene-pointer/PointerState
         'empty-targets $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-targets () ([])
           :examples $ []
@@ -14074,6 +14086,16 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerState)
             :args $ []
+        'lose-pointer-capture $ %{} 'CodeEntry
+          :doc "|处理 DOM lostpointercapture：仅当 pointer id 匹配当前所有者时清理，避免其他指针误释放。"
+          :code $ quote $ defn lose-pointer-capture (state pointer-id)
+            match (:capture state)
+              (:none) (PointerReconcile :state state :capture-released false)
+              (:captured captured-id _ _)
+                if (= captured-id pointer-id) (clear-pointer-capture state) (PointerReconcile :state state :capture-released false)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
+            :args $ [] 'quamolit.scene-pointer/PointerState 'Number
         'reconcile-pointer-state $ %{} 'CodeEntry
           :doc "|在 Scene 提交后校验捕获的 source 与 target；节点卸载或目标链变化时清空捕获并仅报告一次释放。"
           :code $ quote $ defn reconcile-pointer-state (plan state)
@@ -14265,6 +14287,12 @@
             :args $ [] 'T
             :features $ #{} :js-ffi
             :generics $ [] 'T
+        'pointer-id-from-event $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn pointer-id-from-event (event) (.-pointer-id event)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerEventHost
+            :features $ #{} :js-ffi
         'pointer-input-from-event $ %{} 'CodeEntry
           :doc "|把 PointerEvent client 坐标减去元素边界，得到 HitPlan 使用的 CSS px；不乘 DPR。"
           :code $ quote $ defn pointer-input-from-event (surface phase event)
@@ -14299,6 +14327,17 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerInput 'quamolit.scene-pointer/PointerUpdate
+            :features $ #{} :js-ffi
+        'release-state-native-capture! $ %{} 'CodeEntry
+          :doc "|窗口失焦或 surface 卸载前，按纯状态中的 pointer id 幂等释放仍由该元素持有的 DOM capture。"
+          :code $ quote $ defn release-state-native-capture! (surface state)
+            match (:capture state)
+              (:none) &unit
+              (:captured pointer-id _ _)
+                if (surface .has-pointer-capture? pointer-id) (surface .release-pointer-capture! pointer-id) &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerState
             :features $ #{} :js-ffi
         'route-event! $ %{} 'CodeEntry
           :doc "|归一化一个浏览器事件、执行纯 Calcit 路由，并只按 capture-released 决策同步原生释放。"
@@ -15913,6 +15952,25 @@
                 is= true $ :capture-released reconciled
                 is= (pointer/PointerDispatch :none) (:dispatch after-exit)
               :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |host-loss-and-blur-clear-once)
+              :code $ quote $ let
+                  plan $ hit/compile-hit-plan $ routing-scene
+                  down $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 13 (pointer/PointerPhase :down) 20 20
+                  captured $ pointer/capture-dispatch (:state down) (:dispatch down)
+                  wrong $ pointer/lose-pointer-capture captured 99
+                  lost $ pointer/lose-pointer-capture (:state wrong) 13
+                  lost-again $ pointer/lose-pointer-capture (:state lost) 13
+                  blurred $ pointer/clear-pointer-capture captured
+                  blurred-again $ pointer/clear-pointer-capture $ :state blurred
+                is= false $ :capture-released wrong
+                is= true $ :capture-released lost
+                is= false $ :capture-released lost-again
+                is= true $ :capture-released blurred
+                is= false $ :capture-released blurred-again
+                is= (pointer/PointerCapture :none)
+                  :capture $ :state lost
+              :tags $ #{} :scene-pointer
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.scene-hit-fixture
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.scene-hit :as hit)
@@ -15992,6 +16050,22 @@
                     dom/element-set-attribute! element |data-captured $ str $ dispatch-captured? (:dispatch routed)
                     dom/element-set-attribute! element |data-released $ str $ :capture-released routed
                     dom/element-set-attribute! element |data-count $ str @count*
+                handle-lost! $ fn (event)
+                  let
+                      reconciled $ pointer/lose-pointer-capture @state* $ browser/pointer-id-from-event event
+                    reset! state* $ :state reconciled
+                    dom/element-set-attribute! element |data-lost |true
+                    dom/element-set-attribute! element |data-lost-released $ str $ :capture-released reconciled
+                    dom/element-set-attribute! element |data-capture-cleared $ str $ capture-cleared? (:state reconciled)
+                handle-blur! $ fn (_event)
+                  let
+                      before @state*
+                      reconciled $ pointer/clear-pointer-capture before
+                    browser/release-state-native-capture! surface before
+                    reset! state* $ :state reconciled
+                    dom/element-set-attribute! element |data-blurred |true
+                    dom/element-set-attribute! element |data-blur-released $ str $ :capture-released reconciled
+                    dom/element-set-attribute! element |data-capture-cleared $ str $ capture-cleared? (:state reconciled)
               surface .add-pointer-listener! |pointerdown $ fn (event)
                 handle! (pointer/PointerPhase :down) event
                 , &unit
@@ -16004,6 +16078,8 @@
               surface .add-pointer-listener! |pointercancel $ fn (event)
                 handle! (pointer/PointerPhase :cancel) event
                 , &unit
+              surface .add-pointer-listener! |lostpointercapture $ fn (event) (handle-lost! event) &unit
+              dom/add-event-listener! |blur handle-blur!
               dom/element-set-attribute! element |data-ready |true
               , &unit
           :examples $ []

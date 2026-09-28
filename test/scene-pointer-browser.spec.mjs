@@ -47,3 +47,47 @@ test("DPR 2 仍使用 CSS px，并在 pointercancel 后清除原生捕获", asyn
     await context.close();
   }
 });
+
+test("lostpointercapture 只清理匹配的逻辑所有者", async ({ page }) => {
+  await ready(page);
+  const canvas = page.locator("#pointer-surface");
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+
+  await page.mouse.move(box.x + 20, box.y + 20);
+  await page.mouse.down();
+  await canvas.evaluate((node) => node.releasePointerCapture(1));
+  // Chromium headless does not consistently schedule lostpointercapture after an explicit
+  // release until another native pointer task; dispatch the platform event deterministically.
+  await canvas.dispatchEvent("lostpointercapture", { pointerId: 1 });
+  await expect(canvas).toHaveAttribute("data-lost", "true");
+  await expect(canvas).toHaveAttribute("data-lost-released", "true");
+  await expect(canvas).toHaveAttribute("data-capture-cleared", "true");
+  expect(await canvas.evaluate((node) => node.hasPointerCapture(1))).toBe(false);
+
+  await canvas.dispatchEvent("pointermove", {
+    pointerId: 1,
+    clientX: box.x + box.width + 80,
+    clientY: box.y + box.height + 80,
+  });
+  await expect(canvas).toHaveAttribute("data-target", "");
+  await expect(canvas).toHaveAttribute("data-captured", "false");
+  await page.mouse.up();
+});
+
+test("窗口失焦主动释放 DOM capture 并清理纯状态", async ({ page }) => {
+  await ready(page);
+  const canvas = page.locator("#pointer-surface");
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+
+  await page.mouse.move(box.x + 20, box.y + 20);
+  await page.mouse.down();
+  expect(await canvas.evaluate((node) => node.hasPointerCapture(1))).toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await expect(canvas).toHaveAttribute("data-blurred", "true");
+  await expect(canvas).toHaveAttribute("data-blur-released", "true");
+  await expect(canvas).toHaveAttribute("data-capture-cleared", "true");
+  expect(await canvas.evaluate((node) => node.hasPointerCapture(1))).toBe(false);
+  await page.mouse.up();
+});
