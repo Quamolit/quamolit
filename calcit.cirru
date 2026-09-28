@@ -8998,7 +8998,7 @@
                 upload $ upload-source! previous batch table source
                 draw $ gpu/draw! batch (:width instances) (:height instances)
                   gpu/color (:r fill) (:g fill) (:b fill) (:a fill)
-                  , 1 (%none)
+                  , 1 (gpu/no-translation)
                     %some $ :count source
               SourceDraw :version (:version source) :uploaded? (:uploaded? upload) :upload-bytes (:bytes upload) :instances (:instances draw) :draw-calls $ :draw-calls draw
           :examples $ []
