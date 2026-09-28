@@ -27,6 +27,7 @@
 | `quamolit.scene-diff/index-scene`、`diff-scene`、`SceneDelta` | 已实现的逻辑身份与 O(n²) 参考差分；非生产调度器 | [Scene diff](scene-diff.md)；重排保身份、重挂载、分类和时间独立标记；#50 执行计划未完成 |
 | `quamolit.scene-binding/resolve-scene` | 已实现的绝对时间 CPU 标量绑定参考解析；非增量执行入口 | [Scene 绑定解析](scene-binding.md)；精确 ID/version、输出再校验、浏览器中间帧；#50 执行计划未完成 |
 | `quamolit.transition/start-transition`、`interrupt-transition`、`sample-replay` | 已实现的位置连续打断与固定事件重放 CPU 切片；非完整生命周期 | [打断过渡](transition-interruption.md)；25%/50%/75% 打断及浏览器帧；Scene enter/exit 参考见下行 |
+| `quamolit.ui-motion/tween-at`、`stagger-at`、`morph-number`、`presence-frame` | 已实现的图表 UI 公共动画构件；纯 Calcit、无宿主状态 | [图表 UI 动画构件](ui-motion-components.md)；三个作品实际消费，Canvas/WebGPU 资源生命周期仍在下层 |
 | `quamolit.presence/start-presence`、`reconcile-presence`、`sample-presence`、`settle-presence` | 已实现的 Scene 逻辑实例生命周期参考；非宿主资源管理器 | [进入退出](presence-lifecycle.md)；重排、fade、重入、一次性逻辑释放通知；#34/#51 宿主清理未完成 |
 | `PresenceInstanceResources`（JS 宿主适配器） | 已实现的 instances Float32 快照所有权；非通用资源表 | [Presence 宿主资源跟踪](presence-resources.md)；退出期间保留、终点最后引用释放、100 次装卸计数回基线；GPU/指针捕获未覆盖 |
 | 完整 Scene IR / 完整 Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；现有切片不持有 DOM/GPU 句柄 |
