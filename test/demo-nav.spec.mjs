@@ -38,6 +38,10 @@ test("恢复清单与艺术作品分类均可打开", async ({ page }) => {
     "aria-label",
     /Metric Flow/,
   );
+  await expect(page.locator('a[data-demo="examples/signal-weave/index.html"]')).toHaveAttribute(
+    "aria-label",
+    /Signal Weave/,
+  );
   await expect(page.locator("#art .reserved")).toHaveCount(0);
   await expect(page.locator("#empty")).toBeHidden();
 });
@@ -188,6 +192,24 @@ test("Metric Flow 在统一画布内可交互反向切换且离开后卸载时�
   expect(
     await page.evaluate(() => ({
       api: "metricFlowDemo" in window,
+      canvases: document.querySelectorAll("canvas").length,
+    })),
+  ).toEqual({ api: false, canvases: 1 });
+});
+
+test("Signal Weave 在统一画布内生长与反向切换，离开后卸载时钟", async ({ page }) => {
+  await page.goto("demos/index.html?demo=signal-weave&t=1.2");
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  expect(await page.evaluate(() => window.signalWeaveDemo.snapshot().pathPoints)).toBe(12);
+  await page.locator("#mode-campaign").click();
+  await expect.poll(() => page.evaluate(() => window.signalWeaveDemo.snapshot().position)).toBeGreaterThan(0);
+  await page.locator("#mode-standard").click();
+  expect((await page.evaluate(() => window.signalWeaveDemo.snapshot())).eventCount).toBe(2);
+  await page.getByRole("button", { name: /所有演示/ }).click();
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+  expect(
+    await page.evaluate(() => ({
+      api: "signalWeaveDemo" in window,
       canvases: document.querySelectorAll("canvas").length,
     })),
   ).toEqual({ api: false, canvases: 1 });

@@ -4,6 +4,7 @@ import catalog from "./catalog.json";
 const originals = catalog.entries.filter(entry => entry.group === "originals");
 const inlineEntries = [...originals, ...catalog.entries.filter(entry => entry.group === "art")];
 const loaders = {
+  "signal-weave": [() => import("../examples/signal-weave/index.html?raw"), () => import("../examples/signal-weave/main.mjs")],
   "tidal-bloom": [() => import("../examples/tidal-bloom/index.html?raw"), () => import("../examples/tidal-bloom/main.mjs")],
   "folding-fan": [() => import("../examples/folding-fan/index.html?raw"), () => import("../examples/folding-fan/main.mjs")],
   "drag-demo": [() => import("../examples/drag-demo/index.html?raw"), () => import("../examples/drag-demo/main.mjs")],

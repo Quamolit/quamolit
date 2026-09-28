@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Signal Weave · 增长曲线</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <canvas id="scene" aria-label="营销分析工作台中的面积曲线生长和数据切换"></canvas>
+    <nav aria-label="演示导航"><a href="../../demos/index.html?group=art">← 艺术动画</a></nav>
+    <button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起控制</button>
+    <aside id="panel" aria-label="增长曲线控制">
+      <span class="eyebrow">QUAMOLIT / UI MOTION 02</span>
+      <h1>Signal Weave<small>增长曲线</small></h1>
+      <p>先看曲线逐段生长，再切换「常态」与「活动」：路径、填充面积、指标和侧边洞察由 Calcit 在同一时间采样。中途反向不会跳变。</p>
+      <div class="buttons mode-controls" role="group" aria-label="切换数据情境">
+        <button id="mode-standard" aria-pressed="true">常态流量</button>
+        <button id="mode-campaign" aria-pressed="false">活动增长</button>
+      </div>
+      <div class="buttons">
+        <button id="play">播放</button>
+        <button id="reset">从头播放</button>
+        <button id="share">复制当前画面链接</button>
+      </div>
+      <label>逻辑时间 <input id="time" type="range" min="0" max="6" step="0.01" value="0"></label>
+      <div class="buttons moments">
+        <button data-time="0">初始</button>
+        <button data-time="0.45">路径生长</button>
+        <button data-time="1.2">完整曲线</button>
+        <button data-time="2.4">终点</button>
+      </div>
+      <output id="status" aria-live="off"></output>
+      <a class="details" href="https://github.com/Quamolit/quamolit/blob/main/docs/signal-weave.md">构图、实现与检验</a>
+    </aside>
+    <script type="module" src="./main.mjs"></script>
+  </body>
+</html>

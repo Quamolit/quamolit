@@ -32,6 +32,16 @@
   "planned": [],
   "entries": [
     {
+      "id": "signal-weave",
+      "path": "examples/signal-weave/index.html",
+      "title": "Signal Weave · 增长曲线",
+      "group": "art",
+      "summary": "面积路径逐段生长，营销情境切换时曲线、填充、指标与洞察卡片由 Calcit 连续采样，可中途反向。",
+      "status": "交互折线／面积图 · Canvas",
+      "docs": "docs/signal-weave.md",
+      "compile": "compile:signal-weave"
+    },
+    {
       "id": "tidal-bloom",
       "path": "examples/tidal-bloom/index.html",
       "title": "Metric Flow · 图表流转",
