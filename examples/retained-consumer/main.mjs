@@ -1,15 +1,49 @@
 // 页面胶水只导入本应用的编译产物，不导入框架内部 JS 或测试夹具。
-import { start, update_plan, start_dual, update_dual, draw_$x_, instances_declaration, browser_available_$q_,
-  create_instances_table_$x_, register_instances_$x_, patch_instances_$x_, release_instances_$x_,
-  draw_resolved_instances_$x_, instance_frame_at, instances_live_count,
-  create_instances_gpu_$x_, draw_instances_gpu_$x_, dispose_instances_gpu_$x_ } from "./target/js/app/app.main.mjs";
+import {
+  start,
+  update_plan,
+  start_dual,
+  update_dual,
+  draw_$x_,
+  instances_declaration,
+  browser_available_$q_,
+  create_instances_table_$x_,
+  register_instances_$x_,
+  patch_instances_$x_,
+  release_instances_$x_,
+  draw_resolved_instances_$x_,
+  instance_frame_at,
+  instances_live_count,
+  create_instances_gpu_$x_,
+  draw_instances_gpu_$x_,
+  dispose_instances_gpu_$x_,
+  presence_initial,
+  presence_reconcile,
+  presence_settle,
+  presence_sample,
+  presence_needs_frame_$q_,
+  presence_plan,
+  presence_update_plan,
+} from "./target/js/app/app.main.mjs";
 import { init_tags, to_js_data } from "./target/js/app/calcit.core.mjs";
 import { createInstancePositions } from "./instances-input.mjs";
 
-const tags = init_tags(["declarations", "plan-builds", "binding-samples", "transform-samples", "transforms", "scene"]);
+const tags = init_tags([
+  "declarations",
+  "plan-builds",
+  "binding-samples",
+  "transform-samples",
+  "transforms",
+  "scene",
+  "model",
+  "released",
+]);
 let canvas = document.querySelector("canvas");
 let context = canvas.getContext("2d");
-let canvasKind = "canvas", gpuState = null, resizeObserver, modeGeneration = 0;
+let canvasKind = "canvas",
+  gpuState = null,
+  resizeObserver,
+  modeGeneration = 0;
 // 仅为页面展示/诊断模式；动画和 Scene 仍由 Calcit 产生。
 const fullscreen = new URLSearchParams(location.search).get("fixture") !== "1";
 document.body.classList.toggle("stage", fullscreen);
@@ -26,17 +60,31 @@ if (/\/examples\/retained-consumer\/(?:index.html)?$/.test(location.pathname)) {
   nav.href = "../../demos/index.html";
   nav.textContent = "← 所有演示";
 }
-let time = 0, model = 40, ready = false, viewport = 100;
+let time = 0,
+  model = 40,
+  ready = false,
+  viewport = 100;
 const requestedMode = new URLSearchParams(location.search).get("motion");
-let mode = ["mixed", "dual", "instances", "instances-gpu"].includes(requestedMode) ? requestedMode : "mixed";
+let mode = ["mixed", "dual", "presence", "instances", "instances-gpu"].includes(requestedMode)
+  ? requestedMode
+  : "mixed";
 if (mode === "instances-gpu") mode = "instances";
-let plan = (mode === "dual" ? start_dual : start)(time, model, ready, viewport);
+let presenceModel = presence_initial(),
+  presenceVersion = 1,
+  presencePhase = "full",
+  presenceReleased = [];
+let plan =
+  mode === "presence"
+    ? presence_plan(presenceModel, time, presenceVersion)
+    : (mode === "dual" ? start_dual : start)(time, model, ready, viewport);
 // Float32Array 是宿主提供的数据源；实例声明与实际 Canvas 绘制都走消费者的 Calcit 公共入口。
 const instanceCount = to_js_data(instances_declaration()).source.count;
 const positions = createInstancePositions(instanceCount);
 const instanceTable = create_instances_table_$x_();
 register_instances_$x_(instanceTable, positions);
-let instanceVersion = 1, instanceTime = 0, instanceCopiedBytes = positions.byteLength;
+let instanceVersion = 1,
+  instanceTime = 0,
+  instanceCopiedBytes = positions.byteLength;
 let instanceMetrics = null;
 function updateInstanceTime(nextTime) {
   if (nextTime === instanceTime) return;
@@ -44,29 +92,81 @@ function updateInstanceTime(nextTime) {
   const values = to_js_data(frame);
   const previous = instanceVersion;
   const next = previous + 1;
-  instanceCopiedBytes = patch_instances_$x_(instanceTable, previous, next, frame, new Float32Array([values.x, values.y]));
+  instanceCopiedBytes = patch_instances_$x_(
+    instanceTable,
+    previous,
+    next,
+    frame,
+    new Float32Array([values.x, values.y]),
+  );
   release_instances_$x_(instanceTable, previous);
   instanceVersion = next;
   instanceTime = nextTime;
 }
 function snapshot() {
-  if (mode === "instances" || mode === "instances-gpu") return { time, model, ready, viewport, mode, browser: browser_available_$q_(),
-    source: { count: instanceCount, positionBytes: positions.byteLength, version: instanceVersion,
-      copiedBytes: instanceCopiedBytes, live: instances_live_count(instanceTable) }, metrics: instanceMetrics,
-    adapter: gpuState?.adapter ?? null };
-  return { time, model, ready, viewport, mode, browser: browser_available_$q_(),
-    declarations: plan.get(tags.declarations), builds: plan.get(tags["plan-builds"]),
-    samples: plan.get(tags["binding-samples"]), transformSamples: plan.get(tags["transform-samples"]),
-    transforms: to_js_data(plan.get(tags.transforms)), scene: to_js_data(plan.get(tags.scene)) };
+  if (mode === "instances" || mode === "instances-gpu")
+    return {
+      time,
+      model,
+      ready,
+      viewport,
+      mode,
+      browser: browser_available_$q_(),
+      source: {
+        count: instanceCount,
+        positionBytes: positions.byteLength,
+        version: instanceVersion,
+        copiedBytes: instanceCopiedBytes,
+        live: instances_live_count(instanceTable),
+      },
+      metrics: instanceMetrics,
+      adapter: gpuState?.adapter ?? null,
+    };
+  if (mode === "presence")
+    return {
+      time,
+      mode,
+      phase: presencePhase,
+      version: presenceVersion,
+      released: presenceReleased,
+      needsFrame: presence_needs_frame_$q_(presenceModel, time),
+      samples: to_js_data(presence_sample(presenceModel, time)),
+      browser: browser_available_$q_(),
+    };
+  return {
+    time,
+    model,
+    ready,
+    viewport,
+    mode,
+    browser: browser_available_$q_(),
+    declarations: plan.get(tags.declarations),
+    builds: plan.get(tags["plan-builds"]),
+    samples: plan.get(tags["binding-samples"]),
+    transformSamples: plan.get(tags["transform-samples"]),
+    transforms: to_js_data(plan.get(tags.transforms)),
+    scene: to_js_data(plan.get(tags.scene)),
+  };
 }
 function show() {
-  document.querySelectorAll("[data-mode]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.mode === mode)));
-  document.querySelectorAll("#model, #ready, #viewport").forEach(button => { button.disabled = mode.startsWith("instances"); });
+  document
+    .querySelectorAll("[data-mode]")
+    .forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.mode === mode)));
+  document.querySelectorAll("#model, #ready, #viewport").forEach((button) => {
+    button.disabled = mode.startsWith("instances") || mode === "presence";
+  });
+  document.querySelectorAll("[data-presence]").forEach((button) => {
+    button.disabled = mode !== "presence";
+  });
   if (fullscreen && canvasKind === "canvas") {
     const { width, height } = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    const w = Math.max(1, Math.round(width * dpr)), h = Math.max(1, Math.round(height * dpr));
-    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    const w = Math.max(1, Math.round(width * dpr)),
+      h = Math.max(1, Math.round(height * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, w, h);
     // contain 是此最小消费者的展示策略，不是框架的响应式布局 API。
@@ -75,7 +175,9 @@ function show() {
   }
   if (mode === "instances-gpu") {
     if (gpuState) {
-      instanceMetrics = to_js_data(draw_instances_gpu_$x_(gpuState.previousVersion, gpuState.batch, instanceTable, instanceVersion));
+      instanceMetrics = to_js_data(
+        draw_instances_gpu_$x_(gpuState.previousVersion, gpuState.batch, instanceTable, instanceVersion),
+      );
       gpuState.previousVersion = instanceVersion;
     }
   } else if (mode === "instances") {
@@ -94,8 +196,19 @@ function set(next = {}) {
     }
     return show();
   }
+  if (mode === "presence") {
+    if (next.time !== undefined) time = next.time;
+    plan = presence_update_plan(plan, presenceModel, time, presenceVersion);
+    return show();
+  }
   const request = { time, model, ready, viewport, ...next };
-  const updated = (mode === "dual" ? update_dual : update_plan)(plan, request.time, request.model, request.ready, request.viewport);
+  const updated = (mode === "dual" ? update_dual : update_plan)(
+    plan,
+    request.time,
+    request.model,
+    request.ready,
+    request.viewport,
+  );
   ({ time, model, ready, viewport } = request);
   plan = updated;
   return show();
@@ -104,7 +217,8 @@ function replaceCanvas(kind) {
   if (kind === canvasKind) return;
   const replacement = document.createElement("canvas");
   replacement.id = canvas.id;
-  replacement.width = 320; replacement.height = 180;
+  replacement.width = 320;
+  replacement.height = 180;
   replacement.setAttribute("aria-label", canvas.getAttribute("aria-label"));
   resizeObserver?.unobserve(canvas);
   canvas.replaceWith(replacement);
@@ -120,12 +234,17 @@ function disposeGpu() {
   gpuState = null;
 }
 async function setMode(next) {
-  if (!["mixed", "dual", "instances", "instances-gpu"].includes(next)) throw Error("unknown-consumer-mode");
+  if (!["mixed", "dual", "presence", "instances", "instances-gpu"].includes(next)) throw Error("unknown-consumer-mode");
   const generation = ++modeGeneration;
   // 更换声明时建立新计划，不能让相同版本错误复用另一个声明的结构。
-  const nextPlan = next.startsWith("instances") ? plan : (next === "dual" ? start_dual : start)(time, model, ready, viewport);
+  const nextPlan = next.startsWith("instances")
+    ? plan
+    : next === "presence"
+      ? presence_plan(presenceModel, time, presenceVersion)
+      : (next === "dual" ? start_dual : start)(time, model, ready, viewport);
   if (next !== "instances-gpu") disposeGpu();
-  mode = next; plan = nextPlan;
+  mode = next;
+  plan = nextPlan;
   if (mode.startsWith("instances")) updateInstanceTime(time);
   if (next === "instances-gpu") {
     try {
@@ -133,12 +252,23 @@ async function setMode(next) {
       const adapter = await navigator.gpu.requestAdapter();
       if (!adapter) throw Error("未取得 WebGPU adapter；已回退 Canvas 参考。");
       const device = await adapter.requestDevice();
-      if (generation !== modeGeneration) { device.destroy(); return snapshot(); }
+      if (generation !== modeGeneration) {
+        device.destroy();
+        return snapshot();
+      }
       replaceCanvas("gpu");
       let batch;
-      try { batch = await create_instances_gpu_$x_(canvas, device, navigator.gpu.getPreferredCanvasFormat()); }
-      catch (error) { device.destroy(); throw error; }
-      if (generation !== modeGeneration) { dispose_instances_gpu_$x_(batch); device.destroy(); return snapshot(); }
+      try {
+        batch = await create_instances_gpu_$x_(canvas, device, navigator.gpu.getPreferredCanvasFormat());
+      } catch (error) {
+        device.destroy();
+        throw error;
+      }
+      if (generation !== modeGeneration) {
+        dispose_instances_gpu_$x_(batch);
+        device.destroy();
+        return snapshot();
+      }
       gpuState = { device, batch, previousVersion: -1, adapter: adapter.info?.architecture ?? "unknown" };
     } catch (error) {
       mode = "instances";
@@ -148,12 +278,33 @@ async function setMode(next) {
   } else replaceCanvas("canvas");
   return show();
 }
-document.querySelectorAll("[data-mode]").forEach(button => button.onclick = () => { void setMode(button.dataset.mode); });
-document.querySelectorAll("[data-time]").forEach(button => button.onclick = () => set({ time: Number(button.dataset.time) }));
+function setPresence(nextPhase) {
+  if (mode !== "presence") throw Error("presence-mode-required");
+  const update =
+    nextPhase === "settle" ? presence_settle(presenceModel, time) : presence_reconcile(presenceModel, nextPhase, time);
+  presenceModel = update.get(tags.model);
+  presenceReleased = to_js_data(update.get(tags.released));
+  if (nextPhase !== "settle") presencePhase = nextPhase;
+  presenceVersion += 1;
+  plan = presence_plan(presenceModel, time, presenceVersion);
+  return show();
+}
+document.querySelectorAll("[data-mode]").forEach(
+  (button) =>
+    (button.onclick = () => {
+      void setMode(button.dataset.mode);
+    }),
+);
+document
+  .querySelectorAll("[data-time]")
+  .forEach((button) => (button.onclick = () => set({ time: Number(button.dataset.time) })));
+document
+  .querySelectorAll("[data-presence]")
+  .forEach((button) => (button.onclick = () => setPresence(button.dataset.presence)));
 document.querySelector("#model").onclick = () => set({ model: model + 1 });
 document.querySelector("#ready").onclick = () => set({ ready: !ready });
 document.querySelector("#viewport").onclick = () => set({ viewport: viewport + 100 });
-window.consumer = { set, snapshot, setMode };
+window.consumer = { set, snapshot, setMode, setPresence };
 if (fullscreen) {
   resizeObserver = new ResizeObserver(show);
   resizeObserver.observe(canvas);

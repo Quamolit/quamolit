@@ -168,6 +168,11 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject 'Number
             :features $ #{} :js-ffi
+        'empty-presence-resource-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-presence-resource-plan () (presence/empty-instance-resource-plan)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/InstanceResourcePlan)
+            :args $ []
         'gpu-reusable? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-reusable? (program plan) (gpu/reusable? program plan)
           :examples $ []
@@ -224,6 +229,78 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
             :args $ [] 'quamolit.retained-component/ComponentPlan
+        'presence-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-document (phase)
+            let
+                blue $ motion/ColorRgba :r 0.18 :g 0.5 :b 0.92 :a 1
+                orange $ motion/ColorRgba :r 0.98 :g 0.42 :b 0.12 :a 1
+                a-content $ scene/SceneContent :rect $ scene/RectNode :x 72 :y 54 :width 72 :height 72 :fill orange
+                b-content $ scene/SceneContent :rect $ scene/RectNode :x 176 :y 54 :width 72 :height 72 :fill blue
+                a $ scene/SceneNode :id |a :parent | :key |a :content a-content :bindings ([]) :interaction $ scene/SceneInteraction :target |open-a
+                b $ scene/SceneNode :id |b :parent | :key |b :content b-content :bindings ([]) :interaction $ scene/SceneInteraction :target |open-b
+              if (= phase |full)
+                scene/SceneDocument :nodes $ [] a b
+                if (= phase |reordered)
+                  scene/SceneDocument :nodes $ [] b a
+                  if (= phase |without-a)
+                    scene/SceneDocument :nodes $ [] b
+                    raise |unknown-consumer-presence-phase
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'String
+        'presence-initial $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-initial ()
+            presence/start-presence $ presence-document |full
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ []
+        'presence-needs-frame? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-needs-frame? (model time) (presence/presence-needs-frame? model time)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.presence/PresenceModel 'Number
+        'presence-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-plan (model time version)
+            retained/build-execution-plan (request time version false 100)
+              fn (props ignored input resources viewport)
+                retained/ExecutionDeclaration :component
+                  presence-component/declare-flat model $ binding/empty-descriptors
+                  , :transforms $ retained/TransformSampler :none
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.presence/PresenceModel 'Number 'Number
+        'presence-reconcile $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-reconcile (model phase time)
+            presence/reconcile-presence model (presence-document phase) time 1 $ motion/Easing :smoothstep
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
+            :args $ [] 'quamolit.presence/PresenceModel 'String 'Number
+        'presence-resource-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-resource-plan (model previous) (presence/instance-resource-plan model previous)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/InstanceResourcePlan)
+            :args $ [] 'quamolit.presence/PresenceModel 'quamolit.presence/InstanceResourcePlan
+        'presence-sample $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-sample (model time) (presence/sample-presence model time)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.presence/PresenceModel 'Number
+            :return $ :: 'List 'quamolit.presence/PresenceSample
+        'presence-settle $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-settle (model time) (presence/settle-presence model time)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
+            :args $ [] 'quamolit.presence/PresenceModel 'Number
+        'presence-update-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-update-plan (previous model time version)
+            retained/update-execution-plan previous (request time version false 100)
+              fn (props ignored input resources viewport)
+                retained/ExecutionDeclaration :component
+                  presence-component/declare-flat model $ binding/empty-descriptors
+                  , :transforms $ retained/TransformSampler :none
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'quamolit.presence/PresenceModel 'Number 'Number
         'register-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn register-instances! (table positions)
             resource/register! table
@@ -232,6 +309,15 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'JsObject)
             :args $ [] 'JsObject 'JsObject
+            :features $ #{} :js-ffi
+        'register-instances-version! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn register-instances-version! (table version positions)
+            resource/register! table
+              :source $ instances-for-version version
+              , positions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'Number 'JsObject
             :features $ #{} :js-ffi
         'release-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-instances! (table version)
@@ -254,6 +340,37 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number 'Number 'Bool 'Number
             :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'Number 'Number 'Bool 'Number
+        'resource-presence-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resource-presence-document (phase version)
+            let
+                color $ motion/ColorRgba :r 0.18 :g 0.5 :b 0.92 :a 1
+                content $ scene/SceneContent :instances $ scene/InstanceNode :source (scene/InstanceSource :id |consumer-particles :version version :count 10000) :width 2 :height 2 :fill color
+                a $ scene/SceneNode :id |resource-a :parent | :key |resource-a :content content :bindings ([]) :interaction $ scene/SceneInteraction :none
+                b $ scene/SceneNode :id |resource-b :parent | :key |resource-b :content content :bindings ([]) :interaction $ scene/SceneInteraction :none
+              if (= phase |full)
+                scene/SceneDocument :nodes $ [] a b
+                if (= phase |reordered)
+                  scene/SceneDocument :nodes $ [] b a
+                  if (= phase |without-a)
+                    scene/SceneDocument :nodes $ [] b
+                    if (= phase |empty)
+                      scene/SceneDocument :nodes $ []
+                      raise |unknown-consumer-resource-phase
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'String 'Number
+        'resource-presence-initial $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resource-presence-initial (version)
+            presence/start-presence $ resource-presence-document |full version
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ [] 'Number
+        'resource-presence-reconcile $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resource-presence-reconcile (model phase time version)
+            presence/reconcile-presence model (resource-presence-document phase version) time 1 $ motion/Easing :smoothstep
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
+            :args $ [] 'quamolit.presence/PresenceModel 'String 'Number 'Number
         'start $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start (time model ready viewport)
             retained/build-execution-plan (request time model ready viewport) declare-execution
@@ -304,4 +421,4 @@
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.main
-          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu)
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding)

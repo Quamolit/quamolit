@@ -9,6 +9,7 @@ import { createServer } from "vite";
 import { chromium } from "@playwright/test";
 import { verifyConsumer } from "./consumer-contract.mjs";
 import { verifyInstancesConsumer } from "./consumer-instances-contract.mjs";
+import { verifyPresenceConsumer } from "./consumer-presence-contract.mjs";
 import { verifyGpuConsumer, verifyDualGpuConsumer } from "./consumer-gpu-contract.mjs";
 import { verifyGpuConsumerBrowser, verifyGpuInstancesConsumerBrowser } from "./consumer-gpu-browser.mjs";
 import { runConsumerBench } from "./consumer-bench.mjs";
@@ -37,6 +38,7 @@ for (const name of [
   "test/consumer-gpu-contract.mjs",
   "test/consumer-gpu-browser.mjs",
   "test/consumer-instances-contract.mjs",
+  "test/consumer-presence-contract.mjs",
   "test/host/gpu-scalar-readback.mjs",
   "test/consumer-bench.mjs",
   "test/consumer-bench-browser.mjs",
@@ -126,6 +128,7 @@ try {
     core = await import(moduleUrl("calcit.core.mjs"));
   const counts = verifyConsumer(app, core);
   const instancesCounts = verifyInstancesConsumer(app, core);
+  const presenceCounts = verifyPresenceConsumer(app, core);
   const gpuCounts = verifyGpuConsumer(app, core);
   const gpuDualCounts = verifyDualGpuConsumer(app, core);
   assert.throws(
@@ -147,6 +150,11 @@ try {
     () => verifyInstancesConsumer({ ...app, draw_instances_$x_: () => ({}) }, core),
     /AssertionError/,
     "反例：伪造实例计数必须失败",
+  );
+  assert.throws(
+    () => verifyPresenceConsumer({ ...app, presence_resource_plan: (_model, previous) => previous }, core),
+    /AssertionError/,
+    "反例：停掉 Presence 资源同步必须失败",
   );
   const errors = [],
     requests = [];
@@ -237,6 +245,47 @@ try {
   await page.screenshot({ path: join(artifacts, "dual-frame-0.5.png"), fullPage: true });
   await page.click('[data-mode="mixed"]');
   assert.equal(await page.evaluate(() => window.consumer.snapshot().scene.nodes[2].content[0]), "polyline");
+  await page.evaluate(async () => {
+    await window.consumer.setMode("presence");
+    window.consumer.set({ time: 0 });
+  });
+  assert.deepEqual(
+    (await page.evaluate(() => window.consumer.setPresence("reordered"))).samples.map((item) => item.entry.node.key),
+    ["b", "a"],
+  );
+  await page.evaluate(() => window.consumer.setPresence("without-a"));
+  const presenceHalf = await page.evaluate(() => window.consumer.set({ time: 0.5 }));
+  const exitingA = presenceHalf.samples.find((item) => item.entry.node.key === "a");
+  assert.equal(exitingA.alpha, 0.5);
+  assert.equal(exitingA.interactive, false);
+  assert.equal(presenceHalf.needsFrame, true);
+  const presencePixel = await page.evaluate(() =>
+    Array.from(document.querySelector("canvas").getContext("2d").getImageData(80, 60, 1, 1).data),
+  );
+  assert.ok(presencePixel[3] >= 127 && presencePixel[3] <= 128, "退出中间帧必须绘制半透明卡片");
+  await page.screenshot({ path: join(artifacts, "presence-exit-0.5.png"), fullPage: true });
+  await page.evaluate(() => window.consumer.setPresence("full"));
+  const reentered = await page.evaluate(() => window.consumer.set({ time: 0.75 }));
+  assert.ok(reentered.samples.find((item) => item.entry.node.key === "a").alpha > 0.5);
+  await page.evaluate(() => {
+    window.consumer.set({ time: 1.5 });
+    window.consumer.setPresence("settle");
+    window.consumer.set({ time: 2 });
+    window.consumer.setPresence("without-a");
+    window.consumer.set({ time: 3 });
+  });
+  const presenceSettled = await page.evaluate(() => window.consumer.setPresence("settle"));
+  assert.deepEqual(
+    presenceSettled.released.map((entry) => entry.node.key),
+    ["a"],
+  );
+  assert.equal(presenceSettled.needsFrame, false);
+  assert.equal(
+    await page.evaluate(() => document.querySelector("canvas").getContext("2d").getImageData(80, 60, 1, 1).data[3]),
+    0,
+    "显式结算后退出卡片必须从画面消失",
+  );
+  await page.screenshot({ path: join(artifacts, "presence-settled.png"), fullPage: true });
   await page.click('[data-mode="instances"]');
   const instancePage = await page.evaluate(() => window.consumer.snapshot());
   assert.equal(instancePage.mode, "instances");
@@ -308,6 +357,7 @@ try {
     modules: [...modules].sort(),
     counts,
     instancesCounts,
+    presenceCounts,
     gpuCounts,
     gpuDualCounts,
     gpuBrowser,
@@ -319,6 +369,7 @@ try {
       "停止 GPU uniform 写入被断言检出",
       "停止双轴 CPU 参考更新被断言检出",
       "伪造实例计数被断言检出",
+      "停止 Presence 资源同步被断言检出",
     ],
     browser: await browser.version(),
     node: process.version,
@@ -328,7 +379,7 @@ try {
     requests,
     limitations: [
       "GPU 硬件结果独立见 gpuBrowser/gpuInstancesBrowser；设备 mock 不是硬件证据",
-      "尚未验证逻辑生命周期集成、device loss 恢复与动态实例端到端性能",
+      "已验证逻辑生命周期与真实实例表释放；尚未验证 device loss 恢复与动态实例端到端性能",
       "模块缓存可复用；消费者目录和运行产物目录独立",
       "尚未验证仅 JS 片段修改后的显式重编译",
     ],
@@ -341,6 +392,7 @@ try {
         candidate,
         counts,
         instancesCounts,
+        presenceCounts,
         gpuCounts,
         gpuBrowser,
         gpuDualBrowser,
