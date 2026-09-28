@@ -30,6 +30,8 @@
     "test:signal-weave": "calcit analyze check-public --ns quamolit.examples.signal-weave && yarn compile:signal-weave && node --test test/signal-weave-smoke.mjs && playwright test --config test/signal-weave.playwright.config.mjs",
     "compile:cohort-pulse": "calcit --emit-path target/js/cohort-pulse/ --init-fn quamolit.examples.cohort-pulse/main! --reload-fn quamolit.examples.cohort-pulse/reload! calcit.cirru js",
     "test:cohort-pulse": "calcit analyze check-public --ns quamolit.examples.cohort-pulse && yarn compile:cohort-pulse && node --test test/cohort-pulse-smoke.mjs && playwright test --config test/cohort-pulse.playwright.config.mjs",
+    "compile:layered-dashboard": "calcit --emit-path target/js/layered-dashboard/ --init-fn quamolit.examples.layered-dashboard/main! --reload-fn quamolit.examples.layered-dashboard/reload! calcit.cirru js",
+    "test:layered-dashboard": "calcit analyze check-public --ns quamolit.canvas-scene --ns quamolit.examples.layered-dashboard && yarn compile:layered-dashboard && playwright test --config test/layered-dashboard.playwright.config.mjs",
     "test:ui-motion": "calcit analyze check-public --ns quamolit.ui-motion --ns quamolit.examples.cohort-pulse --ns quamolit.examples.signal-weave --ns quamolit.examples.tidal-bloom && yarn compile:motion && node --test test/ui-motion-smoke.mjs",
     "compile:solar": "calcit --emit-path target/js/solar/ --init-fn quamolit.examples.solar/main! --reload-fn quamolit.examples.solar/reload! calcit.cirru js",
     "test:solar-demo": "calcit analyze check-public --ns quamolit.examples.solar && calcit test --tag solar --require-match && yarn compile:solar && node --test test/solar-smoke.mjs && playwright test --config test/solar.playwright.config.mjs",

@@ -2127,6 +2127,204 @@
         :doc "|Calcit 编写的基础 Canvas2D 参考绘制；Scene 解释保留在 Quamolit，不在 js-ffi 宿主层。"
         :code $ quote $ ns quamolit.canvas-reference
           :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
+    'quamolit.canvas-scene $ %{} 'FileEntry
+      :defs $ {}
+        'clip-group! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn clip-group! (context clip)
+            match clip
+              (:none) &unit
+              (:rect area)
+                do (context .begin-path!)
+                  context .rect! (:x area) (:y area) (:width area) (:height area)
+                  context .clip!
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/ClipSpec
+            :features $ #{} :js-ffi
+        'composite-layer! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn composite-layer! (context surface opacity)
+            raw-composite-layer! (unsafe-coerce context JsObject) surface opacity
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject 'Number
+            :features $ #{} :js-ffi
+        'draw-children! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-children! (context nodes parent-id transform width height lookup)
+            each nodes $ fn (node)
+              when
+                = parent-id $ :parent node
+                draw-node! context nodes node transform width height lookup
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost (:: 'List 'quamolit.scene-ir/SceneNode) 'String 'quamolit.scene-ir/Matrix2D 'Number 'Number $ :: 'Fn
+              {} (:return 'js-ffi.browser/ImageHost)
+                :args $ [] 'String 'Number
+            :features $ #{} :js-ffi
+        'draw-document! $ %{} 'CodeEntry
+          :doc "|先完整预检，再按 Scene 深度优先层序绘制 group 与基础图元。每个 group 使用独立透明 surface，整体 opacity 只合成一次；调用方负责清屏，width/height 是目标实际像素尺寸。instances 明确拒绝。"
+          :code $ quote $ defn draw-document! (context document width height lookup) (preflight! document width height lookup)
+            draw-children! context (:nodes document) | (identity-matrix) width height lookup
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument 'Number 'Number $ :: 'Fn
+              {} (:return 'js-ffi.browser/ImageHost)
+                :args $ [] 'String 'Number
+            :features $ #{} :js-ffi
+        'draw-leaf! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-leaf! (context content transform lookup) (context .save!) (set-transform! context transform)
+            try
+              match content
+                (:image image)
+                  images/draw-image! context (lookup-image! image lookup) image
+                _ $ canvas/draw-content! context content
+              fn (error) (context .restore!) (raise error)
+            context .restore!
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneContent 'quamolit.scene-ir/Matrix2D $ :: 'Fn
+              {} (:return 'js-ffi.browser/ImageHost)
+                :args $ [] 'String 'Number
+            :features $ #{} :js-ffi
+        'draw-node! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-node! (context nodes node parent-transform width height lookup)
+            match (:content node)
+              (:group group)
+                let
+                    layer $ raw-layer-create! width height
+                    layer-context $ layer-context! layer
+                    transform $ multiply-matrix parent-transform $ :transform group
+                  layer-context .save!
+                  set-transform! layer-context transform
+                  clip-group! layer-context $ :clip group
+                  try
+                    draw-children! layer-context nodes (:id node) transform width height lookup
+                    fn (error) (layer-context .restore!) (raise error)
+                  layer-context .restore!
+                  composite-layer! context layer $ :opacity group
+              (:instances instances) (raise |unsupported-canvas-scene-instances)
+              _ $ draw-leaf! context (:content node) parent-transform lookup
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-ir/SceneNode 'quamolit.scene-ir/Matrix2D 'Number 'Number $ :: 'Fn
+              {} (:return 'js-ffi.browser/ImageHost)
+                :args $ [] 'String 'Number
+            :features $ #{} :js-ffi
+        'identity-matrix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn identity-matrix ()
+            scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ []
+        'layer-context! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn layer-context! (surface)
+            unsafe-coerce (raw-layer-context! surface) js-ffi.canvas-batches/CanvasContextHost
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.canvas-batches/CanvasContextHost)
+            :args $ [] 'JsObject
+            :features $ #{} :js-ffi
+        'lookup-image! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn lookup-image! (image lookup)
+            let
+                source $ :source image
+                host $ lookup (:id source) (:version source)
+              assert |missing-image-resource $ some? host
+              assert |image-size-mismatch $ and
+                = (:width source) (browser/image-natural-width host)
+                = (:height source) (browser/image-natural-height host)
+              , host
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.browser/ImageHost)
+            :args $ [] 'quamolit.scene-ir/ImageNode $ :: 'Fn
+              {} (:return 'js-ffi.browser/ImageHost)
+                :args $ [] 'String 'Number
+            :features $ #{} :js-ffi
+        'multiply-matrix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn multiply-matrix (parent child-matrix)
+            let
+                pa $ :a parent
+                pb $ :b parent
+                pc $ :c parent
+                pd $ :d parent
+                pe $ :e parent
+                pf $ :f parent
+                ca $ :a child-matrix
+                cb $ :b child-matrix
+                cc $ :c child-matrix
+                cd $ :d child-matrix
+                ce $ :e child-matrix
+                cf $ :f child-matrix
+                ma $ + (* pa ca) (* pc cb)
+                mb $ + (* pb ca) (* pd cb)
+                mc $ + (* pa cc) (* pc cd)
+                md $ + (* pb cc) (* pd cd)
+                me $ + (* pa ce) (* pc cf) pe
+                mf $ + (* pb ce) (* pd cf) pf
+              scene/Matrix2D :a ma :b mb :c mc :d md :e me :f mf
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] 'quamolit.scene-ir/Matrix2D 'quamolit.scene-ir/Matrix2D
+        'preflight! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn preflight! (document width height lookup)
+            assert |invalid-canvas-scene-size $ and (motion/finite-number? width) (motion/finite-number? height) (> width 0) (> height 0)
+            assert |invalid-canvas-scene $ scene/validate-scene document
+            each (:nodes document)
+              fn (node)
+                match (:content node)
+                  (:instances instances) (raise |unsupported-canvas-scene-instances)
+                  (:image image)
+                    do (lookup-image! image lookup) &unit
+                  _ &unit
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'Number 'Number $ :: 'Fn
+              {} (:return 'js-ffi.browser/ImageHost)
+                :args $ [] 'String 'Number
+            :features $ #{} :js-ffi
+        'raw-composite-layer! $ %{} 'CodeEntry
+          :doc "|临时浏览器平台绕过：在单位矩阵下以一次 globalAlpha 回贴隔离 surface。js-ffi #147 提供类型化 API 后删除。"
+          :code $ quote $ defn raw-composite-layer! (context surface opacity) (raise |js-only-canvas-layer-composite)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(context,surface,opacity)=>{context.save();try{context.setTransform(1,0,0,1,0,0);context.globalAlpha=opacity;context.drawImage(surface,0,0);}finally{context.restore();}}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'JsObject 'Number
+            :features $ #{} :js-ffi
+        'raw-layer-context! $ %{} 'CodeEntry
+          :doc "|临时浏览器平台绕过：取得隔离 surface 的 2D context。js-ffi #147 提供类型化 API 后删除。"
+          :code $ quote $ defn raw-layer-context! (surface) (raise |js-only-canvas-layer-context)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(surface)=>{const context=surface.getContext(\"2d\");if(context===null)throw new Error(\"canvas-2d-context-unavailable\");return context;}"
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject
+            :features $ #{} :js-ffi
+        'raw-layer-create! $ %{} 'CodeEntry
+          :doc "|临时浏览器平台绕过：创建与目标同尺寸的隔离 Canvas surface。js-ffi #147 提供类型化 API 后删除。"
+          :code $ quote $ defn raw-layer-create! (width height) (raise |js-only-canvas-layer-create)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(width,height)=>{const surface=typeof OffscreenCanvas===\"function\"?new OffscreenCanvas(width,height):document.createElement(\"canvas\");surface.width=width;surface.height=height;return surface;}"
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'Number 'Number
+            :features $ #{} :js-ffi
+        'set-transform! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn set-transform! (context matrix)
+            context .set-transform! (:a matrix) (:b matrix) (:c matrix) (:d matrix) (:e matrix) (:f matrix)
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/Matrix2D
+            :features $ #{} :js-ffi
+      :ns $ %{} 'NsEntry
+        :doc "|Calcit Scene 树的完整 Canvas2D 正确性参考：执行嵌套 transform/rect clip 与真正隔离的组 opacity；浏览器临时 surface 仅由三个最小 inline 原语提供。"
+        :code $ quote $ ns quamolit.canvas-scene
+          :require (quamolit.scene-ir :as scene) (quamolit.canvas-reference :as canvas) (quamolit.canvas-images :as images) (quamolit.motion :as motion) (js-ffi.browser :as browser)
     'quamolit.canvas-strokes $ %{} 'FileEntry
       :defs $ {}
         'RoundPolyline $ %{} 'CodeEntry (:doc |)
@@ -5179,6 +5377,103 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.icons
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.layered-dashboard $ %{} 'FileEntry
+      :defs $ {}
+        'color $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn color (r g b a)
+            motion/ColorRgba :r r :g g :b b :a a
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
+            :args $ [] 'Number 'Number 'Number 'Number
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context time width height)
+            canvas-scene/draw-document! context (scene-at time width height) width height $ fn (id version) (raise |layered-dashboard-has-no-images)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number 'Number 'Number
+            :features $ #{} :js-ffi
+        'group-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn group-node (id parent transform clip opacity)
+            scene/SceneNode :id id :key id :parent parent :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group $ scene/GroupNode :transform transform :clip clip :opacity opacity
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'String 'quamolit.scene-ir/Matrix2D 'quamolit.scene-ir/ClipSpec 'Number
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'matrix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn matrix (scale x y)
+            scene/Matrix2D :a scale :b 0 :c 0 :d scale :e x :f y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] 'Number 'Number 'Number
+        'rect-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rect-node (id parent x y width height fill)
+            scene/SceneNode :id id :key id :parent parent :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :rect $ scene/RectNode :x x :y y :width width :height height :fill fill
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'String 'Number 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (time width height)
+            let
+                p $ if (< time 0) 0 $ if (> time 1) 1 time
+                scale $ + 0.86 $ * 0.14 p
+                reveal $ * 520 p
+                rise $ * 24 $ - 1 p
+                center-x $ * width 0.5
+                center-y $ * height 0.5
+                no-clip $ scene/ClipSpec :none
+                chart-clip $ scene/ClipSpec :rect $ scene/ClipRect :x -260 :y -35 :width reveal :height 235
+              scene/SceneDocument :nodes $ []
+                rect-node |background | 0 0 width height $ color 0.025 0.035 0.07 1
+                group-node |dashboard |
+                  matrix scale center-x $ + center-y rise
+                  , no-clip p
+                rect-node |panel |dashboard -410 -270 820 540 $ color 0.055 0.075 0.13 1
+                rect-node |accent |dashboard -410 -270 820 7 $ color 0.24 0.91 0.75 1
+                text-node |title |dashboard "|LAYERED / SIGNALS" -360 -212 30 $ color 0.9 0.96 1 1
+                text-node |subtitle |dashboard "|ISOLATED GROUP OPACITY · NESTED CLIP" -360 -178 12 $ color 0.48 0.62 0.72 1
+                rect-node |metric-a |dashboard -360 -135 220 94 $ color 0.08 0.16 0.24 1
+                rect-node |metric-b |dashboard -120 -135 220 94 $ color 0.09 0.13 0.23 1
+                rect-node |metric-c |dashboard 120 -135 220 94 $ color 0.17 0.1 0.2 1
+                text-node |metric-a-label |dashboard "|ACTIVE FLOW" -338 -103 11 $ color 0.43 0.77 0.74 1
+                text-node |metric-a-value |dashboard |18.4K -338 -65 28 $ color 0.9 0.96 1 1
+                text-node |metric-b-label |dashboard |CONVERSION -98 -103 11 $ color 0.55 0.68 0.87 1
+                text-node |metric-b-value |dashboard |68.4% -98 -65 28 $ color 0.9 0.96 1 1
+                text-node |metric-c-label |dashboard "|RISK SIGNAL" 142 -103 11 $ color 0.94 0.55 0.69 1
+                text-node |metric-c-value |dashboard |03 142 -65 28 $ color 0.98 0.9 0.96 1
+                group-node |chart |dashboard (matrix 1 0 0) chart-clip 1
+                rect-node |axis |chart -260 188 520 2 $ color 0.2 0.3 0.42 1
+                rect-node |bar-1 |chart -232 102 48 86 $ color 0.25 0.82 0.73 1
+                rect-node |bar-2 |chart -164 58 48 130 $ color 0.3 0.72 0.86 1
+                rect-node |bar-3 |chart -96 84 48 104 $ color 0.41 0.62 0.91 1
+                rect-node |bar-4 |chart -28 18 48 170 $ color 0.53 0.53 0.91 1
+                rect-node |bar-5 |chart 40 45 48 143 $ color 0.69 0.46 0.85 1
+                rect-node |bar-6 |chart 108 -2 48 190 $ color 0.86 0.42 0.72 1
+                rect-node |bar-7 |chart 176 34 48 154 $ color 0.96 0.48 0.56 1
+                group-node |overlap |dashboard (matrix 1 0 0) no-clip 0.55
+                rect-node |overlap-a |overlap 242 -226 84 42 $ color 0.15 0.92 0.76 1
+                rect-node |overlap-b |overlap 276 -210 84 42 $ color 0.95 0.34 0.68 1
+                text-node |footer |dashboard "|CALCIT SCENE / DETERMINISTIC TIME" -360 232 11 $ color 0.42 0.55 0.67 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number 'Number 'Number
+        'text-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn text-node (id parent label x y size fill)
+            scene/SceneNode :id id :key id :parent parent :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+      :ns $ %{} 'NsEntry (:doc "|图表型 UI 动画：以嵌套矩形裁剪展示数据揭示，以隔离组透明度保证重叠图元只整体合成一次。")
+        :code $ quote $ ns quamolit.examples.layered-dashboard
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-scene :as canvas-scene)
     'quamolit.examples.raining $ %{} 'FileEntry
       :defs $ {}
         'build-drops $ %{} 'CodeEntry (:doc |)
