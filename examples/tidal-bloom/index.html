@@ -13,10 +13,14 @@
     <aside id="panel" aria-label="图表流转控制">
       <span class="eyebrow">QUAMOLIT / UI MOTION 01</span>
       <h1>Metric Flow<small>图表流转</small></h1>
-      <p>操作视图按钮可在过渡途中反向切换；卡片退场后卸载，KPI、趋势柱图和渠道分项错峰加入。下方时间轴保留固定帧回放。</p>
+      <p>视图可在过渡途中反向；进入分析后，切换访客与营收系列，12 根趋势柱保持身份并连续改变高度与颜色。下方时间轴保留固定帧回放。</p>
       <div class="buttons view-controls" role="group" aria-label="切换图表视图">
         <button id="view-overview">打开概览</button>
         <button id="view-analytics">打开分析</button>
+      </div>
+      <div class="buttons series-controls" role="group" aria-label="切换图表数据系列">
+        <button id="series-visitors" aria-pressed="true">访客趋势</button>
+        <button id="series-revenue" aria-pressed="false">营收趋势</button>
       </div>
       <div class="buttons">
         <button id="play">播放</button>

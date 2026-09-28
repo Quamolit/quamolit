@@ -16,6 +16,8 @@ p { margin: 10px 0; color: #c1d6da; font-size: 14px; }
 .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
 .view-controls { margin: 14px 0 8px; }
 .view-controls button { border-color: #a5cdb8; background: #24564e; }
+.series-controls { margin: 4px 0 12px; }
+.series-controls button[aria-pressed="true"] { border-color: #edca82; background: #685239; }
 .moments button { font-size: 13px; }
 label { display: grid; gap: 7px; color: #e2e8e2; }
 input { width: 100%; accent-color: #e7c496; }

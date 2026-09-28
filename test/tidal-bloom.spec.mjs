@@ -121,3 +121,30 @@ test("默认进入交互切换；缩减动态效果下静止等待操作", async
   expect(reduced.position).toBe(0);
   expect(reduced.playing).toBe(false);
 });
+
+test("分析图表可切换数据系列、中途反向并分享中间画面", async ({ page }, testInfo) => {
+  await ready(page, 7);
+  await page.locator("#view-analytics").click();
+  await page.locator("#series-revenue").click();
+  const at = (time) => page.evaluate((value) => window.metricFlowDemo.seekInteractive(value), time);
+  const halfway = await at(0.45);
+  expect(halfway.seriesPosition).toBeCloseTo(0.5, 4);
+  expect(halfway.chartBarHeight).toBeCloseTo(109.5, 4);
+  await page.screenshot({ path: testInfo.outputPath("metric-flow-series-middle.png") });
+  await page.locator("#series-visitors").click();
+  const reversed = await page.evaluate(() => window.metricFlowDemo.snapshot());
+  expect(reversed.seriesPosition).toBeCloseTo(halfway.seriesPosition, 4);
+  expect(reversed.seriesEventCount).toBe(2);
+  const settled = await at(1.35);
+  expect(settled.seriesPosition).toBe(0);
+  expect(settled.chartBarHeight).toBe(126);
+  await page.locator("#series-revenue").click();
+  const shared = await at(1.8);
+  await page.locator("#share").click();
+  await expect(page).toHaveURL(/seriesProgress=/);
+  await page.reload();
+  const reloaded = await page.evaluate(() => window.metricFlowDemo.snapshot());
+  expect(reloaded.seriesPosition).toBeCloseTo(shared.seriesPosition, 6);
+  expect(reloaded.chartBarHeight).toBeCloseTo(shared.chartBarHeight, 6);
+  await page.screenshot({ path: testInfo.outputPath("metric-flow-series-shared.png") });
+});

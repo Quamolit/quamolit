@@ -179,6 +179,10 @@ test("Metric Flow 在统一画布内可交互反向切换且离开后卸载时�
   await expect.poll(() => page.evaluate(() => window.metricFlowDemo.snapshot().position)).toBe(0);
   await page.locator("#view-analytics").click();
   await expect.poll(() => page.evaluate(() => window.metricFlowDemo.snapshot().position)).toBeGreaterThan(0);
+  await page.locator("#series-revenue").click();
+  await expect.poll(() => page.evaluate(() => window.metricFlowDemo.snapshot().seriesPosition)).toBeGreaterThan(0);
+  await page.locator("#series-visitors").click();
+  expect((await page.evaluate(() => window.metricFlowDemo.snapshot())).seriesEventCount).toBe(2);
   await page.getByRole("button", { name: /所有演示/ }).click();
   await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
   expect(

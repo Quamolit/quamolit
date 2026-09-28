@@ -4,8 +4,13 @@ import { to_js_data as toJsData } from "../target/js/tidal-bloom/calcit.core.mjs
 import {
   declare_progress as declareProgress,
   initial_model as initialModel,
+  initial_series_model as initialSeriesModel,
+  interactive_scene_with_series_at as interactiveSceneWithSeriesAt,
   interactive_scene_at as interactiveSceneAt,
   scene_at as sceneAt,
+  series_active_$q_ as seriesActive,
+  series_position_at as seriesPositionAt,
+  set_series as setSeries,
   set_view as setView,
   view_active_$q_ as viewActive,
   view_position_at as viewPositionAt,
@@ -15,6 +20,7 @@ const frame = (time) => toJsData(sceneAt(time));
 const node = (scene, id) => scene.nodes.find((entry) => entry.id === id);
 const content = (scene, id) => node(scene, id).content[1];
 const interactiveFrame = (model, time) => toJsData(interactiveSceneAt(model, time));
+const seriesFrame = (view, series, time) => toJsData(interactiveSceneWithSeriesAt(view, series, time));
 
 test("图表 UI 组件进场、退场和真实增删按绝对时间可乱序重放", () => {
   const start = frame(0);
@@ -120,4 +126,42 @@ test("交互视图往返 100 次后仅保留当前屏组件，并可分享中间
   assert.equal(toJsData(model).events.length, 100);
   const shared = initialModel(0.42);
   assert.deepEqual(interactiveFrame(shared, 0), interactiveFrame(shared, 10));
+});
+
+test("图表数据系列在打断与反向时保持柱子身份和高度连续", () => {
+  const view = initialModel(1);
+  const visitors = initialSeriesModel(0);
+  const revenue = setSeries(visitors, 1, 0);
+  assert.equal(content(seriesFrame(view, revenue, 0), "bar-value-0").height, 42);
+  assert.equal(content(seriesFrame(view, revenue, 0.45), "bar-value-0").height, 81.5);
+  assert.equal(content(seriesFrame(view, revenue, 0.9), "bar-value-0").height, 121);
+  const reversing = setSeries(revenue, 0, 0.45);
+  assert.equal(seriesPositionAt(reversing, 0.45), seriesPositionAt(revenue, 0.45));
+  assert.deepEqual(seriesFrame(view, reversing, 0.2), seriesFrame(view, revenue, 0.2));
+  assert.ok(content(seriesFrame(view, reversing, 0.7), "bar-value-0").height < 81.5);
+  assert.equal(content(seriesFrame(view, reversing, 1.35), "bar-value-0").height, 42);
+  assert.equal(seriesActive(reversing, 1.35), false);
+  for (const scene of [
+    seriesFrame(view, revenue, 0),
+    seriesFrame(view, revenue, 0.45),
+    seriesFrame(view, revenue, 0.9),
+  ]) {
+    assert.equal(new Set(scene.nodes.map((entry) => entry.id)).size, scene.nodes.length);
+    assert.equal(scene.nodes.filter((entry) => entry.id.startsWith("bar-value-")).length, 12);
+  }
+  assert.throws(() => setSeries(reversing, 0.3, 1.4));
+  assert.throws(() => setSeries(reversing, 1, 0.2));
+});
+
+test("数据系列反复切换 100 次后可重放，并仅保留有界事件", () => {
+  const view = initialModel(1);
+  let series = initialSeriesModel(0);
+  for (let index = 0; index < 100; index++) {
+    series = setSeries(series, index % 2 === 0 ? 1 : 0, index);
+    const scene = seriesFrame(view, series, index + 0.9);
+    assert.equal(content(scene, "bar-value-0").height, index % 2 === 0 ? 121 : 42);
+  }
+  assert.equal(toJsData(series).events.length, 100);
+  assert.deepEqual(seriesFrame(view, series, 3.5), seriesFrame(view, series, 3.5));
+  assert.deepEqual(seriesFrame(view, initialSeriesModel(0.4), 0), seriesFrame(view, initialSeriesModel(0.4), 9));
 });
