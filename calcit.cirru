@@ -3587,9 +3587,11 @@
         'cell-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn cell-nodes (index day y alpha time acc)
             if (> day 6) acc $ let
-                reveal $ tween-at
-                  + 0.18 (* index 0.045) (* day 0.026)
-                  , 0.32 0 1 time
+                reveal $ ui/stagger-at
+                  ui/smooth-stagger
+                    + 0.18 $ * index 0.045
+                    , 0.026 0.32
+                  , day time
                 value $ heat-value index day
                 cell-alpha $ * alpha reveal
                 id $ str |cell- index |- day
@@ -3722,15 +3724,16 @@
         'row-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn row-nodes (index filter-position time)
             let
-                alpha $ row-alpha index filter-position
                 y $ row-y index filter-position
-                x $ if (risk-row? index) -420 $ - -420 (* filter-position 34)
-                reveal $ tween-at
-                  + 0.12 $ * index 0.065
-                  , 0.3 0 1 time
-                shown $ * alpha reveal
+                reveal $ ui/stagger-at (ui/smooth-stagger 0.12 0.065 0.3) index time
+                exit $ if (risk-row? index) 0 filter-position
+                frame $ ui/presence-frame reveal exit 0 -34
+                shown $ :alpha frame
+                x $ + -420 $ :offset frame
                 tint $ if (risk-row? index) (color 0.95 0.53 0.34 shown) (color 0.28 0.72 0.68 shown)
-              if (<= shown 0) ([])
+              if
+                not $ :mounted frame
+                []
                 concat
                   []
                     rect-node (str |row- index |/card) x y 196 36 $ color 0.08 0.18 0.22 $ * shown 0.94
@@ -3757,11 +3760,7 @@
             let
                 full-y $ + -37 $ * index 45
                 risk-y $ + -28 $ * (risk-rank index) 82
-              if (risk-row? index)
-                +
-                  * full-y $ - 1 filter-position
-                  * risk-y filter-position
-                , full-y
+              if (risk-row? index) (ui/morph-number full-y risk-y filter-position) full-y
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number 'Number
@@ -3857,16 +3856,13 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
         'tween-at $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn tween-at (start duration from to time)
-            motion/sample-tween
-              motion/ScalarTween :start start :duration duration :from from :to to :easing $ motion/Easing :smoothstep
-              , time
+          :code $ quote $ defn tween-at (start duration from to time) (ui/tween-at start duration from to time)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number 'Number 'Number 'Number 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.cohort-pulse
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference) (quamolit.ui-motion :as ui)
     'quamolit.examples.curve $ %{} 'FileEntry
       :defs $ {}
         'build-curve $ %{} 'CodeEntry (:doc |)
@@ -5303,10 +5299,7 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
         'tween-at $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn tween-at (start duration from to time)
-            motion/sample-tween
-              motion/ScalarTween :start start :duration duration :from from :to to :easing $ motion/Easing :smoothstep
-              , time
+          :code $ quote $ defn tween-at (start duration from to time) (ui/tween-at start duration from to time)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number 'Number 'Number 'Number 'Number
@@ -5331,7 +5324,7 @@
             :return $ :: 'List 'quamolit.motion/Vec2
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.signal-weave
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference) (quamolit.ui-motion :as ui)
     'quamolit.examples.solar $ %{} 'FileEntry
       :defs $ {}
         'build-circle $ %{} 'CodeEntry (:doc |)
@@ -6131,10 +6124,7 @@
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'Number 'Number
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'tween-at $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn tween-at (start duration from to time)
-            motion/sample-tween
-              motion/ScalarTween :start start :duration duration :from from :to to :easing $ motion/Easing :smoothstep
-              , time
+          :code $ quote $ defn tween-at (start duration from to time) (ui/tween-at start duration from to time)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number 'Number 'Number 'Number 'Number
@@ -6159,7 +6149,7 @@
             :args $ [] 'quamolit.examples.tidal-bloom/MetricFlowModel 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.tidal-bloom
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference) (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.transition :as transition)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference) (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.transition :as transition) (quamolit.ui-motion :as ui)
     'quamolit.examples.todolist $ %{} 'FileEntry
       :defs $ {}
         'Event $ %{} 'CodeEntry (:doc |)
@@ -14488,6 +14478,93 @@
           :schema $ :: 'StructDef
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.types
+    'quamolit.ui-motion $ %{} 'FileEntry
+      :defs $ {}
+        'PresenceFrame $ %{} 'CodeEntry (:doc "|进入与退出合成后的展示帧；mounted 为 false 时调用方应从 Scene 移除节点。")
+          :code $ quote $ defstruct PresenceFrame (:alpha 'Number) (:offset 'Number) (:mounted 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'StaggerSpec $ %{} 'CodeEntry (:doc "|描述一组按稳定索引错峰进入的绝对时间参数。")
+          :code $ quote $ defstruct StaggerSpec (:start 'Number) (:gap 'Number) (:duration 'Number) (:easing 'quamolit.motion/Easing)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'crossfade-in $ %{} 'CodeEntry (:doc "|返回新界面的交叉渐入 alpha。")
+          :code $ quote $ defn crossfade-in (position) (morph-number 0 1 position)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'crossfade-out $ %{} 'CodeEntry (:doc "|返回旧界面的交叉渐出 alpha。")
+          :code $ quote $ defn crossfade-out (position) (morph-number 1 0 position)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'make-stagger $ %{} 'CodeEntry (:doc "|构造错峰参数并拒绝负起点、负间隔或非正时长。")
+          :code $ quote $ defn make-stagger (start gap duration easing)
+            assert |invalid-stagger-start $ and (motion/finite-number? start) (>= start 0)
+            assert |invalid-stagger-gap $ and (motion/finite-number? gap) (>= gap 0)
+            assert |invalid-stagger-duration $ and (motion/finite-number? duration) (> duration 0)
+            StaggerSpec :start start :gap gap :duration duration :easing easing
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.ui-motion/StaggerSpec)
+            :args $ [] 'Number 'Number 'Number 'quamolit.motion/Easing
+        'morph-integer $ %{} 'CodeEntry (:doc "|插值后向下取整，适合计数器和不允许小数的 KPI。")
+          :code $ quote $ defn morph-integer (from to position)
+            floor $ morph-number from to position
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number
+        'morph-number $ %{} 'CodeEntry (:doc "|按归一化位置插值图表数值，不依赖帧历史。")
+          :code $ quote $ defn morph-number (from to position)
+            assert |invalid-morph-from $ motion/finite-number? from
+            assert |invalid-morph-to $ motion/finite-number? to
+            assert |invalid-morph-position $ and (motion/finite-number? position) (>= position 0) (<= position 1)
+            +
+              * from $ - 1 position
+              * to position
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number
+        'presence-frame $ %{} 'CodeEntry (:doc "|把进入和退出进度合成为 alpha、位移与卸载信号；稳定 key 仍由组件负责。")
+          :code $ quote $ defn presence-frame (enter exit enter-distance exit-distance)
+            let
+                alpha $ * (crossfade-in enter) (crossfade-out exit)
+                offset $ +
+                  * (crossfade-out enter) enter-distance
+                  * exit exit-distance
+              PresenceFrame :alpha alpha :offset offset :mounted $ > alpha 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.ui-motion/PresenceFrame)
+            :args $ [] 'Number 'Number 'Number 'Number
+        'smooth-stagger $ %{} 'CodeEntry (:doc "|以 smoothstep 构造 UI 常用的错峰进入参数。")
+          :code $ quote $ defn smooth-stagger (start gap duration)
+            make-stagger start gap duration $ motion/Easing :smoothstep
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.ui-motion/StaggerSpec)
+            :args $ [] 'Number 'Number 'Number
+        'stagger-at $ %{} 'CodeEntry (:doc "|按稳定索引计算 0..1 的错峰进度；允许乱序、倒放与固定时间截图。")
+          :code $ quote $ defn stagger-at (spec index time)
+            assert |invalid-stagger-index $ and (motion/finite-number? index) (>= index 0)
+            motion/sample-tween
+              motion/ScalarTween :start
+                + (:start spec)
+                  * (:gap spec) index
+                , :duration (:duration spec) :from 0 :to 1 :easing $ :easing spec
+              , time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.ui-motion/StaggerSpec 'Number 'Number
+        'tween-at $ %{} 'CodeEntry
+          :doc "|使用 smoothstep 在绝对时间直接采样标量，是旧 demo tween-at 的公共替代。"
+          :code $ quote $ defn tween-at (start duration from to time)
+            motion/sample-tween
+              motion/ScalarTween :start start :duration duration :from from :to to :easing $ motion/Easing :smoothstep
+              , time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number
+      :ns $ %{} 'NsEntry (:doc "|面向图表和交互 UI 的可直接采样动画构件；不保存宿主状态，也不负责绘制。")
+        :code $ quote $ ns quamolit.ui-motion
+          :require $ quamolit.motion :as motion
     'quamolit.util.detect $ %{} 'FileEntry
       :defs $ {}
         '=seq $ %{} 'CodeEntry (:doc |)

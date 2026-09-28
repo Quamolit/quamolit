@@ -20,6 +20,8 @@
 
 `yarn test:cohort-pulse` 检查[留存热力图作品](cohort-pulse.md)：Calcit 筛选模型驱动 6 个群组和 42 个热力单元的错峰进入、退出与重排，终点卸载安全行；独立面板模型在摘要和事件详情间交叉渐变。Node 检查稳定 key、打断、乱序重放、事件前缀分支及 100 次往返，Chromium 检查分享视觉位置、固定画面、DPR 2、浮层收起和终点停帧。它仍使用 Canvas2D 参考路径，不证明 WebGPU 或新的性能目标。
 
+`yarn test:ui-motion` 检查[图表 UI 动画构件](ui-motion-components.md)：严格检查公共 API 及三个实际消费者，再以独立手算值验证稳定索引错峰、数值渐变、交叉淡化、进入／退出合成、卸载端点与非法输入。它只证明纯 Calcit 采样语义；三个作品的固定帧画面仍由各自命令验证，不证明 GPU lowering 或宿主资源释放。
+
 `yarn test:raining-demo` 检查 [Raining 恢复](raining-restoration.md)的严格类型、Calcit→JS 编译、Node 固定 seed/tick 乱序重放及 48 节点上界、Chromium 全屏中间帧/水花截图与 DPR 2 暂停 resize。它是解析式固定 tick 采样和 Canvas2D 参考，不证明 GPU 历史模拟或吞吐。
 
 `yarn test:finder-demo` 检查 [Finder 恢复](finder-restoration.md)的严格类型、Calcit 点击日志/Scene/命中、Node 打断连续性和非法切换、Chromium 实际画布点击、固定时间截图、分享像素重放与 DPR 2 暂停 resize。它不证明 #34 通用命中/指针捕获或 WebGPU 绘制。
