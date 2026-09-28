@@ -15663,6 +15663,31 @@
             quamolit.scene-binding :as binding
     'quamolit.test.scene-hit-fixture $ %{} 'FileEntry
       :defs $ {}
+        'decoration-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn decoration-nodes (amount)
+            loop
+                index 0
+                nodes $ []
+              if (= index amount) nodes $ let
+                  id $ str |decoration- index
+                  color $ motion/ColorRgba :r 0.2 :g 0.3 :b 0.4 :a 1
+                  content $ scene/SceneContent :rect $ scene/RectNode :x (* index 2) :y 200 :width 1 :height 1 :fill color
+                  node $ scene/SceneNode :id id :parent | :key id :bindings ([]) :interaction (scene/SceneInteraction :none) :content content
+                recur (inc index) (append nodes node)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'large-decoration-scene $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn large-decoration-scene (amount)
+            let
+                color $ motion/ColorRgba :r 0.3 :g 0.6 :b 0.9 :a 1
+                content $ scene/SceneContent :rect $ scene/RectNode :x 0 :y 0 :width 20 :height 20 :fill color
+                target $ scene/SceneNode :id |only-target :parent | :key |only-target :bindings ([]) :interaction (scene/SceneInteraction :target |tap) :content content
+              scene/SceneDocument :nodes $ append (decoration-nodes amount) target
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
         'pointer-input $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn pointer-input (pointer-id phase x y)
             pointer/PointerInput :pointer-id pointer-id :phase phase :x x :y y
@@ -15778,6 +15803,18 @@
                 hit/hit-test (singular-scene) 20 20
                 (:miss visited) (is= 1 visited)
                 (:hit _) (is= |miss |hit)
+              :tags $ #{} :scene-hit
+            %{} 'TestEntry (:name |large-decoration-list-keeps-hot-path-bounded)
+              :code $ quote $ let
+                  plan $ hit/compile-hit-plan $ large-decoration-scene 1000
+                  outcome $ hit/hit-test-plan plan 10 10
+                is= 1 $ hit/candidate-count plan
+                match outcome
+                  (:miss visited) (is= |hit |miss)
+                  (:hit result)
+                    do
+                      is= |tap $ :target result
+                      is= 1 $ :visited result
               :tags $ #{} :scene-hit
         'verify-pointer-routing $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn verify-pointer-routing () true
