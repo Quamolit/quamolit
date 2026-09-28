@@ -107,6 +107,12 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check pure Scene pointer routing
+        if: inputs.mutation != 'color'
+        run: yarn test:scene-pointer
+        env:
+          CI: "true"
+
       - name: Check versioned instance data boundary
         if: inputs.mutation != 'color'
         run: yarn test:instance-sources

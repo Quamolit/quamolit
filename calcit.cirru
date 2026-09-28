@@ -13968,6 +13968,230 @@
           :require
             quamolit.motion :refer $ finite-number? ColorRgba finite-vec2?
             calcit.test :refer $ is= is-throws
+    'quamolit.scene-pointer $ %{} 'FileEntry
+      :defs $ {}
+        'EventTarget $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct EventTarget (:target 'String) (:node-id 'String)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PointerCapture $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum PointerCapture (:none) (:captured 'Number 'String 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'PointerDispatch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum PointerDispatch (:none) (:routed 'quamolit.scene-pointer/PointerRoute)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'PointerInput $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PointerInput (:pointer-id 'Number) (:phase 'quamolit.scene-pointer/PointerPhase) (:x 'Number) (:y 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PointerPhase $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum PointerPhase (:down) (:move) (:up) (:cancel)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'PointerReconcile $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PointerReconcile (:state 'quamolit.scene-pointer/PointerState) (:capture-released 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PointerRoute $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PointerRoute (:pointer-id 'Number) (:phase 'quamolit.scene-pointer/PointerPhase) (:x 'Number) (:y 'Number) (:captured 'Bool) (:source-node 'String)
+            :targets $ :: 'List 'quamolit.scene-pointer/EventTarget
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PointerState $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PointerState (:capture 'quamolit.scene-pointer/PointerCapture) (:hover-target 'String) (:hover-node 'String)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PointerUpdate $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PointerUpdate (:state 'quamolit.scene-pointer/PointerState) (:dispatch 'quamolit.scene-pointer/PointerDispatch) (:capture-released 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'capture-dispatch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn capture-dispatch (state dispatch)
+            match dispatch
+              (:none) state
+              (:routed route)
+                capture-target state route $ :target $ -> (:targets route) (first) (.unwrap)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerState)
+            :args $ [] 'quamolit.scene-pointer/PointerState 'quamolit.scene-pointer/PointerDispatch
+        'capture-target $ %{} 'CodeEntry
+          :doc "|仅允许捕获最近一次 PointerRoute 目标链中的逻辑 target，同时保留原 source 节点用于画布外继续路由。"
+          :code $ quote $ defn capture-target (state route target)
+            do
+              assert |missing-pointer-route-target $ target-chain-has? (:targets route) target
+              struct-with state $ :capture $ PointerCapture :captured (:pointer-id route) target (:source-node route)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerState)
+            :args $ [] 'quamolit.scene-pointer/PointerState 'quamolit.scene-pointer/PointerRoute 'String
+        'capture-valid? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn capture-valid? (plan target node-id)
+            match
+              find-node (:nodes plan) node-id
+              (:none) false
+              (:some node)
+                target-chain-has?
+                  target-chain (:nodes plan) node
+                  , target
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-hit/HitPlan 'String 'String
+        'empty-targets $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-targets () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-pointer/EventTarget
+        'find-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn find-node (nodes node-id)
+            if (empty? nodes) (%none)
+              let
+                  node $ scene/first-node nodes
+                if
+                  = node-id $ :id node
+                  %some node
+                  recur (rest nodes) node-id
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'String
+            :return $ :: 'Option 'quamolit.scene-ir/SceneNode
+        'hit-dispatch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-dispatch (plan input)
+            match
+              hit/hit-test-plan plan (:x input) (:y input)
+              (:miss _) (PointerDispatch :none)
+              (:hit result)
+                route-node (:nodes plan)
+                  scene/node-for-id (:nodes plan) (:node-id result)
+                  , input false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerDispatch)
+            :args $ [] 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerInput
+        'initial-pointer-state $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-pointer-state ()
+            PointerState :capture (PointerCapture :none) :hover-target | :hover-node |
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerState)
+            :args $ []
+        'reconcile-pointer-state $ %{} 'CodeEntry
+          :doc "|在 Scene 提交后校验捕获的 source 与 target；节点卸载或目标链变化时清空捕获并仅报告一次释放。"
+          :code $ quote $ defn reconcile-pointer-state (plan state)
+            match (:capture state)
+              (:none) (PointerReconcile :state state :capture-released false)
+              (:captured pointer-id target node-id)
+                if (capture-valid? plan target node-id) (PointerReconcile :state state :capture-released false)
+                  PointerReconcile :state
+                    struct-with state $ :capture $ PointerCapture :none
+                    , :capture-released true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
+            :args $ [] 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState
+        'release-phase? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-phase? (phase)
+            or
+              = phase $ PointerPhase :up
+              = phase $ PointerPhase :cancel
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-pointer/PointerPhase
+        'route-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn route-node (nodes node input captured?)
+            let
+                targets $ target-chain nodes node
+                pointer-id $ :pointer-id input
+                phase $ :phase input
+                x $ :x input
+                y $ :y input
+                source-node $ :id node
+              if (empty? targets) (PointerDispatch :none)
+                PointerDispatch :routed $ PointerRoute :pointer-id pointer-id :phase phase :x x :y y :captured captured? :source-node source-node :targets targets
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerDispatch)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-ir/SceneNode 'quamolit.scene-pointer/PointerInput 'Bool
+        'route-pointer $ %{} 'CodeEntry
+          :doc "|以新 HitPlan 协调旧捕获后路由一个归一化指针输入；返回纯状态、逻辑投递及恰好一次的捕获释放信号。"
+          :code $ quote $ defn route-pointer (plan state input)
+            do
+              assert |invalid-pointer-id $ >= (:pointer-id input) 0
+              let
+                  reconciled $ reconcile-pointer-state plan state
+                  current $ :state reconciled
+                  released-before? $ :capture-released reconciled
+                match (:capture current)
+                  (:none) (route-uncaptured plan current input released-before?)
+                  (:captured pointer-id target node-id)
+                    if
+                      not $ = pointer-id $ :pointer-id input
+                      route-uncaptured plan current input released-before?
+                      let
+                          node $ scene/node-for-id (:nodes plan) node-id
+                          dispatch $ route-node (:nodes plan) node input true
+                          should-release? $ release-phase? $ :phase input
+                          next-state $ if should-release?
+                            struct-with (state-with-hover current dispatch)
+                              :capture $ PointerCapture :none
+                            state-with-hover current dispatch
+                        PointerUpdate :state next-state :dispatch dispatch :capture-released $ or released-before? should-release?
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerUpdate)
+            :args $ [] 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState 'quamolit.scene-pointer/PointerInput
+        'route-uncaptured $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn route-uncaptured (plan state input released?)
+            match (:phase input)
+              (:cancel)
+                PointerUpdate :state
+                  state-with-hover state $ PointerDispatch :none
+                  , :dispatch (PointerDispatch :none) :capture-released released?
+              _ $ let
+                  dispatch $ hit-dispatch plan input
+                PointerUpdate :state (state-with-hover state dispatch) :dispatch dispatch :capture-released released?
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerUpdate)
+            :args $ [] 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState 'quamolit.scene-pointer/PointerInput 'Bool
+        'state-with-hover $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn state-with-hover (state dispatch)
+            match dispatch
+              (:none)
+                struct-with
+                  struct-with state $ :hover-target |
+                  :hover-node |
+              (:routed route)
+                let
+                    first-target $ -> (:targets route) (first) (.unwrap)
+                  struct-with
+                    struct-with state $ :hover-target $ :target first-target
+                    :hover-node $ :source-node route
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerState)
+            :args $ [] 'quamolit.scene-pointer/PointerState 'quamolit.scene-pointer/PointerDispatch
+        'target-chain $ %{} 'CodeEntry (:doc "|从命中叶节点向根收集显式事件 target，保持由内向外的逻辑冒泡顺序。")
+          :code $ quote $ defn target-chain (nodes node)
+            let
+                parent-targets $ if
+                  empty? $ :parent node
+                  empty-targets
+                  target-chain nodes $ scene/node-for-id nodes $ :parent node
+              match (:interaction node)
+                (:none) parent-targets
+                (:target target)
+                  prepend parent-targets $ EventTarget :target target :node-id $ :id node
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-ir/SceneNode
+            :return $ :: 'List 'quamolit.scene-pointer/EventTarget
+        'target-chain-has? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn target-chain-has? (targets target)
+            if (empty? targets) false $ if
+              = target $ :target $ -> (first targets) (.unwrap)
+              , true $ recur (rest targets) target
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.scene-pointer/EventTarget) 'String
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.scene-pointer
+          :require (quamolit.scene-ir :as scene) (quamolit.scene-hit :as hit)
+            calcit.test :refer $ is=
     'quamolit.test.component-fixture $ %{} 'FileEntry
       :defs $ {}
         'declare-badge $ %{} 'CodeEntry (:doc |)
@@ -15316,6 +15540,12 @@
             quamolit.scene-binding :as binding
     'quamolit.test.scene-hit-fixture $ %{} 'FileEntry
       :defs $ {}
+        'pointer-input $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn pointer-input (pointer-id phase x y)
+            pointer/PointerInput :pointer-id pointer-id :phase phase :x x :y y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerInput)
+            :args $ [] 'Number 'quamolit.scene-pointer/PointerPhase 'Number 'Number
         'rotated-scene $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn rotated-scene ()
             let
@@ -15330,6 +15560,61 @@
                 front-rect $ scene/RectNode :x 20 :y 20 :width 60 :height 60 :fill color
                 front $ scene/SceneNode :id |front :parent |root :key |front :bindings ([]) :interaction (scene/SceneInteraction :target |front-action) :content $ scene/SceneContent :rect front-rect
               scene/SceneDocument :nodes $ [] root back front
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ []
+        'routing-scene $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn routing-scene ()
+            let
+                color $ motion/ColorRgba :r 0.3 :g 0.6 :b 0.9 :a 1
+                transform $ hit/identity-matrix
+                group-content $ scene/SceneContent :group $ scene/GroupNode :transform transform :clip (scene/ClipSpec :none) :opacity 1
+                root $ scene/SceneNode :id |root :parent | :key |root :bindings ([]) :interaction (scene/SceneInteraction :target |panel) :content group-content
+                a-content $ scene/SceneContent :rect $ scene/RectNode :x 0 :y 0 :width 80 :height 80 :fill color
+                a $ scene/SceneNode :id |a :parent |root :key |a :bindings ([]) :interaction (scene/SceneInteraction :target |a-action) :content a-content
+                b-content $ scene/SceneContent :rect $ scene/RectNode :x 100 :y 0 :width 80 :height 80 :fill color
+                b $ scene/SceneNode :id |b :parent |root :key |b :bindings ([]) :interaction (scene/SceneInteraction :target |b-action) :content b-content
+              scene/SceneDocument :nodes $ [] root a b
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ []
+        'routing-scene-exiting-a $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn routing-scene-exiting-a ()
+            let
+                color $ motion/ColorRgba :r 0.3 :g 0.6 :b 0.9 :a 1
+                transform $ hit/identity-matrix
+                group-content $ scene/SceneContent :group $ scene/GroupNode :transform transform :clip (scene/ClipSpec :none) :opacity 0.5
+                root $ scene/SceneNode :id |root :parent | :key |root :bindings ([]) :interaction (scene/SceneInteraction :none) :content group-content
+                a-content $ scene/SceneContent :rect $ scene/RectNode :x 0 :y 0 :width 80 :height 80 :fill color
+                a $ scene/SceneNode :id |a :parent |root :key |a :bindings ([]) :interaction (scene/SceneInteraction :none) :content a-content
+                b-content $ scene/SceneContent :rect $ scene/RectNode :x 100 :y 0 :width 80 :height 80 :fill color
+                b $ scene/SceneNode :id |b :parent |root :key |b :bindings ([]) :interaction (scene/SceneInteraction :target |b-action) :content b-content
+              scene/SceneDocument :nodes $ [] root a b
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ []
+        'routing-scene-without-a $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn routing-scene-without-a ()
+            let
+                color $ motion/ColorRgba :r 0.3 :g 0.6 :b 0.9 :a 1
+                transform $ hit/identity-matrix
+                group-content $ scene/SceneContent :group $ scene/GroupNode :transform transform :clip (scene/ClipSpec :none) :opacity 1
+                root $ scene/SceneNode :id |root :parent | :key |root :bindings ([]) :interaction (scene/SceneInteraction :target |panel) :content group-content
+                b-content $ scene/SceneContent :rect $ scene/RectNode :x 100 :y 0 :width 80 :height 80 :fill color
+                b $ scene/SceneNode :id |b :parent |root :key |b :bindings ([]) :interaction (scene/SceneInteraction :target |b-action) :content b-content
+              scene/SceneDocument :nodes $ [] root b
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ []
+        'routing-scene-without-panel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn routing-scene-without-panel ()
+            let
+                color $ motion/ColorRgba :r 0.3 :g 0.6 :b 0.9 :a 1
+                a-content $ scene/SceneContent :rect $ scene/RectNode :x 0 :y 0 :width 80 :height 80 :fill color
+                a $ scene/SceneNode :id |a :parent | :key |a :bindings ([]) :interaction (scene/SceneInteraction :target |a-action) :content a-content
+                b-content $ scene/SceneContent :rect $ scene/RectNode :x 100 :y 0 :width 80 :height 80 :fill color
+                b $ scene/SceneNode :id |b :parent | :key |b :bindings ([]) :interaction (scene/SceneInteraction :target |b-action) :content b-content
+              scene/SceneDocument :nodes $ [] a b
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ []
@@ -15371,10 +15656,108 @@
                 (:miss visited) (is= 1 visited)
                 (:hit _) (is= |miss |hit)
               :tags $ #{} :scene-hit
+        'verify-pointer-routing $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn verify-pointer-routing () true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ []
+          :tests $ []
+            %{} 'TestEntry (:name |bubble-capture-outside-release)
+              :code $ quote $ let
+                  plan $ hit/compile-hit-plan $ routing-scene
+                  initial $ pointer/initial-pointer-state
+                  down $ pointer/route-pointer plan initial $ pointer-input 7 (pointer/PointerPhase :down) 20 20
+                match (:dispatch down)
+                  (:none) (is= |routed |none)
+                  (:routed route)
+                    let
+                        first-target $ -> (:targets route) (first) (.unwrap)
+                        second-target $ -> (:targets route) (rest) (first) (.unwrap)
+                        captured $ pointer/capture-target (:state down) route |panel
+                        moved $ pointer/route-pointer plan captured $ pointer-input 7 (pointer/PointerPhase :move) 300 300
+                        ended $ pointer/route-pointer plan (:state moved)
+                          pointer-input 7 (pointer/PointerPhase :up) 320 320
+                      is= |a-action $ :target first-target
+                      is= |panel $ :target second-target
+                      match (:dispatch moved)
+                        (:routed moved-route)
+                          do
+                            is= true $ :captured moved-route
+                            is= |a $ :source-node moved-route
+                        (:none) (is= |routed |none)
+                      is= true $ :capture-released ended
+                      is= (pointer/PointerCapture :none)
+                        :capture $ :state ended
+              :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |removed-node-releases-once)
+              :code $ quote $ let
+                  plan $ hit/compile-hit-plan $ routing-scene
+                  next-plan $ hit/compile-hit-plan $ routing-scene-without-a
+                  down $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 3 (pointer/PointerPhase :down) 20 20
+                  captured $ pointer/capture-dispatch (:state down) (:dispatch down)
+                  removed $ pointer/reconcile-pointer-state next-plan captured
+                  again $ pointer/reconcile-pointer-state next-plan $ :state removed
+                is= true $ :capture-released removed
+                is= false $ :capture-released again
+                is= (pointer/PointerCapture :none)
+                  :capture $ :state removed
+              :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |rapid-target-switch-and-cancel)
+              :code $ quote $ let
+                  plan $ hit/compile-hit-plan $ routing-scene
+                  initial $ pointer/initial-pointer-state
+                  over-a $ pointer/route-pointer plan initial $ pointer-input 11 (pointer/PointerPhase :move) 20 20
+                  over-b $ pointer/route-pointer plan (:state over-a)
+                    pointer-input 11 (pointer/PointerPhase :move) 120 20
+                  outside $ pointer/route-pointer plan (:state over-b)
+                    pointer-input 11 (pointer/PointerPhase :move) 300 300
+                  down $ pointer/route-pointer plan initial $ pointer-input 11 (pointer/PointerPhase :down) 20 20
+                  captured $ pointer/capture-dispatch (:state down) (:dispatch down)
+                  cancelled $ pointer/route-pointer plan captured $ pointer-input 11 (pointer/PointerPhase :cancel) 300 300
+                is= |a-action $ :hover-target $ :state over-a
+                is= |b-action $ :hover-target $ :state over-b
+                is= | $ :hover-target $ :state outside
+                is= true $ :capture-released cancelled
+                match (:dispatch cancelled)
+                  (:routed route)
+                    is= true $ :captured route
+                  (:none) (is= |routed |none)
+              :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |parent-unload-releases-capture)
+              :code $ quote $ let
+                  plan $ hit/compile-hit-plan $ routing-scene
+                  next-plan $ hit/compile-hit-plan $ routing-scene-without-panel
+                  down $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 5 (pointer/PointerPhase :down) 20 20
+                match (:dispatch down)
+                  (:none) (is= |routed |none)
+                  (:routed route)
+                    let
+                        captured $ pointer/capture-target (:state down) route |panel
+                        reconciled $ pointer/reconcile-pointer-state next-plan captured
+                      is= true $ :capture-released reconciled
+                      is= (pointer/PointerCapture :none)
+                        :capture $ :state reconciled
+              :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |exit-disables-before-visual-removal)
+              :code $ quote $ let
+                  plan $ hit/compile-hit-plan $ routing-scene
+                  exit-plan $ hit/compile-hit-plan $ routing-scene-exiting-a
+                  down $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 9 (pointer/PointerPhase :down) 20 20
+                  captured $ pointer/capture-dispatch (:state down) (:dispatch down)
+                  reconciled $ pointer/reconcile-pointer-state exit-plan captured
+                  after-exit $ pointer/route-pointer exit-plan (:state reconciled)
+                    pointer-input 9 (pointer/PointerPhase :move) 20 20
+                is= true $ :capture-released reconciled
+                is= (pointer/PointerDispatch :none) (:dispatch after-exit)
+              :tags $ #{} :scene-pointer
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.scene-hit-fixture
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.scene-hit :as hit)
             calcit.test :refer $ is=
+            quamolit.scene-pointer :as pointer
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")

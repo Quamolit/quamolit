@@ -66,6 +66,7 @@
     "test:fade-migration": "calcit analyze check-public --ns quamolit.test.fade-migration-fixture && calcit test --tag fade-migration --require-match && yarn compile:fade && node --test test/fade-migration-smoke.mjs",
     "test:scene-core": "calcit analyze check-public --ns quamolit.scene-ir --ns quamolit.canvas-reference --ns quamolit.test.motion-fixture && calcit test --tag scene --require-match && yarn compile:motion && node --test test/scene-core-smoke.mjs",
     "test:scene-hit": "calcit analyze check-public --ns quamolit.scene-hit --ns quamolit.test.scene-hit-fixture && calcit test --tag scene-hit --require-match",
+    "test:scene-pointer": "calcit analyze check-public --ns quamolit.scene-hit --ns quamolit.scene-pointer --ns quamolit.test.scene-hit-fixture && calcit test --tag scene-pointer --require-match",
     "test:instance-sources": "calcit analyze check-public --ns quamolit.instance-ffi && yarn compile:motion && node --test test/instance-sources-smoke.mjs",
     "test:canvas-batches": "calcit analyze check-public --ns quamolit.instance-ffi && yarn compile:motion && node --test test/canvas-instance-batches-smoke.mjs",
     "test:canvas-instances-reference": "calcit analyze check-public --ns quamolit.canvas-reference && yarn compile:motion && node --test test/canvas-instances-reference-smoke.mjs",
