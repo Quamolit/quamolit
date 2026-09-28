@@ -76,6 +76,7 @@ body[data-demo="tidal-bloom"] #demo-content #panel { left: 24px; right: auto; to
 body[data-demo="tidal-bloom"] #demo-content #panel-toggle { top: 64px; }
 body[data-demo="tidal-bloom"] #demo-content h1 small { display: block; margin-top: 4px; }
 body[data-demo="tidal-bloom"] #demo-content .eyebrow { color: #93d6ca; }
+body[data-demo="tidal-bloom"] #demo-content .view-controls button { border-color: #a5cdb8; background: #24564e; }
 body[data-demo="tidal-bloom"] #demo-content input { accent-color: #72d5c2; }
 @media(max-width:600px) {
   #gallery-view header, #gallery-view .gallery-content { padding: 20px; }
