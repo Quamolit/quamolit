@@ -5,16 +5,37 @@ async function ready(page, time = 1) {
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
 }
 
+async function captureStage(page, testInfo, name) {
+  await page.screenshot({ path: testInfo.outputPath(`solar-${name}-overlay.png`) });
+  await page.locator("#panel-toggle").click();
+  await expect(page.locator("#panel")).toBeHidden();
+  await page
+    .locator("nav, #panel-toggle")
+    .evaluateAll((nodes) => nodes.forEach((node) => (node.style.visibility = "hidden")));
+  await page.screenshot({ path: testInfo.outputPath(`solar-${name}-canvas.png`) });
+  await page
+    .locator("nav, #panel-toggle")
+    .evaluateAll((nodes) => nodes.forEach((node) => (node.style.visibility = "")));
+  await page.locator("#panel-toggle").click();
+  await expect(page.locator("#panel")).toBeVisible();
+}
+
 test("递归轨道：固定时间截图、旋转与乱序重复采样", async ({ page }, testInfo) => {
   await ready(page);
   const at = (t) => page.evaluate((x) => window.solarDemo.seek(x), t);
   const first = await at(0);
   expect(first.nodeCount).toBe(10);
-  await page.screenshot({ path: testInfo.outputPath("solar-0.png") });
+  expect(first.scene.nodes.every((node) => node.content[0] === "circle")).toBe(true);
+  await captureStage(page, testInfo, "initial");
   const later = await at(3);
   expect(later.nodeCount).toBe(10);
-  expect(later.scene.nodes[1].content[1].points).not.toEqual(first.scene.nodes[1].content[1].points);
-  await page.screenshot({ path: testInfo.outputPath("solar-3.png") });
+  expect([later.scene.nodes[1].content[1].cx, later.scene.nodes[1].content[1].cy]).not.toEqual([
+    first.scene.nodes[1].content[1].cx,
+    first.scene.nodes[1].content[1].cy,
+  ]);
+  await captureStage(page, testInfo, "middle");
+  await at(10);
+  await captureStage(page, testInfo, "end");
   await at(0);
   expect((await at(3)).scene).toEqual(later.scene);
 });

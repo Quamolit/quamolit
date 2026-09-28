@@ -18,7 +18,7 @@
     <label>时间（秒） <input id="time" type="range" min="0" max="120" step="0.01" value="0"></label>
     <div class="buttons"><button data-time="0">0 s</button><button data-time="30">30 s</button><button data-time="60">60 s</button><button data-time="120">120 s</button></div>
     <output id="status" aria-live="off"></output>
-    <p class="note">Canvas2D · 32 段三次贝塞尔按每段 16 步采样为平滑轮廓，绝对时间可乱序/重复截图。每次仍重建采样点，尚未做几何保留或 GPU 合批。</p>
+    <p class="note">Canvas2D · Scene 直接声明 32 段三次贝塞尔，参考绘制器调用原生路径。绝对时间可乱序/重复截图；几何保留或 GPU 路径留待后续。</p>
     <a href="https://github.com/Quamolit/quamolit/blob/main/docs/curve-restoration.md">行为依据与检验规则</a>
   </aside>
   <script type="module" src="./main.mjs"></script>

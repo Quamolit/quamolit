@@ -5,19 +5,37 @@ async function ready(page, time = 30) {
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
 }
 
+async function captureStage(page, testInfo, name) {
+  await page.screenshot({ path: testInfo.outputPath(`curve-${name}-overlay.png`) });
+  await page.locator("#panel-toggle").click();
+  await expect(page.locator("#panel")).toBeHidden();
+  await page
+    .locator("nav, #panel-toggle")
+    .evaluateAll((nodes) => nodes.forEach((node) => (node.style.visibility = "hidden")));
+  await page.screenshot({ path: testInfo.outputPath(`curve-${name}-canvas.png`) });
+  await page
+    .locator("nav, #panel-toggle")
+    .evaluateAll((nodes) => nodes.forEach((node) => (node.style.visibility = "")));
+  await page.locator("#panel-toggle").click();
+  await expect(page.locator("#panel")).toBeVisible();
+}
+
 test("动态闭合曲线：固定时间顶点与截图，重复采样一致", async ({ page }, testInfo) => {
   await ready(page);
   const at = (t) => page.evaluate((x) => window.curveDemo.seek(x), t);
   const first = await at(0);
   expect(first.pointCount).toBe(98);
   expect(first.nodeCount).toBe(1);
+  expect(first.scene.nodes[0].content[0]).toBe("cubic-path");
+  expect(first.scene.nodes[0].content[1].segments).toHaveLength(32);
+  await captureStage(page, testInfo, "initial");
   const later = await at(60);
   expect(later.pointCount).toBe(98);
   expect(later.points).not.toEqual(first.points);
-  await at(0);
-  await page.screenshot({ path: testInfo.outputPath("curve-0.png") });
+  await captureStage(page, testInfo, "middle");
+  await at(120);
+  await captureStage(page, testInfo, "end");
   await at(60);
-  await page.screenshot({ path: testInfo.outputPath("curve-60.png") });
   const repeat = await at(60);
   expect(repeat.points).toEqual(later.points);
 });
