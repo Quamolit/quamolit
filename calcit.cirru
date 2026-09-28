@@ -4718,6 +4718,306 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.raining
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.signal-weave $ %{} 'FileEntry
+      :defs $ {}
+        'SignalModel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct SignalModel (:initial 'Number) (:intent 'quamolit.transition/TransitionIntent)
+            :events $ :: 'List 'quamolit.transition/TransitionEvent
+            :at 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'active? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn active? (model time)
+            transition/transition-active? (:intent model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.examples.signal-weave/SignalModel 'Number
+        'area-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn area-points (points)
+            let
+                first-point $ &list:nth points 0
+                last-point $ &list:nth points $ - (count points) 1
+              concat
+                [] $ motion/Vec2 :x (:x first-point) :y 190
+                , points $ [] $ motion/Vec2 :x (:x last-point) :y 190
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] $ :: 'List 'quamolit.motion/Vec2
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'base-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn base-value (index)
+            &list:nth
+              [] 62 70 66 81 75 93 89 104 96 111 106 118
+              , index
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'branch-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn branch-at (model time)
+            assert |invalid-signal-branch-time $ and (motion/finite-number? time) (>= time 0)
+            if
+              < time $ :at model
+              initial-model $ position-at model time
+              , model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.signal-weave/SignalModel)
+            :args $ [] 'quamolit.examples.signal-weave/SignalModel 'Number
+        'build-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-points (index end position acc)
+            if (> index end) acc $ recur (inc index) end position $ conj acc (point-at index position)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number $ :: 'List 'quamolit.motion/Vec2
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'campaign-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn campaign-value (index)
+            &list:nth
+              [] 59 72 85 78 99 121 108 129 126 141 132 152
+              , index
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'color $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn color (r g b alpha)
+            motion/ColorRgba :r r :g g :b b :a alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
+            :args $ [] 'Number 'Number 'Number 'Number
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context model time)
+            reference/draw-reference! context $ scene-at model time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.examples.signal-weave/SignalModel 'Number
+        'empty-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-points () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'initial-model $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-model (position)
+            assert |invalid-signal-position $ and (motion/finite-number? position) (>= position 0) (<= position 1)
+            SignalModel :initial position :intent
+              transition/start-transition |signal-weave/mode position position 0 0 $ motion/Easing :smoothstep
+              , :events ([]) :at 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.signal-weave/SignalModel)
+            :args $ [] 'Number
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'point-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn point-at (index position)
+            let
+                left $ floor index
+                right $ if (< left 11) (inc left) 11
+                fraction $ - index left
+                value $ +
+                  * (value-at left position) (- 1 fraction)
+                  * (value-at right position) fraction
+              motion/Vec2 :x
+                + -400 $ * index 44
+                , :y $ - 190 value
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'Number 'Number
+        'polygon-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn polygon-node (id points fill)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polygon $ scene/PolygonNode :points points :width 0 :fill fill :stroke fill
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String (:: 'List 'quamolit.motion/Vec2) 'quamolit.motion/ColorRgba
+        'polyline-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn polyline-node (id points width stroke)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline $ scene/PolylineNode :points points :width width :stroke stroke
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String (:: 'List 'quamolit.motion/Vec2) 'Number 'quamolit.motion/ColorRgba
+        'position-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn position-at (model time)
+            assert |invalid-signal-time $ and (motion/finite-number? time) (>= time 0)
+            if
+              < time $ :at model
+              transition/sample-replay
+                transition/start-transition |signal-weave/mode (:initial model) (:initial model) 0 0 $ motion/Easing :smoothstep
+                :events model
+                , time
+              transition/sample-transition (:intent model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.signal-weave/SignalModel 'Number
+        'rect-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rect-node (id x y width height fill)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :rect $ scene/RectNode :x x :y y :width width :height height :fill fill
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'Number 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (model time)
+            let
+                position $ position-at model time
+                reveal $ tween-at 0 1.2 0 1 time
+                points $ visible-points position reveal
+                base-points $ visible-points 0 reveal
+                marker $ point-at (* 11 reveal) position
+                signal-color $ color
+                  + 0.28 $ * position 0.61
+                  + 0.84 $ * position -0.19
+                  + 0.75 $ * position -0.37
+                  , 1
+              scene/SceneDocument :nodes $ concat
+                []
+                  rect-node |stage -480 -310 960 620 $ color 0.04 0.11 0.16 1
+                  rect-node |top-rule -480 -310 960 5 $ color 0.21 0.79 0.72 1
+                  text-node |brand "|SIGNAL / WEAVE" -440 -270 25 $ color 0.91 0.96 0.9 1
+                  text-node |edition "|ENGAGEMENT INTELLIGENCE / 2026" 130 -270 11 $ color 0.56 0.72 0.76 1
+                  text-node |subtitle "|A living campaign dashboard" -440 -241 12 $ color 0.55 0.74 0.76 1
+                  rect-node |kpi-a -440 -210 280 96 $ color 0.12 0.29 0.32 1
+                  text-node |kpi-a-label "|ENGAGED SESSIONS" -420 -179 11 $ color 0.57 0.81 0.78 1
+                  text-node |kpi-a-value
+                    str $ floor $ + 24860 (* position 7420)
+                    , -420 -137 28 $ color 0.95 0.95 0.87 1
+                  rect-node |kpi-b -148 -210 280 96 $ color 0.15 0.24 0.33 1
+                  text-node |kpi-b-label "|CONVERSION RATE" -128 -179 11 $ color 0.58 0.76 0.83 1
+                  text-node |kpi-b-value
+                    str
+                      /
+                        floor $ + 842 $ * position 169
+                        , 100
+                      , |%
+                    , -128 -137 28 $ color 0.95 0.95 0.87 1
+                  rect-node |kpi-c 144 -210 296 96 $ color 0.31 0.25 0.21 1
+                  text-node |kpi-c-label "|CAMPAIGN REACH" 164 -179 11 $ color 0.91 0.73 0.55 1
+                  text-node |kpi-c-value
+                    str $ floor $ + 122 (* position 32)
+                    , 164 -137 28 $ color 0.96 0.92 0.81 1
+                  rect-node |chart-card -440 -94 620 364 $ color 0.08 0.19 0.24 1
+                  text-node |chart-title "|AUDIENCE MOMENTUM" -410 -60 14 $ color 0.83 0.94 0.86 1
+                  text-node |chart-period "|LAST 12 WEEKS" 40 -60 11 $ color 0.53 0.72 0.75 1
+                  rect-node |grid-1 -400 70 528 1 $ color 0.58 0.75 0.74 0.16
+                  rect-node |grid-2 -400 130 528 1 $ color 0.58 0.75 0.74 0.16
+                  rect-node |grid-base -400 190 528 1 $ color 0.58 0.75 0.74 0.33
+                  rect-node |side-card 190 -94 250 364 $ color 0.07 0.17 0.23 1
+                  text-node |side-title "|SIGNAL NOTES" 210 -60 13 $ color 0.76 0.89 0.86 1
+                  text-node |footer "|CALCIT COMPONENTS / ABSOLUTE TIME / CANVAS REFERENCE" -440 290 11 $ color 0.48 0.68 0.72 1
+                  text-node |edition-mark "|02 / DATA MORPH" 330 290 11 $ color 0.72 0.74 0.63 1
+                [] $ polygon-node |baseline-area (area-points base-points)
+                  color 0.32 0.75 0.77 $ * position 0.1
+                [] $ polyline-node |baseline-line base-points 2 $ color 0.4 0.77 0.83 (* position 0.55)
+                [] $ polygon-node |signal-area (area-points points)
+                  color (:r signal-color) (:g signal-color) (:b signal-color) 0.22
+                [] $ polyline-node |signal-line points 4 signal-color
+                [] $ rect-node |signal-marker
+                  - (:x marker) 5
+                  - (:y marker) 5
+                  , 10 10 signal-color
+                status-nodes position reveal
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.examples.signal-weave/SignalModel 'Number
+        'set-mode $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn set-mode (model target at)
+            assert |invalid-signal-target $ or (= target 0) (= target 1)
+            assert |invalid-signal-event-time $ and (motion/finite-number? at)
+              >= at $ :at model
+            assert |signal-event-capacity $ <
+              count $ :events model
+              , 2000
+            if
+              = target $ :to $ :tween (:intent model)
+              , model $ struct-with model
+                :intent $ transition/interrupt-transition (:intent model) target at 1.1 $ motion/Easing :smoothstep
+                :events $ conj (:events model)
+                  transition/TransitionEvent :at at :to target :duration 1.1 :easing $ motion/Easing :smoothstep
+                :at at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.signal-weave/SignalModel)
+            :args $ [] 'quamolit.examples.signal-weave/SignalModel 'Number 'Number
+        'status-card $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn status-card (id y title detail tint alpha)
+            []
+              rect-node (str id |/card) 202
+                + y $ * 18 $ - 1 alpha
+                , 238 72 $ color 0.12 0.23 0.31 $ * 0.96 alpha
+              rect-node (str id |/accent) 202
+                + y $ * 18 $ - 1 alpha
+                , 4 72 $ color (:r tint) (:g tint) (:b tint) alpha
+              text-node (str id |/title) title 220
+                + y 25 $ * 18 $ - 1 alpha
+                , 11 $ color 0.63 0.76 0.78 alpha
+              text-node (str id |/detail) detail 220
+                + y 53 $ * 18 $ - 1 alpha
+                , 17 $ color 0.95 0.94 0.86 alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'String 'Number 'String 'String 'quamolit.motion/ColorRgba 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'status-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn status-nodes (position reveal)
+            concat
+              if (< reveal 0.15) ([])
+                status-card |pulse -24 "|CURRENT PULSE"
+                  str $ floor $ + 118 (* position 34)
+                  color 0.36 0.88 0.78 1
+                  tween-at 0.15 0.22 0 1 reveal
+              if (< reveal 0.36) ([])
+                status-card |lift 60 "|CAMPAIGN LIFT"
+                  str |+ $ floor $ * position 29
+                  color 0.97 0.67 0.42 1
+                  tween-at 0.36 0.24 0 1 reveal
+              if (< reveal 0.57) ([])
+                status-card |forecast 144 "|FORECAST / 12 WEEKS"
+                  str $ floor $ + 118 (* position 35)
+                  color 0.57 0.72 0.96 1
+                  tween-at 0.57 0.23 0 1 reveal
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'text-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn text-node (id label x y size fill)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+        'tween-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn tween-at (start duration from to time)
+            motion/sample-tween
+              motion/ScalarTween :start start :duration duration :from from :to to :easing $ motion/Easing :smoothstep
+              , time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number
+        'value-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn value-at (index position)
+            +
+              * (base-value index) (- 1 position)
+              * (campaign-value index) position
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
+        'visible-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn visible-points (position reveal)
+            let
+                end $ * 11 reveal
+                full $ floor end
+                points $ build-points 0 full position $ empty-points
+              if (= full 11) points $ conj points $ point-at end position
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number
+            :return $ :: 'List 'quamolit.motion/Vec2
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.signal-weave
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference)
     'quamolit.examples.solar $ %{} 'FileEntry
       :defs $ {}
         'build-circle $ %{} 'CodeEntry (:doc |)

@@ -16,6 +16,8 @@
 
 `yarn test:tidal-bloom` 检查[图表 UI 出入场作品](tidal-bloom.md)：Calcit 概览与分析两屏组件、旧节点渐出后卸载、新 KPI/柱图/渠道列表错峰加入、绝对时间乱序重放；视图与访客／营收数据系列 Model 分别覆盖中途反向、事件前缀重放、100 次往返及终点停帧。Chromium 保存 t=0/1.4/3.7/5/7 固定画面、交互中间帧与系列渐变帧，并验证 DPR 2 窄屏、暂停 resize 与全屏 Canvas 浮层。它使用现有 Canvas 参考路径，不证明 GPU 绘制、真实宿主资源释放或新的性能目标。
 
+`yarn test:signal-weave` 检查[折线／面积图作品](signal-weave.md)：Calcit 逐段增长的路径与填充面积、12 个稳定采样点、活动情境的对照线和指标／洞察卡片；Node 检查打断、乱序重放与 100 次往返，Chromium 检查按钮、分享视觉位置、初始／中间／终点截图、DPR 2 暂停 resize 和停帧。Canvas2D 是参考，不证明 GPU 或性能目标。
+
 `yarn test:raining-demo` 检查 [Raining 恢复](raining-restoration.md)的严格类型、Calcit→JS 编译、Node 固定 seed/tick 乱序重放及 48 节点上界、Chromium 全屏中间帧/水花截图与 DPR 2 暂停 resize。它是解析式固定 tick 采样和 Canvas2D 参考，不证明 GPU 历史模拟或吞吐。
 
 `yarn test:finder-demo` 检查 [Finder 恢复](finder-restoration.md)的严格类型、Calcit 点击日志/Scene/命中、Node 打断连续性和非法切换、Chromium 实际画布点击、固定时间截图、分享像素重放与 DPR 2 暂停 resize。它不证明 #34 通用命中/指针捕获或 WebGPU 绘制。
