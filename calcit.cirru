@@ -14265,6 +14265,17 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerState)
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerInput 'quamolit.scene-pointer/PointerUpdate
             :features $ #{} :js-ffi
+        'dispose-pointer-surface! $ %{} 'CodeEntry
+          :doc "|canvas/surface 卸载前的显式清理：释放仍持有的 DOM capture，并返回幂等的纯状态协调结果。"
+          :code $ quote $ defn dispose-pointer-surface! (surface state)
+            let
+                reconciled $ pointer/clear-pointer-capture state
+              release-state-native-capture! surface state
+              , reconciled
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerState
+            :features $ #{} :js-ffi
         'ensure-native-capture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn ensure-native-capture! (surface input state)
             match (:capture state)
@@ -15978,6 +15989,10 @@
             quamolit.scene-pointer :as pointer
     'quamolit.test.scene-pointer-browser-fixture $ %{} 'FileEntry
       :defs $ {}
+        'BrowserDisposeTrace $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct BrowserDisposeTrace (:capture-released 'Bool) (:capture-cleared 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
         'BrowserPointerTrace $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct BrowserPointerTrace (:down-target 'String) (:move-target 'String) (:move-captured 'Bool) (:up-released 'Bool) (:capture-cleared 'Bool)
           :examples $ []
@@ -16027,6 +16042,20 @@
           :schema $ :: 'Fn $ {}
             :return 'quamolit.test.scene-pointer-browser-fixture/BrowserPointerTrace
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer-browser/PointerEventHost 'quamolit.scene-pointer-browser/PointerEventHost 'quamolit.scene-pointer-browser/PointerEventHost
+            :features $ #{} :js-ffi
+        'exercise-browser-dispose! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn exercise-browser-dispose! (surface down-event)
+            let
+                plan $ hit/compile-hit-plan $ fixture/routing-scene
+                input $ browser/pointer-input-from-event surface (pointer/PointerPhase :down) down-event
+                down $ browser/route-event! surface plan (pointer/initial-pointer-state) (pointer/PointerPhase :down) down-event
+                captured $ browser/capture-dispatch! surface input down
+                disposed $ browser/dispose-pointer-surface! surface captured
+              BrowserDisposeTrace :capture-released (:capture-released disposed) :capture-cleared $ capture-cleared? $ :state disposed
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.test.scene-pointer-browser-fixture/BrowserDisposeTrace
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer-browser/PointerEventHost
             :features $ #{} :js-ffi
         'install-browser-capture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-browser-capture! (element)

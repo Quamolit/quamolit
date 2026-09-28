@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { to_js_data as toJsData } from "../target/js/scene-pointer-browser/calcit.core.mjs";
-import { exercise_browser_capture_$x_ as exerciseBrowserCapture } from "../target/js/scene-pointer-browser/quamolit.test.scene-pointer-browser-fixture.mjs";
+import {
+  exercise_browser_capture_$x_ as exerciseBrowserCapture,
+  exercise_browser_dispose_$x_ as exerciseBrowserDispose,
+} from "../target/js/scene-pointer-browser/quamolit.test.scene-pointer-browser-fixture.mjs";
 
 test("Calcit controls pointer capture while the host only exposes browser primitives", () => {
   let capturedPointer = null;
@@ -38,6 +41,33 @@ test("Calcit controls pointer capture while the host only exposes browser primit
   assert.deepEqual(calls, [
     ["set", 7],
     ["release", 7],
+  ]);
+  assert.equal(capturedPointer, null);
+});
+
+test("surface disposal releases native capture before the element is removed", () => {
+  let capturedPointer = null;
+  const calls = [];
+  const surface = {
+    getBoundingClientRect: () => ({ left: 100, top: 50 }),
+    hasPointerCapture: (pointerId) => capturedPointer === pointerId,
+    setPointerCapture(pointerId) {
+      capturedPointer = pointerId;
+      calls.push(["set", pointerId]);
+    },
+    releasePointerCapture(pointerId) {
+      assert.equal(capturedPointer, pointerId);
+      capturedPointer = null;
+      calls.push(["release", pointerId]);
+    },
+  };
+
+  const trace = toJsData(exerciseBrowserDispose(surface, { pointerId: 17, clientX: 120, clientY: 70 }));
+
+  assert.deepEqual(trace, { "capture-cleared": true, "capture-released": true });
+  assert.deepEqual(calls, [
+    ["set", 17],
+    ["release", 17],
   ]);
   assert.equal(capturedPointer, null);
 });
