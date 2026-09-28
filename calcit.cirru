@@ -4754,13 +4754,37 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String (:: 'List 'quamolit.motion/Vec2) 'quamolit.motion/ColorRgba
+        'hit-target $ %{} 'CodeEntry (:doc "|在逻辑画布坐标中命中两块历史图标卡片；宿主只负责像素坐标换算。")
+          :code $ quote $ defn hit-target (x y)
+            assert |invalid-icon-hit-x $ motion/finite-number? x
+            assert |invalid-icon-hit-y $ motion/finite-number? y
+            if
+              and (>= y -30) (<= y 30)
+              if
+                and (>= x -230) (<= x -170)
+                , |increase $ if
+                  and (>= x 170) (<= x 230)
+                  , |play |none
+              , |none
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'Number 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |card-hit-regions)
+            :code $ quote $ do
+              assert= |increase $ hit-target -200 0
+              assert= |increase $ hit-target -230 -30
+              assert= |play $ hit-target 200 0
+              assert= |play $ hit-target 230 30
+              assert= |none $ hit-target 0 0
+              assert= |none $ hit-target -200 31
+            :tags $ #{} :icons :unit
         'increase $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn increase (model at)
             assert |retroactive-icon-event $ >= at $ :at model
             let
                 next $ inc $ :count model
               struct-with model (:count next)
-                :increase $ transition/interrupt-transition (:increase model) next at 0.28 $ motion/Easing :smoothstep
+                :increase $ transition/interrupt-transition (:increase model) next at 0.25 $ motion/Easing :linear
                 :at at
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.icons/IconModel)
@@ -4775,9 +4799,9 @@
         'initial $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initial ()
             IconModel :count 0 :increase
-              transition/start-transition |increase 0 0 0 0.28 $ motion/Easing :smoothstep
+              transition/start-transition |increase 0 0 0 0.25 $ motion/Easing :linear
               , :playing false :play
-                transition/start-transition |play 0 0 0 0.18 $ motion/Easing :smoothstep
+                transition/start-transition |play 0 0 0 (/ 1 6) (motion/Easing :linear)
                 , :at 0
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.icons/IconModel)
@@ -4862,30 +4886,26 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
             :args $ [] 'Number 'Number 'Number 'Number 'Number
-        'scene-at $ %{} 'CodeEntry (:doc |)
+        'scene-at $ %{} 'CodeEntry (:doc "|恢复历史数字交叉位移：当前数字向下退出、下一数字从上方进入；加号与播放路径按绝对时间采样。")
           :code $ quote $ defn scene-at (model time)
             let
                 count-now $ count-value model time
                 play-now $ play-value model time
                 angle $ * (* 90 count-now) (/ &PI 180)
-                age $ - time $ :start
-                  :tween $ :increase model
-                phase $ if (< age 0) 0 $ if (> age 0.28) 1 (/ age 0.28)
-                old-count $ if
-                  > (:count model) 0
-                  - (:count model) 1
-                  , 0
+                count-base $ floor count-now
+                phase $ - count-now count-base
+                lower-label $ str $ inc count-base
+                upper-label $ str $ + count-base 2
               scene/SceneDocument :nodes $ []
                 background-node |increase-bg -230 $ motion/ColorRgba :r 0.99 :g 0.91 :b 0.99 :a 1
                 background-node |play-bg 170 $ motion/ColorRgba :r 0.98 :g 0.9266666667 :b 0.82 :a 1
                 plus-line |plus-h -20 0 20 0 angle
                 plus-line |plus-v 0 -20 0 20 angle
-                text-node |count-old (str old-count)
-                  - 10 $ * 18 phase
+                text-node |count-old lower-label
+                  + 10 $ * 18 phase
                   - 1 phase
-                text-node |count-new
-                  str $ :count model
-                  + 28 $ * -18 phase
+                text-node |count-new upper-label
+                  + -8 $ * 18 phase
                   , phase
                 play-left play-now
                 play-right play-now
@@ -4910,7 +4930,7 @@
                 next $ not $ :playing model
                 target $ if next 1 0
               struct-with model (:playing next)
-                :play $ transition/interrupt-transition (:play model) target at 0.18 $ motion/Easing :smoothstep
+                :play $ transition/interrupt-transition (:play model) target at (/ 1 6) (motion/Easing :linear)
                 :at at
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.icons/IconModel)
