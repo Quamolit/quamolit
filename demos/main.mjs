@@ -4,6 +4,10 @@ import catalog from "./catalog.json";
 const originals = catalog.entries.filter((entry) => entry.group === "originals");
 const inlineEntries = [...originals, ...catalog.entries.filter((entry) => entry.group === "art")];
 const loaders = {
+  "layered-dashboard": [
+    () => import("../examples/layered-dashboard/index.html?raw"),
+    () => import("../examples/layered-dashboard/main.mjs"),
+  ],
   "cohort-pulse": [
     () => import("../examples/cohort-pulse/index.html?raw"),
     () => import("../examples/cohort-pulse/main.mjs"),
