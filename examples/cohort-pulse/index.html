@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Cohort Pulse · 留存热力图</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <canvas id="scene" aria-label="可筛选、重排并切换详情的留存热力图"></canvas>
+    <nav aria-label="演示导航"><a href="../../demos/index.html?group=art">← 艺术动画</a></nav>
+    <button id="panel-toggle" aria-controls="panel" aria-expanded="true">收起控制</button>
+    <aside id="panel" aria-label="留存热力图控制">
+      <span class="eyebrow">QUAMOLIT / UI MOTION 03</span>
+      <h1>Cohort Pulse<small>留存热力图</small></h1>
+      <p>
+        筛选风险群组时，安全行退出、风险行重排，热力单元保持稳定身份。详情切换使用另一条可打断的 Calcit 过渡，不把 UI
+        状态藏进绘制过程。
+      </p>
+      <div class="buttons switch-controls" role="group" aria-label="筛选群组">
+        <button id="filter-all" aria-pressed="true">全部群组</button>
+        <button id="filter-risk" aria-pressed="false">风险群组</button>
+      </div>
+      <div class="buttons switch-controls" role="group" aria-label="切换右侧面板">
+        <button id="panel-summary" aria-pressed="true">组合摘要</button>
+        <button id="panel-detail" aria-pressed="false">事件详情</button>
+      </div>
+      <div class="buttons">
+        <button id="play">播放</button>
+        <button id="reset">从头播放</button>
+        <button id="share">复制当前画面链接</button>
+      </div>
+      <label>逻辑时间 <input id="time" type="range" min="0" max="7" step="0.01" value="0" /></label>
+      <div class="buttons moments">
+        <button data-time="0">初始</button>
+        <button data-time="0.45">矩阵进入</button>
+        <button data-time="0.9">完整界面</button>
+        <button data-time="2.2">过渡终点</button>
+      </div>
+      <output id="status" aria-live="off"></output>
+      <a class="details" href="https://github.com/Quamolit/quamolit/blob/main/docs/cohort-pulse.md">构图、实现与检验</a>
+    </aside>
+    <script type="module" src="./main.mjs"></script>
+  </body>
+</html>

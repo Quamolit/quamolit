@@ -3553,6 +3553,320 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.clock
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.cohort-pulse $ %{} 'FileEntry
+      :defs $ {}
+        'SwitchModel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct SwitchModel (:id 'String) (:initial 'Number) (:intent 'quamolit.transition/TransitionIntent)
+            :events $ :: 'List 'quamolit.transition/TransitionEvent
+            :at 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'active? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn active? (model time)
+            transition/transition-active? (:intent model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.examples.cohort-pulse/SwitchModel 'Number
+        'branch-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn branch-at (model time)
+            assert |invalid-cohort-branch-time $ and (motion/finite-number? time) (>= time 0)
+            if
+              < time $ :at model
+              initial-switch (:id model) (position-at model time)
+              , model
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.cohort-pulse/SwitchModel)
+            :args $ [] 'quamolit.examples.cohort-pulse/SwitchModel 'Number
+        'build-rows $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn build-rows (index filter-position time acc)
+            if (> index 5) acc $ recur (inc index) filter-position time $ concat acc (row-nodes index filter-position time)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'cell-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cell-nodes (index day y alpha time acc)
+            if (> day 6) acc $ let
+                reveal $ tween-at
+                  + 0.18 (* index 0.045) (* day 0.026)
+                  , 0.32 0 1 time
+                value $ heat-value index day
+                cell-alpha $ * alpha reveal
+                id $ str |cell- index |- day
+              recur index (inc day) y alpha time $ conj acc $ rect-node id
+                + -182 $ * day 49
+                + y 3
+                , 39 30
+                  color
+                    + 0.09 $ * value 0.76
+                    + 0.25 $ * value 0.38
+                    - 0.46 $ * value 0.18
+                    * cell-alpha 0.92
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number 'Number 'Number $ :: 'List 'quamolit.scene-ir/SceneNode
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'color $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn color (r g b alpha)
+            motion/ColorRgba :r r :g g :b b :a alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
+            :args $ [] 'Number 'Number 'Number 'Number
+        'day-bias $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn day-bias (day)
+            &list:nth ([] 0.04 0.13 0.08 0.2 0.11 0.24 0.17) day
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'detail-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn detail-nodes (alpha)
+            if (<= alpha 0) ([])
+              []
+                text-node |detail/title "|EMBER / INCIDENT" 210 -38 12 $ color 0.96 0.7 0.49 alpha
+                text-node |detail/value |-18% 210 7 38 $ color 0.97 0.55 0.36 alpha
+                text-node |detail/unit "|7 DAY RETENTION" 305 6 10 $ color 0.57 0.73 0.72 alpha
+                rect-node |detail/rule 210 34 198 1 $ color 0.94 0.57 0.39 $ * alpha 0.34
+                rect-node |detail/step-a 210 66 8 8 $ color 0.97 0.59 0.38 alpha
+                text-node |detail/step-a-label "|Activation fell below 40%" 230 75 11 $ color 0.79 0.86 0.82 alpha
+                rect-node |detail/step-b 210 108 8 8 $ color 0.92 0.77 0.43 alpha
+                text-node |detail/step-b-label "|Day 4 churn accelerated" 230 117 11 $ color 0.79 0.86 0.82 alpha
+                rect-node |detail/step-c 210 150 8 8 $ color 0.33 0.8 0.7 alpha
+                text-node |detail/step-c-label "|Recovery message queued" 230 159 11 $ color 0.79 0.86 0.82 alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'draw! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw! (context filter-model panel-model time)
+            reference/draw-reference! context $ scene-at filter-model panel-model time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.examples.cohort-pulse/SwitchModel 'quamolit.examples.cohort-pulse/SwitchModel 'Number
+        'empty-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-nodes () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'heat-value $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn heat-value (index day)
+            let
+                risk-boost $ if (risk-row? index) 0.26 0
+                value $ + 0.13 (* index 0.045) (day-bias day) risk-boost
+              if (> value 1) 1 value
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
+        'initial-switch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-switch (id position)
+            assert |invalid-cohort-position $ and (motion/finite-number? position) (>= position 0) (<= position 1)
+            SwitchModel :id id :initial position :intent
+              transition/start-transition id position position 0 0 $ motion/Easing :smoothstep
+              , :events ([]) :at 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.cohort-pulse/SwitchModel)
+            :args $ [] 'String 'Number
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'position-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn position-at (model time)
+            assert |invalid-cohort-time $ and (motion/finite-number? time) (>= time 0)
+            if
+              < time $ :at model
+              transition/sample-replay
+                transition/start-transition (:id model) (:initial model) (:initial model) 0 0 $ motion/Easing :smoothstep
+                :events model
+                , time
+              transition/sample-transition (:intent model) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.examples.cohort-pulse/SwitchModel 'Number
+        'rect-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rect-node (id x y width height fill)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :rect $ scene/RectNode :x x :y y :width width :height height :fill fill
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'Number 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+        'reload! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn reload! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'risk-rank $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn risk-rank (index)
+            if (= index 1) 0 $ if (= index 3) 1 2
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'risk-row? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn risk-row? (index)
+            or (= index 1) (= index 3) (= index 5)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number
+        'row-alpha $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn row-alpha (index filter-position)
+            if (risk-row? index) 1 $ - 1 filter-position
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
+        'row-name $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn row-name (index)
+            &list:nth ([] |ORBITAL |NORTHSTAR |CANOPY |EMBER |HARBOR |QUARTZ) index
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'Number
+        'row-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn row-nodes (index filter-position time)
+            let
+                alpha $ row-alpha index filter-position
+                y $ row-y index filter-position
+                x $ if (risk-row? index) -420 $ - -420 (* filter-position 34)
+                reveal $ tween-at
+                  + 0.12 $ * index 0.065
+                  , 0.3 0 1 time
+                shown $ * alpha reveal
+                tint $ if (risk-row? index) (color 0.95 0.53 0.34 shown) (color 0.28 0.72 0.68 shown)
+              if (<= shown 0) ([])
+                concat
+                  []
+                    rect-node (str |row- index |/card) x y 196 36 $ color 0.08 0.18 0.22 $ * shown 0.94
+                    rect-node (str |row- index |/accent) x y 4 36 tint
+                    text-node (str |row- index |/name) (row-name index) (+ x 14) (+ y 23) 11 $ color 0.8 0.9 0.86 shown
+                    text-node (str |row- index |/score)
+                      str $ row-score index
+                      + x 160
+                      + y 23
+                      , 11 tint
+                  cell-nodes index 0 y shown time $ empty-nodes
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'row-score $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn row-score (index)
+            &list:nth ([] 82 41 76 34 69 28) index
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'row-y $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn row-y (index filter-position)
+            let
+                full-y $ + -37 $ * index 45
+                risk-y $ + -28 $ * (risk-rank index) 82
+              if (risk-row? index)
+                +
+                  * full-y $ - 1 filter-position
+                  * risk-y filter-position
+                , full-y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
+        'scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scene-at (filter-model panel-model time)
+            let
+                filter-position $ position-at filter-model time
+                panel-position $ position-at panel-model time
+                reveal $ tween-at 0 0.9 0 1 time
+              scene/SceneDocument :nodes $ concat
+                []
+                  rect-node |stage -480 -310 960 620 $ color 0.035 0.085 0.11 1
+                  rect-node |top-rule -480 -310 960 5 $ color 0.94 0.52 0.31 1
+                  text-node |brand |COHORT/PULSE -440 -270 25 $ color 0.92 0.95 0.87 1
+                  text-node |edition "|RETENTION INTELLIGENCE / 2026" 154 -270 11 $ color 0.55 0.71 0.71 1
+                  text-node |subtitle "|Filter-driven retention heatmap" -440 -241 12 $ color 0.55 0.72 0.71 1
+                  rect-node |kpi-a -440 -210 280 86 $ color 0.1 0.22 0.24 1
+                  text-node |kpi-a-label "|ACTIVE USERS" -420 -180 11 $ color 0.56 0.76 0.72 1
+                  text-node |kpi-a-value
+                    str $ floor $ - 18420 (* filter-position 1860)
+                    , -420 -143 27 $ color 0.95 0.94 0.84 1
+                  rect-node |kpi-b -148 -210 280 86 $ color 0.13 0.2 0.25 1
+                  text-node |kpi-b-label "|RETENTION SIGNAL" -128 -180 11 $ color 0.58 0.74 0.78 1
+                  text-node |kpi-b-value
+                    str
+                      floor $ - 684 $ * filter-position 186
+                      , "|‰"
+                    , -128 -143 27 $ color 0.95 0.94 0.84 1
+                  rect-node |kpi-c 144 -210 296 86 $ color 0.29 0.2 0.16 1
+                  text-node |kpi-c-label "|RISK COHORTS" 164 -180 11 $ color 0.9 0.67 0.48 1
+                  text-node |kpi-c-value
+                    str $ floor $ - 6 (* filter-position 3)
+                    , 164 -143 27 $ color 0.97 0.9 0.78 1
+                  rect-node |matrix-card -440 -100 620 370 $ color 0.065 0.15 0.18 1
+                  text-node |matrix-title "|COHORT RETENTION" -420 -68 13 $ color 0.81 0.91 0.84 1
+                  text-node |matrix-filter
+                    if (> filter-position 0.5) |RISK |ALL
+                    , 145 -68 9 $ color 0.93 0.62 0.42 1
+                  text-node |day-0 |D0 -175 -68 9 $ color 0.5 0.68 0.68 1
+                  text-node |day-1 |D1 -126 -68 9 $ color 0.5 0.68 0.68 1
+                  text-node |day-2 |D2 -77 -68 9 $ color 0.5 0.68 0.68 1
+                  text-node |day-3 |D3 -28 -68 9 $ color 0.5 0.68 0.68 1
+                  text-node |day-4 |D4 21 -68 9 $ color 0.5 0.68 0.68 1
+                  text-node |day-5 |D5 70 -68 9 $ color 0.5 0.68 0.68 1
+                  text-node |day-6 |D6 119 -68 9 $ color 0.5 0.68 0.68 1
+                  rect-node |detail-card 190 -100 250 370 $ color 0.055 0.135 0.17 1
+                  text-node |footer "|STABLE KEYS / FILTER EXIT / PANEL CROSSFADE" -440 292 11 $ color 0.48 0.67 0.67 1
+                  text-node |edition-mark "|03 / COHORT UI" 326 292 11 $ color 0.74 0.69 0.57 1
+                build-rows 0 filter-position time $ empty-nodes
+                summary-nodes $ * reveal $ - 1 panel-position
+                detail-nodes $ * reveal panel-position
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.examples.cohort-pulse/SwitchModel 'quamolit.examples.cohort-pulse/SwitchModel 'Number
+        'set-switch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn set-switch (model target at duration)
+            assert |invalid-cohort-target $ or (= target 0) (= target 1)
+            assert |invalid-cohort-event-time $ and (motion/finite-number? at)
+              >= at $ :at model
+            assert |invalid-cohort-duration $ and (motion/finite-number? duration) (> duration 0)
+            assert |cohort-event-capacity $ <
+              count $ :events model
+              , 2000
+            if
+              = target $ :to $ :tween (:intent model)
+              , model $ struct-with model
+                :intent $ transition/interrupt-transition (:intent model) target at duration $ motion/Easing :smoothstep
+                :events $ conj (:events model)
+                  transition/TransitionEvent :at at :to target :duration duration :easing $ motion/Easing :smoothstep
+                :at at
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.cohort-pulse/SwitchModel)
+            :args $ [] 'quamolit.examples.cohort-pulse/SwitchModel 'Number 'Number 'Number
+        'summary-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn summary-nodes (alpha)
+            if (<= alpha 0) ([])
+              []
+                text-node |summary/title |PORTFOLIO 210 -38 12 $ color 0.72 0.86 0.82 alpha
+                text-node |summary/value |6 210 7 38 $ color 0.95 0.93 0.82 alpha
+                text-node |summary/unit "|ACTIVE COHORTS" 258 6 10 $ color 0.52 0.7 0.7 alpha
+                rect-node |summary/rule 210 34 198 1 $ color 0.54 0.76 0.72 $ * alpha 0.3
+                text-node |summary/alert-label "|RISK QUEUE" 210 70 11 $ color 0.94 0.62 0.43 alpha
+                text-node |summary/alert-value |3 210 116 34 $ color 0.96 0.66 0.43 alpha
+                text-node |summary/note "|Filter to isolate decay" 210 154 11 $ color 0.58 0.73 0.72 alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'text-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn text-node (id label x y size fill)
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+        'tween-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn tween-at (start duration from to time)
+            motion/sample-tween
+              motion/ScalarTween :start start :duration duration :from from :to to :easing $ motion/Easing :smoothstep
+              , time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.cohort-pulse
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference)
     'quamolit.examples.curve $ %{} 'FileEntry
       :defs $ {}
         'build-curve $ %{} 'CodeEntry (:doc |)
