@@ -1,4 +1,70 @@
 import { expect, test } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
+
+async function savePureCanvas(page, path) {
+  const dataUrl = await page.locator("canvas").evaluate((canvas) => canvas.toDataURL("image/png"));
+  await writeFile(path, Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64"));
+}
+
+async function compareHistoricalRenderer(page) {
+  return page.evaluate(async () => {
+    const canvas = document.querySelector("canvas");
+    const actualContext = canvas.getContext("2d");
+    const reference = document.createElement("canvas");
+    reference.width = canvas.width;
+    reference.height = canvas.height;
+    const context = reference.getContext("2d");
+    context.fillStyle = "#171022";
+    context.fillRect(0, 0, reference.width, reference.height);
+
+    const image = new Image();
+    image.src = new URL("../../assets/lotus.jpg", location.href).href;
+    await image.decode();
+    const scale = Math.min(reference.width / 900, reference.height / 650);
+    context.setTransform(scale, 0, 0, scale, reference.width / 2, reference.height * 0.77);
+    const snapshot = window.foldingFanDemo.snapshot();
+    for (const slice of snapshot.slices) {
+      const cosine = Math.cos(slice.angle);
+      const sine = Math.sin(slice.angle);
+      context.save();
+      context.transform(cosine, sine, -sine, cosine, 0, 0);
+      context.drawImage(
+        image,
+        slice["source-x"],
+        0,
+        slice["source-width"],
+        432,
+        -650 / 48,
+        -432,
+        slice["source-width"],
+        432,
+      );
+      context.restore();
+    }
+
+    const actual = actualContext.getImageData(0, 0, canvas.width, canvas.height).data;
+    const expected = context.getImageData(0, 0, reference.width, reference.height).data;
+    let differentPixels = 0;
+    let maxChannelDelta = 0;
+    for (let offset = 0; offset < actual.length; offset += 4) {
+      let different = false;
+      for (let channel = 0; channel < 4; channel += 1) {
+        const delta = Math.abs(actual[offset + channel] - expected[offset + channel]);
+        if (delta !== 0) different = true;
+        if (delta > maxChannelDelta) maxChannelDelta = delta;
+      }
+      if (different) differentPixels += 1;
+    }
+    return {
+      differentPixels,
+      maxChannelDelta,
+      imageSmoothingEnabled: actualContext.imageSmoothingEnabled,
+      imageSmoothingQuality: actualContext.imageSmoothingQuality,
+      pixelWidth: canvas.width,
+      pixelHeight: canvas.height,
+    };
+  });
+}
 
 async function ready(page, suffix = "?t=0") {
   await page.goto(`http://127.0.0.1:5180/examples/folding-fan/index.html${suffix}`);
@@ -12,16 +78,37 @@ test("24 切片 Toggle 中间帧、终点与乱序截图", async ({ page }, test
   const colorAtFlower = () =>
     page.locator("canvas").evaluate((canvas) => [...canvas.getContext("2d").getImageData(500, 280, 1, 1).data]);
   const closedPixel = await colorAtFlower();
-  await page.screenshot({ path: testInfo.outputPath("fan-closed.png") });
+  const comparisons = {};
+  comparisons.closed = await compareHistoricalRenderer(page);
+  expect(comparisons.closed).toEqual({
+    differentPixels: 0,
+    maxChannelDelta: 0,
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: "low",
+    pixelWidth: 1280,
+    pixelHeight: 720,
+  });
+  await page.screenshot({ path: testInfo.outputPath("fan-closed-overlay.png") });
+  await savePureCanvas(page, testInfo.outputPath("fan-closed-canvas.png"));
   await page.evaluate(() => window.foldingFanDemo.clickToggle(0));
   const mid = await page.evaluate(() => window.foldingFanDemo.seek(0.18));
   expect(mid.foldValue).toBeCloseTo(0.5);
   expect(mid.slices[0].angle).toBeLessThan(0);
-  await page.screenshot({ path: testInfo.outputPath("fan-mid.png") });
+  comparisons.mid = await compareHistoricalRenderer(page);
+  expect(comparisons.mid).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  await page.screenshot({ path: testInfo.outputPath("fan-mid-overlay.png") });
+  await savePureCanvas(page, testInfo.outputPath("fan-mid-canvas.png"));
   const opened = await page.evaluate(() => window.foldingFanDemo.seek(0.36));
   expect(opened.foldValue).toBe(1);
   expect(await colorAtFlower()).not.toEqual(closedPixel);
-  await page.screenshot({ path: testInfo.outputPath("fan-open.png") });
+  comparisons.open = await compareHistoricalRenderer(page);
+  expect(comparisons.open).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  await page.screenshot({ path: testInfo.outputPath("fan-open-overlay.png") });
+  await savePureCanvas(page, testInfo.outputPath("fan-open-canvas.png"));
+  await writeFile(
+    testInfo.outputPath("fan-historical-comparison-dpr1.json"),
+    `${JSON.stringify(comparisons, null, 2)}\n`,
+  );
   const replay = await page.evaluate(() => window.foldingFanDemo.seek(0.18));
   expect(replay.slices).toEqual(mid.slices);
   const reverse = await page.evaluate(() => window.foldingFanDemo.clickToggle(0.18));
@@ -57,6 +144,21 @@ test("全屏 DPR 2 暂停 resize 与浮层收起", async ({ browser }, testInfo)
       window.foldingFanDemo.seek(0.18);
     });
     const before = await page.evaluate(() => window.foldingFanDemo.snapshot());
+    const dpr2Comparison = await compareHistoricalRenderer(page);
+    expect(dpr2Comparison).toEqual({
+      differentPixels: 0,
+      maxChannelDelta: 0,
+      imageSmoothingEnabled: true,
+      imageSmoothingQuality: "low",
+      pixelWidth: 2560,
+      pixelHeight: 1800,
+    });
+    await page.screenshot({ path: testInfo.outputPath("fan-mid-dpr2-overlay.png") });
+    await savePureCanvas(page, testInfo.outputPath("fan-mid-dpr2-canvas.png"));
+    await writeFile(
+      testInfo.outputPath("fan-historical-comparison-dpr2.json"),
+      `${JSON.stringify({ mid: dpr2Comparison }, null, 2)}\n`,
+    );
     await page.setViewportSize({ width: 390, height: 844 });
     await expect
       .poll(() => page.locator("canvas").evaluate((canvas) => [canvas.width, canvas.height]))
