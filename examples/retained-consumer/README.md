@@ -2,7 +2,7 @@
 
 本目录是单独的 Calcit/Yarn 项目，不是 Quamolit workspace 子包。主要源码是 `calcit.cirru` 中的 `app.main`；通过统一 Calcit 执行入口声明静态横条、标量 Motion 矩形及 CPU 变换折线，使用同一个 ComponentPlan 绘制 Canvas。JS 入口只连接页面按钮、传入 Canvas 原生上下文与展示诊断计数，不实现动画或渲染循环。
 
-使用 Calcit 0.24.3、Node.js 24 和 Yarn 4.12.0：
+使用 Calcit 0.26.0、Node.js 24 和 Yarn 4.12.0：
 
 ```sh
 cd examples/retained-consumer
