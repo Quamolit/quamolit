@@ -225,12 +225,42 @@ jobs:
         if: inputs.mutation != 'color'
         run: yarn test:ui-motion
 
+      - name: Check Signal Weave chart transitions and frames
+        if: inputs.mutation != 'color'
+        run: yarn test:signal-weave
+        env:
+          CI: "true"
+
+      - name: Check Cohort Pulse filters and frames
+        if: inputs.mutation != 'color'
+        run: yarn test:cohort-pulse
+        env:
+          CI: "true"
+
       - name: Upload Metric Flow fixed-time evidence
         if: always() && inputs.mutation != 'color'
         uses: actions/upload-artifact@v4
         with:
           name: quamolit-tidal-bloom-${{ github.run_id }}
           path: test-results/tidal-bloom/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Signal Weave fixed-time evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-signal-weave-${{ github.run_id }}
+          path: test-results/signal-weave/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Cohort Pulse fixed-time evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-cohort-pulse-${{ github.run_id }}
+          path: test-results/cohort-pulse/
           if-no-files-found: error
           retention-days: 14
 

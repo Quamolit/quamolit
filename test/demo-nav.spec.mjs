@@ -42,6 +42,10 @@ test("恢复清单与艺术作品分类均可打开", async ({ page }) => {
     "aria-label",
     /Signal Weave/,
   );
+  await expect(page.locator('a[data-demo="examples/cohort-pulse/index.html"]')).toHaveAttribute(
+    "aria-label",
+    /Cohort Pulse/,
+  );
   await expect(page.locator("#art .reserved")).toHaveCount(0);
   await expect(page.locator("#empty")).toBeHidden();
 });
@@ -213,6 +217,47 @@ test("Signal Weave 在统一画布内生长与反向切换，离开后卸载时�
       canvases: document.querySelectorAll("canvas").length,
     })),
   ).toEqual({ api: false, canvases: 1 });
+});
+
+test("三个图表作品在统一页面往返时复用 Canvas 并卸载旧 API", async ({ page }, testInfo) => {
+  await page.goto("demos/index.html?group=art");
+  const works = [
+    ["cohort-pulse", "cohortPulseDemo"],
+    ["signal-weave", "signalWeaveDemo"],
+    ["tidal-bloom", "metricFlowDemo"],
+  ];
+
+  for (const [id, api] of works) {
+    await page.locator(`a[data-demo="examples/${id}/index.html"]`).click();
+    await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+    await expect(page.locator("#scene")).toHaveCount(1);
+    if (id === works[0][0]) await page.locator("#scene").evaluate((canvas) => (canvas.dataset.artStage = "shared"));
+    await expect(page.locator("#scene")).toHaveAttribute("data-art-stage", "shared");
+    expect(
+      await page.evaluate(
+        ({ current, all }) => ({
+          current: current in window,
+          stale: all.filter((name) => name !== current && name in window),
+          canvases: document.querySelectorAll("canvas").length,
+        }),
+        { current: api, all: works.map((item) => item[1]) },
+      ),
+    ).toEqual({ current: true, stale: [], canvases: 1 });
+    await page.screenshot({ path: testInfo.outputPath(`art-stage-${id}.png`) });
+    await page.getByRole("button", { name: /所有演示/ }).click();
+    await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+    await page.getByLabel("分类", { exact: true }).selectOption("art");
+  }
+
+  expect(
+    await page.evaluate(
+      (all) => ({
+        stale: all.filter((name) => name in window),
+        canvases: document.querySelectorAll("canvas").length,
+      }),
+      works.map((item) => item[1]),
+    ),
+  ).toEqual({ stale: [], canvases: 1 });
 });
 
 test("浏览器历史记录恢复画廊筛选和对应 HTML", async ({ page }) => {

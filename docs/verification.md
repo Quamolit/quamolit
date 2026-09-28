@@ -22,6 +22,8 @@
 
 `yarn test:ui-motion` 检查[图表 UI 动画构件](ui-motion-components.md)：严格检查公共 API 及三个实际消费者，再以独立手算值验证稳定索引错峰、数值渐变、交叉淡化、进入／退出合成、卸载端点与非法输入。它只证明纯 Calcit 采样语义；三个作品的固定帧画面仍由各自命令验证，不证明 GPU lowering 或宿主资源释放。
 
+三个图表作品的入口、固定帧、窄屏/reduced-motion、统一 Canvas 卸载和 CI artifact 对照汇总在[图表 UI 动画作品验收矩阵](chart-ui-showcase-evidence.md)。Actions 必须分别执行并上传三个作品，不能只用公共数值测试或 Metric Flow 的画面代表整个作品库。
+
 `yarn test:raining-demo` 检查 [Raining 恢复](raining-restoration.md)的严格类型、Calcit→JS 编译、Node 固定 seed/tick 乱序重放及 48 节点上界、Chromium 全屏中间帧/水花截图与 DPR 2 暂停 resize。它是解析式固定 tick 采样和 Canvas2D 参考，不证明 GPU 历史模拟或吞吐。
 
 `yarn test:finder-demo` 检查 [Finder 恢复](finder-restoration.md)的严格类型、Calcit 点击日志/Scene/命中、Node 打断连续性和非法切换、Chromium 实际画布点击、固定时间截图、分享像素重放与 DPR 2 暂停 resize。它不证明 #34 通用命中/指针捕获或 WebGPU 绘制。
