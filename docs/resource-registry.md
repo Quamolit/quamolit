@@ -37,8 +37,9 @@ yarn test:folding-fan
 
 Node 门禁覆盖：两个消费者共享一次 load、引用归零进入 idle、LRU 淘汰、活跃资源容量阻塞、不同资源 generation 隔离、淘汰／关闭后的迟到 ready/failed、100 次多资源装卸不超过 32 B 逻辑容量且最终 resident/live 回零。Folding Fan 浏览器回归继续证明现有图片消费者和历史画面不受影响。
 
+Presence 的实例源已经通过纯 Calcit `quamolit.presence-resource-registry` 接入本协议，详见 [Presence 宿主实例资源跟踪](presence-resources.md)。`yarn test:presence-resources` 额外覆盖退出到 idle、退出中重入、idle 重入、80 kB 单容量换版本、带身份动作，以及 100 次 10k buffer 装卸后显式关闭回零。
+
 ## 尚未完成
 
-- Presence 释放通知尚未直接驱动这个 registry；本切片先固定可独立验证的公共协议。
-- WebGPU texture/buffer/pipeline 尚未把真实创建、queue 完成后的安全释放和 device generation 接入 registry。
+- Presence 已驱动 registry 的纯数据 lease 与动作协议，但 WebGPU texture/buffer/pipeline 尚未把真实创建、queue 完成后的安全释放和 device generation 接入 registry。
 - 当前只有总量 LRU；未提供按 kind 分池、优先级、TTL、pin、脏范围或后端实际内存反馈。这些需要真实消费者数据后再增加，不在无证据时预设复杂策略。
