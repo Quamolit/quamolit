@@ -25,11 +25,12 @@
 <section id="panel" aria-label="动画控制面板">
 <h1>组件写在 Calcit，时间由你控制</h1>
 <p>独立安装 Quamolit · Calcit 组件计划、Canvas 参考与 WebGPU 实例图层</p>
-<div><button data-mode="mixed">线性矩形 + 折线</button><button data-mode="dual">双轴 smoothstep</button><button data-mode="instances">10k Canvas 实例</button><button data-mode="instances-gpu">10k WebGPU 实例</button></div>
+<div><button data-mode="mixed">线性矩形 + 折线</button><button data-mode="dual">双轴 smoothstep</button><button data-mode="presence">Presence 生命周期</button><button data-mode="instances">10k Canvas 实例</button><button data-mode="instances-gpu">10k WebGPU 实例</button></div>
 <div><button data-time="0">起点 0</button><button data-time="0.25">¼ 帧</button><button data-time="0.5">中间帧</button><button data-time="1">终点 1</button><button id="model">Model + 1</button><button id="ready">资源 ready</button><button id="viewport">宽度版本 + 100</button></div>
+<div><button data-presence="reordered">稳定 key 重排</button><button data-presence="without-a">移除橙色卡片</button><button data-presence="full">重入橙色卡片</button><button data-presence="settle">显式结算</button></div>
 <pre id="status"></pre>
 <p id="gpu-note" role="status"></p>
-<p>组件动画的声明、时间采样、版本失效、Scene 遍历均来自 Calcit。10k 模式使用像素对齐网格，Calcit 函数在任意时间生成其中一个实例的位置；Canvas 参考和 WebGPU 消费同一版本化源。初始上传 80 kB，连续时间变更只上传 8 B，重复绘制不上传位置。</p>
+<p>组件动画的声明、时间采样、版本失效、Scene 遍历均来自 Calcit。Presence 模式可重排、移除、重入并在任意时间取帧；退出项立刻停止交互，只有显式结算才发出一次释放通知。10k 模式使用像素对齐网格，Calcit 函数在任意时间生成其中一个实例的位置；Canvas 参考和 WebGPU 消费同一版本化源。初始上传 80 kB，连续时间变更只上传 8 B，重复绘制不上传位置。</p>
 <p>双轴矩形的同源 GPU 绘制、非整数数值和上传量由独立消费者硬件门禁验证；混合折线目前明确回退，不会被静默删除。WebGPU 无法初始化时可见地回退 Canvas。</p>
 <p>这是公共 API 的最小示例，不是已恢复的旧动画或艺术作品。全屏舞台按比例呈现 320 × 180 逻辑构图。</p>
 </section>
