@@ -1,6 +1,8 @@
 # Folding Fan：原有荷花折扇恢复切片
 
-推进 #36/#37，恢复历史 `quamolit.app.comp.folding-fan/comp-folding-fan` 的 650 × 432 荷花图片、24 个纵向裁剪片和 Toggle 开合。与旧入口逐帧加减状态不同，新 `quamolit.examples.folding-fan` 使用 Calcit `FanModel` 保存目标及 `TransitionIntent`，给定当前 Model 的显式时间可直接采样；连续 Toggle 从打断瞬间的采样姿态开始。现在 `scene-at(model,time)` 将每片变成纯数据 `SceneContent :image`，稳定 key、版本化资源、矩阵和九参数裁剪均由 Calcit 决定，再由公共 `canvas-images/draw-document!` 按声明顺序绘制。Canvas 原生九参数 `drawImage` 由 js-ffi `0.2.1-alpha.9` 的类型化 `draw-image-crop!` 提供；图片创建、解码和尺寸读取也复用 js-ffi 的 Calcit 类型化浏览器 API。本地强转与 inline 适配均不再需要，通用能力见 [js-ffi #141](https://github.com/calcit-lang/js-ffi/issues/141)。
+推进 #36/#37，恢复历史 `quamolit.app.comp.folding-fan/comp-folding-fan` 的 650 × 432 荷花图片、24 个纵向裁剪片和 Toggle 开合。与旧入口逐帧加减状态不同，新 `quamolit.examples.folding-fan` 使用 Calcit `FanModel` 保存目标及 `TransitionIntent`，给定当前 Model 的显式时间可直接采样；连续 Toggle 从打断瞬间的采样姿态开始。现在 `scene-at(model,time)` 将每片变成纯数据 `SceneContent :image`，稳定 key、版本化资源、矩阵和九参数裁剪均由 Calcit 决定，再由公共 `canvas-images/draw-document!` 按声明顺序绘制。Canvas 原生九参数 `drawImage` 由 js-ffi `0.2.1-alpha.10` 的类型化 `draw-image-crop!` 提供；图片创建、解码和尺寸读取也复用 js-ffi 的 Calcit 类型化浏览器 API。本地强转与 inline 适配均不再需要，通用能力见 [js-ffi #141](https://github.com/calcit-lang/js-ffi/issues/141)。
+
+图片的 loading/ready/error、失败重试、generation 隔离和卸载现由纯 Calcit [`quamolit.resource-lifecycle`](resource-lifecycle.md) 决定；页面 JavaScript 只执行 `ImageHost` 创建/解码并保存原生句柄。迟到 Promise 不能覆盖新版本或已关闭页面。
 
 全屏 Canvas 按视口 × DPR 重设 backing store；650 × 432 是原图片与逻辑几何，不是固定页面尺寸。DOM 控制面板可收起，导航始终可用。`?t=` 与有序 `?events=0,0.18` 重放时间和 Toggle 输入，`window.foldingFanDemo` 提供固定时间、Toggle、快照与暂停，供截图与回归复用；`?image=missing` 验证解码失败时显式诊断。
 
