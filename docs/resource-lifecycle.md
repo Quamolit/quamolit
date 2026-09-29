@@ -1,4 +1,4 @@
-# 通用资源生命周期：M2 #51 第二切片
+# 通用资源生命周期：M2 #51
 
 `quamolit.resource-lifecycle` 用纯 Calcit 定义图片、纹理、几何、字体、字形、buffer 与 pipeline 共用的异步资源协议。它不保存 `Image`、GPU buffer 或 Promise 等宿主对象，只对可序列化的 logical identity、状态、generation 与动作负责；浏览器或渲染后端执行动作并在异步完成后回传结果。
 
@@ -25,6 +25,12 @@
 
 协议刻意不规定 URL、缓存容量和原生句柄类型。URL 到 logical identity 的映射属于应用；宿主句柄绝不能进入 Calcit Scene/Model。
 
+## 多资源注册表
+
+纯 Calcit `ResourceRegistry` 在单资源状态机之上提供共享引用和有界缓存，详细协议见[多资源注册表](resource-registry.md)。同一 `ResourceIdentity` 的多个消费者只触发一次 load；引用归零后资源留在 idle cache，容量压力按最久未使用顺序淘汰。`RegistryAction` 为每条底层动作附带完整资源身份，因此不同资源都从 generation 1 开始也不会在宿主表中碰撞。
+
+被淘汰或 registry 已关闭后，迟到的 ready/failed 不会恢复旧资源，而只返回带身份的幂等 release。100 次多资源装卸检查 resident bytes 始终不超过容量，并在最终关闭后回到零。
+
 ## 首个真实消费者
 
 Folding Fan 不再用页面 JavaScript 的 `resource = "loading"` 布尔状态决定图片生命周期。`resource-initial` 从 Calcit 建立 `lotus@1`，页面仅通过 js-ffi 创建和解码 `ImageHost`、保存 generation 表，并执行 Calcit 动作。图片成功、失败、重试、卸载都会回到统一状态机；原有 24 切片与历史参考渲染保持逐像素一致。
@@ -35,10 +41,9 @@ Folding Fan 不再用页面 JavaScript 的 `resource = "loading"` 布尔状态�
 yarn test:folding-fan
 ```
 
-该命令覆盖严格 public schema、loading/ready/error、版本替换、迟到完成、失败重试、close、100 次替换 live generation 上界、真实图片失败重试，以及 DPR 1/2 历史像素零差异。
+该命令覆盖严格 public schema、loading/ready/error、版本替换、迟到完成、失败重试、close、共享引用、LRU 容量、活跃资源保护、100 次替换和多资源装卸上界、真实图片失败重试，以及 DPR 1/2 历史像素零差异。
 
 ## 后续切片
 
-- 在多资源 registry 上加入引用计数、容量与淘汰策略；本切片先固定单条资源请求的确定性协议。
 - 将 WebGPU texture/buffer/pipeline 的创建与 device recovery 接到同一 logical identity；device generation 与资源 generation 仍需保持两个正交维度。
 - 为字体和 glyph atlas 增加真实消费者，验证多个资源共同 ready 后只唤醒必要帧。

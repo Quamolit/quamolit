@@ -40,7 +40,7 @@
 
 `yarn test:drag-demo` 检查 [Drag demo 恢复](drag-demo-restoration.md)的严格 Calcit 指针 Model、Scene HitPlan、统一 PointerState、Node 锚点和滑块边界，以及 Chromium 的真实指针捕获、跨图形边界拖动、取消、DPR 2 resize、浮层、空闲停帧和实际页面卸载。卸载后原生捕获必须释放、全局 API 必须移除、后续 pointer 事件不得再修改 Model。它不证明 #34 的任意退出子树/cubic-path/instances 或 WebGPU 绘制。
 
-`yarn test:folding-fan` 检查 [Folding Fan 恢复](folding-fan-restoration.md)的严格 Calcit 24 片裁剪/层序/时间采样、纯数据图片 Scene 与几何差分、Node 打断与乱序、100 条有界输入日志的前缀重放/历史分支、资源预检零绘制；同时检查[通用资源生命周期](resource-lifecycle.md)的 loading/ready/error、版本替换、迟到完成、失败重试、close 与 100 次替换 live generation 上界。Chromium 初始/中间/终点分别保存带浮层与纯 Canvas 截图，并在 DPR 1/2 下把当前 Scene 路径与历史直接绘制路径做整帧 RGBA 零差异比较，锁定浏览器默认图片平滑设置；另覆盖 URL 刷新像素一致、真实图片失败重试、暂停 resize 与全屏浮层。图片已接公共 Scene IR、窄 Canvas 参考入口和 Calcit 资源状态机；多资源容量、跨浏览器采样矩阵及 WebGPU 纹理路径未实现。
+`yarn test:folding-fan` 检查 [Folding Fan 恢复](folding-fan-restoration.md)的严格 Calcit 24 片裁剪/层序/时间采样、纯数据图片 Scene 与几何差分、Node 打断与乱序、100 条有界输入日志的前缀重放/历史分支、资源预检零绘制；同时检查[通用资源生命周期](resource-lifecycle.md)与[多资源注册表](resource-registry.md)的 loading/ready/error、共享引用、版本替换、LRU 容量、活跃资源保护、带完整身份的迟到完成释放，以及 100 次装卸后关闭回零。Chromium 初始/中间/终点分别保存带浮层与纯 Canvas 截图，并在 DPR 1/2 下把当前 Scene 路径与历史直接绘制路径做整帧 RGBA 零差异比较，锁定浏览器默认图片平滑设置；另覆盖 URL 刷新像素一致、真实图片失败重试、暂停 resize 与全屏浮层。图片已接公共 Scene IR、窄 Canvas 参考入口和 Calcit 资源状态机；Presence/WebGPU 真实资源接线、跨浏览器采样矩阵及 WebGPU 纹理路径仍未实现。
 
 全屏与恢复导航：`test:demo-nav` 检查 3 项 Node 清单及全部浏览器入口；原有 11 项均可从导航打开，艺术分类保持明确空状态，并覆盖 DPR 1/2、桌面/窄屏、暂停 resize 后状态不变、像素和浮层键盘操作。跨物理显示器 DPR 切换、旧 11 个动画的完整验收与真实 GPU 尚未完成。见[恢复清单](demo-restoration.md)。
 

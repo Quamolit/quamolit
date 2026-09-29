@@ -106,7 +106,7 @@
 - 承接 #49 移交的真实资源清理验收：退出终点、共享最后引用、重入、百次装卸后 live 基线。
 - device loss/rebuild 复用 Model 与资源版本；记录旧异步结果迟到的处理。
 - 已落地公共 [版本化实例源资源表](instance-resource-table.md)（`quamolit.instance-resource`，定义级 `:file` 宿主 + 类型化 Calcit 入口，100 次装卸回到 live 基线）。
-- 已落地纯 Calcit [通用资源生命周期](resource-lifecycle.md)：图片、纹理、几何、字体、字形、buffer、pipeline 共用 logical identity、loading/ready/error、generation 隔离与动作协议；Folding Fan 已作为真实图片消费者，迟到完成、失败重试、关闭和 100 次版本替换进入自动测试。下一步再扩展多资源引用计数/容量，并与 Presence、WebGPU texture/buffer/pipeline 及 device recovery 合流。
+- 已落地纯 Calcit [通用资源生命周期](resource-lifecycle.md)及[多资源注册表](resource-registry.md)：图片、纹理、几何、字体、字形、buffer、pipeline 共用 logical identity、loading/ready/error、generation 隔离与动作协议；相同资源共享引用，零引用资源进入有界 LRU 缓存，迟到结果按完整身份安全释放。Folding Fan 与 100 次多资源装卸已进入自动测试。下一步与 Presence、WebGPU texture/buffer/pipeline 及 device recovery 合流。
 
 ### #38：普通组件合批与显式 instances 共享入口
 
