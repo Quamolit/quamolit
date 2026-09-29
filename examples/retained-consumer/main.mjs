@@ -24,6 +24,16 @@ import {
   presence_needs_frame_$q_,
   presence_plan,
   presence_update_plan,
+  gpu_recovery_initial,
+  gpu_recovery_open,
+  gpu_recovery_probe_ready,
+  gpu_recovery_probe_fallback,
+  gpu_recovery_probe_failed,
+  gpu_recovery_create_ready,
+  gpu_recovery_create_failed,
+  gpu_recovery_update_version,
+  gpu_recovery_lost,
+  gpu_recovery_close,
 } from "./target/js/app/app.main.mjs";
 import { init_tags, to_js_data } from "./target/js/app/calcit.core.mjs";
 import { createInstancePositions } from "./instances-input.mjs";
@@ -37,13 +47,14 @@ const tags = init_tags([
   "scene",
   "model",
   "released",
+  "state",
+  "actions",
 ]);
 let canvas = document.querySelector("canvas");
 let context = canvas.getContext("2d");
 let canvasKind = "canvas",
   gpuState = null,
-  resizeObserver,
-  modeGeneration = 0;
+  resizeObserver;
 // 仅为页面展示/诊断模式；动画和 Scene 仍由 Calcit 产生。
 const fullscreen = new URLSearchParams(location.search).get("fixture") !== "1";
 document.body.classList.toggle("stage", fullscreen);
@@ -86,6 +97,9 @@ let instanceVersion = 1,
   instanceTime = 0,
   instanceCopiedBytes = positions.byteLength;
 let instanceMetrics = null;
+let gpuRecoveryState = gpu_recovery_initial(instanceVersion);
+const gpuResources = new Map();
+let gpuReleaseWarning = "";
 function updateInstanceTime(nextTime) {
   if (nextTime === instanceTime) return;
   const frame = instance_frame_at(nextTime);
@@ -102,6 +116,7 @@ function updateInstanceTime(nextTime) {
   release_instances_$x_(instanceTable, previous);
   instanceVersion = next;
   instanceTime = nextTime;
+  gpuRecoveryState = gpu_recovery_update_version(gpuRecoveryState, instanceVersion);
 }
 function snapshot() {
   if (mode === "instances" || mode === "instances-gpu")
@@ -121,6 +136,8 @@ function snapshot() {
       },
       metrics: instanceMetrics,
       adapter: gpuState?.adapter ?? null,
+      recovery: to_js_data(gpuRecoveryState),
+      gpuResources: gpuResources.size,
     };
   if (mode === "presence")
     return {
@@ -173,14 +190,12 @@ function show() {
     const scale = Math.min(w / 320, h / 180);
     context.setTransform(scale, 0, 0, scale, (w - 320 * scale) / 2, (h - 180 * scale) / 2);
   }
-  if (mode === "instances-gpu") {
-    if (gpuState) {
-      instanceMetrics = to_js_data(
-        draw_instances_gpu_$x_(gpuState.previousVersion, gpuState.batch, instanceTable, instanceVersion),
-      );
-      gpuState.previousVersion = instanceVersion;
-    }
-  } else if (mode === "instances") {
+  if (mode === "instances-gpu" && gpuState) {
+    instanceMetrics = to_js_data(
+      draw_instances_gpu_$x_(gpuState.previousVersion, gpuState.batch, instanceTable, instanceVersion),
+    );
+    gpuState.previousVersion = instanceVersion;
+  } else if (mode.startsWith("instances")) {
     context.clearRect(0, 0, 320, 180);
     instanceMetrics = to_js_data(draw_resolved_instances_$x_(context, instanceTable, instanceVersion));
   } else draw_$x_(context, plan);
@@ -227,15 +242,108 @@ function replaceCanvas(kind) {
   canvasKind = kind;
   context = kind === "canvas" ? canvas.getContext("2d") : null;
 }
+function releaseGpuGeneration(generation) {
+  const resource = gpuResources.get(generation);
+  if (!resource) return [];
+  const errors = [];
+  try {
+    if (resource.batch) dispose_instances_gpu_$x_(resource.batch);
+  } catch (error) {
+    errors.push(error);
+  }
+  try {
+    resource.device?.destroy();
+  } catch (error) {
+    errors.push(error);
+  }
+  gpuResources.delete(generation);
+  if (gpuState?.generation === generation) gpuState = null;
+  document.querySelector("#gpu-loss").disabled = true;
+  return errors;
+}
+async function executeGpuRecoveryActions(actions) {
+  for (const [kind, generation, detail] of actions) {
+    if (kind === "release") {
+      const errors = releaseGpuGeneration(generation);
+      if (errors.length > 0)
+        gpuReleaseWarning = `；generation ${generation} 释放异常：${errors.map((error) => error.message).join("；")}`;
+      continue;
+    }
+    if (kind === "show-fallback" || kind === "show-failure") {
+      replaceCanvas("canvas");
+      document.querySelector("#gpu-note").textContent =
+        `${kind === "show-fallback" ? "GPU 回退" : "GPU 失败"}：${detail}${gpuReleaseWarning}`;
+      if (mode.startsWith("instances")) show();
+      continue;
+    }
+    if (kind === "probe") {
+      try {
+        if (!navigator.gpu) throw Error("此浏览器没有 WebGPU");
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) throw Error("未取得 WebGPU adapter");
+        if (adapter.info?.isFallbackAdapter === true) {
+          await commitGpuRecovery(gpu_recovery_probe_fallback(gpuRecoveryState, generation, "software adapter"));
+          continue;
+        }
+        const device = await adapter.requestDevice();
+        gpuResources.set(generation, { generation, version: detail, adapter, device, batch: null });
+        await commitGpuRecovery(gpu_recovery_probe_ready(gpuRecoveryState, generation));
+      } catch (error) {
+        await commitGpuRecovery(gpu_recovery_probe_failed(gpuRecoveryState, generation, error.message));
+      }
+      continue;
+    }
+    if (kind === "create") {
+      const resource = gpuResources.get(generation);
+      try {
+        if (!resource) throw Error("GPU candidate 已失效");
+        replaceCanvas("gpu");
+        resource.batch = await create_instances_gpu_$x_(
+          canvas,
+          resource.device,
+          navigator.gpu.getPreferredCanvasFormat(),
+        );
+        await commitGpuRecovery(gpu_recovery_create_ready(gpuRecoveryState, generation));
+      } catch (error) {
+        await commitGpuRecovery(gpu_recovery_create_failed(gpuRecoveryState, generation, error.message));
+      }
+      continue;
+    }
+    if (kind === "install") {
+      const resource = gpuResources.get(generation);
+      if (!resource?.batch) throw Error("GPU install 缺少已创建图层");
+      gpuState = {
+        generation,
+        device: resource.device,
+        batch: resource.batch,
+        previousVersion: -1,
+        adapter: resource.adapter.info?.architecture ?? "unknown",
+      };
+      document.querySelector("#gpu-loss").disabled = false;
+      document.querySelector("#gpu-note").textContent =
+        `GPU generation ${generation} ready · source v${detail}${gpuReleaseWarning}`;
+      Promise.resolve(resource.device.lost).then((info) => {
+        void commitGpuRecovery(
+          gpu_recovery_lost(
+            gpuRecoveryState,
+            generation,
+            `${info.reason ?? "unknown"}: ${info.message ?? "device lost"}`,
+          ),
+        );
+      });
+      if (mode === "instances-gpu") show();
+    }
+  }
+}
+async function commitGpuRecovery(transition) {
+  gpuRecoveryState = transition.get(tags.state);
+  return executeGpuRecoveryActions(to_js_data(transition.get(tags.actions)));
+}
 function disposeGpu() {
-  if (!gpuState) return;
-  dispose_instances_gpu_$x_(gpuState.batch);
-  gpuState.device.destroy();
-  gpuState = null;
+  void commitGpuRecovery(gpu_recovery_close(gpuRecoveryState));
 }
 async function setMode(next) {
   if (!["mixed", "dual", "presence", "instances", "instances-gpu"].includes(next)) throw Error("unknown-consumer-mode");
-  const generation = ++modeGeneration;
   // 更换声明时建立新计划，不能让相同版本错误复用另一个声明的结构。
   const nextPlan = next.startsWith("instances")
     ? plan
@@ -247,34 +355,7 @@ async function setMode(next) {
   plan = nextPlan;
   if (mode.startsWith("instances")) updateInstanceTime(time);
   if (next === "instances-gpu") {
-    try {
-      if (!navigator.gpu) throw Error("此浏览器没有 WebGPU；已回退 Canvas 参考。");
-      const adapter = await navigator.gpu.requestAdapter();
-      if (!adapter) throw Error("未取得 WebGPU adapter；已回退 Canvas 参考。");
-      const device = await adapter.requestDevice();
-      if (generation !== modeGeneration) {
-        device.destroy();
-        return snapshot();
-      }
-      replaceCanvas("gpu");
-      let batch;
-      try {
-        batch = await create_instances_gpu_$x_(canvas, device, navigator.gpu.getPreferredCanvasFormat());
-      } catch (error) {
-        device.destroy();
-        throw error;
-      }
-      if (generation !== modeGeneration) {
-        dispose_instances_gpu_$x_(batch);
-        device.destroy();
-        return snapshot();
-      }
-      gpuState = { device, batch, previousVersion: -1, adapter: adapter.info?.architecture ?? "unknown" };
-    } catch (error) {
-      mode = "instances";
-      replaceCanvas("canvas");
-      document.querySelector("#gpu-note").textContent = error.message;
-    }
+    await commitGpuRecovery(gpu_recovery_open(gpuRecoveryState, instanceVersion));
   } else replaceCanvas("canvas");
   return show();
 }
@@ -304,7 +385,12 @@ document
 document.querySelector("#model").onclick = () => set({ model: model + 1 });
 document.querySelector("#ready").onclick = () => set({ ready: !ready });
 document.querySelector("#viewport").onclick = () => set({ viewport: viewport + 100 });
-window.consumer = { set, snapshot, setMode, setPresence };
+function simulateGpuLoss(message = "simulated device loss") {
+  if (!gpuState) throw Error("gpu-generation-not-ready");
+  return commitGpuRecovery(gpu_recovery_lost(gpuRecoveryState, gpuState.generation, message));
+}
+window.consumer = { set, snapshot, setMode, setPresence, simulateGpuLoss };
+document.querySelector("#gpu-loss").onclick = () => void simulateGpuLoss("用户模拟 device loss");
 if (fullscreen) {
   resizeObserver = new ResizeObserver(show);
   resizeObserver.observe(canvas);

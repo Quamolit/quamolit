@@ -173,6 +173,61 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/InstanceResourcePlan)
             :args $ []
+        'gpu-recovery-close $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-recovery-close (state) (recovery/close-recovery state)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState
+        'gpu-recovery-create-failed $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-recovery-create-failed (state generation message)
+            recovery/create-resolved state generation $ recovery/create-failed message
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number 'String
+        'gpu-recovery-create-ready $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-recovery-create-ready (state generation)
+            recovery/create-resolved state generation $ recovery/create-ready
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number
+        'gpu-recovery-initial $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-recovery-initial (version) (recovery/initial-state version)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryState)
+            :args $ [] 'Number
+        'gpu-recovery-lost $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-recovery-lost (state generation message) (recovery/device-lost state generation message)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number 'String
+        'gpu-recovery-open $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-recovery-open (state version) (recovery/request-open state version)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number
+        'gpu-recovery-probe-failed $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-recovery-probe-failed (state generation message)
+            recovery/probe-resolved state generation $ recovery/probe-failed message
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number 'String
+        'gpu-recovery-probe-fallback $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-recovery-probe-fallback (state generation message)
+            recovery/probe-resolved state generation $ recovery/probe-fallback message
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number 'String
+        'gpu-recovery-probe-ready $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-recovery-probe-ready (state generation)
+            recovery/probe-resolved state generation $ recovery/probe-ready
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number
+        'gpu-recovery-update-version $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-recovery-update-version (state version) (recovery/update-resource-version state version)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryState)
+            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number
         'gpu-reusable? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-reusable? (program plan) (gpu/reusable? program plan)
           :examples $ []
@@ -421,4 +476,4 @@
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.main
-          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding)
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery)

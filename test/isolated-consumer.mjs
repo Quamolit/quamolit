@@ -10,6 +10,7 @@ import { chromium } from "@playwright/test";
 import { verifyConsumer } from "./consumer-contract.mjs";
 import { verifyInstancesConsumer } from "./consumer-instances-contract.mjs";
 import { verifyPresenceConsumer } from "./consumer-presence-contract.mjs";
+import { verifyRecoveryConsumer } from "./consumer-recovery-contract.mjs";
 import { verifyGpuConsumer, verifyDualGpuConsumer } from "./consumer-gpu-contract.mjs";
 import { verifyGpuConsumerBrowser, verifyGpuInstancesConsumerBrowser } from "./consumer-gpu-browser.mjs";
 import { runConsumerBench } from "./consumer-bench.mjs";
@@ -39,6 +40,7 @@ for (const name of [
   "test/consumer-gpu-browser.mjs",
   "test/consumer-instances-contract.mjs",
   "test/consumer-presence-contract.mjs",
+  "test/consumer-recovery-contract.mjs",
   "test/host/gpu-scalar-readback.mjs",
   "test/consumer-bench.mjs",
   "test/consumer-bench-browser.mjs",
@@ -129,6 +131,7 @@ try {
   const counts = verifyConsumer(app, core);
   const instancesCounts = verifyInstancesConsumer(app, core);
   const presenceCounts = verifyPresenceConsumer(app, core);
+  const recoveryCounts = verifyRecoveryConsumer(app, core);
   const gpuCounts = verifyGpuConsumer(app, core);
   const gpuDualCounts = verifyDualGpuConsumer(app, core);
   assert.throws(
@@ -155,6 +158,11 @@ try {
     () => verifyPresenceConsumer({ ...app, presence_resource_plan: (_model, previous) => previous }, core),
     /AssertionError/,
     "反例：停掉 Presence 资源同步必须失败",
+  );
+  assert.throws(
+    () => verifyRecoveryConsumer({ ...app, gpu_recovery_lost: (state) => ({ get: () => state }) }, core),
+    /AssertionError|TypeError/,
+    "反例：停掉 device loss 转移必须失败",
   );
   const errors = [],
     requests = [];
@@ -314,14 +322,27 @@ try {
   await page.screenshot({ path: join(artifacts, "instances-10k.png"), fullPage: true });
   const visibleGpu = await page.evaluate(() => window.consumer.setMode("instances-gpu"));
   assert.equal(await page.locator("canvas").count(), 1, "后端切换后仍是一整页的单一 Canvas 舞台");
-  if (visibleGpu.mode === "instances-gpu") {
+  assert.equal(visibleGpu.mode, "instances-gpu", "GPU 不可用时保留用户选择，并显示 Canvas 回退");
+  if (visibleGpu.recovery.phase[0] === "ready") {
     assert.equal(visibleGpu.metrics["upload-bytes"], 80000);
+    assert.equal(visibleGpu.gpuResources, 1);
+    const previousGeneration = visibleGpu.recovery.generation;
     const changedGpu = await page.evaluate(() => window.consumer.set({ time: 0 }));
     assert.equal(changedGpu.metrics["upload-bytes"], 8);
     assert.equal(changedGpu.source.live, 1);
+    const recoveredGpu = await page.evaluate(async () => {
+      await window.consumer.simulateGpuLoss("isolated-consumer-loss");
+      return window.consumer.snapshot();
+    });
+    assert.equal(recoveredGpu.mode, "instances-gpu");
+    assert.equal(recoveredGpu.recovery.phase[0], "ready");
+    assert.equal(recoveredGpu.recovery.generation, previousGeneration + 1);
+    assert.equal(recoveredGpu.recovery["resource-version"], changedGpu.source.version);
+    assert.equal(recoveredGpu.gpuResources, 1, "device loss 重建后只保留一代 GPU 资源");
     await page.screenshot({ path: join(artifacts, "instances-10k-gpu.png"), fullPage: true });
   } else {
-    assert.equal(visibleGpu.mode, "instances");
+    assert.ok(["fallback", "failed"].includes(visibleGpu.recovery.phase[0]));
+    assert.equal(visibleGpu.gpuResources, 0);
     assert.notEqual(await page.locator("#gpu-note").textContent(), "", "GPU 不可用时应可见地回退 Canvas");
   }
   await page.evaluate(() => window.consumer.setMode("mixed"));
@@ -358,6 +379,7 @@ try {
     counts,
     instancesCounts,
     presenceCounts,
+    recoveryCounts,
     gpuCounts,
     gpuDualCounts,
     gpuBrowser,
@@ -370,6 +392,7 @@ try {
       "停止双轴 CPU 参考更新被断言检出",
       "伪造实例计数被断言检出",
       "停止 Presence 资源同步被断言检出",
+      "停止 device loss 转移被断言检出",
     ],
     browser: await browser.version(),
     node: process.version,
@@ -379,7 +402,7 @@ try {
     requests,
     limitations: [
       "GPU 硬件结果独立见 gpuBrowser/gpuInstancesBrowser；设备 mock 不是硬件证据",
-      "已验证逻辑生命周期与真实实例表释放；尚未验证 device loss 恢复与动态实例端到端性能",
+      "已验证逻辑生命周期、真实实例表释放和 device loss 后同版本重建；尚未验证动态实例端到端性能",
       "模块缓存可复用；消费者目录和运行产物目录独立",
       "尚未验证仅 JS 片段修改后的显式重编译",
     ],
@@ -393,6 +416,7 @@ try {
         counts,
         instancesCounts,
         presenceCounts,
+        recoveryCounts,
         gpuCounts,
         gpuBrowser,
         gpuDualBrowser,
