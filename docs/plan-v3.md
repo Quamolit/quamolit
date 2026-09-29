@@ -20,7 +20,7 @@
 
 本分支补充 [Presence 到组件声明的连接](presence-component.md)及 [TodoList 恢复](todolist-restoration.md)：文字、行级 Model、错峰进退、打断重排、输入日志、独立命中与全屏操作已接入统一计划。静态生命周期不再生成无意义 alpha 绑定；真实资源、通用指针捕获、独立下游生命周期与同源 GPU 仍待验收。窄屏可读性归 #117；M1/M2 均不因此自动关闭。
 
-历史背景（截至 #103，不代表当前能力）：当时 Calcit 0.22.0、js-ffi 0.2.0 已接入，但组件与保留计划尚未贯通。当前公共 Calcit 执行入口已经落地，主项目使用 Calcit 0.26.0 与 js-ffi 0.2.1-alpha.10；Folding Fan 使用类型化图片绘制入口，Canvas 实心路径使用类型化 `.fill!`，不再保留相应的本地 inline 适配；主应用仍是 bootstrap。M0 参考场景性能不能外推为新运行路径性能。
+历史背景（截至 #103，不代表当前能力）：当时 Calcit 0.22.0、js-ffi 0.2.0 已接入，但组件与保留计划尚未贯通。当前公共 Calcit 执行入口已经落地，主项目使用 Calcit 0.27.0 与 js-ffi 0.2.1-alpha.10；Folding Fan 使用类型化图片绘制入口，Canvas 实心路径使用类型化 `.fill!`，不再保留相应的本地 inline 适配；主应用仍是 bootstrap。M0 参考场景性能不能外推为新运行路径性能。
 
 下一笔主线实现用 TodoList 驱动 #49/#50：在已贯通的公共 Calcit 入口上完成进入/退出、目标打断和稳定 key 重排。复用 #33 的 Canvas 参考与 #35 的类型化平台能力，不再新增平行运行时。
 
