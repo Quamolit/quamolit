@@ -12245,6 +12245,30 @@
             calcit.test :refer $ is= is-throws
     'quamolit.resource-lifecycle $ %{} 'FileEntry
       :defs $ {}
+        'EvictionResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct EvictionResult
+            :entries $ :: 'List 'quamolit.resource-lifecycle/RegistryEntry
+            :freed-bytes 'Number
+            :actions $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RegistryAction $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum RegistryAction (:resource 'quamolit.resource-lifecycle/ResourceIdentity 'quamolit.resource-lifecycle/ResourceAction)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'RegistryEntry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RegistryEntry (:state 'quamolit.resource-lifecycle/ResourceState) (:references 'Number) (:bytes 'Number) (:last-used 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RegistryMetrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RegistryMetrics (:resident 'Number) (:leased 'Number) (:idle 'Number) (:resident-bytes 'Number) (:loads 'Number) (:evictions 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RegistryTransition $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RegistryTransition (:registry 'quamolit.resource-lifecycle/ResourceRegistry)
+            :actions $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+          :examples $ []
+          :schema $ :: 'StructDef
         'ResourceAction $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum ResourceAction (:load 'Number 'quamolit.resource-lifecycle/ResourceIdentity) (:install 'Number 'quamolit.resource-lifecycle/ResourceIdentity) (:release 'Number) (:wake-frame 'Number) (:show-error 'Number 'String)
           :examples $ []
@@ -12261,6 +12285,11 @@
           :code $ quote $ defenum ResourcePhase (:idle) (:loading) (:ready) (:error 'String) (:closed)
           :examples $ []
           :schema $ :: 'EnumDef
+        'ResourceRegistry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ResourceRegistry (:capacity-bytes 'Number) (:resident-bytes 'Number) (:clock 'Number) (:loads 'Number) (:evictions 'Number)
+            :entries $ :: 'List 'quamolit.resource-lifecycle/RegistryEntry
+          :examples $ []
+          :schema $ :: 'StructDef
         'ResourceState $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ResourceState (:generation 'Number) (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:phase 'quamolit.resource-lifecycle/ResourcePhase) (:attempts 'Number)
           :examples $ []
@@ -12270,6 +12299,64 @@
             :actions $ :: 'List 'quamolit.resource-lifecycle/ResourceAction
           :examples $ []
           :schema $ :: 'StructDef
+        'acquire-registry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn acquire-registry (registry descriptor bytes)
+            assert |invalid-resource-bytes $ and (valid-version? bytes) (> bytes 0)
+            assert |resource-larger-than-registry $ <= bytes $ :capacity-bytes registry
+            let
+                next-clock $ inc $ :clock registry
+              if
+                contains-entry? (:entries registry) descriptor
+                let
+                    entry $ find-entry (:entries registry) descriptor
+                    _ $ assert |resource-size-changed $ = bytes (:bytes entry)
+                    requested $ request-resource (:state entry) descriptor
+                    next-entry $ RegistryEntry :state (:state requested) :references
+                      inc $ :references entry
+                      , :bytes bytes :last-used next-clock
+                    next $ ResourceRegistry :capacity-bytes (:capacity-bytes registry) :resident-bytes (:resident-bytes registry) :clock next-clock :loads
+                      + (:loads registry)
+                        if
+                          empty? $ :actions requested
+                          , 0 1
+                      , :evictions (:evictions registry) :entries $ touch-entry (:entries registry) descriptor next-entry
+                  registry-transition next $ wrap-actions descriptor $ :actions requested
+                let
+                    prepared $ prepare-capacity registry bytes $ empty-registry-actions
+                    base $ :registry prepared
+                    requested $ request-resource (initial-state descriptor) descriptor
+                    entry $ RegistryEntry :state (:state requested) :references 1 :bytes bytes :last-used next-clock
+                    next $ ResourceRegistry :capacity-bytes (:capacity-bytes base) :resident-bytes
+                      + (:resident-bytes base) bytes
+                      , :clock next-clock :loads
+                        inc $ :loads base
+                        , :evictions (:evictions base) :entries $ conj (:entries base) entry
+                  registry-transition next $ concat (:actions prepared)
+                    wrap-actions descriptor $ :actions requested
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'close-registry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn close-registry (registry)
+            let
+                actions $ close-registry-actions (:entries registry) (empty-registry-actions)
+                next $ ResourceRegistry :capacity-bytes (:capacity-bytes registry) :resident-bytes 0 :clock (:clock registry) :loads (:loads registry) :evictions (:evictions registry) :entries $ empty-registry-entries
+              registry-transition next actions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry
+        'close-registry-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn close-registry-actions (entries actions)
+            if (empty? entries) actions $ let
+                entry $ assert-type (-> entries first .unwrap) 'quamolit.resource-lifecycle/RegistryEntry
+                closed $ close-resource $ :state entry
+                resource-id $ :identity $ :state entry
+              recur (rest entries)
+                concat actions $ wrap-actions resource-id $ :actions closed
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.resource-lifecycle/RegistryEntry) (:: 'List 'quamolit.resource-lifecycle/RegistryAction)
+            :return $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
         'close-resource $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn close-resource (state)
             let
@@ -12283,18 +12370,97 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceTransition)
             :args $ [] 'quamolit.resource-lifecycle/ResourceState
+        'contains-entry? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn contains-entry? (entries descriptor)
+            any? entries $ fn (entry) (same-identity? entry descriptor)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.resource-lifecycle/RegistryEntry) 'quamolit.resource-lifecycle/ResourceIdentity
         'empty-actions $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-actions () ([])
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'quamolit.resource-lifecycle/ResourceAction
+        'empty-registry-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-registry-actions () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+        'empty-registry-entries $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-registry-entries () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.resource-lifecycle/RegistryEntry
+        'evict-first-idle $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn evict-first-idle (entries retained)
+            assert |resource-registry-capacity-exhausted $ not $ empty? entries
+            let
+                entry $ assert-type (-> entries first .unwrap) 'quamolit.resource-lifecycle/RegistryEntry
+              if
+                = 0 $ :references entry
+                let
+                    closed $ close-resource $ :state entry
+                    resource-id $ :identity $ :state entry
+                  EvictionResult :entries
+                    concat retained $ rest entries
+                    , :freed-bytes (:bytes entry) :actions $ wrap-actions resource-id $ :actions closed
+                recur (rest entries) (conj retained entry)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/EvictionResult)
+            :args $ [] (:: 'List 'quamolit.resource-lifecycle/RegistryEntry) (:: 'List 'quamolit.resource-lifecycle/RegistryEntry)
+        'evict-oldest $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn evict-oldest (registry)
+            let
+                result $ evict-first-idle (:entries registry) (empty-registry-entries)
+                next $ ResourceRegistry :capacity-bytes (:capacity-bytes registry) :resident-bytes
+                  - (:resident-bytes registry) (:freed-bytes result)
+                  , :clock (:clock registry) :loads (:loads registry) :evictions
+                    inc $ :evictions registry
+                    , :entries $ :entries result
+              registry-transition next $ :actions result
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry
+        'failed-registry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn failed-registry (registry descriptor generation message)
+            if
+              contains-entry? (:entries registry) descriptor
+              let
+                  entry $ find-entry (:entries registry) descriptor
+                  resolved $ resource-failed (:state entry) generation message
+                  next-entry $ RegistryEntry :state (:state resolved) :references (:references entry) :bytes (:bytes entry) :last-used $ :last-used entry
+                  next $ struct-with registry $ :entries
+                    replace-entry (:entries registry) descriptor next-entry
+                registry-transition next $ wrap-actions descriptor $ :actions resolved
+              registry-transition registry $ stale-registry-actions descriptor generation
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.resource-lifecycle/ResourceIdentity 'Number 'String
+        'find-entry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn find-entry (entries descriptor)
+            assert |missing-resource-registry-entry $ not $ empty? entries
+            let
+                entry $ assert-type (-> entries first .unwrap) 'quamolit.resource-lifecycle/RegistryEntry
+              if (same-identity? entry descriptor) entry $ recur (rest entries) descriptor
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryEntry)
+            :args $ [] (:: 'List 'quamolit.resource-lifecycle/RegistryEntry) 'quamolit.resource-lifecycle/ResourceIdentity
         'image-resource $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn image-resource (id version)
             resource (ResourceKind :image) id version
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceIdentity)
             :args $ [] 'String 'Number
+        'initial-registry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-registry (capacity-bytes)
+            assert |invalid-resource-registry-capacity $ and (valid-version? capacity-bytes) (> capacity-bytes 0)
+            ResourceRegistry :capacity-bytes capacity-bytes :resident-bytes 0 :clock 0 :loads 0 :evictions 0 :entries $ empty-registry-entries
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceRegistry)
+            :args $ [] 'Number
         'initial-state $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initial-state (descriptor)
             ResourceState :generation 0 :identity descriptor :phase (ResourcePhase :idle) :attempts 0
@@ -12310,6 +12476,73 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.resource-lifecycle/ResourcePhase
+        'prepare-capacity $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn prepare-capacity (registry required actions)
+            if
+              <=
+                + (:resident-bytes registry) required
+                :capacity-bytes registry
+              registry-transition registry actions
+              let
+                  evicted $ evict-oldest registry
+                recur (:registry evicted) required $ concat actions $ :actions evicted
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry 'Number $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+        'ready-registry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn ready-registry (registry descriptor generation)
+            if
+              contains-entry? (:entries registry) descriptor
+              let
+                  entry $ find-entry (:entries registry) descriptor
+                  resolved $ resource-ready (:state entry) generation
+                  next-entry $ RegistryEntry :state (:state resolved) :references (:references entry) :bytes (:bytes entry) :last-used $ :last-used entry
+                  next $ struct-with registry $ :entries
+                    replace-entry (:entries registry) descriptor next-entry
+                registry-transition next $ wrap-actions descriptor $ :actions resolved
+              registry-transition registry $ stale-registry-actions descriptor generation
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'registry-metrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn registry-metrics (registry)
+            let
+                leased $ count $ filter (:entries registry)
+                  fn (entry)
+                    > (:references entry) 0
+                resident $ count $ :entries registry
+              RegistryMetrics :resident resident :leased leased :idle (- resident leased) :resident-bytes (:resident-bytes registry) :loads (:loads registry) :evictions $ :evictions registry
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryMetrics)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry
+        'registry-transition $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn registry-transition (registry actions) (RegistryTransition :registry registry :actions actions)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+        'release-registry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-registry (registry descriptor)
+            assert |missing-resource-registry-entry $ contains-entry? (:entries registry) descriptor
+            let
+                entry $ find-entry (:entries registry) descriptor
+                _ $ assert |resource-registry-reference-underflow $ > (:references entry) 0
+                next-clock $ inc $ :clock registry
+                next-entry $ RegistryEntry :state (:state entry) :references
+                  dec $ :references entry
+                  , :bytes (:bytes entry) :last-used next-clock
+                next $ ResourceRegistry :capacity-bytes (:capacity-bytes registry) :resident-bytes (:resident-bytes registry) :clock next-clock :loads (:loads registry) :evictions (:evictions registry) :entries $ touch-entry (:entries registry) descriptor next-entry
+              registry-transition next $ empty-registry-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.resource-lifecycle/ResourceIdentity
+        'replace-entry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn replace-entry (entries descriptor next-entry)
+            map entries $ fn (entry)
+              if (same-identity? entry descriptor) next-entry entry
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.resource-lifecycle/RegistryEntry) 'quamolit.resource-lifecycle/ResourceIdentity 'quamolit.resource-lifecycle/RegistryEntry
+            :return $ :: 'List 'quamolit.resource-lifecycle/RegistryEntry
         'request-resource $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn request-resource (state descriptor)
             let
@@ -12371,6 +12604,29 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceTransition)
             :args $ [] 'quamolit.resource-lifecycle/ResourceState 'Number
+        'same-identity? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn same-identity? (entry descriptor)
+            = descriptor $ :identity $ :state entry
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.resource-lifecycle/RegistryEntry 'quamolit.resource-lifecycle/ResourceIdentity
+        'stale-registry-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn stale-registry-actions (descriptor generation)
+            [] $ RegistryAction :resource descriptor $ ResourceAction :release generation
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+            :return $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+        'touch-entry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn touch-entry (entries descriptor next-entry)
+            conj
+              filter entries $ fn (entry)
+                not $ same-identity? entry descriptor
+              , next-entry
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.resource-lifecycle/RegistryEntry) 'quamolit.resource-lifecycle/ResourceIdentity 'quamolit.resource-lifecycle/RegistryEntry
+            :return $ :: 'List 'quamolit.resource-lifecycle/RegistryEntry
         'transition $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn transition (state actions) (ResourceTransition :state state :actions actions)
           :examples $ []
@@ -12385,6 +12641,13 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'Number
+        'wrap-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn wrap-actions (descriptor actions)
+            map actions $ fn (action) (RegistryAction :resource descriptor action)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.resource-lifecycle/ResourceIdentity $ :: 'List 'quamolit.resource-lifecycle/ResourceAction
+            :return $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.resource-lifecycle
     'quamolit.retained-component $ %{} 'FileEntry
