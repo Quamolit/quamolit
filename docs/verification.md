@@ -137,7 +137,7 @@ yarn bench
 
 `yarn test:presence` 验证 [Scene 逻辑实例生命周期](presence-lifecycle.md) 的严格类型、重排/换类型/退出/重入、父级释放顺序、重复结算、100 次 10k 实例图层逻辑装卸与 JS JSON 边界；`yarn test:motion-browser` 核对 fade、重叠层序和时间跳转画面。逻辑释放通知不等于真实 GPU/Canvas 资源或指针捕获释放。
 
-`yarn test:presence-resources` 验证 [宿主实例资源跟踪](presence-resources.md)：Calcit 严格类型、100 次 10k Float32 快照挂载/退出、共享源最后引用、重入取消释放及错误输入不破坏现有资源；浏览器还验证退出中间帧与终点像素和停帧。此命令仍不验证 GPU buffer 或指针捕获。
+`yarn test:presence-resources` 验证 [宿主实例资源跟踪](presence-resources.md)：严格检查 Presence、纯 Calcit registry 连接与通用生命周期；覆盖退出完成前重入、idle 重入、80 kB 单容量版本替换，以及 100 次 10k buffer 出入时 `loads=100`、`evictions=99`、最终 close 发出第 100 次 release 并让 resident/leased/bytes 回零。旧 CPU Float32 快照宿主的共享源、错误输入与即时释放合同仍保留；浏览器继续验证退出中间帧与终点像素和停帧。此命令尚未让真实 GPU buffer 执行动作，也不验证指针捕获。
 
 `yarn test:motion-browser` 还验证 [WebGPU 能力探测诊断夹具](webgpu-capability-probe.md)：通过 js-ffi 0.1.44 的 Calcit 公共 API，分别模拟 adapter 失败、ready 和设备丢失，并确认 Canvas 参考时间帧仍可绘制、探测设备被释放。真实浏览器的 `ready` 仅代表可获取 device，不是 GPU 画面或吞吐验收。
 

@@ -11598,6 +11598,125 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.presence-component
           :require (quamolit.presence :as presence) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.component-sample :as component) (quamolit.scene-binding :as binding)
+    'quamolit.presence-resource-registry $ %{} 'FileEntry
+      :defs $ {}
+        'PresenceResourceTransition $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceResourceTransition
+            :state 'quamolit.presence-resource-registry/PresenceResources
+            :actions $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PresenceResources $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceResources (:plan 'quamolit.presence/InstanceResourcePlan) (:registry 'quamolit.resource-lifecycle/ResourceRegistry)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'acquire-instance-sources $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn acquire-instance-sources (registry sources actions)
+            if (empty? sources) (resource/registry-transition registry actions)
+              let
+                  source $ assert-type (-> sources first .unwrap) 'quamolit.scene-ir/InstanceSource
+                  acquired $ resource/acquire-registry registry (instance-resource-identity source) (instance-resource-bytes source)
+                recur (:registry acquired) (rest sources)
+                  concat actions $ :actions acquired
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry (:: 'List 'quamolit.scene-ir/InstanceSource) (:: 'List 'quamolit.resource-lifecycle/RegistryAction)
+        'close-presence-resources $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn close-presence-resources (state)
+            let
+                closed $ resource/close-registry $ :registry state
+              PresenceResourceTransition :state
+                PresenceResources :plan (presence/empty-instance-resource-plan) :registry $ :registry closed
+                , :actions $ :actions closed
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-resource-registry/PresenceResourceTransition
+            :args $ [] 'quamolit.presence-resource-registry/PresenceResources
+        'fail-presence-resource $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn fail-presence-resource (state descriptor generation message)
+            let
+                resolved $ resource/failed-registry (:registry state) descriptor generation message
+              PresenceResourceTransition :state
+                PresenceResources :plan (:plan state) :registry $ :registry resolved
+                , :actions $ :actions resolved
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-resource-registry/PresenceResourceTransition
+            :args $ [] 'quamolit.presence-resource-registry/PresenceResources 'quamolit.resource-lifecycle/ResourceIdentity 'Number 'String
+        'initial-presence-resources $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-presence-resources (capacity-bytes)
+            PresenceResources :plan (presence/empty-instance-resource-plan) :registry $ resource/initial-registry capacity-bytes
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-resource-registry/PresenceResources
+            :args $ [] 'Number
+        'instance-resource-bytes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-resource-bytes (source)
+            * 8 $ :count source
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.scene-ir/InstanceSource
+        'instance-resource-identity $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-resource-identity (source)
+            resource/resource (resource/ResourceKind :buffer)
+              str |instances: (:id source) |@ $ :count source
+              :version source
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceIdentity)
+            :args $ [] 'quamolit.scene-ir/InstanceSource
+        'new-instance-sources $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn new-instance-sources (references previous retained)
+            if (empty? references) retained $ let
+                reference $ presence/first-resource-ref references
+              if
+                presence/resource-ref-present? previous $ :key reference
+                recur (rest references) previous retained
+                recur (rest references) previous $ conj retained $ :source reference
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.presence/InstanceResourceRef) (:: 'List 'quamolit.presence/InstanceResourceRef) (:: 'List 'quamolit.scene-ir/InstanceSource)
+            :return $ :: 'List 'quamolit.scene-ir/InstanceSource
+        'ready-presence-resource $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn ready-presence-resource (state descriptor generation)
+            let
+                resolved $ resource/ready-registry (:registry state) descriptor generation
+              PresenceResourceTransition :state
+                PresenceResources :plan (:plan state) :registry $ :registry resolved
+                , :actions $ :actions resolved
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-resource-registry/PresenceResourceTransition
+            :args $ [] 'quamolit.presence-resource-registry/PresenceResources 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'release-instance-sources $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-instance-sources (registry sources actions)
+            if (empty? sources) (resource/registry-transition registry actions)
+              let
+                  source $ assert-type (-> sources first .unwrap) 'quamolit.scene-ir/InstanceSource
+                  released $ resource/release-registry registry $ instance-resource-identity source
+                recur (:registry released) (rest sources)
+                  concat actions $ :actions released
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry (:: 'List 'quamolit.scene-ir/InstanceSource) (:: 'List 'quamolit.resource-lifecycle/RegistryAction)
+        'sync-presence-resources $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sync-presence-resources (state model)
+            let
+                next-plan $ presence/instance-resource-plan model $ :plan state
+                released $ release-instance-sources (:registry state) (:release next-plan) (resource/empty-registry-actions)
+                new-sources $ new-instance-sources (:references next-plan)
+                  :references $ :plan state
+                  presence/empty-instance-sources
+                acquired $ acquire-instance-sources (:registry released) new-sources $ :actions released
+              PresenceResourceTransition :state
+                PresenceResources :plan next-plan :registry $ :registry acquired
+                , :actions $ :actions acquired
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-resource-registry/PresenceResourceTransition
+            :args $ [] 'quamolit.presence-resource-registry/PresenceResources 'quamolit.presence/PresenceModel
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.presence-resource-registry
+          :require (quamolit.presence :as presence) (quamolit.resource-lifecycle :as resource) (quamolit.scene-ir :as scene)
     'quamolit.render.element $ %{} 'FileEntry
       :defs $ {}
         'alpha $ %{} 'CodeEntry (:doc |)
