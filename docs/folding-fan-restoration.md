@@ -17,6 +17,8 @@ QUAMOLIT_DEMO_TEST_PORT=5192 yarn test:demo-nav
 
 历史像素参考直接复现 `9b5bcdd:compact.cirru` 的绘制顺序：索引 0–23 依次取 `650 / 24` 的纵向源区域，以切片顶边中心为原点，使用 Calcit 计算的 `sin/cos` 仿射矩阵叠加。Chromium 在固定 1280 × 720 / DPR 1 与 1280 × 900 / DPR 2 视口中，把当前 Scene 路径和该参考路径的完整 RGBA 逐像素比较，要求差异像素数和最大通道差都为 0；同时锁定历史浏览器默认的 `imageSmoothingEnabled = true`、`imageSmoothingQuality = low`。这项门禁同时覆盖缩放过滤、分数源切片、透明接缝和重叠层序，不用主观截图替代。
 
-此参考入口每帧仍完整构造 Scene 并遍历 24 片，重放至多 100 条输入；不宣称已达到 #50 的保留执行计划或 WebGPU 纹理复用，这些性能工作留给后续里程碑。
+新增[公共 WebGPU 图片图层](webgpu-scene-images.md)复用同一 `scene-at`，通过 texture runner、加载队列和 registry 绑定荷花资源。面板可在 Canvas 与 WebGPU 间状态切换；`?backend=webgpu` 选择 GPU，初始化失败与 device loss 显示诊断并回退 Canvas，用户可再次选择 GPU 重建。切换不改变时间、Model 或日志；卸载在 queue 完成后释放图层、texture 与 device。硬件只在 macOS/Metal 验证，其他设备未验证。
 
-限制：图片节点已接入公共 Scene IR 和 Canvas 资源解析，但 WebGPU 纹理路径未完成；输入日志合同目前落在折扇示例，尚未抽成通用组件 API。当前像素对照证明 Chrome/Canvas2D 在上述固定视口与 DPR 下等同历史路径，不外推 Safari/Firefox、任意显卡驱动或 WebGPU 纹理采样；完整跨后端图片、复杂遮挡语义及 M3 其他能力仍由 #53/#37 承接。
+此参考入口每帧仍完整构造 Scene 并遍历 24 片，重放至多 100 条输入；GPU 图层复用 pipeline/buffer/bind group，重复矩阵不上传 uniform，但不宣称已达到 #50 的保留结构编译或正式性能目标。
+
+限制：WebGPU 图片采用线性采样、单采样边缘，目前为实验路径，不声称与 Canvas 全像素一致；历史 Canvas 零差异门禁不变，GPU 栅格化差异由 #144 跟踪。输入日志合同目前落在折扇示例，尚未抽成通用组件 API。Canvas 历史像素对照不外推 Safari/Firefox 或任意显卡；完整跨后端图片、复杂遮挡语义及 M3 其他能力仍由 #53/#37 承接。

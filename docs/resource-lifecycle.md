@@ -31,9 +31,11 @@
 
 被淘汰或 registry 已关闭后，迟到的 ready/failed 不会恢复旧资源，而只返回带身份的幂等 release。100 次多资源装卸检查 resident bytes 始终不超过容量，并在最终关闭后回到零。
 
-## 首个真实消费者
+## 真实消费者
 
 Folding Fan 不再用页面 JavaScript 的 `resource = "loading"` 布尔状态决定图片生命周期。`resource-initial` 从 Calcit 建立 `lotus@1`，[图片资源 runner](image-resource-runner.md)通过 js-ffi 创建和解码 `ImageHost`，并在 Calcit 中维护 generation 表、统一任务队列、安装和释放。图片成功、失败、重试、取消、卸载都会回到统一状态机；原有 24 切片与历史参考渲染保持逐像素一致。
+
+[WebGPU texture runner](webgpu-texture-runner.md)进一步让 `kind:texture` 经过同一个 registry 和加载队列：图片解码后创建并上传真实 `GPUTexture`，accepted 才安装，device generation 切换时旧任务与旧句柄不能覆盖新代。Node 的 100 次 rebuild 最终 `created=released=101`；Chromium 在两代 device 上读回相同 RGBA 像素并关闭回零。
 
 验证命令：
 
@@ -41,9 +43,10 @@ Folding Fan 不再用页面 JavaScript 的 `resource = "loading"` 布尔状态�
 yarn test:folding-fan
 ```
 
-该命令覆盖 109/109 严格 public schema、loading/ready/error、版本替换、迟到完成、失败重试、close、共享引用、LRU 容量、活跃资源保护、100 次图片宿主及多资源装卸上界、真实图片失败重试，以及 DPR 1/2 历史像素零差异。
+`yarn test:folding-fan` 覆盖 Canvas 图片路径；`yarn test:webgpu-instances` 覆盖 texture 的真实创建、上传、读回、两代 device 重建及关闭。
 
 ## 后续切片
 
-- 将 WebGPU texture/buffer/pipeline 的创建与 device recovery 接到同一 logical identity；device generation 与资源 generation 仍需保持两个正交维度。
+- 将 texture 用于实际 Scene 采样绘制，并为已提交 GPU 工作补 queue/fence-safe 延迟释放；现有立即 destroy 只在提交前或测试已等待完成的路径有证据。
+- 扩展 geometry 与 pipeline 的类型化 loader；Presence buffer 与 texture 已分别接入实际宿主。
 - 为字体和 glyph atlas 增加真实消费者，验证多个资源共同 ready 后只唤醒必要帧。
