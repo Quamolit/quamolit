@@ -17493,6 +17493,7 @@
             [] quamolit.canvas-reference :as canvas-reference
             [] quamolit.gpu-vec2-translation :as gpu-translation
             [] quamolit.webgpu-batches :as webgpu-batches
+            quamolit.webgpu-texture-runner :as texture-runner
     'quamolit.test.playback-fixture $ %{} 'FileEntry
       :defs $ {}
         'PlaybackFixtureFrame $ %{} 'CodeEntry (:doc |)
@@ -18908,3 +18909,418 @@
         :doc "|Quamolit 的 WebGPU 设备探测薄适配；状态、失败与设备所有权由上游 Calcit API 定义。"
         :code $ quote $ ns quamolit.webgpu-capabilities
           :require $ js-ffi.webgpu-capabilities :as capabilities
+    'quamolit.webgpu-texture-runner $ %{} 'FileEntry
+      :defs $ {}
+        'QueuedTextureLoadResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct QueuedTextureLoadResult (:token 'Number) (:device-generation 'Number) (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number)
+            :outcome 'quamolit.webgpu-texture-runner/TextureLoadOutcome
+          :examples $ []
+          :schema $ :: 'StructDef
+        'TextureActionQueueResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct TextureActionQueueResult (:queue 'quamolit.resource-load-queue/ResourceLoadQueue) (:backpressured 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'TextureDeviceRebuild $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct TextureDeviceRebuild (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
+            :host 'quamolit.webgpu-texture-runner/TextureResourceHost
+            :transition 'quamolit.resource-lifecycle/RegistryTransition
+            :backpressured 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'TextureLoadCompletion $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct TextureLoadCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
+            :host 'quamolit.webgpu-texture-runner/TextureResourceHost
+            :transition 'quamolit.resource-lifecycle/RegistryTransition
+          :examples $ []
+          :schema $ :: 'StructDef
+        'TextureLoadOutcome $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum TextureLoadOutcome
+            :ready 'quamolit.webgpu-texture-runner/TextureResourceHandle 'Number
+            :failed
+              :: 'Option 'quamolit.webgpu-texture-runner/TextureResourceHandle
+              , 'String
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'TextureReleaseResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct TextureReleaseResult
+            :handles $ :: 'List 'quamolit.webgpu-texture-runner/TextureResourceHandle
+            :released? 'Bool
+            :bytes 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'TextureResourceDescriptor $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct TextureResourceDescriptor (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:url 'String) (:width 'Number) (:height 'Number) (:format 'String)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'TextureResourceHandle $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct TextureResourceHandle (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number) (:device-generation 'Number)
+            :texture 'quamolit.webgpu-texture-runner/WebGpuTextureHost
+            :bytes 'Number
+            :installed? 'Bool
+          :examples $ []
+          :schema $ :: 'StructDef
+        'TextureResourceHost $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct TextureResourceHost
+            :handles $ :: 'List 'quamolit.webgpu-texture-runner/TextureResourceHandle
+            :created 'Number
+            :released 'Number
+            :uploaded-bytes 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'TextureResourceMetrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct TextureResourceMetrics (:created 'Number) (:released 'Number) (:live 'Number) (:live-bytes 'Number) (:uploaded-bytes 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'WebGpuTextureHost $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ deftrait WebGpuTextureHost (:width 'Number) (:height 'Number) (:format 'String)
+            .destroy $ :: 'Fn $ {}
+              :args $ [] 'quamolit.webgpu-texture-runner/WebGpuTextureHost
+              :return 'Unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+          :schema $ :: 'Trait
+        'accept-texture-handle $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn accept-texture-handle (host handle uploaded-bytes)
+            assert |duplicate-texture-resource-generation $ not $ any? (:handles host)
+              fn (candidate)
+                and
+                  = (:identity handle) (:identity candidate)
+                  = (:resource-generation handle) (:resource-generation candidate)
+            TextureResourceHost :handles
+              conj (:handles host) handle
+              , :created
+                inc $ :created host
+                , :released (:released host) :uploaded-bytes $ + (:uploaded-bytes host) uploaded-bytes
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureResourceHost
+            :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceHost 'quamolit.webgpu-texture-runner/TextureResourceHandle 'Number
+        'apply-texture-actions! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn apply-texture-actions! (host actions)
+            if (empty? actions) host $ let
+                action $ -> actions first .unwrap
+                next $ match action $
+                  :resource resource-id resource-action
+                  do
+                    assert |non-texture-resource-in-texture-runner $ = (resource/ResourceKind :texture) (:kind resource-id)
+                    match resource-action
+                      (:release generation) (release-texture-generation! host resource-id generation)
+                      (:install generation descriptor) (install-texture-generation host descriptor generation)
+                      _ host
+              recur next $ rest actions
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureResourceHost
+            :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceHost $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+            :features $ #{} :js-ffi
+        'complete-texture-load! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn complete-texture-load! (host registry queue result)
+            let
+                settled $ load-queue/finish-load queue $ :token result
+              match (:outcome settled)
+                (:accepted task)
+                  do
+                    assert |texture-load-device-generation-mismatch $ = (:device-generation task) (:device-generation result)
+                    assert |texture-load-resource-identity-mismatch $ = (:identity task) (:identity result)
+                    assert |texture-load-resource-generation-mismatch $ = (:resource-generation task) (:resource-generation result)
+                    let
+                        transition $ match (:outcome result)
+                          (:ready _ _)
+                            resource/ready-registry registry (:identity result) (:resource-generation result)
+                          (:failed _ message)
+                            resource/failed-registry registry (:identity result) (:resource-generation result) message
+                        prepared $ match (:outcome result)
+                          (:ready handle bytes) (accept-texture-handle host handle bytes)
+                          (:failed _ _) (dispose-texture-load-result! host result)
+                        next-host $ apply-texture-actions! prepared $ :actions transition
+                      TextureLoadCompletion :queue (:queue settled) :host next-host :transition transition
+                (:discarded _)
+                  TextureLoadCompletion :queue (:queue settled) :host (dispose-texture-load-result! host result) :transition $ resource/registry-transition registry $ resource/empty-registry-actions
+                (:unknown)
+                  TextureLoadCompletion :queue (:queue settled) :host (dispose-texture-load-result! host result) :transition $ resource/registry-transition registry $ resource/empty-registry-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureLoadCompletion
+            :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceHost 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.webgpu-texture-runner/QueuedTextureLoadResult
+            :features $ #{} :js-ffi
+        'copy-image-to-texture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn copy-image-to-texture! (device image texture width height)
+            raw-copy-image-to-texture! (unsafe-coerce device 'JsObject) (unsafe-coerce image 'JsObject) (unsafe-coerce texture 'JsObject) width height
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.webgpu/DeviceHost 'js-ffi.browser/ImageHost 'quamolit.webgpu-texture-runner/WebGpuTextureHost 'Number 'Number
+            :features $ #{} :js-ffi
+        'create-texture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create-texture! (device width height format)
+            unsafe-coerce
+              raw-create-texture! (unsafe-coerce device 'JsObject) width height format
+              , WebGpuTextureHost
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/WebGpuTextureHost
+            :args $ [] 'js-ffi.webgpu/DeviceHost 'Number 'Number 'String
+            :features $ #{} :js-ffi
+        'destroy-texture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn destroy-texture! (texture)
+            hint-fn $ {}
+              :args $ [] 'quamolit.webgpu-texture-runner/WebGpuTextureHost
+              :return 'Unit
+              :features $ #{} :js-ffi
+            texture .destroy
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.webgpu-texture-runner/WebGpuTextureHost
+            :features $ #{} :js-ffi
+        'dispose-texture-load-result! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn dispose-texture-load-result! (host result)
+            match (:outcome result)
+              (:ready handle bytes)
+                do
+                  destroy-texture! $ :texture handle
+                  TextureResourceHost :handles (:handles host) :created
+                    inc $ :created host
+                    , :released
+                      inc $ :released host
+                      , :uploaded-bytes $ + (:uploaded-bytes host) bytes
+              (:failed handle-option _)
+                match handle-option
+                  (:some handle)
+                    do
+                      destroy-texture! $ :texture handle
+                      TextureResourceHost :handles (:handles host) :created
+                        inc $ :created host
+                        , :released
+                          inc $ :released host
+                          , :uploaded-bytes $ :uploaded-bytes host
+                  (:none) host
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureResourceHost
+            :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceHost 'quamolit.webgpu-texture-runner/QueuedTextureLoadResult
+            :features $ #{} :js-ffi
+        'empty-texture-handles $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-texture-handles () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.webgpu-texture-runner/TextureResourceHandle
+        'enqueue-texture-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn enqueue-texture-actions (queue device-generation actions)
+            if (empty? actions) (TextureActionQueueResult :queue queue :backpressured 0)
+              let
+                  action $ -> actions first .unwrap
+                  current $ match action $
+                    :resource resource-id resource-action
+                    do
+                      assert |non-texture-resource-in-texture-queue $ = (resource/ResourceKind :texture) (:kind resource-id)
+                      match resource-action
+                        (:load generation descriptor)
+                          let
+                              result $ load-queue/enqueue-load queue device-generation descriptor generation $ load-queue/ResourceLoadPriority :interactive
+                              backpressured $ match (:outcome result)
+                                (:backpressured) 1
+                                _ 0
+                            TextureActionQueueResult :queue (:queue result) :backpressured backpressured
+                        _ $ TextureActionQueueResult :queue queue :backpressured 0
+                  remaining $ enqueue-texture-actions (:queue current) device-generation $ rest actions
+                TextureActionQueueResult :queue (:queue remaining) :backpressured $ + (:backpressured current) (:backpressured remaining)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureActionQueueResult
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue 'Number $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+        'initial-texture-resource-host $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-texture-resource-host ()
+            TextureResourceHost :handles ([]) :created 0 :released 0 :uploaded-bytes 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureResourceHost
+            :args $ []
+        'install-texture-generation $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn install-texture-generation (host resource-id generation)
+            let
+                found? $ any? (:handles host)
+                  fn (handle)
+                    and
+                      = resource-id $ :identity handle
+                      = generation $ :resource-generation handle
+              assert |missing-texture-resource-generation found?
+              TextureResourceHost :handles
+                map (:handles host)
+                  fn (handle)
+                    TextureResourceHandle :identity (:identity handle) :resource-generation (:resource-generation handle) :device-generation (:device-generation handle) :texture (:texture handle) :bytes (:bytes handle) :installed? $ if
+                      = resource-id $ :identity handle
+                      = generation $ :resource-generation handle
+                      :installed? handle
+                , :created (:created host) :released (:released host) :uploaded-bytes $ :uploaded-bytes host
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureResourceHost
+            :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceHost 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'installed-texture $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn installed-texture (host resource-id)
+            let
+                matched $ filter (:handles host)
+                  fn (handle)
+                    and
+                      = resource-id $ :identity handle
+                      :installed? handle
+              if (empty? matched) (%none)
+                %some $ :texture $ -> matched first .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceHost 'quamolit.resource-lifecycle/ResourceIdentity
+            :return $ :: 'Option 'quamolit.webgpu-texture-runner/WebGpuTextureHost
+        'live-texture-bytes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn live-texture-bytes (handles total)
+            if (empty? handles) total $ let
+                handle $ assert-type (-> handles first .unwrap) 'quamolit.webgpu-texture-runner/TextureResourceHandle
+              recur (rest handles)
+                + total $ :bytes handle
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ []
+              :: 'List 'quamolit.webgpu-texture-runner/TextureResourceHandle
+              , 'Number
+        'raw-copy-image-to-texture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-copy-image-to-texture! (device image texture width height) (raise |js-only-copy-image-to-texture)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(device,image,texture,width,height)=>{device.queue.copyExternalImageToTexture({source:image},{texture},{width,height,depthOrArrayLayers:1});}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'JsObject 'JsObject 'Number 'Number
+            :features $ #{} :js-ffi
+        'raw-create-texture! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-create-texture! (device width height format) (raise |js-only-create-texture)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(device,width,height,format)=>device.createTexture({size:{width,height,depthOrArrayLayers:1},format,usage:23})"
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'Number 'Number 'String
+            :features $ #{} :js-ffi
+        'rebuild-texture-device! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rebuild-texture-device! (host registry queue device-generation)
+            let
+                transition $ resource/rebuild-registry registry
+                released $ apply-texture-actions! host $ :actions transition
+                clean-queue $ load-queue/cancel-stale-device-loads queue device-generation
+                queued $ enqueue-texture-actions clean-queue device-generation $ :actions transition
+              TextureDeviceRebuild :queue (:queue queued) :host released :transition transition :backpressured $ :backpressured queued
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureDeviceRebuild
+            :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceHost 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.resource-load-queue/ResourceLoadQueue 'Number
+            :features $ #{} :js-ffi
+        'release-texture-generation! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-texture-generation! (host resource-id generation)
+            let
+                result $ release-texture-loop! (:handles host) (empty-texture-handles) resource-id generation
+              TextureResourceHost :handles (:handles result) :created (:created host) :released
+                + (:released host)
+                  if (:released? result) 1 0
+                , :uploaded-bytes $ :uploaded-bytes host
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureResourceHost
+            :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceHost 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+            :features $ #{} :js-ffi
+        'release-texture-loop! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-texture-loop! (handles retained resource-id generation)
+            if (empty? handles) (TextureReleaseResult :handles retained :released? false :bytes 0)
+              let
+                  handle $ assert-type (-> handles first .unwrap) 'quamolit.webgpu-texture-runner/TextureResourceHandle
+                if
+                  and
+                    = resource-id $ :identity handle
+                    = generation $ :resource-generation handle
+                  do
+                    destroy-texture! $ :texture handle
+                    TextureReleaseResult :handles
+                      concat retained $ rest handles
+                      , :released? true :bytes $ :bytes handle
+                  recur (rest handles) (conj retained handle) resource-id generation
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureReleaseResult
+            :args $ []
+              :: 'List 'quamolit.webgpu-texture-runner/TextureResourceHandle
+              :: 'List 'quamolit.webgpu-texture-runner/TextureResourceHandle
+              , 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+            :features $ #{} :js-ffi
+        'run-texture-load-task! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn run-texture-load-task! (descriptor device task)
+            hint-fn $ {} (:async true)
+              :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceDescriptor 'js-ffi.webgpu/DeviceHost 'quamolit.resource-load-queue/ResourceLoadTask
+              :return 'quamolit.webgpu-texture-runner/QueuedTextureLoadResult
+              :features $ #{} :js-ffi
+            assert |texture-load-task-identity-mismatch $ = (:identity descriptor) (:identity task)
+            let
+                image $ browser/image-create
+                _ $ browser/image-src! image $ :url descriptor
+                decoded $ js-await $ browser/image-decode! image
+                outcome $ match decoded
+                  (:err error)
+                    TextureLoadOutcome :failed (%none) (:message error)
+                  (:ok _)
+                    let
+                        width $ browser/image-natural-width image
+                        height $ browser/image-natural-height image
+                      if
+                        not $ and
+                          = width $ :width descriptor
+                          = height $ :height descriptor
+                        TextureLoadOutcome :failed (%none)
+                          str |texture-image-size-mismatch:expected= (:width descriptor) |x (:height descriptor) |,actual= width |x height
+                        try
+                          let
+                              texture $ create-texture! device width height $ :format descriptor
+                              bytes $ texture-resource-bytes descriptor
+                              handle $ TextureResourceHandle :identity (:identity task) :resource-generation (:resource-generation task) :device-generation (:device-generation task) :texture texture :bytes bytes :installed? false
+                            try
+                              do (copy-image-to-texture! device image texture width height) (TextureLoadOutcome :ready handle bytes)
+                              fn (error)
+                                let
+                                    normalized $ shared/normalize-error error
+                                  TextureLoadOutcome :failed (%some handle) (:message normalized)
+                          fn (error)
+                            let
+                                normalized $ shared/normalize-error error
+                              TextureLoadOutcome :failed (%none) (:message normalized)
+              QueuedTextureLoadResult :token (:token task) :device-generation (:device-generation task) :identity (:identity task) :resource-generation (:resource-generation task) :outcome outcome
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true)
+            :return 'quamolit.webgpu-texture-runner/QueuedTextureLoadResult
+            :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceDescriptor 'js-ffi.webgpu/DeviceHost 'quamolit.resource-load-queue/ResourceLoadTask
+            :features $ #{} :js-ffi
+        'texture-descriptor $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn texture-descriptor (id version url width height format)
+            assert |invalid-texture-width $ and (number? width) (> width 0)
+            assert |invalid-texture-height $ and (number? height) (> height 0)
+            assert |unsupported-texture-format $ = format |rgba8unorm
+            TextureResourceDescriptor :identity
+              resource/resource (resource/ResourceKind :texture) id version
+              , :url url :width width :height height :format format
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureResourceDescriptor
+            :args $ [] 'String 'Number 'String 'Number 'Number 'String
+        'texture-resource-bytes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn texture-resource-bytes (descriptor)
+            * 4 (:width descriptor) (:height descriptor)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceDescriptor
+        'texture-resource-metrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn texture-resource-metrics (host)
+            TextureResourceMetrics :created (:created host) :released (:released host) :live
+              count $ :handles host
+              , :live-bytes
+                live-texture-bytes (:handles host) 0
+                , :uploaded-bytes $ :uploaded-bytes host
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/TextureResourceMetrics
+            :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceHost
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.webgpu-texture-runner
+          :require (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as load-queue) (js-ffi.browser :as browser) (js-ffi.webgpu :as webgpu) (js-ffi.shared :as shared)
