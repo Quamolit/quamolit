@@ -11965,6 +11965,17 @@
             :outcome 'quamolit.presence-webgpu-resources/PresenceLoadTaskOutcome
           :examples $ []
           :schema $ :: 'StructDef
+        'PresenceQueuedLoadCompletion $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceQueuedLoadCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
+            :host 'quamolit.presence-webgpu-resources/PresenceGpuHost
+            :transition 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PresenceQueuedLoadResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceQueuedLoadResult (:token 'Number)
+            :result 'quamolit.presence-webgpu-resources/PresenceLoadTaskResult
+          :examples $ []
+          :schema $ :: 'StructDef
         'ReleaseResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ReleaseResult
             :handles $ :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
@@ -12040,6 +12051,31 @@
             :return 'quamolit.presence-webgpu-resources/PresenceLoadCompletion
             :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'quamolit.presence-device-coordinator/PresenceDeviceState 'quamolit.presence-webgpu-resources/PresenceLoadTaskResult
             :features $ #{} :js-ffi
+        'complete-queued-presence-load! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn complete-queued-presence-load! (host state queue queued-result)
+            let
+                result $ :result queued-result
+                settled $ load-queue/finish-load queue $ :token queued-result
+              match (:outcome settled)
+                (:accepted task)
+                  do
+                    assert |queued-load-device-generation-mismatch $ = (:device-generation task) (:device-generation result)
+                    assert |queued-load-resource-identity-mismatch $ = (:identity task) (:identity result)
+                    assert |queued-load-resource-generation-mismatch $ = (:resource-generation task) (:resource-generation result)
+                    let
+                        completion $ complete-presence-load! host state result
+                      PresenceQueuedLoadCompletion :queue (:queue settled) :host (:host completion) :transition $ :transition completion
+                (:discarded _)
+                  do (dispose-presence-load-result! result)
+                    PresenceQueuedLoadCompletion :queue (:queue settled) :host host :transition $ coordinator/transition state $ coordinator/empty-actions
+                (:unknown)
+                  do (dispose-presence-load-result! result)
+                    PresenceQueuedLoadCompletion :queue (:queue settled) :host host :transition $ coordinator/transition state $ coordinator/empty-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-webgpu-resources/PresenceQueuedLoadCompletion
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'quamolit.presence-device-coordinator/PresenceDeviceState 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.presence-webgpu-resources/PresenceQueuedLoadResult
+            :features $ #{} :js-ffi
         'contains-handle? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn contains-handle? (handles resource-id generation)
             any? handles $ fn (handle) (same-handle? handle resource-id generation)
@@ -12048,6 +12084,18 @@
             :args $ []
               :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
               , 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'dispose-presence-load-result! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn dispose-presence-load-result! (result)
+            match (:outcome result)
+              (:ready handle _)
+                gpu/dispose! $ :batch handle
+              (:failed _) &unit
+              (:ignored) &unit
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceLoadTaskResult
+            :features $ #{} :js-ffi
         'draw-presence-buffer! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-presence-buffer! (host resource-id width height fill alpha)
             gpu/draw!
@@ -12063,6 +12111,16 @@
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+        'enqueue-presence-load $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn enqueue-presence-load (queue action priority)
+            match (presence-load-request action)
+              (:none) (%none)
+              (:some request)
+                %some $ load-queue/enqueue-load queue (:device-generation request) (:identity request) (:resource-generation request) priority
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.presence-device-coordinator/PresenceDeviceAction 'quamolit.resource-load-queue/ResourceLoadPriority
+            :return $ :: 'Option 'quamolit.resource-load-queue/ResourceLoadEnqueue
         'execute-presence-device-action! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn execute-presence-device-action! (host active-device-generation canvas device format table references action)
             hint-fn $ {} (:async true)
@@ -12301,6 +12359,21 @@
             :return 'quamolit.presence-webgpu-resources/PresenceLoadTaskResult
             :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence-webgpu-resources/PresenceLoadRequest
             :features $ #{} :js-ffi
+        'run-presence-load-task! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn run-presence-load-task! (host active-device-generation canvas device format table references task)
+            hint-fn $ {} (:async true)
+              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-load-queue/ResourceLoadTask
+              :return 'quamolit.presence-webgpu-resources/PresenceQueuedLoadResult
+              :features $ #{} :js-ffi
+            let
+                request $ PresenceLoadRequest :device-generation (:device-generation task) :identity (:identity task) :resource-generation $ :resource-generation task
+                result $ js-await $ run-presence-load-request! host active-device-generation canvas device format table references request
+              PresenceQueuedLoadResult :token (:token task) :result result
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true)
+            :return 'quamolit.presence-webgpu-resources/PresenceQueuedLoadResult
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-load-queue/ResourceLoadTask
+            :features $ #{} :js-ffi
         'same-handle? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn same-handle? (handle resource-id generation)
             and
@@ -12346,7 +12419,7 @@
             :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceTransition 'Number 'quamolit.resource-lifecycle/ResourceIdentity 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.presence-webgpu-resources
-          :require (quamolit.presence :as presence) (quamolit.presence-resource-registry :as presence-resource) (quamolit.resource-lifecycle :as resource) (quamolit.instance-resource :as instances) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as gpu) (js-ffi.browser :as browser) (js-ffi.webgpu :as webgpu) (quamolit.presence-device-coordinator :as coordinator) (js-ffi.shared :as shared)
+          :require (quamolit.presence :as presence) (quamolit.presence-resource-registry :as presence-resource) (quamolit.resource-lifecycle :as resource) (quamolit.instance-resource :as instances) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as gpu) (js-ffi.browser :as browser) (js-ffi.webgpu :as webgpu) (quamolit.presence-device-coordinator :as coordinator) (js-ffi.shared :as shared) (quamolit.resource-load-queue :as load-queue)
     'quamolit.render.element $ %{} 'FileEntry
       :defs $ {}
         'alpha $ %{} 'CodeEntry (:doc |)
@@ -13441,6 +13514,260 @@
             :return $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.resource-lifecycle
+    'quamolit.resource-load-queue $ %{} 'FileEntry
+      :defs $ {}
+        'ResourceLoadEnqueue $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ResourceLoadEnqueue (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
+            :outcome 'quamolit.resource-load-queue/ResourceLoadEnqueueOutcome
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ResourceLoadEnqueueOutcome $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum ResourceLoadEnqueueOutcome (:queued 'quamolit.resource-load-queue/ResourceLoadTask) (:deduplicated 'quamolit.resource-load-queue/ResourceLoadTask) (:backpressured)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ResourceLoadFinish $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ResourceLoadFinish (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
+            :outcome 'quamolit.resource-load-queue/ResourceLoadFinishOutcome
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ResourceLoadFinishOutcome $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum ResourceLoadFinishOutcome (:accepted 'quamolit.resource-load-queue/ResourceLoadTask) (:discarded 'quamolit.resource-load-queue/ResourceLoadTask) (:unknown)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ResourceLoadMetrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ResourceLoadMetrics (:pending 'Number) (:running 'Number) (:cancelled-running 'Number) (:available 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ResourceLoadPriority $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum ResourceLoadPriority (:background) (:normal) (:interactive)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ResourceLoadQueue $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ResourceLoadQueue (:concurrency-limit 'Number) (:pending-limit 'Number) (:next-token 'Number) (:next-sequence 'Number)
+            :pending $ :: 'List 'quamolit.resource-load-queue/ResourceLoadTask
+            :running $ :: 'List 'quamolit.resource-load-queue/ResourceLoadSlot
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ResourceLoadSlot $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ResourceLoadSlot (:task 'quamolit.resource-load-queue/ResourceLoadTask) (:cancelled? 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ResourceLoadTake $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ResourceLoadTake (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
+            :task $ :: 'Option 'quamolit.resource-load-queue/ResourceLoadTask
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ResourceLoadTask $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ResourceLoadTask (:token 'Number) (:device-generation 'Number) (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number)
+            :priority 'quamolit.resource-load-queue/ResourceLoadPriority
+            :sequence 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'cancel-resource-loads $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cancel-resource-loads (queue descriptor)
+            let
+                next-pending $ filter (:pending queue)
+                  fn (task)
+                    not $ same-logical-resource? descriptor $ :identity task
+                next-running $ map (:running queue)
+                  fn (slot)
+                    if
+                      same-logical-resource? descriptor $ :identity $ :task slot
+                      ResourceLoadSlot :task (:task slot) :cancelled? true
+                      , slot
+              ResourceLoadQueue :concurrency-limit (:concurrency-limit queue) :pending-limit (:pending-limit queue) :next-token (:next-token queue) :next-sequence (:next-sequence queue) :pending next-pending :running next-running
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-load-queue/ResourceLoadQueue)
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.resource-lifecycle/ResourceIdentity
+        'cancel-stale-device-loads $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cancel-stale-device-loads (queue active-device-generation)
+            let
+                next-pending $ filter (:pending queue)
+                  fn (task)
+                    = active-device-generation $ :device-generation task
+                next-running $ map (:running queue)
+                  fn (slot)
+                    if
+                      = active-device-generation $ :device-generation $ :task slot
+                      , slot $ ResourceLoadSlot :task (:task slot) :cancelled? true
+              ResourceLoadQueue :concurrency-limit (:concurrency-limit queue) :pending-limit (:pending-limit queue) :next-token (:next-token queue) :next-sequence (:next-sequence queue) :pending next-pending :running next-running
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-load-queue/ResourceLoadQueue)
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue 'Number
+        'enqueue-load $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn enqueue-load (queue device-generation descriptor resource-generation priority)
+            assert |invalid-load-device-generation $ and (number? device-generation) (> device-generation 0)
+            assert |invalid-load-resource-generation $ and (number? resource-generation) (> resource-generation 0)
+            let
+                pending-match $ find-pending-load (:pending queue) device-generation descriptor resource-generation
+                running-match $ find-running-load (:running queue) device-generation descriptor resource-generation
+              if (option:some? pending-match)
+                let
+                    previous $ pending-match .unwrap
+                    promoted $ if
+                      > (priority-rank priority)
+                        priority-rank $ :priority previous
+                      ResourceLoadTask :token (:token previous) :device-generation (:device-generation previous) :identity (:identity previous) :resource-generation (:resource-generation previous) :priority priority :sequence $ :sequence previous
+                      , previous
+                    next-pending $ map (:pending queue)
+                      fn (task)
+                        if
+                          = (:token task) (:token previous)
+                          , promoted task
+                    next $ ResourceLoadQueue :concurrency-limit (:concurrency-limit queue) :pending-limit (:pending-limit queue) :next-token (:next-token queue) :next-sequence (:next-sequence queue) :pending next-pending :running $ :running queue
+                  ResourceLoadEnqueue :queue next :outcome $ ResourceLoadEnqueueOutcome :deduplicated promoted
+                if (option:some? running-match)
+                  ResourceLoadEnqueue :queue queue :outcome $ ResourceLoadEnqueueOutcome :deduplicated $ running-match .unwrap
+                  let
+                      next-pending $ filter (:pending queue)
+                        fn (task)
+                          not $ same-logical-resource? descriptor $ :identity task
+                    if
+                      >= (count next-pending) (:pending-limit queue)
+                      ResourceLoadEnqueue :queue queue :outcome $ ResourceLoadEnqueueOutcome :backpressured
+                      let
+                          task $ ResourceLoadTask :token (:next-token queue) :device-generation device-generation :identity descriptor :resource-generation resource-generation :priority priority :sequence $ :next-sequence queue
+                          next-running $ map (:running queue)
+                            fn (slot)
+                              if
+                                same-logical-resource? descriptor $ :identity $ :task slot
+                                ResourceLoadSlot :task (:task slot) :cancelled? true
+                                , slot
+                          next $ ResourceLoadQueue :concurrency-limit (:concurrency-limit queue) :pending-limit (:pending-limit queue) :next-token
+                            inc $ :next-token queue
+                            , :next-sequence
+                              inc $ :next-sequence queue
+                              , :pending (conj next-pending task) :running next-running
+                        ResourceLoadEnqueue :queue next :outcome $ ResourceLoadEnqueueOutcome :queued task
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.resource-load-queue/ResourceLoadEnqueue
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue 'Number 'quamolit.resource-lifecycle/ResourceIdentity 'Number 'quamolit.resource-load-queue/ResourceLoadPriority
+        'find-pending-load $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn find-pending-load (tasks device-generation descriptor resource-generation)
+            if (empty? tasks) (%none)
+              let
+                  task $ assert-type (-> tasks first .unwrap) 'quamolit.resource-load-queue/ResourceLoadTask
+                if (same-load-request? task device-generation descriptor resource-generation) (%some task)
+                  recur (rest tasks) device-generation descriptor resource-generation
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.resource-load-queue/ResourceLoadTask) 'Number 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+            :return $ :: 'Option 'quamolit.resource-load-queue/ResourceLoadTask
+        'find-running-load $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn find-running-load (slots device-generation descriptor resource-generation)
+            if (empty? slots) (%none)
+              let
+                  slot $ assert-type (-> slots first .unwrap) 'quamolit.resource-load-queue/ResourceLoadSlot
+                  task $ :task slot
+                if (same-load-request? task device-generation descriptor resource-generation) (%some task)
+                  recur (rest slots) device-generation descriptor resource-generation
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.resource-load-queue/ResourceLoadSlot) 'Number 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+            :return $ :: 'Option 'quamolit.resource-load-queue/ResourceLoadTask
+        'finish-load $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn finish-load (queue token)
+            let
+                matched $ filter (:running queue)
+                  fn (slot)
+                    = token $ :token $ :task slot
+                next-running $ filter (:running queue)
+                  fn (slot)
+                    not= token $ :token $ :task slot
+                next $ ResourceLoadQueue :concurrency-limit (:concurrency-limit queue) :pending-limit (:pending-limit queue) :next-token (:next-token queue) :next-sequence (:next-sequence queue) :pending (:pending queue) :running next-running
+              if (empty? matched)
+                ResourceLoadFinish :queue queue :outcome $ ResourceLoadFinishOutcome :unknown
+                let
+                    slot $ assert-type (-> matched first .unwrap) 'quamolit.resource-load-queue/ResourceLoadSlot
+                  ResourceLoadFinish :queue next :outcome $ if (:cancelled? slot)
+                    ResourceLoadFinishOutcome :discarded $ :task slot
+                    ResourceLoadFinishOutcome :accepted $ :task slot
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-load-queue/ResourceLoadFinish)
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue 'Number
+        'initial-load-queue $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-load-queue (concurrency-limit pending-limit)
+            assert |invalid-resource-load-concurrency $ and (number? concurrency-limit) (> concurrency-limit 0)
+            assert |invalid-resource-load-pending-limit $ and (number? pending-limit) (> pending-limit 0)
+            ResourceLoadQueue :concurrency-limit concurrency-limit :pending-limit pending-limit :next-token 1 :next-sequence 1 :pending ([]) :running $ []
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-load-queue/ResourceLoadQueue)
+            :args $ [] 'Number 'Number
+        'load-queue-metrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn load-queue-metrics (queue)
+            let
+                running-count $ count $ :running queue
+                cancelled $ count $ filter (:running queue)
+                  fn (slot) (:cancelled? slot)
+                available $ - (:concurrency-limit queue) running-count
+              ResourceLoadMetrics :pending
+                count $ :pending queue
+                , :running running-count :cancelled-running cancelled :available $ if (> available 0) available 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.resource-load-queue/ResourceLoadMetrics
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue
+        'priority-rank $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn priority-rank (priority)
+            match priority
+              (:background) 0
+              (:normal) 1
+              (:interactive) 2
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadPriority
+        'same-load-request? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn same-load-request? (task device-generation descriptor resource-generation)
+            and
+              = device-generation $ :device-generation task
+              = descriptor $ :identity task
+              = resource-generation $ :resource-generation task
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadTask 'Number 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'same-logical-resource? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn same-logical-resource? (a b)
+            and
+              = (:kind a) (:kind b)
+              = (:id a) (:id b)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceIdentity 'quamolit.resource-lifecycle/ResourceIdentity
+        'take-load $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn take-load (queue)
+            if
+              or
+                empty? $ :pending queue
+                >=
+                  count $ :running queue
+                  :concurrency-limit queue
+              ResourceLoadTake :queue queue :task $ %none
+              let
+                  ordered $ sort (:pending queue) task-order
+                  task $ assert-type (-> ordered first .unwrap) 'quamolit.resource-load-queue/ResourceLoadTask
+                  next-pending $ filter (:pending queue)
+                    fn (candidate)
+                      not= (:token candidate) (:token task)
+                  next $ ResourceLoadQueue :concurrency-limit (:concurrency-limit queue) :pending-limit (:pending-limit queue) :next-token (:next-token queue) :next-sequence (:next-sequence queue) :pending next-pending :running $ conj (:running queue) (ResourceLoadSlot :task task :cancelled? false)
+                ResourceLoadTake :queue next :task $ %some task
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-load-queue/ResourceLoadTake)
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue
+        'task-order $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn task-order (a b)
+            let
+                pa $ priority-rank $ :priority a
+                pb $ priority-rank $ :priority b
+              if (= pa pb)
+                - (:sequence a) (:sequence b)
+                - pb pa
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadTask 'quamolit.resource-load-queue/ResourceLoadTask
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.resource-load-queue
+          :require $ quamolit.resource-lifecycle :as resource
     'quamolit.retained-component $ %{} 'FileEntry
       :defs $ {}
         'BoundScalar $ %{} 'CodeEntry (:doc "|构建时解析的标量绑定：节点索引、目标与描述符，不含宿主句柄。")
