@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  _PCT__$o__$o_ as enumValue,
   init_tags as initTags,
   option_$o_unwrap as unwrapOption,
   to_js_data as toJsData,
@@ -17,14 +18,24 @@ import {
 import {
   close_presence_gpu_host_$x_ as closeGpuHost,
   complete_presence_load_$x_ as completeLoad,
+  complete_queued_presence_load_$x_ as completeQueuedLoad,
   draw_presence_buffer_$x_ as drawBuffer,
+  enqueue_presence_load as enqueuePresenceLoad,
   execute_presence_device_action_$x_ as executeDeviceAction,
   execute_presence_resource_action_$x_ as executeAction,
   initial_presence_gpu_host as initialGpuHost,
   presence_load_request as presenceLoadRequest,
   presence_gpu_metrics as gpuMetrics,
   run_presence_load_request_$x_ as runLoadRequest,
+  run_presence_load_task_$x_ as runLoadTask,
 } from "../target/js/motion/quamolit.presence-webgpu-resources.mjs";
+import {
+  ResourceLoadPriority,
+  cancel_stale_device_loads as cancelStaleDeviceLoads,
+  initial_load_queue as initialLoadQueue,
+  load_queue_metrics as loadQueueMetrics,
+  take_load as takeLoad,
+} from "../target/js/motion/quamolit.resource-load-queue.mjs";
 import {
   close as closeCoordinator,
   create_resolved as coordinatorCreateResolved,
@@ -46,7 +57,21 @@ import {
 import { color } from "../target/js/motion/quamolit.webgpu-batches.mjs";
 import { start_presence as start } from "../target/js/motion/quamolit.presence.mjs";
 
-const tags = initTags(["actions", "host", "plan", "references", "resources", "source", "state", "transition"]);
+const tags = initTags([
+  "actions",
+  "host",
+  "interactive",
+  "outcome",
+  "plan",
+  "queue",
+  "references",
+  "resources",
+  "source",
+  "state",
+  "task",
+  "transition",
+]);
+const E = (type, variant, ...values) => enumValue(type, tags[variant], ...values);
 const listValues = (list) => list.value.slice(list.start, list.end);
 const stateOf = (transition) => transition.get(tags.state);
 const actionsOf = (transition) => listValues(transition.get(tags.actions));
@@ -456,6 +481,89 @@ test("load 等待期间 device loss，任务完成时按最新状态丢弃并销
     actionsOf(completion.get(tags.transition)).map((action) => toJsData(action)?.[2]?.[2]?.[0]),
     ["release"],
   );
+  assert.ok(gpu.calls.buffers.every((buffer) => buffer.destroyed));
+  assert.equal(gpu.calls.unconfigurations, 1);
+});
+
+test("Presence load action 经过有界队列启动并在 accepted 后安装 batch", async () => {
+  let { coordinator, table, loadAction } = prepareCoordinatorLoad(24);
+  let queue = initialLoadQueue(1, 4);
+  const enqueued = unwrapOption(enqueuePresenceLoad(queue, loadAction, E(ResourceLoadPriority, "interactive")));
+  queue = enqueued.get(tags.queue);
+  const taken = takeLoad(queue);
+  queue = taken.get(tags.queue);
+  const task = unwrapOption(taken.get(tags.task));
+  const gpu = mockGpu();
+  let host = initialGpuHost();
+
+  const result = await runLoadTask(
+    host,
+    1,
+    gpu.canvas,
+    gpu.device,
+    "bgra8unorm",
+    table,
+    referencesOf(coordinator.get(tags.resources)),
+    task,
+  );
+  const completion = completeQueuedLoad(host, coordinator, queue, result);
+  queue = completion.get(tags.queue);
+  host = completion.get(tags.host);
+  const transition = completion.get(tags.transition);
+  coordinator = stateOf(transition);
+
+  assert.deepEqual(toJsData(loadQueueMetrics(queue)), {
+    pending: 0,
+    running: 0,
+    "cancelled-running": 0,
+    available: 1,
+  });
+  assert.deepEqual(
+    actionsOf(transition).map((action) => toJsData(action)?.[2]?.[2]?.[0]),
+    ["install", "wake-frame"],
+  );
+  assert.equal(toJsData(gpuMetrics(host)).live, 1);
+  host = await applyDeviceActions(host, 1, gpu, table, coordinator, actionsOf(transition));
+  closeGpuHost(host);
+  assert.ok(gpu.calls.buffers.every((buffer) => buffer.destroyed));
+});
+
+test("队列切换 device generation 后，迟到 Presence 结果只销毁孤儿 batch", async () => {
+  const { coordinator, table, loadAction } = prepareCoordinatorLoad(25);
+  let queue = initialLoadQueue(1, 4);
+  queue = unwrapOption(enqueuePresenceLoad(queue, loadAction, E(ResourceLoadPriority, "interactive"))).get(tags.queue);
+  const taken = takeLoad(queue);
+  queue = taken.get(tags.queue);
+  const task = unwrapOption(taken.get(tags.task));
+  let releasePipeline;
+  const pipelineGate = new Promise((resolve) => {
+    releasePipeline = resolve;
+  });
+  const gpu = mockGpu({ pipelineGate });
+  const host = initialGpuHost();
+  const pending = runLoadTask(
+    host,
+    1,
+    gpu.canvas,
+    gpu.device,
+    "bgra8unorm",
+    table,
+    referencesOf(coordinator.get(tags.resources)),
+    task,
+  );
+
+  queue = cancelStaleDeviceLoads(queue, 2);
+  releasePipeline();
+  const result = await pending;
+  const completion = completeQueuedLoad(host, coordinator, queue, result);
+  assert.deepEqual(toJsData(loadQueueMetrics(completion.get(tags.queue))), {
+    pending: 0,
+    running: 0,
+    "cancelled-running": 0,
+    available: 1,
+  });
+  assert.equal(toJsData(gpuMetrics(completion.get(tags.host))).live, 0);
+  assert.equal(actionsOf(completion.get(tags.transition)).length, 0);
   assert.ok(gpu.calls.buffers.every((buffer) => buffer.destroyed));
   assert.equal(gpu.calls.unconfigurations, 1);
 });

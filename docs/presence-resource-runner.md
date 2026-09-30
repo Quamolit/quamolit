@@ -29,8 +29,10 @@
 - `queue.writeBuffer` 抛错时两个 GPU buffer 均销毁、context unconfigure、host `live=0`，registry 收到原始错误文本；
 - pipeline 等待期间模拟 device loss，随后完成的孤立 handle 被销毁，当前 host 仍为 `live=0`，逻辑状态只产生旧 generation release。
 
+后续的[多资源加载任务队列](resource-load-queue.md)已经接入本 runner：Presence load action 可按 token、优先级和并发额度启动；队列先判定 accepted/discarded，再决定是否把结果提交给 coordinator。取消中的 Promise 仍占用槽位，迟到 batch 会直接销毁。
+
 ## 尚未完成
 
-- 目前由调用方的事件循环调度 request/result；跨多个资源类型的统一任务队列、取消、优先级和背压尚未实现。
+- 通用队列已实现，但实际宿主 loader 仍只有 Presence buffer；尚未形成 texture/font/glyph/geometry/pipeline 的完整执行器集合。
 - queue 已提交工作的延迟销毁仍需结合 `onSubmittedWorkDone` 或等价 fence 策略。
 - texture、font/glyph、geometry 与 pipeline 仍需各自的类型化 loader 和可恢复描述。
