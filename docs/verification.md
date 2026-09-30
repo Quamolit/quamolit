@@ -40,7 +40,7 @@
 
 `yarn test:drag-demo` 检查 [Drag demo 恢复](drag-demo-restoration.md)的严格 Calcit 指针 Model、Scene HitPlan、统一 PointerState、Node 锚点和滑块边界，以及 Chromium 的真实指针捕获、跨图形边界拖动、取消、DPR 2 resize、浮层、空闲停帧和实际页面卸载。卸载后原生捕获必须释放、全局 API 必须移除、后续 pointer 事件不得再修改 Model。它不证明 #34 的任意退出子树/cubic-path/instances 或 WebGPU 绘制。
 
-`yarn test:folding-fan` 检查 [Folding Fan 恢复](folding-fan-restoration.md)的严格 Calcit 24 片裁剪/层序/时间采样、纯数据图片 Scene 与几何差分、Node 打断与乱序、100 条有界输入日志的前缀重放/历史分支、资源预检零绘制；同时检查[通用资源生命周期](resource-lifecycle.md)与[多资源注册表](resource-registry.md)的 loading/ready/error、共享引用、版本替换、LRU 容量、活跃资源保护、带完整身份的迟到完成释放，以及 100 次装卸后关闭回零。Chromium 初始/中间/终点分别保存带浮层与纯 Canvas 截图，并在 DPR 1/2 下把当前 Scene 路径与历史直接绘制路径做整帧 RGBA 零差异比较，锁定浏览器默认图片平滑设置；另覆盖 URL 刷新像素一致、真实图片失败重试、暂停 resize 与全屏浮层。图片已接公共 Scene IR、窄 Canvas 参考入口和 Calcit 资源状态机；Presence/WebGPU 真实资源接线、跨浏览器采样矩阵及 WebGPU 纹理路径仍未实现。
+`yarn test:folding-fan` 检查 [Folding Fan 恢复](folding-fan-restoration.md)的严格 Calcit 24 片裁剪/层序/时间采样、纯数据图片 Scene 与几何差分、Node 打断与乱序、100 条有界输入日志的前缀重放/历史分支、资源预检零绘制；同时检查[通用资源生命周期](resource-lifecycle.md)、[多资源加载任务队列](resource-load-queue.md)、[图片资源 runner](image-resource-runner.md)与[多资源注册表](resource-registry.md)的 loading/ready/error、共享引用、版本替换、LRU 容量、活跃资源保护、异步解码、尺寸不符、runtime generation 取消、带完整身份的迟到完成释放，以及 100 次图片宿主和多资源装卸后关闭回零。Chromium 初始/中间/终点分别保存带浮层与纯 Canvas 截图，并在 DPR 1/2 下把当前 Scene 路径与历史直接绘制路径做整帧 RGBA 零差异比较，锁定浏览器默认图片平滑设置；另覆盖 URL 刷新像素一致、真实图片失败重试、暂停 resize 与全屏浮层。图片已接公共 Scene IR、窄 Canvas 参考入口和 Calcit 宿主 runner；跨浏览器采样矩阵及 WebGPU 纹理路径仍未实现。
 
 全屏与恢复导航：`test:demo-nav` 检查 3 项 Node 清单及全部浏览器入口；原有 11 项均可从导航打开，艺术分类保持明确空状态，并覆盖 DPR 1/2、桌面/窄屏、暂停 resize 后状态不变、像素和浮层键盘操作。跨物理显示器 DPR 切换、旧 11 个动画的完整验收与真实 GPU 尚未完成。见[恢复清单](demo-restoration.md)。
 
@@ -137,7 +137,7 @@ yarn bench
 
 `yarn test:presence` 验证 [Scene 逻辑实例生命周期](presence-lifecycle.md) 的严格类型、重排/换类型/退出/重入、父级释放顺序、重复结算、100 次 10k 实例图层逻辑装卸与 JS JSON 边界；`yarn test:motion-browser` 核对 fade、重叠层序和时间跳转画面。逻辑释放通知不等于真实 GPU/Canvas 资源或指针捕获释放。
 
-`yarn test:presence-resources` 验证 [宿主实例资源跟踪](presence-resources.md)与 [Presence WebGPU 资源宿主](presence-webgpu-resources.md)：严格检查 Presence、纯 Calcit registry、device rebuild 和 WebGPU action executor；覆盖退出/idle 重入、80 kB 容量替换、100 次出入回零，以及 100 次实际 `RectBatchHost` 重建始终 `live=1`、最终 `created=released=101`、GPU buffer 全销毁。`yarn test:webgpu-instances` 另尝试非软件 adapter 上两代 device 的同源像素恢复；SKIP 不算硬件通过。尚未覆盖通用 texture/font/pipeline、queue 延迟释放或指针捕获。
+`yarn test:presence-resources` 验证 [宿主实例资源跟踪](presence-resources.md)、[Presence device 组合状态机](presence-device-coordinator.md)、[异步资源任务 runner](presence-resource-runner.md)、[多资源加载任务队列](resource-load-queue.md)与 [Presence WebGPU 资源宿主](presence-webgpu-resources.md)：严格检查 Presence、纯 Calcit registry、有界优先级/FIFO/去重/取消队列、device/registry 自动重建和 generation-aware WebGPU executor；覆盖 pending 背压、运行中资源替换、accepted 安装、discarded 孤儿清理、ready 前延迟 GPU load、两代 device 动作顺序、旧 ready/failure 隔离、上传异常清理、load 等待期间 device loss、退出/idle 重入、80 kB 容量替换、100 次出入回零，以及 100 次实际 `RectBatchHost` 重建始终 `live=1`、最终 `created=released=101`、GPU buffer 全销毁。`yarn test:webgpu-instances` 另尝试非软件 adapter 上两代 device 的同源像素恢复；SKIP 不算硬件通过。尚未覆盖通用 texture/font/glyph/geometry/pipeline loader、queue 延迟释放或指针捕获。
 
 `yarn test:motion-browser` 还验证 [WebGPU 能力探测诊断夹具](webgpu-capability-probe.md)：通过 js-ffi 0.1.44 的 Calcit 公共 API，分别模拟 adapter 失败、ready 和设备丢失，并确认 Canvas 参考时间帧仍可绘制、探测设备被释放。真实浏览器的 `ready` 仅代表可获取 device，不是 GPU 画面或吞吐验收。
 

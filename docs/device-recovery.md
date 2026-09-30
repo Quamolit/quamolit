@@ -19,7 +19,7 @@
 
 宿主执行顺序是状态机返回的顺序。`release` 同时销毁 batch/device 并从句柄表移除；任意时刻只允许一个已安装 generation。Canvas 与 WebGPU 切换仍复用页面中的单一全屏 Canvas 节点。
 
-Presence instances 的通用 registry 恢复见 [Presence WebGPU 资源宿主](presence-webgpu-resources.md)：device 状态机安装新 device 后调用 `rebuild-presence-resources`，只为仍有 lease 的实例源创建新资源 generation；idle entry 被清除。设备 generation 与资源 generation 分开记录，旧设备迟到结果不能释放新 batch。
+Presence instances 通过 [Presence device 组合状态机](presence-device-coordinator.md) 接入通用 registry：新的 device generation 安装成功后，组合 transition 自动调用 `rebuild-presence-resources`，只为仍有 lease 的实例源创建新 resource generation；idle entry 被清除。每个资源动作显式携带 device generation，旧设备迟到结果不能释放新 batch。
 
 ## 验证
 
@@ -32,4 +32,4 @@ yarn test:consumer
 
 ## 边界
 
-本切片覆盖一个矩形 instances 图层的 device generation 与实际 batch/device 释放，不是完整通用资源表。纹理、字体、图片、多个图层共享 device、容量淘汰、加载取消及失败退避仍由 #51 后续切片处理；跨设备恢复时延和 10k 独立运动也尚未形成性能结论。WebGPU 原生对象仍属于宿主，Calcit 状态只保存可序列化决策。
+当前覆盖矩形 instances 图层的 device/resource generation、组合恢复决策与实际 batch/device 释放，不是完整通用资源表。纹理、字体、图片、多个图层共享 device、加载取消、失败退避及异步结果统一 runner 仍由 #51 后续切片处理；跨设备恢复时延和 10k 独立运动也尚未形成性能结论。WebGPU 原生对象仍属于宿主，Calcit 状态只保存可序列化决策。
