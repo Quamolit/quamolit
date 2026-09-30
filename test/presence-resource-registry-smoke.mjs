@@ -9,6 +9,7 @@ import {
   close_presence_resources as closeResources,
   initial_presence_resources as initialResources,
   ready_presence_resource as readyResource,
+  rebuild_presence_resources as rebuildResources,
   sync_presence_resources as syncResources,
 } from "../target/js/motion/quamolit.presence-resource-registry.mjs";
 import { registry_metrics as registryMetrics } from "../target/js/motion/quamolit.resource-lifecycle.mjs";
@@ -99,6 +100,40 @@ test("容量替换先释放旧 lease，再按身份驱逐旧 buffer 并加载新
     loads: 2,
     evictions: 1,
   });
+});
+
+test("device loss 后相同 Presence Model 用新 generation 重建同一 buffer", () => {
+  let resources = initialResources(80000);
+  const model = start(instanceDocument(7, true));
+  let result = unpack(syncResources(resources, model));
+  resources = result.state;
+  const identity = result.actions[0][1];
+
+  const rawActions = syncResources(initialResources(80000), model).get(tags.actions);
+  const descriptor = rawActions.value[rawActions.start].extra[0];
+  resources = unpack(readyResource(resources, descriptor, 1)).state;
+  result = unpack(rebuildResources(resources));
+  resources = result.state;
+  assert.deepEqual(result.actions, [
+    ["resource", identity, ["release", 1]],
+    ["resource", identity, ["load", 3, identity]],
+  ]);
+  assert.equal(toJsData(resources).plan["live-sources"], 1, "重建不修改 Presence Model/plan");
+  assert.deepEqual(metrics(resources), {
+    resident: 1,
+    leased: 1,
+    idle: 0,
+    "resident-bytes": 80000,
+    loads: 2,
+    evictions: 0,
+  });
+
+  assert.deepEqual(unpack(readyResource(resources, descriptor, 1)).actions, [["resource", identity, ["release", 1]]]);
+  result = unpack(readyResource(resources, descriptor, 3));
+  assert.deepEqual(result.actions, [
+    ["resource", identity, ["install", 3, identity]],
+    ["resource", identity, ["wake-frame", 3]],
+  ]);
 });
 
 test("100 次真实 Presence 出入保持一个 buffer 容量，显式关闭回到零", () => {

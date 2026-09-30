@@ -28,9 +28,10 @@
 | `quamolit.scene-binding/resolve-scene` | 已实现的绝对时间 CPU 标量绑定参考解析；非增量执行入口 | [Scene 绑定解析](scene-binding.md)；精确 ID/version、输出再校验、浏览器中间帧；#50 执行计划未完成 |
 | `quamolit.transition/start-transition`、`interrupt-transition`、`sample-replay` | 已实现的位置连续打断与固定事件重放 CPU 切片；非完整生命周期 | [打断过渡](transition-interruption.md)；25%/50%/75% 打断及浏览器帧；Scene enter/exit 参考见下行 |
 | `quamolit.ui-motion/tween-at`、`stagger-at`、`morph-number`、`presence-frame` | 已实现的图表 UI 公共动画构件；纯 Calcit、无宿主状态 | [图表 UI 动画构件](ui-motion-components.md)；三个作品实际消费，Canvas/WebGPU 资源生命周期仍在下层 |
-| `quamolit.resource-lifecycle/resource`、`request-resource`、`resource-ready`、`resource-failed`、`close-resource` | 已实现的纯 Calcit 通用异步资源状态机；宿主仅执行动作并保存原生句柄 | [通用资源生命周期](resource-lifecycle.md)；Folding Fan 图片已接入，支持 loading/ready/error、版本替换、迟到结果隔离与重试；多资源容量和 GPU 资源接线未完成 |
+| `quamolit.resource-lifecycle` 的单资源状态机、`ResourceRegistry`、`rebuild-registry` | 已实现的纯 Calcit 通用异步资源状态、共享引用、有界 LRU 与 device rebuild 协议 | [通用资源生命周期](resource-lifecycle.md)、[多资源注册表](resource-registry.md)；支持完整身份动作、迟到结果隔离、active 重建与 idle 清除；非实例资源的实际 GPU 宿主仍待接入 |
 | `quamolit.presence/start-presence`、`reconcile-presence`、`sample-presence`、`settle-presence` | 已实现的 Scene 逻辑实例生命周期参考；非宿主资源管理器 | [进入退出](presence-lifecycle.md)；重排、fade、重入、一次性逻辑释放通知；#34/#51 宿主清理未完成 |
 | `PresenceInstanceResources`（JS 宿主适配器） | 已实现的 instances Float32 快照所有权；非通用资源表 | [Presence 宿主资源跟踪](presence-resources.md)；退出期间保留、终点最后引用释放、100 次装卸计数回基线；GPU/指针捕获未覆盖 |
+| `quamolit.presence-resource-registry` / `quamolit.presence-webgpu-resources` | 已实现的 Presence 实例资源 lease 与 Calcit WebGPU 宿主；当前限矩形 instances | [Presence WebGPU 资源宿主](presence-webgpu-resources.md)；动作驱动实际 batch 创建、上传、安装、绘制、释放与 100 次 device rebuild，最终资源回零 |
 | `quamolit.device-recovery` 的 `RecoveryState` / `RecoveryTransition` | 已实现的单图层 device generation 恢复协议；非完整资源表 | [device loss 恢复](device-recovery.md)；纯 Calcit 决策、迟到结果隔离、Canvas 回退、同版本自动重建与实际 batch/device 释放 |
 | 完整 Scene IR / 完整 Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；现有切片不持有 DOM/GPU 句柄 |
 | 完整 WebGPU/Canvas2D 双后端、资源表、命中索引 | 仅矩形实例切片可运行；完整能力尚未实现 | #40/#33/#51/#34 |

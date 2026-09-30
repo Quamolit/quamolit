@@ -10,6 +10,7 @@ import {
   initial_registry as initialRegistry,
   initial_state as initialState,
   ready_registry as readyRegistry,
+  rebuild_registry as rebuildRegistry,
   registry_metrics as registryMetrics,
   release_registry as releaseRegistry,
   request_resource as requestResource,
@@ -227,6 +228,51 @@ test("淘汰和关闭后的迟到完成只产生带身份的幂等释放", () =>
   });
   result = unpackRegistry(readyRegistry(closed.registry, next, 1));
   assert.deepEqual(result.actions, [["resource", { kind: ["image"], id: "next", version: 1 }, ["release", 1]]]);
+});
+
+test("设备重建只恢复仍有 lease 的资源，并用单调 generation 隔离旧设备结果", () => {
+  const active = imageResource("active-device", 1);
+  const idle = imageResource("idle-device", 1);
+  let registry = initialRegistry(128);
+  registry = unpackRegistry(acquireRegistry(registry, active, 64)).registry;
+  registry = unpackRegistry(readyRegistry(registry, active, 1)).registry;
+  registry = unpackRegistry(acquireRegistry(registry, idle, 64)).registry;
+  registry = unpackRegistry(readyRegistry(registry, idle, 1)).registry;
+  registry = unpackRegistry(releaseRegistry(registry, idle)).registry;
+
+  let result = unpackRegistry(rebuildRegistry(registry));
+  registry = result.registry;
+  assert.deepEqual(result.actions, [
+    ["resource", { kind: ["image"], id: "active-device", version: 1 }, ["release", 1]],
+    [
+      "resource",
+      { kind: ["image"], id: "active-device", version: 1 },
+      ["load", 3, { kind: ["image"], id: "active-device", version: 1 }],
+    ],
+    ["resource", { kind: ["image"], id: "idle-device", version: 1 }, ["release", 1]],
+  ]);
+  assert.deepEqual(to_js_data(registryMetrics(registry)), {
+    resident: 1,
+    leased: 1,
+    idle: 0,
+    "resident-bytes": 64,
+    loads: 3,
+    evictions: 0,
+  });
+
+  result = unpackRegistry(readyRegistry(registry, active, 1));
+  assert.deepEqual(result.actions, [
+    ["resource", { kind: ["image"], id: "active-device", version: 1 }, ["release", 1]],
+  ]);
+  result = unpackRegistry(readyRegistry(registry, active, 3));
+  assert.deepEqual(result.actions, [
+    [
+      "resource",
+      { kind: ["image"], id: "active-device", version: 1 },
+      ["install", 3, { kind: ["image"], id: "active-device", version: 1 }],
+    ],
+    ["resource", { kind: ["image"], id: "active-device", version: 1 }, ["wake-frame", 3]],
+  ]);
 });
 
 test("100 次多资源装卸保持容量上界，最终关闭回到零", () => {

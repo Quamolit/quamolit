@@ -39,7 +39,9 @@ Node 门禁覆盖：两个消费者共享一次 load、引用归零进入 idle�
 
 Presence 的实例源已经通过纯 Calcit `quamolit.presence-resource-registry` 接入本协议，详见 [Presence 宿主实例资源跟踪](presence-resources.md)。`yarn test:presence-resources` 额外覆盖退出到 idle、退出中重入、idle 重入、80 kB 单容量换版本、带身份动作，以及 100 次 10k buffer 装卸后显式关闭回零。
 
+`rebuild-registry` 为 device replacement 提供公共规则：删除 idle entry，为仍有 lease 的 entry 关闭旧 generation 并重新 load，保持 identity/version/reference 不变。实例专项的实际宿主执行见 [Presence WebGPU 资源宿主](presence-webgpu-resources.md)。
+
 ## 尚未完成
 
-- Presence 已驱动 registry 的纯数据 lease 与动作协议，但 WebGPU texture/buffer/pipeline 尚未把真实创建、queue 完成后的安全释放和 device generation 接入 registry。
+- Presence instances 已把真实 WebGPU batch 创建/上传/绘制/释放及 device generation 接入 registry；其他 texture/buffer/pipeline、多图层共享和 queue 完成后的安全延迟释放尚未接入。
 - 当前只有总量 LRU；未提供按 kind 分池、优先级、TTL、pin、脏范围或后端实际内存反馈。这些需要真实消费者数据后再增加，不在无证据时预设复杂策略。
