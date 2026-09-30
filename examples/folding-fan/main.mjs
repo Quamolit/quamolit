@@ -9,7 +9,13 @@ import {
   slices_at,
   draw_$x_,
   resource_initial,
+  scene_at,
 } from "../../target/js/folding-fan/quamolit.examples.folding-fan.mjs";
+import * as gpuImages from "../../target/js/folding-fan/quamolit.webgpu-images.mjs";
+import * as textures from "../../target/js/folding-fan/quamolit.webgpu-texture-runner.mjs";
+import { Matrix2D } from "../../target/js/folding-fan/quamolit.scene-ir.mjs";
+import { ColorRgba } from "../../target/js/folding-fan/quamolit.motion.mjs";
+import { _$n__PCT__$M_ as struct } from "../../target/js/folding-fan/calcit.core.mjs";
 import {
   image_resource,
   request_resource,
@@ -42,6 +48,16 @@ export function mountDemo() {
     panel = document.querySelector("#panel"),
     panelToggle = document.querySelector("#panel-toggle");
   const params = new URLSearchParams(location.search);
+  const backendControl = document.querySelector("#backend");
+  const gpuTags = init_tags(["a", "b", "c", "d", "e", "f", "r", "g"]);
+  const record = (type, fields) =>
+    struct(type, ...Object.entries(fields).flatMap(([key, value]) => [gpuTags[key], value]));
+  const background = record(ColorRgba, { r: 23 / 255, g: 16 / 255, b: 34 / 255, a: 1 });
+  let gpu = null,
+    gpuEpoch = 0,
+    backend = "canvas",
+    gpuError = "",
+    gpuMetrics = null;
   const parsed = Number(params.get("t") || 0);
   let time = Number.isFinite(parsed) && parsed >= 0 && parsed <= 120 ? parsed : 0;
   let model = initial(),
@@ -88,13 +104,23 @@ export function mountDemo() {
       context.setTransform(scale, 0, 0, scale, width / 2, height * 0.77);
       draw_$x_(context, image, model, time);
     }
+    if (gpu) {
+      if (gpu.canvas.width !== width) gpu.canvas.width = width;
+      if (gpu.canvas.height !== height) gpu.canvas.height = height;
+      const scale = Math.min(width / 900, height / 650);
+      const view = record(Matrix2D, { a: scale, b: 0, c: 0, d: scale, e: width / 2, f: height * 0.77 });
+      gpuMetrics = to_js_data(
+        gpuImages.draw_runtime_$x_(gpu.runtime, scene_at(model, time), view, width, height, background),
+      );
+    }
     paints++;
     const hostMetrics = to_js_data(image_resource_metrics(imageHost));
     const queueMetrics = to_js_data(load_queue_metrics(loadQueue));
     slider.value = String(time);
     status.textContent = `t = ${time.toFixed(2)} s · 切片 24\n开合 ${fold_value(model, time).toFixed(3)} · 图片 ${resource} · host ${hostMetrics.live}/${hostMetrics.created}/${hostMetrics.released} · queue ${queueMetrics.pending}/${queueMetrics.running} · 绘制 ${paints}`;
     status.dataset.result = resource === "ready" ? "pass" : resource;
-    message.textContent = [error, resourceError].filter(Boolean).join("；");
+    status.textContent += `\n后端 ${backend}${gpuMetrics ? ` · GPU draws ${gpuMetrics["draw-calls"]} · uniform ${gpuMetrics["uniform-bytes-uploaded"]} B` : ""}`;
+    message.textContent = [error, resourceError, gpuError].filter(Boolean).join("；");
   }
   function sample(value) {
     if (!Number.isFinite(value) || value < 0 || value > 120) throw new RangeError("演示时间必须在 0–120 秒内");
@@ -140,9 +166,11 @@ export function mountDemo() {
       resourceState: to_js_data(resourceState),
       imageMetrics: to_js_data(image_resource_metrics(imageHost)),
       loadQueue: to_js_data(load_queue_metrics(loadQueue)),
-      error: [error, resourceError].filter(Boolean).join("；"),
+      error: [error, resourceError, gpuError].filter(Boolean).join("；"),
       playing,
       paints,
+      backend,
+      gpuMetrics,
       width: canvas.width,
       height: canvas.height,
     };
@@ -209,6 +237,89 @@ export function mountDemo() {
   }
   watchDpr();
   const listeners = new AbortController();
+  async function closeGpu(state) {
+    if (!state) return;
+    state.canvas?.remove();
+    await state.device?.queue.onSubmittedWorkDone().catch(() => {});
+    if (state.runtime) gpuImages.close_runtime_$x_(state.runtime);
+    state.device?.destroy();
+  }
+  async function selectBackend(value) {
+    const epoch = ++gpuEpoch;
+    const previous = gpu;
+    gpu = null;
+    backend = "canvas";
+    gpuMetrics = null;
+    canvas.style.opacity = "1";
+    void closeGpu(previous);
+    gpuError = "";
+    if (value !== "webgpu") {
+      draw();
+      return snapshot();
+    }
+    const state = {};
+    try {
+      const adapter = await navigator.gpu?.requestAdapter();
+      if (!adapter) throw new Error("WebGPU adapter 不可用");
+      if (
+        adapter.info?.isFallbackAdapter ||
+        adapter.isFallbackAdapter ||
+        /swiftshader|software|llvmpipe/i.test(
+          `${adapter.info?.vendor} ${adapter.info?.architecture} ${adapter.info?.description}`,
+        )
+      ) {
+        throw new Error("软件 GPU 不启用图片实验路径，请使用 Canvas 参考");
+      }
+      state.device = await adapter.requestDevice();
+      const descriptor = textures.texture_descriptor(
+        "lotus",
+        1,
+        new URL("../../assets/lotus.jpg", import.meta.url).href,
+        650,
+        432,
+        "rgba8unorm",
+      );
+      state.canvas = canvas.cloneNode(false);
+      state.canvas.id = "scene-gpu";
+      state.canvas.style.pointerEvents = "none";
+      state.runtime = await gpuImages.open_runtime_$x_(
+        state.canvas,
+        state.device,
+        navigator.gpu.getPreferredCanvasFormat(),
+        descriptor,
+        epoch,
+        24,
+      );
+      if (epoch !== gpuEpoch) {
+        await closeGpu(state);
+        return snapshot();
+      }
+      canvas.after(state.canvas);
+      gpu = state;
+      backend = "webgpu";
+      canvas.style.opacity = "0";
+      state.device.lost.then(() => {
+        if (gpu === state) {
+          void selectBackend("canvas");
+          gpuError = "GPU 设备丢失，已回退 Canvas；可再次选择 WebGPU 重建。";
+          backendControl.value = "canvas";
+          draw();
+        }
+      });
+      draw();
+    } catch (cause) {
+      await closeGpu(state);
+      if (epoch === gpuEpoch) {
+        gpu = null;
+        canvas.style.opacity = "1";
+        backendControl.value = "canvas";
+        gpuError = `WebGPU 初始化失败，已回退 Canvas：${cause.message || cause}`;
+        draw();
+      }
+    }
+    return snapshot();
+  }
+  backendControl.onchange = () => void selectBackend(backendControl.value);
   document.addEventListener(
     "visibilitychange",
     () => {
@@ -289,10 +400,18 @@ export function mountDemo() {
   function loadResource(version = 1) {
     return commitResource(request_resource(resourceState, image_resource("lotus", version)));
   }
-  const api = { seek, reset, clickToggle, snapshot, pause: stop, play: start, loadResource };
+  const api = { seek, reset, clickToggle, snapshot, pause: stop, play: start, loadResource, selectBackend };
   window.foldingFanDemo = api;
   void loadResource();
+  if (params.get("backend") === "webgpu") {
+    backendControl.value = "webgpu";
+    void selectBackend("webgpu");
+  }
   return () => {
+    gpuEpoch += 1;
+    const previous = gpu;
+    gpu = null;
+    void closeGpu(previous);
     runtimeGeneration += 1;
     loadQueue = cancel_stale_device_loads(loadQueue, runtimeGeneration);
     void commitResource(close_resource(resourceState));

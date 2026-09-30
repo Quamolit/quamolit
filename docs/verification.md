@@ -145,6 +145,8 @@ yarn bench
 
 ## 待实现的统一命令
 
+`yarn test:webgpu-images` 验证[公共 Scene 图片图层](webgpu-scene-images.md)：18 项严格类型、初始化失败的纹理释放、Calcit 仿射矩阵合成、原有 24 片裁剪参数、绘制开始前的全资源/容量预检；Chromium 按独立手算和同源 Canvas 检查图片裁剪、90° 旋转、源透明度与声明层序，1000 帧保持一个 pipeline/buffer 和两个 bind group，热帧 uniform=0 B。Folding Fan GPU/Canvas 状态切换、乱序时间、固定帧截图与暂停 resize 也被覆盖。无 adapter/软件 adapter 的图片专项明确 SKIP，不算硬件通过；硬件仅在 macOS/Metal 验证，其他设备未验证。分数裁剪/旋转边缘仍由 #144 跟踪，不以实色样本宣称全帧等价。
+
 | 命令 | 负责工作项 | 完成条件 |
 | --- | --- | --- |
 | 完整 Motion/过渡测试 | #48、#31 | 在现有标量/二维向量/关键帧/颜色/两输入组合/CPU 标量注册切片之上补齐依赖与输出类型契约、标准 GPU 子集 lowering 诊断及过渡生命周期，覆盖模拟/打断边界 |
