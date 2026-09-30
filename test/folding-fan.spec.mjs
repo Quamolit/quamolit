@@ -75,6 +75,18 @@ test("24 切片 Toggle 中间帧、终点与乱序截图", async ({ page }, test
   const start = await page.evaluate(() => window.foldingFanDemo.snapshot());
   expect(start.slices).toHaveLength(24);
   expect(start.resource).toBe("ready");
+  expect(start.imageMetrics).toEqual({
+    created: 1,
+    released: 0,
+    live: 1,
+    "decoded-bytes": 650 * 432 * 4,
+  });
+  expect(start.loadQueue).toMatchObject({
+    pending: 0,
+    running: 0,
+    "cancelled-running": 0,
+    available: 1,
+  });
   const colorAtFlower = () =>
     page.locator("canvas").evaluate((canvas) => [...canvas.getContext("2d").getImageData(500, 280, 1, 1).data]);
   const closedPixel = await colorAtFlower();
@@ -135,9 +147,13 @@ test("图片失败明确报错，不冒充正常渲染", async ({ page }) => {
   const failed = await page.evaluate(() => window.foldingFanDemo.snapshot());
   expect(failed.resource).toBe("error");
   expect(failed.resourceState.attempts).toBe(1);
+  expect(failed.imageMetrics).toEqual({ created: 1, released: 1, live: 0, "decoded-bytes": 0 });
+  expect(failed.loadQueue).toMatchObject({ pending: 0, running: 0, "cancelled-running": 0, available: 1 });
   await page.evaluate(() => window.foldingFanDemo.loadResource());
   await expect(page.locator("#status")).toHaveAttribute("data-result", "error");
-  expect((await page.evaluate(() => window.foldingFanDemo.snapshot())).resourceState.attempts).toBe(2);
+  const retried = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(retried.resourceState.attempts).toBe(2);
+  expect(retried.imageMetrics).toEqual({ created: 2, released: 2, live: 0, "decoded-bytes": 0 });
 });
 test("全屏 DPR 2 暂停 resize 与浮层收起", async ({ browser }, testInfo) => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 });

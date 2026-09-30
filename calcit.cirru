@@ -5526,7 +5526,7 @@
             :args $ [] 'quamolit.examples.folding-fan/FanModel 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.folding-fan
-          :require (quamolit.transition :as transition) (quamolit.motion :as motion) (quamolit.scene-ir :as scene) (quamolit.canvas-images :as images) (quamolit.resource-lifecycle :as resource)
+          :require (quamolit.transition :as transition) (quamolit.motion :as motion) (quamolit.scene-ir :as scene) (quamolit.canvas-images :as images) (quamolit.resource-lifecycle :as resource) (quamolit.image-resource-runner :as image-runner)
     'quamolit.examples.icons $ %{} 'FileEntry
       :defs $ {}
         'IconModel $ %{} 'CodeEntry (:doc |)
@@ -9106,6 +9106,241 @@
             :args $ []
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.hud-logs
+    'quamolit.image-resource-runner $ %{} 'FileEntry
+      :defs $ {}
+        'ImageActionQueueResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageActionQueueResult (:queue 'quamolit.resource-load-queue/ResourceLoadQueue) (:backpressured 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ImageLoadCompletion $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageLoadCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
+            :host 'quamolit.image-resource-runner/ImageResourceHost
+            :transition 'quamolit.resource-lifecycle/ResourceTransition
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ImageLoadOutcome $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum ImageLoadOutcome (:ready 'Number) (:failed 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'ImageResourceDescriptor $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageResourceDescriptor (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:url 'String) (:width 'Number) (:height 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ImageResourceHandle $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageResourceHandle (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number) (:image 'js-ffi.browser/ImageHost) (:installed? 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ImageResourceHost $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageResourceHost
+            :handles $ :: 'List 'quamolit.image-resource-runner/ImageResourceHandle
+            :created 'Number
+            :released 'Number
+            :decoded-bytes 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ImageResourceMetrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageResourceMetrics (:created 'Number) (:released 'Number) (:live 'Number) (:decoded-bytes 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'QueuedImageLoadResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct QueuedImageLoadResult (:token 'Number)
+            :handle 'quamolit.image-resource-runner/ImageResourceHandle
+            :outcome 'quamolit.image-resource-runner/ImageLoadOutcome
+          :examples $ []
+          :schema $ :: 'StructDef
+        'apply-image-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn apply-image-actions (host actions)
+            if (empty? actions) host $ let
+                action $ -> actions first .unwrap
+                next $ match action
+                  (:release generation) (release-image-generation host generation)
+                  (:install generation descriptor) (install-image-generation host generation descriptor)
+                  _ host
+              recur next $ rest actions
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageResourceHost
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost $ :: 'List 'quamolit.resource-lifecycle/ResourceAction
+        'complete-image-load $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn complete-image-load (host state queue result)
+            let
+                settled $ load-queue/finish-load queue $ :token result
+                handle $ :handle result
+                generation $ :resource-generation handle
+                discarded-bytes $ match (:outcome result)
+                  (:ready bytes) bytes
+                  (:failed _) 0
+                discarded-host $ ImageResourceHost :handles (:handles host) :created
+                  inc $ :created host
+                  , :released
+                    inc $ :released host
+                    , :decoded-bytes $ + (:decoded-bytes host) discarded-bytes
+              match (:outcome settled)
+                (:accepted task)
+                  do
+                    assert |image-load-identity-mismatch $ = (:identity task) (:identity handle)
+                    assert |image-load-generation-mismatch $ = (:resource-generation task) generation
+                    let
+                        tracked $ track-image-result host result
+                        transition $ match (:outcome result)
+                          (:ready _) (resource/resource-ready state generation)
+                          (:failed message) (resource/resource-failed state generation message)
+                      ImageLoadCompletion :queue (:queue settled) :host tracked :transition transition
+                (:discarded _)
+                  ImageLoadCompletion :queue (:queue settled) :host discarded-host :transition $ resource/transition state $ resource/empty-actions
+                (:unknown)
+                  ImageLoadCompletion :queue (:queue settled) :host discarded-host :transition $ resource/transition state $ resource/empty-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageLoadCompletion
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost 'quamolit.resource-lifecycle/ResourceState 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.image-resource-runner/QueuedImageLoadResult
+        'enqueue-image-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn enqueue-image-actions (queue runtime-generation actions)
+            if (empty? actions) (ImageActionQueueResult :queue queue :backpressured 0)
+              let
+                  action $ -> actions first .unwrap
+                  current $ match action
+                    (:load generation descriptor)
+                      do
+                        assert |non-image-resource-in-image-runner $ = (resource/ResourceKind :image) (:kind descriptor)
+                        let
+                            result $ load-queue/enqueue-load queue runtime-generation descriptor generation $ load-queue/ResourceLoadPriority :interactive
+                            backpressured $ match (:outcome result)
+                              (:backpressured) 1
+                              _ 0
+                          ImageActionQueueResult :queue (:queue result) :backpressured backpressured
+                    _ $ ImageActionQueueResult :queue queue :backpressured 0
+                  remaining $ enqueue-image-actions (:queue current) runtime-generation $ rest actions
+                ImageActionQueueResult :queue (:queue remaining) :backpressured $ + (:backpressured current) (:backpressured remaining)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageActionQueueResult
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue 'Number $ :: 'List 'quamolit.resource-lifecycle/ResourceAction
+        'image-descriptor $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn image-descriptor (id version url width height)
+            assert |invalid-image-resource-width $ and (number? width) (> width 0)
+            assert |invalid-image-resource-height $ and (number? height) (> height 0)
+            ImageResourceDescriptor :identity (resource/image-resource id version) :url url :width width :height height
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageResourceDescriptor
+            :args $ [] 'String 'Number 'String 'Number 'Number
+        'image-resource-metrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn image-resource-metrics (host)
+            ImageResourceMetrics :created (:created host) :released (:released host) :live
+              count $ :handles host
+              , :decoded-bytes $ :decoded-bytes host
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageResourceMetrics
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost
+        'initial-image-resource-host $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-image-resource-host ()
+            ImageResourceHost :handles ([]) :created 0 :released 0 :decoded-bytes 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageResourceHost
+            :args $ []
+        'install-image-generation $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn install-image-generation (host generation descriptor)
+            let
+                found? $ any? (:handles host)
+                  fn (handle)
+                    and
+                      = generation $ :resource-generation handle
+                      = descriptor $ :identity handle
+                handles $ map (:handles host)
+                  fn (handle)
+                    ImageResourceHandle :identity (:identity handle) :resource-generation (:resource-generation handle) :image (:image handle) :installed? $ and
+                      = generation $ :resource-generation handle
+                      = descriptor $ :identity handle
+              assert |missing-image-resource-generation found?
+              ImageResourceHost :handles handles :created (:created host) :released (:released host) :decoded-bytes $ :decoded-bytes host
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageResourceHost
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost 'Number 'quamolit.resource-lifecycle/ResourceIdentity
+        'installed-image $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn installed-image (host)
+            let
+                installed $ filter (:handles host)
+                  fn (handle) (:installed? handle)
+              if (empty? installed) (%none)
+                %some $ :image $ -> installed first .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost
+            :return $ :: 'Option 'js-ffi.browser/ImageHost
+        'release-image-generation $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-image-generation (host generation)
+            let
+                matched $ filter (:handles host)
+                  fn (handle)
+                    = generation $ :resource-generation handle
+                kept $ filter (:handles host)
+                  fn (handle)
+                    not= generation $ :resource-generation handle
+              ImageResourceHost :handles kept :created (:created host) :released
+                + (:released host) (count matched)
+                , :decoded-bytes $ :decoded-bytes host
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageResourceHost
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost 'Number
+        'run-image-load-task! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn run-image-load-task! (descriptor task)
+            hint-fn $ {} (:async true)
+              :args $ [] 'quamolit.image-resource-runner/ImageResourceDescriptor 'quamolit.resource-load-queue/ResourceLoadTask
+              :return 'quamolit.image-resource-runner/QueuedImageLoadResult
+              :features $ #{} :js-ffi
+            assert |image-load-task-identity-mismatch $ = (:identity descriptor) (:identity task)
+            let
+                image $ browser/image-create
+                handle $ ImageResourceHandle :identity (:identity task) :resource-generation (:resource-generation task) :image image :installed? false
+                _ $ browser/image-src! image $ :url descriptor
+                decoded $ js-await $ browser/image-decode! image
+                outcome $ match decoded
+                  (:err error)
+                    ImageLoadOutcome :failed $ :message error
+                  (:ok _)
+                    let
+                        width $ browser/image-natural-width image
+                        height $ browser/image-natural-height image
+                      if
+                        and
+                          = width $ :width descriptor
+                          = height $ :height descriptor
+                        ImageLoadOutcome :ready $ * 4 width height
+                        ImageLoadOutcome :failed $ str |image-size-mismatch:expected= (:width descriptor) |x (:height descriptor) |,actual= width |x height
+              QueuedImageLoadResult :token (:token task) :handle handle :outcome outcome
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true)
+            :return 'quamolit.image-resource-runner/QueuedImageLoadResult
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceDescriptor 'quamolit.resource-load-queue/ResourceLoadTask
+            :features $ #{} :js-ffi
+        'track-image-result $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn track-image-result (host result)
+            let
+                handle $ :handle result
+                generation $ :resource-generation handle
+                duplicate? $ any? (:handles host)
+                  fn (candidate)
+                    = generation $ :resource-generation candidate
+                bytes $ match (:outcome result)
+                  (:ready value) value
+                  (:failed _) 0
+              assert |duplicate-image-resource-generation $ not duplicate?
+              struct-with host
+                :handles $ conj (:handles host) handle
+                :created $ inc $ :created host
+                :decoded-bytes $ + bytes $ :decoded-bytes host
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageResourceHost
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost 'quamolit.image-resource-runner/QueuedImageLoadResult
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.image-resource-runner
+          :require (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as load-queue) (js-ffi.browser :as browser)
     'quamolit.instance-ffi $ %{} 'FileEntry
       :defs $ {}
         'CanvasRectMetrics $ %{} 'CodeEntry
