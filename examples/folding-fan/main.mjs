@@ -1,4 +1,4 @@
-// 资源、视口和宿主时间在页面；折扇的状态、几何与绘制调用均来自 Calcit。
+// 页面只保留 URL、视口和宿主时间；图片队列、句柄所有权、状态、几何与绘制调用均来自 Calcit。
 import {
   initial,
   empty_events,
@@ -13,18 +13,25 @@ import {
 import {
   image_resource,
   request_resource,
-  resource_ready,
-  resource_failed,
   close_resource,
 } from "../../target/js/folding-fan/quamolit.resource-lifecycle.mjs";
 import {
-  image_create,
-  image_src_$x_,
-  image_decode_$x_,
-  image_natural_width,
-  image_natural_height,
-} from "../../target/js/folding-fan/js-ffi.browser.mjs";
-import { init_tags, to_js_data } from "../../target/js/folding-fan/calcit.core.mjs";
+  apply_image_actions,
+  complete_image_load,
+  enqueue_image_actions,
+  image_descriptor,
+  image_resource_metrics,
+  initial_image_resource_host,
+  installed_image,
+  run_image_load_task_$x_,
+} from "../../target/js/folding-fan/quamolit.image-resource-runner.mjs";
+import {
+  cancel_stale_device_loads,
+  initial_load_queue,
+  load_queue_metrics,
+  take_load,
+} from "../../target/js/folding-fan/quamolit.resource-load-queue.mjs";
+import { init_tags, option_$o_unwrap, to_js_data } from "../../target/js/folding-fan/calcit.core.mjs";
 export function mountDemo() {
   const canvas = document.querySelector("canvas"),
     context = canvas.getContext("2d");
@@ -39,7 +46,6 @@ export function mountDemo() {
   let time = Number.isFinite(parsed) && parsed >= 0 && parsed <= 120 ? parsed : 0;
   let model = initial(),
     events = empty_events(),
-    image = null,
     error = "",
     resourceError = "",
     playing = false,
@@ -49,10 +55,12 @@ export function mountDemo() {
     until = 120,
     paints = 0;
   let resourceState = resource_initial(),
-    installedGeneration = null,
+    imageHost = initial_image_resource_host(),
+    loadQueue = initial_load_queue(1, 4),
+    runtimeGeneration = 1,
+    pumpPromise = null,
     autoPlayed = false;
-  const resourceHandles = new Map(),
-    resourceTags = init_tags(["state", "actions"]);
+  const resourceTags = init_tags(["actions", "backpressured", "host", "queue", "state", "task", "transition"]);
   const eventTimes = (params.get("events") || "").split(",").filter(Boolean).map(Number);
   try {
     for (const at of eventTimes) events = append_event(events, at);
@@ -75,13 +83,16 @@ export function mountDemo() {
     context.fillStyle = "#171022";
     context.fillRect(0, 0, width, height);
     if (resource === "ready") {
+      const image = option_$o_unwrap(installed_image(imageHost));
       const scale = Math.min(width / 900, height / 650);
       context.setTransform(scale, 0, 0, scale, width / 2, height * 0.77);
       draw_$x_(context, image, model, time);
     }
     paints++;
+    const hostMetrics = to_js_data(image_resource_metrics(imageHost));
+    const queueMetrics = to_js_data(load_queue_metrics(loadQueue));
     slider.value = String(time);
-    status.textContent = `t = ${time.toFixed(2)} s · 切片 24\n开合 ${fold_value(model, time).toFixed(3)} · 图片 ${resource} · 绘制 ${paints}`;
+    status.textContent = `t = ${time.toFixed(2)} s · 切片 24\n开合 ${fold_value(model, time).toFixed(3)} · 图片 ${resource} · host ${hostMetrics.live}/${hostMetrics.created}/${hostMetrics.released} · queue ${queueMetrics.pending}/${queueMetrics.running} · 绘制 ${paints}`;
     status.dataset.result = resource === "ready" ? "pass" : resource;
     message.textContent = [error, resourceError].filter(Boolean).join("；");
   }
@@ -127,6 +138,8 @@ export function mountDemo() {
       slices: to_js_data(slices_at(model, time)),
       resource,
       resourceState: to_js_data(resourceState),
+      imageMetrics: to_js_data(image_resource_metrics(imageHost)),
+      loadQueue: to_js_data(load_queue_metrics(loadQueue)),
       error: [error, resourceError].filter(Boolean).join("；"),
       playing,
       paints,
@@ -204,28 +217,15 @@ export function mountDemo() {
     { signal: listeners.signal },
   );
   window.addEventListener("pagehide", stop, { signal: listeners.signal });
-  function releaseResource(generation) {
-    resourceHandles.delete(generation);
-    if (installedGeneration === generation) {
-      installedGeneration = null;
-      image = null;
-    }
-  }
   async function executeResourceActions(actions) {
+    let shouldPump = false;
     for (const [kind, generation, detail] of actions) {
-      if (kind === "release") {
-        releaseResource(generation);
-        continue;
-      }
+      if (kind === "release") continue;
       if (kind === "show-error") {
         resourceError = `图片加载失败：${detail}`;
         continue;
       }
       if (kind === "install") {
-        const candidate = resourceHandles.get(generation);
-        if (!candidate) throw new Error(`图片 generation ${generation} 已失效`);
-        installedGeneration = generation;
-        image = candidate;
         resourceError = "";
         continue;
       }
@@ -246,38 +246,56 @@ export function mountDemo() {
       }
       if (kind === "load") {
         resourceError = "";
-        const candidate = image_create();
-        resourceHandles.set(generation, candidate);
+        shouldPump = true;
+      }
+    }
+    if (shouldPump) await pumpImageQueue();
+  }
+  async function commitResource(transition) {
+    resourceState = transition.get(resourceTags.state);
+    const actions = transition.get(resourceTags.actions);
+    const queued = enqueue_image_actions(loadQueue, runtimeGeneration, actions);
+    loadQueue = queued.get(resourceTags.queue);
+    imageHost = apply_image_actions(imageHost, actions);
+    if (queued.get(resourceTags.backpressured) > 0) resourceError = "图片加载队列已满，请稍后重试";
+    return executeResourceActions(to_js_data(actions));
+  }
+  function pumpImageQueue() {
+    if (pumpPromise) return pumpPromise;
+    pumpPromise = (async () => {
+      while (true) {
+        const taken = take_load(loadQueue);
+        loadQueue = taken.get(resourceTags.queue);
+        const taskOption = taken.get(resourceTags.task);
+        if (to_js_data(taskOption)[0] === "none") return;
+        const task = option_$o_unwrap(taskOption);
+        const identity = to_js_data(task).identity;
         const source =
           params.get("image") === "missing"
             ? new URL("./missing-lotus.jpg", import.meta.url)
             : new URL("../../assets/lotus.jpg", import.meta.url);
-        image_src_$x_(candidate, source.href);
-        try {
-          await image_decode_$x_(candidate);
-          if (image_natural_width(candidate) === 0 || image_natural_height(candidate) === 0)
-            throw new Error("图片不存在或无法解码");
-          if (image_natural_width(candidate) !== 650 || image_natural_height(candidate) !== 432)
-            throw new Error("荷花图片尺寸与 650 × 432 切片依据不符");
-          await commitResource(resource_ready(resourceState, generation));
-        } catch (cause) {
-          await commitResource(resource_failed(resourceState, generation, cause.message || String(cause)));
-        }
+        const descriptor = image_descriptor(identity.id, identity.version, source.href, 650, 432);
+        const result = await run_image_load_task_$x_(descriptor, task);
+        const completion = complete_image_load(imageHost, resourceState, loadQueue, result);
+        loadQueue = completion.get(resourceTags.queue);
+        imageHost = completion.get(resourceTags.host);
+        await commitResource(completion.get(resourceTags.transition));
       }
-    }
-  }
-  async function commitResource(transition) {
-    resourceState = transition.get(resourceTags.state);
-    return executeResourceActions(to_js_data(transition.get(resourceTags.actions)));
+    })().finally(() => {
+      pumpPromise = null;
+    });
+    return pumpPromise;
   }
   function loadResource(version = 1) {
     return commitResource(request_resource(resourceState, image_resource("lotus", version)));
   }
   const api = { seek, reset, clickToggle, snapshot, pause: stop, play: start, loadResource };
   window.foldingFanDemo = api;
-void loadResource();
-return () => {
-  void commitResource(close_resource(resourceState));
+  void loadResource();
+  return () => {
+    runtimeGeneration += 1;
+    loadQueue = cancel_stale_device_loads(loadQueue, runtimeGeneration);
+    void commitResource(close_resource(resourceState));
     stop();
     listeners.abort();
     observer.disconnect();

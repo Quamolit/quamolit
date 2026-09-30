@@ -33,6 +33,6 @@
 
 ## 尚未完成
 
-- 通用队列已实现，但实际宿主 loader 仍只有 Presence buffer；尚未形成 texture/font/glyph/geometry/pipeline 的完整执行器集合。
+- 通用队列已实现，实际宿主 loader 现有 Presence buffer 与独立的 Canvas 图片 runner；尚未形成 WebGPU texture/font/glyph/geometry/pipeline 的完整执行器集合。
 - queue 已提交工作的延迟销毁仍需结合 `onSubmittedWorkDone` 或等价 fence 策略。
 - texture、font/glyph、geometry 与 pipeline 仍需各自的类型化 loader 和可恢复描述。
