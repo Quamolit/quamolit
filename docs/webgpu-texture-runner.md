@@ -26,3 +26,7 @@ Calcit 业务状态、队列、身份、generation、安装与释放均在本仓
 - Chromium 真实 WebGPU API 把 2×2 红色 SVG 上传到两代 device 的 texture，分别复制读回 `[255,0,0,255]`，最终 `created=released=2、live=0`。
 
 软件 adapter 可以证明浏览器 WebGPU API 与生命周期接线正确，但不是硬件性能或恢复时延证据。当前仍未把 texture 用于 Quamolit Scene 实际采样绘制，也未实现 queue completion 后的 fence-safe 延迟 destroy；font/glyph、geometry 与 pipeline loader 继续留在 #51。
+
+2026-09-30 本机验证：Calcit 0.27.0、Node 24.19.0。`yarn test:webgpu-instances` 的 60/60 公共定义与 14 个 Node 场景通过，headless texture 用例通过，其余 5 个硬件专项在 SwiftShader 上明确 SKIP。单独运行 `yarn playwright test --config test/gpu.playwright.config.mjs test/webgpu-texture-runner.spec.mjs --headed`，取得 `apple / metal-3 / isFallbackAdapter=false`：两代 device 的像素均为 `[255,0,0,255]`，最终 `created=released=2、live=0、uploaded-bytes=32`，无 uncaptured GPU error。测试附带 JSON adapter/像素/资源计数报告。这里模拟 device 替换，未证明浏览器真实设备故障后的自动恢复与恢复时延；其他硬件未验证。
+
+本地执行需使用支持当前 Vite 的 Node；若设置了指向不可用服务的 HTTP 代理，用 `env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY` 前缀运行测试，使本地 webServer 探测直连。
