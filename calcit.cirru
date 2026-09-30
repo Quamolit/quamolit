@@ -11598,6 +11598,196 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.presence-component
           :require (quamolit.presence :as presence) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.component-sample :as component) (quamolit.scene-binding :as binding)
+    'quamolit.presence-device-coordinator $ %{} 'FileEntry
+      :defs $ {}
+        'PresenceDeviceAction $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum PresenceDeviceAction (:device 'quamolit.device-recovery/RecoveryAction) (:resource 'Number 'quamolit.resource-lifecycle/RegistryAction)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'PresenceDeviceState $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceDeviceState (:recovery 'quamolit.device-recovery/RecoveryState)
+            :resources 'quamolit.presence-resource-registry/PresenceResources
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PresenceDeviceTransition $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceDeviceTransition
+            :state 'quamolit.presence-device-coordinator/PresenceDeviceState
+            :actions $ :: 'List 'quamolit.presence-device-coordinator/PresenceDeviceAction
+          :examples $ []
+          :schema $ :: 'StructDef
+        'accepted-create-ready? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn accepted-create-ready? (state generation outcome)
+            and
+              = generation $ :generation $ :recovery state
+              =
+                :phase $ :recovery state
+                device/RecoveryPhase :creating
+              match outcome
+                (:ready) true
+                _ false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState 'Number 'quamolit.device-recovery/CreateOutcome
+        'active-device-generation? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn active-device-generation? (state generation)
+            and (device-ready? state)
+              = generation $ :generation $ :recovery state
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState 'Number
+        'close $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn close (state)
+            let
+                resource-result $ resources/close-presence-resources $ :resources state
+                device-result $ device/close-recovery $ :recovery state
+                next $ PresenceDeviceState :recovery (:state device-result) :resources $ :state resource-result
+                resource-actions $ wrap-resource-actions
+                  :generation $ :recovery state
+                  :actions resource-result
+                device-actions $ wrap-device-actions $ :actions device-result
+              transition next $ concat resource-actions device-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState
+        'create-resolved $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create-resolved (state generation outcome)
+            let
+                accepted? $ accepted-create-ready? state generation outcome
+                device-result $ device/create-resolved (:recovery state) generation outcome
+                next $ PresenceDeviceState :recovery (:state device-result) :resources $ :resources state
+                device-actions $ wrap-device-actions $ :actions device-result
+              if accepted?
+                let
+                    rebuilt $ resources/rebuild-presence-resources $ :resources state
+                    rebuilt-state $ PresenceDeviceState :recovery (:state device-result) :resources $ :state rebuilt
+                    resource-actions $ wrap-resource-actions generation $ :actions rebuilt
+                  transition rebuilt-state $ concat device-actions resource-actions
+                transition next device-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState 'Number 'quamolit.device-recovery/CreateOutcome
+        'device-lost $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn device-lost (state generation message)
+            let
+                result $ device/device-lost (:recovery state) generation message
+                next $ PresenceDeviceState :recovery (:state result) :resources $ :resources state
+              transition next $ wrap-device-actions $ :actions result
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState 'Number 'String
+        'device-ready? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn device-ready? (state)
+            match
+              :phase $ :recovery state
+              (:ready) true
+              _ false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState
+        'empty-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-actions () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.presence-device-coordinator/PresenceDeviceAction
+        'initial-state $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-state (capacity-bytes resource-version)
+            PresenceDeviceState :recovery (device/initial-state resource-version) :resources $ resources/initial-presence-resources capacity-bytes
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-device-coordinator/PresenceDeviceState
+            :args $ [] 'Number 'Number
+        'probe-resolved $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn probe-resolved (state generation outcome)
+            let
+                result $ device/probe-resolved (:recovery state) generation outcome
+                next $ PresenceDeviceState :recovery (:state result) :resources $ :resources state
+              transition next $ wrap-device-actions $ :actions result
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState 'Number 'quamolit.device-recovery/ProbeOutcome
+        'request-open $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn request-open (state resource-version)
+            let
+                result $ device/request-open (:recovery state) resource-version
+                next $ PresenceDeviceState :recovery (:state result) :resources $ :resources state
+              transition next $ wrap-device-actions $ :actions result
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState 'Number
+        'resource-failed $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resource-failed (state device-generation descriptor resource-generation message)
+            if (active-device-generation? state device-generation)
+              let
+                  result $ resources/fail-presence-resource (:resources state) descriptor resource-generation message
+                  next $ PresenceDeviceState :recovery (:recovery state) :resources $ :state result
+                transition next $ wrap-resource-actions device-generation $ :actions result
+              transition state $ empty-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState 'Number 'quamolit.resource-lifecycle/ResourceIdentity 'Number 'String
+        'resource-ready $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resource-ready (state device-generation descriptor resource-generation)
+            if (active-device-generation? state device-generation)
+              let
+                  result $ resources/ready-presence-resource (:resources state) descriptor resource-generation
+                  next $ PresenceDeviceState :recovery (:recovery state) :resources $ :state result
+                transition next $ wrap-resource-actions device-generation $ :actions result
+              transition state $ stale-resource-release device-generation descriptor resource-generation
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState 'Number 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'stale-resource-release $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn stale-resource-release (device-generation descriptor resource-generation)
+            [] $ PresenceDeviceAction :resource device-generation $ resource/RegistryAction :resource descriptor (resource/ResourceAction :release resource-generation)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+            :return $ :: 'List 'quamolit.presence-device-coordinator/PresenceDeviceAction
+        'sync-presence $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sync-presence (state model)
+            let
+                result $ resources/sync-presence-resources (:resources state) model
+                next $ PresenceDeviceState :recovery (:recovery state) :resources $ :state result
+              if (device-ready? state)
+                transition next $ wrap-resource-actions
+                  :generation $ :recovery state
+                  :actions result
+                transition next $ empty-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState 'quamolit.presence/PresenceModel
+        'transition $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transition (state actions) (PresenceDeviceTransition :state state :actions actions)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+            :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceState $ :: 'List 'quamolit.presence-device-coordinator/PresenceDeviceAction
+        'wrap-device-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn wrap-device-actions (actions)
+            map actions $ fn (action) (PresenceDeviceAction :device action)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] $ :: 'List 'quamolit.device-recovery/RecoveryAction
+            :return $ :: 'List 'quamolit.presence-device-coordinator/PresenceDeviceAction
+        'wrap-resource-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn wrap-resource-actions (device-generation actions)
+            map actions $ fn (action) (PresenceDeviceAction :resource device-generation action)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+            :return $ :: 'List 'quamolit.presence-device-coordinator/PresenceDeviceAction
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.presence-device-coordinator
+          :require (quamolit.device-recovery :as device) (quamolit.presence :as presence) (quamolit.presence-resource-registry :as resources) (quamolit.resource-lifecycle :as resource)
     'quamolit.presence-resource-registry $ %{} 'FileEntry
       :defs $ {}
         'PresenceResourceTransition $ %{} 'CodeEntry (:doc |)
@@ -11801,6 +11991,27 @@
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+        'execute-presence-device-action! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn execute-presence-device-action! (host active-device-generation canvas device format table references action)
+            hint-fn $ {} (:async true)
+              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence-device-coordinator/PresenceDeviceAction
+              :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
+              :features $ #{} :js-ffi
+            match action
+              (:resource device-generation registry-action)
+                if (= device-generation active-device-generation)
+                  js-await $ execute-presence-resource-action! host device-generation canvas device format table references registry-action
+                  , host
+              (:device device-action)
+                match device-action
+                  (:release generation)
+                    if (= generation active-device-generation) (close-presence-gpu-host! host) host
+                  _ host
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true)
+            :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence-device-coordinator/PresenceDeviceAction
+            :features $ #{} :js-ffi
         'execute-presence-resource-action! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn execute-presence-resource-action! (host device-generation canvas device format table references registry-action)
             hint-fn $ {} (:async true)
@@ -11964,7 +12175,7 @@
             :return $ :: 'calcit.core/Option 'quamolit.scene-ir/InstanceSource
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.presence-webgpu-resources
-          :require (quamolit.presence :as presence) (quamolit.presence-resource-registry :as presence-resource) (quamolit.resource-lifecycle :as resource) (quamolit.instance-resource :as instances) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as gpu) (js-ffi.browser :as browser) (js-ffi.webgpu :as webgpu)
+          :require (quamolit.presence :as presence) (quamolit.presence-resource-registry :as presence-resource) (quamolit.resource-lifecycle :as resource) (quamolit.instance-resource :as instances) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as gpu) (js-ffi.browser :as browser) (js-ffi.webgpu :as webgpu) (quamolit.presence-device-coordinator :as coordinator)
     'quamolit.render.element $ %{} 'FileEntry
       :defs $ {}
         'alpha $ %{} 'CodeEntry (:doc |)

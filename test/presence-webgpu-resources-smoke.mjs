@@ -5,6 +5,7 @@ import { instance_presence_document as instanceDocument } from "../target/js/mot
 import {
   close_presence_resources as closeResources,
   initial_presence_resources as initialResources,
+  instance_resource_identity as instanceResourceIdentity,
   ready_presence_resource as readyResource,
   rebuild_presence_resources as rebuildResources,
   sync_presence_resources as syncResources,
@@ -12,10 +13,25 @@ import {
 import {
   close_presence_gpu_host_$x_ as closeGpuHost,
   draw_presence_buffer_$x_ as drawBuffer,
+  execute_presence_device_action_$x_ as executeDeviceAction,
   execute_presence_resource_action_$x_ as executeAction,
   initial_presence_gpu_host as initialGpuHost,
   presence_gpu_metrics as gpuMetrics,
 } from "../target/js/motion/quamolit.presence-webgpu-resources.mjs";
+import {
+  close as closeCoordinator,
+  create_resolved as coordinatorCreateResolved,
+  device_lost as coordinatorDeviceLost,
+  initial_state as initialCoordinator,
+  probe_resolved as coordinatorProbeResolved,
+  request_open as coordinatorRequestOpen,
+  resource_ready as coordinatorResourceReady,
+  sync_presence as syncCoordinator,
+} from "../target/js/motion/quamolit.presence-device-coordinator.mjs";
+import {
+  create_ready as createReady,
+  probe_ready as probeReady,
+} from "../target/js/motion/quamolit.device-recovery.mjs";
 import {
   create_table_$x_ as createTable,
   register_$x_ as registerSource,
@@ -23,7 +39,7 @@ import {
 import { color } from "../target/js/motion/quamolit.webgpu-batches.mjs";
 import { start_presence as start } from "../target/js/motion/quamolit.presence.mjs";
 
-const tags = initTags(["actions", "plan", "references", "source", "state"]);
+const tags = initTags(["actions", "plan", "references", "resources", "source", "state"]);
 const listValues = (list) => list.value.slice(list.start, list.end);
 const stateOf = (transition) => transition.get(tags.state);
 const actionsOf = (transition) => listValues(transition.get(tags.actions));
@@ -109,6 +125,23 @@ async function applyActions(host, deviceGeneration, gpu, table, resources, actio
     host = await executeAction(
       host,
       deviceGeneration,
+      gpu.canvas,
+      gpu.device,
+      "bgra8unorm",
+      table,
+      referencesOf(resources),
+      action,
+    );
+  }
+  return host;
+}
+
+async function applyDeviceActions(host, activeDeviceGeneration, gpu, table, coordinatorState, actions) {
+  const resources = coordinatorState.get(tags.resources);
+  for (const action of actions) {
+    host = await executeDeviceAction(
+      host,
+      activeDeviceGeneration,
       gpu.canvas,
       gpu.device,
       "bgra8unorm",
@@ -242,4 +275,64 @@ test("100 次 device rebuild 始终只有一个实际 WebGPU batch，关闭后�
   });
   assert.ok(devices.every((gpu) => gpu.calls.buffers.every((buffer) => buffer.destroyed)));
   assert.ok(devices.every((gpu) => gpu.calls.unconfigurations === 1));
+});
+
+test("组合状态机动作自动关闭旧 GPU host、重建新 generation 并忽略旧设备动作", async () => {
+  const positions = new Float32Array(20000);
+  const model = start(instanceDocument(15, true));
+  const table = createTable();
+  let coordinator = initialCoordinator(80000, 1);
+  let transition = syncCoordinator(coordinator, model);
+  coordinator = stateOf(transition);
+  const resources = coordinator.get(tags.resources);
+  const source = sourceOf(resources);
+  const descriptor = instanceResourceIdentity(source);
+  registerSource(table, source, positions);
+
+  transition = coordinatorRequestOpen(coordinator, 1);
+  coordinator = stateOf(transition);
+  transition = coordinatorProbeResolved(coordinator, 1, probeReady());
+  coordinator = stateOf(transition);
+  transition = coordinatorCreateResolved(coordinator, 1, createReady());
+  coordinator = stateOf(transition);
+
+  const firstGpu = mockGpu();
+  let host = await applyDeviceActions(initialGpuHost(), 1, firstGpu, table, coordinator, actionsOf(transition));
+  transition = coordinatorResourceReady(coordinator, 1, descriptor, 3);
+  coordinator = stateOf(transition);
+  host = await applyDeviceActions(host, 1, firstGpu, table, coordinator, actionsOf(transition));
+  assert.equal(toJsData(gpuMetrics(host)).live, 1);
+
+  transition = coordinatorDeviceLost(coordinator, 1, "simulated-loss");
+  coordinator = stateOf(transition);
+  host = await applyDeviceActions(host, 1, firstGpu, table, coordinator, actionsOf(transition));
+  assert.equal(toJsData(gpuMetrics(host)).live, 0);
+  assert.ok(firstGpu.calls.buffers.every((buffer) => buffer.destroyed));
+
+  transition = coordinatorProbeResolved(coordinator, 2, probeReady());
+  coordinator = stateOf(transition);
+  transition = coordinatorCreateResolved(coordinator, 2, createReady());
+  coordinator = stateOf(transition);
+  const secondGpu = mockGpu();
+  host = await applyDeviceActions(host, 2, secondGpu, table, coordinator, actionsOf(transition));
+  transition = coordinatorResourceReady(coordinator, 2, descriptor, 5);
+  coordinator = stateOf(transition);
+  host = await applyDeviceActions(host, 2, secondGpu, table, coordinator, actionsOf(transition));
+  assert.equal(toJsData(gpuMetrics(host)).live, 1);
+
+  // 旧 device generation 的 release 不能释放第二代相同 identity 的 batch。
+  const stale = coordinatorResourceReady(coordinator, 1, descriptor, 3);
+  host = await applyDeviceActions(host, 2, secondGpu, table, coordinator, actionsOf(stale));
+  assert.equal(toJsData(gpuMetrics(host)).live, 1);
+
+  transition = closeCoordinator(coordinator);
+  coordinator = stateOf(transition);
+  host = await applyDeviceActions(host, 2, secondGpu, table, coordinator, actionsOf(transition));
+  assert.deepEqual(toJsData(gpuMetrics(host)), {
+    created: 2,
+    released: 2,
+    live: 0,
+    "live-bytes": 0,
+    "uploaded-bytes": 160000,
+  });
 });
