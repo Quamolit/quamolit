@@ -25,12 +25,12 @@ generation 不重置。例如 ready generation 1 经一次 rebuild 后重新 loa
 
 ## 验证
 
-`yarn test:presence-resources` 使用原生 device/canvas 替身实际执行 Quamolit WebGPU batch 的 pipeline、buffer、80 kB 上传、draw、dispose 与 context unconfigure。单次恢复验证旧两个 GPU buffer 均销毁、新 batch 唯一存活；100 次 device rebuild 始终 `live=1`，最后 close 为 `created=101 / released=101 / live=0 / liveBytes=0`，累计上传 8,080,000 B。组合状态机专项另验证两代 device 的动作顺序、延迟 lease、旧设备 ready/failure 隔离及 generation-aware executor。
+`yarn test:presence-resources` 使用原生 device/canvas 替身实际执行 Quamolit WebGPU batch 的 pipeline、buffer、80 kB 上传、draw、dispose 与 context unconfigure。单次恢复验证旧两个 GPU buffer 均销毁、新 batch 唯一存活；100 次 device rebuild 始终 `live=1`，最后 close 为 `created=101 / released=101 / live=0 / liveBytes=0`，累计上传 8,080,000 B。组合状态机专项另验证两代 device 的动作顺序、延迟 lease、旧设备 ready/failure 隔离及 generation-aware executor；[异步任务 runner](presence-resource-runner.md)验证上传异常和 device loss 竞态不会泄漏或复活孤立 batch。
 
 `yarn test:webgpu-instances` 新增非软件 adapter 专项：真实创建两个 device，销毁第一代后用同一 Presence Model/source 在第二代重建，恢复前后像素均为 `[234,88,12,255]`，最后资源计数回零。没有 adapter 或只有软件 adapter 时明确 SKIP；这不算硬件通过。
 
 ## 尚未完成
 
 - 当前只连接 `SceneContent :instances` 的矩形 buffer/batch；texture、font/glyph、geometry 与 pipeline 的共享宿主仍待接入。
-- 真实 device loss Promise 的原生监听仍由宿主提交给组合状态机；异步 load Promise 的成功/失败仍需宿主调用对应转移，尚无统一任务 runner。
+- 真实 device loss Promise 的原生监听仍由宿主提交给组合状态机；矩形实例已有两阶段异步 runner，但跨资源类型的统一调度/取消尚未实现。
 - release 在 batch dispose 时立即执行；GPU queue 完成后的延迟回收策略、跨硬件恢复时延和多图层共享 device 尚未完成。

@@ -23,7 +23,7 @@ device lost
   → install resource + wake frame
 ```
 
-`resource-ready` / `resource-failed` 同时接收 device generation 与 resource generation。只有当前 ready device 可以改变 registry；旧 device 的 ready 只产生带旧 device generation 的幂等 release，旧 failure 不覆盖新 loading 状态。
+`resource-ready` / `resource-failed` 同时接收 device generation 与 resource generation。只有当前 ready device 可以改变 registry；旧 device 的 ready 只产生带旧 device generation 的幂等 release，旧 failure 不覆盖新 loading 状态。[异步资源任务 runner](presence-resource-runner.md)把 Promise 结果提交给最新 state，避免旧闭包覆盖恢复期间的新状态。
 
 ## WebGPU 执行边界
 
@@ -45,5 +45,5 @@ device lost
 ## 尚未完成
 
 - 浏览器宿主仍需把 `device.lost` Promise、probe/create 的原生结果提交给组合状态机；本模块统一决策，但不持有原生对象。
-- 异步 `load` 的 Promise 成功/失败目前由宿主分别调用 `resource-ready` / `resource-failed`；下一切片应提供带回调/任务队列的统一 runner，避免消费者漏回写。
+- 跨资源类型的统一任务队列、取消、优先级与背压尚未实现；当前 runner 覆盖矩形 instances load。
 - texture、font/glyph、geometry、pipeline 及 queue 完成后的安全延迟释放仍未接入。
