@@ -40,6 +40,6 @@ let
 
 `yarn test:webgpu-images`：18/18 严格公共定义、4 个 Node 场景（初始化失败释放、矩阵、24 片参数、末资源失败与容量预检）、两个 Chromium 用例。1000 个重复帧的 GPU 计数为 pipeline=1、buffer=1、bind group=2、热帧 uniform 上传=0 B。Apple Metal-3 的红色／交叠／蓝色／背景实色样本分别为 `[255,0,0,255]`、`[127,0,128,255]`、`[0,0,128,255]`、`[0,0,0,255]`，无 uncaptured GPU error。GPU 图片的 full-frame Canvas 等价与其他硬件未验证；此结果不是性能测量。
 
-从现有导航进入 Folding Fan，选择“WebGPU 图片（实验）”。也可使用 `examples/folding-fan/index.html?t=0&backend=webgpu`。控制面板仍是 DOM 浮层、Canvas 仍全屏；切换后端保持时间、输入日志和 Model，暂停 resize 不重置动画；初始化失败与 device loss 回退 Canvas，并显示原因。用户可再次选择 WebGPU 重新初始化。GPU 截图保存在 `test-results/gpu-images/`，Actions 上传同名证据；无 adapter 的 GPU 用例明确 SKIP。
+从现有导航进入 Folding Fan，选择“WebGPU 图片（实验）”。也可使用 `demos/index.html?demo=folding-fan&t=0.18&events=0&backend=webgpu`。控制面板仍是 DOM 浮层、Canvas 仍全屏；DOM 始终只保留一块画布（不同原生 context 不能共用同一 canvas，因此 GPU 模式替换显示节点，切回或卸载时同步恢复导航持有的原画布）。切换后端保持时间、输入日志和 Model，暂停 resize 不重置动画；初始化失败与 device loss 回退 Canvas，并显示原因。异步初始化取消后不安装迟到的 GPU 画布；离开 GPU demo 后可继续进入图表作品。用户可再次选择 WebGPU 重新初始化。GPU 截图保存在 `test-results/gpu-images/`，Actions 上传同名证据；无 adapter/软件 adapter 的 GPU 图片用例明确 SKIP。
 
 下一项是混合图元／完整图层回退与 GPU 矩形裁剪、DPR 变化和真实设备故障自动重建；通用提交后延迟释放、font/glyph/geometry/pipeline loader 仍未完成，不关闭 #40/#51/M2。

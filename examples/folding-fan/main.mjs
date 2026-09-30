@@ -87,7 +87,7 @@ export function mountDemo() {
   model = replay(events, time);
   function draw() {
     const resource = to_js_data(resourceState).phase[0];
-    const rect = canvas.getBoundingClientRect(),
+    const rect = (gpu?.canvas || canvas).getBoundingClientRect(),
       dpr = devicePixelRatio || 1;
     const width = Math.max(1, Math.round(rect.width * dpr)),
       height = Math.max(1, Math.round(rect.height * dpr));
@@ -237,8 +237,12 @@ export function mountDemo() {
   }
   watchDpr();
   const listeners = new AbortController();
+  function restoreCanvas(state) {
+    if (state?.canvas?.isConnected) state.canvas.replaceWith(canvas);
+  }
   async function closeGpu(state) {
     if (!state) return;
+    if (state.canvas) observer.unobserve(state.canvas);
     state.canvas?.remove();
     await state.device?.queue.onSubmittedWorkDone().catch(() => {});
     if (state.runtime) gpuImages.close_runtime_$x_(state.runtime);
@@ -248,6 +252,7 @@ export function mountDemo() {
     const epoch = ++gpuEpoch;
     const previous = gpu;
     gpu = null;
+    restoreCanvas(previous);
     backend = "canvas";
     gpuMetrics = null;
     canvas.style.opacity = "1";
@@ -280,7 +285,6 @@ export function mountDemo() {
         "rgba8unorm",
       );
       state.canvas = canvas.cloneNode(false);
-      state.canvas.id = "scene-gpu";
       state.canvas.style.pointerEvents = "none";
       state.runtime = await gpuImages.open_runtime_$x_(
         state.canvas,
@@ -294,10 +298,10 @@ export function mountDemo() {
         await closeGpu(state);
         return snapshot();
       }
-      canvas.after(state.canvas);
+      canvas.replaceWith(state.canvas);
+      observer.observe(state.canvas);
       gpu = state;
       backend = "webgpu";
-      canvas.style.opacity = "0";
       state.device.lost.then(() => {
         if (gpu === state) {
           void selectBackend("canvas");
@@ -310,6 +314,7 @@ export function mountDemo() {
     } catch (cause) {
       await closeGpu(state);
       if (epoch === gpuEpoch) {
+        restoreCanvas(state);
         gpu = null;
         canvas.style.opacity = "1";
         backendControl.value = "canvas";
@@ -411,6 +416,7 @@ export function mountDemo() {
     gpuEpoch += 1;
     const previous = gpu;
     gpu = null;
+    restoreCanvas(previous);
     void closeGpu(previous);
     runtimeGeneration += 1;
     loadQueue = cancel_stale_device_loads(loadQueue, runtimeGeneration);

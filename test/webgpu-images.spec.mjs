@@ -198,7 +198,7 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
 });
 
 test("Folding Fan 保持原动画，状态切换 GPU/Canvas 与暂停 resize", async ({ page }, testInfo) => {
-  await page.goto("/examples/folding-fan/index.html?t=0&backend=webgpu");
+  await page.goto("/demos/index.html?demo=folding-fan&t=0&backend=webgpu");
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
   await page.waitForFunction(
     () =>
@@ -208,6 +208,7 @@ test("Folding Fan 保持原动画，状态切换 GPU/Canvas 与暂停 resize", a
   const initial = await page.evaluate(() => window.foldingFanDemo.snapshot());
   test.skip(initial.backend !== "webgpu" && /adapter 不可用|软件 GPU/.test(initial.error), initial.error);
   expect(initial.backend).toBe("webgpu");
+  await expect(page.locator("canvas")).toHaveCount(1);
   await page.evaluate(() => window.foldingFanDemo.clickToggle(0));
   for (const at of [0, 0.18, 0.36, 0.18]) {
     const state = await page.evaluate((time) => window.foldingFanDemo.seek(time), at);
@@ -225,5 +226,24 @@ test("Folding Fan 保持原动画，状态切换 GPU/Canvas 与暂停 resize", a
   expect(resized.model).toEqual(repeated.model);
   await page.selectOption("#backend", "canvas");
   await expect.poll(() => page.evaluate(() => window.foldingFanDemo.snapshot().backend)).toBe("canvas");
+  await expect(page.locator("canvas")).toHaveCount(1);
   expect(await page.evaluate(() => window.foldingFanDemo.snapshot().model)).toEqual(repeated.model);
+  // Switching during async initialization must not install a stale surface.
+  await page.evaluate(async () => {
+    const pending = window.foldingFanDemo.selectBackend("webgpu");
+    await window.foldingFanDemo.selectBackend("canvas");
+    await pending;
+  });
+  await expect(page.locator("canvas")).toHaveCount(1);
+  expect(await page.evaluate(() => window.foldingFanDemo.snapshot().backend)).toBe("canvas");
+  await page.evaluate(() => window.foldingFanDemo.selectBackend("webgpu"));
+  expect(await page.evaluate(() => window.foldingFanDemo.snapshot().backend)).toBe("webgpu");
+  await page.click("#back-to-gallery");
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+  await expect(page.locator("canvas")).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => typeof window.foldingFanDemo)).toBe("undefined");
+  await page.click('[data-demo-id="cohort-pulse"]');
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "demo");
+  await expect(page.locator("canvas")).toHaveCount(1);
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
 });
