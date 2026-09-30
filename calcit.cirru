@@ -11687,6 +11687,17 @@
           :schema $ :: 'Fn $ {}
             :return 'quamolit.presence-resource-registry/PresenceResourceTransition
             :args $ [] 'quamolit.presence-resource-registry/PresenceResources 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'rebuild-presence-resources $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rebuild-presence-resources (state)
+            let
+                rebuilt $ resource/rebuild-registry $ :registry state
+              PresenceResourceTransition :state
+                PresenceResources :plan (:plan state) :registry $ :registry rebuilt
+                , :actions $ :actions rebuilt
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-resource-registry/PresenceResourceTransition
+            :args $ [] 'quamolit.presence-resource-registry/PresenceResources
         'release-instance-sources $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-instance-sources (registry sources actions)
             if (empty? sources) (resource/registry-transition registry actions)
@@ -11717,6 +11728,243 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.presence-resource-registry
           :require (quamolit.presence :as presence) (quamolit.resource-lifecycle :as resource) (quamolit.scene-ir :as scene)
+    'quamolit.presence-webgpu-resources $ %{} 'FileEntry
+      :defs $ {}
+        'PresenceGpuHandle $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceGpuHandle (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number) (:device-generation 'Number) (:source 'quamolit.scene-ir/InstanceSource) (:batch 'quamolit.webgpu-batches/RectBatchHost) (:installed? 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PresenceGpuHost $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceGpuHost
+            :handles $ :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+            :created 'Number
+            :released 'Number
+            :live-bytes 'Number
+            :uploaded-bytes 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'PresenceGpuMetrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct PresenceGpuMetrics (:created 'Number) (:released 'Number) (:live 'Number) (:live-bytes 'Number) (:uploaded-bytes 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ReleaseResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ReleaseResult
+            :handles $ :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+            :released? 'Bool
+            :bytes 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'close-handle-loop! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn close-handle-loop! (handles released)
+            if (empty? handles) released $ let
+                handle $ assert-type (-> handles first .unwrap) 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+                _ $ gpu/dispose! $ :batch handle
+              recur (rest handles) (inc released)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ []
+              :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+              , 'Number
+            :features $ #{} :js-ffi
+        'close-presence-gpu-host! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn close-presence-gpu-host! (host)
+            let
+                released $ close-handle-loop! (:handles host) 0
+              PresenceGpuHost :handles (empty-gpu-handles) :created (:created host) :released
+                + (:released host) released
+                , :live-bytes 0 :uploaded-bytes $ :uploaded-bytes host
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost
+            :features $ #{} :js-ffi
+        'contains-handle? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn contains-handle? (handles resource-id generation)
+            any? handles $ fn (handle) (same-handle? handle resource-id generation)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ []
+              :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+              , 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'draw-presence-buffer! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-presence-buffer! (host resource-id width height fill alpha)
+            gpu/draw!
+              option:unwrap $ installed-batch host resource-id
+              , width height fill alpha (gpu/no-translation) (%none)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'quamolit.resource-lifecycle/ResourceIdentity 'Number 'Number 'quamolit.webgpu-batches/RectColor 'Number
+            :features $ #{} :js-ffi
+        'empty-gpu-handles $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-gpu-handles () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+        'execute-presence-resource-action! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn execute-presence-resource-action! (host device-generation canvas device format table references registry-action)
+            hint-fn $ {} (:async true)
+              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-lifecycle/RegistryAction
+              :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
+              :features $ #{} :js-ffi
+            match registry-action $
+              :resource resource-id action
+              match action
+                (:load generation requested)
+                  let
+                      _ $ assert |mismatched-presence-resource-load $ = resource-id requested
+                      source $ option:unwrap $ source-for-identity references resource-id
+                    js-await $ load-presence-buffer! host device-generation canvas device format table source generation
+                (:install generation installed)
+                  let
+                      _ $ assert |mismatched-presence-resource-install $ = resource-id installed
+                    install-presence-buffer host resource-id generation
+                (:release generation) (release-presence-buffer! host resource-id generation)
+                (:wake-frame _) host
+                (:show-error _ _) host
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true)
+            :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-lifecycle/RegistryAction
+            :features $ #{} :js-ffi
+        'initial-presence-gpu-host $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn initial-presence-gpu-host ()
+            PresenceGpuHost :handles (empty-gpu-handles) :created 0 :released 0 :live-bytes 0 :uploaded-bytes 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
+            :args $ []
+        'install-presence-buffer $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn install-presence-buffer (host resource-id generation)
+            assert |missing-presence-gpu-handle $ contains-handle? (:handles host) resource-id generation
+            struct-with host $ :handles $ map (:handles host)
+              fn (handle)
+                if (same-handle? handle resource-id generation)
+                  struct-with handle $ :installed? true
+                  , handle
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'installed-batch $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn installed-batch (host resource-id)
+            installed-batch-loop (:handles host) resource-id
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'quamolit.resource-lifecycle/ResourceIdentity
+            :return $ :: 'calcit.core/Option 'quamolit.webgpu-batches/RectBatchHost
+        'installed-batch-loop $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn installed-batch-loop (handles resource-id)
+            if (empty? handles) (%none)
+              let
+                  handle $ assert-type (-> handles first .unwrap) 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+                if
+                  and
+                    = resource-id $ :identity handle
+                    :installed? handle
+                  %some $ :batch handle
+                  recur (rest handles) resource-id
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+              :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+              , 'quamolit.resource-lifecycle/ResourceIdentity
+            :return $ :: 'calcit.core/Option 'quamolit.webgpu-batches/RectBatchHost
+        'load-presence-buffer! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn load-presence-buffer! (host device-generation canvas device format table source generation)
+            hint-fn $ {} (:async true)
+              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject 'quamolit.scene-ir/InstanceSource 'Number
+              :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
+              :features $ #{} :js-ffi
+            let
+                resource-id $ presence-resource/instance-resource-identity source
+                _ $ assert |duplicate-presence-gpu-handle $ not
+                  contains-handle? (:handles host) resource-id generation
+                _ $ instances/resolve table source
+                batch $ js-await $ gpu/create! canvas device format (:count source)
+                upload $ instance-gpu/upload-source! -1 batch table source
+                handle $ PresenceGpuHandle :identity resource-id :resource-generation generation :device-generation device-generation :source source :batch batch :installed? false
+              PresenceGpuHost :handles
+                conj (:handles host) handle
+                , :created
+                  inc $ :created host
+                  , :released (:released host) :live-bytes
+                    + (:live-bytes host) (presence-resource/instance-resource-bytes source)
+                    , :uploaded-bytes $ + (:uploaded-bytes host) (:bytes upload)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true)
+            :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject 'quamolit.scene-ir/InstanceSource 'Number
+            :features $ #{} :js-ffi
+        'presence-gpu-metrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-gpu-metrics (host)
+            PresenceGpuMetrics :created (:created host) :released (:released host) :live
+              count $ :handles host
+              , :live-bytes (:live-bytes host) :uploaded-bytes $ :uploaded-bytes host
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-webgpu-resources/PresenceGpuMetrics
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost
+        'release-handle-loop! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-handle-loop! (handles retained resource-id generation)
+            if (empty? handles) (ReleaseResult :handles retained :released? false :bytes 0)
+              let
+                  handle $ assert-type (-> handles first .unwrap) 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+                if (same-handle? handle resource-id generation)
+                  let
+                      _ $ gpu/dispose! $ :batch handle
+                    ReleaseResult :handles
+                      concat retained $ rest handles
+                      , :released? true :bytes $ presence-resource/instance-resource-bytes $ :source handle
+                  recur (rest handles) (conj retained handle) resource-id generation
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-webgpu-resources/ReleaseResult
+            :args $ []
+              :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+              :: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+              , 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+            :features $ #{} :js-ffi
+        'release-presence-buffer! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-presence-buffer! (host resource-id generation)
+            let
+                result $ release-handle-loop! (:handles host) (empty-gpu-handles) resource-id generation
+              PresenceGpuHost :handles (:handles result) :created (:created host) :released
+                + (:released host)
+                  if (:released? result) 1 0
+                , :live-bytes
+                  - (:live-bytes host) (:bytes result)
+                  , :uploaded-bytes $ :uploaded-bytes host
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+            :features $ #{} :js-ffi
+        'same-handle? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn same-handle? (handle resource-id generation)
+            and
+              = resource-id $ :identity handle
+              = generation $ :resource-generation handle
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHandle 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'source-for-identity $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn source-for-identity (references resource-id)
+            if (empty? references) (%none)
+              let
+                  reference $ presence/first-resource-ref references
+                  source $ :source reference
+                if
+                  = resource-id $ presence-resource/instance-resource-identity source
+                  %some source
+                  recur (rest references) resource-id
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-lifecycle/ResourceIdentity
+            :return $ :: 'calcit.core/Option 'quamolit.scene-ir/InstanceSource
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.presence-webgpu-resources
+          :require (quamolit.presence :as presence) (quamolit.presence-resource-registry :as presence-resource) (quamolit.resource-lifecycle :as resource) (quamolit.instance-resource :as instances) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as gpu) (js-ffi.browser :as browser) (js-ffi.webgpu :as webgpu)
     'quamolit.render.element $ %{} 'FileEntry
       :defs $ {}
         'alpha $ %{} 'CodeEntry (:doc |)
@@ -12383,6 +12631,14 @@
           :code $ quote $ defstruct RegistryMetrics (:resident 'Number) (:leased 'Number) (:idle 'Number) (:resident-bytes 'Number) (:loads 'Number) (:evictions 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'RegistryRebuild $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RegistryRebuild
+            :entries $ :: 'List 'quamolit.resource-lifecycle/RegistryEntry
+            :resident-bytes 'Number
+            :loads 'Number
+            :actions $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+          :examples $ []
+          :schema $ :: 'StructDef
         'RegistryTransition $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct RegistryTransition (:registry 'quamolit.resource-lifecycle/ResourceRegistry)
             :actions $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
@@ -12623,6 +12879,40 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
             :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'rebuild-registry $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rebuild-registry (registry)
+            let
+                rebuilt $ rebuild-registry-entries (:entries registry) (empty-registry-entries) 0 0 $ empty-registry-actions
+                next $ ResourceRegistry :capacity-bytes (:capacity-bytes registry) :resident-bytes (:resident-bytes rebuilt) :clock (:clock registry) :loads
+                  + (:loads registry) (:loads rebuilt)
+                  , :evictions (:evictions registry) :entries $ :entries rebuilt
+              registry-transition next $ :actions rebuilt
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry
+        'rebuild-registry-entries $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn rebuild-registry-entries (entries retained resident-bytes loads actions)
+            if (empty? entries)
+              RegistryRebuild :entries retained :resident-bytes resident-bytes :loads loads :actions actions
+              let
+                  entry $ assert-type (-> entries first .unwrap) 'quamolit.resource-lifecycle/RegistryEntry
+                  descriptor $ :identity $ :state entry
+                  closed $ close-resource $ :state entry
+                  closed-actions $ wrap-actions descriptor $ :actions closed
+                if
+                  = 0 $ :references entry
+                  recur (rest entries) retained resident-bytes loads $ concat actions closed-actions
+                  let
+                      requested $ request-resource (:state closed) descriptor
+                      next-entry $ RegistryEntry :state (:state requested) :references (:references entry) :bytes (:bytes entry) :last-used $ :last-used entry
+                      next-actions $ concat closed-actions $ wrap-actions descriptor (:actions requested)
+                    recur (rest entries) (conj retained next-entry)
+                      + resident-bytes $ :bytes entry
+                      inc loads
+                      concat actions next-actions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryRebuild)
+            :args $ [] (:: 'List 'quamolit.resource-lifecycle/RegistryEntry) (:: 'List 'quamolit.resource-lifecycle/RegistryEntry) 'Number 'Number $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
         'registry-metrics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn registry-metrics (registry)
             let

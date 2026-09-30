@@ -19,6 +19,8 @@
 
 宿主执行顺序是状态机返回的顺序。`release` 同时销毁 batch/device 并从句柄表移除；任意时刻只允许一个已安装 generation。Canvas 与 WebGPU 切换仍复用页面中的单一全屏 Canvas 节点。
 
+Presence instances 的通用 registry 恢复见 [Presence WebGPU 资源宿主](presence-webgpu-resources.md)：device 状态机安装新 device 后调用 `rebuild-presence-resources`，只为仍有 lease 的实例源创建新资源 generation；idle entry 被清除。设备 generation 与资源 generation 分开记录，旧设备迟到结果不能释放新 batch。
+
 ## 验证
 
 ```sh

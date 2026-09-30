@@ -17,10 +17,12 @@
 
 `test/host/presence-resources.mjs` 仍是验证 CPU Float32 快照的薄宿主适配：持有 `InstanceSourceRegistry`、独占所有权、按计划先校验所有新引用再立即释放。它不实现通用缓存，输入为 Calcit `PresenceModel`（不是 `toJsData` 结果）。重复 `sync` 无副作用；`clear()` 用于整个测试场景销毁。
 
-一个所有者独占一个 registry，调用方不得在所有者外释放它持有的源，也不得把离线/乱序截图重放结果同步到真实宿主。截图重放须创建隔离的 state。源数据已经在登记时复制；当前连接只生成 buffer 生命周期动作，尚未让真实 WebGPU buffer 执行动作，也未覆盖图片、字体或 device loss 重建。
+一个所有者独占一个 registry，调用方不得在所有者外释放它持有的源，也不得把离线/乱序截图重放结果同步到真实宿主。截图重放须创建隔离的 state。基础连接只生成 buffer 生命周期动作；实际 WebGPU 执行由下一节的专用宿主消费。图片、字体仍不在本连接范围内。
+
+实例 buffer 的真实 WebGPU batch 创建、上传、绘制、释放与 device rebuild 已由 [Presence WebGPU 资源宿主](presence-webgpu-resources.md)消费这些动作。图片、字体和通用多图层资源仍不在该实例专项范围内。
 
 `PresenceUpdate.released` 提供逻辑 SceneEntry，交互层 #34 后续应按逻辑路径/target 在卸载时撤销指针捕获。退出中的 `PresenceSample.interactive=false` 已由 CPU 参考模型定义；当前 tracker 不接管 DOM Pointer Events，也不声称已验证指针捕获。
 
-验证：`yarn test:presence-resources` 严格检查 Presence、连接层与通用 registry，并使用真实 Calcit Presence fixture 重复 100 次 10k 实例挂载/退出。单个 80 kB 容量下应为 `loads=100`、`evictions=99`，每轮结算保持一个 idle buffer，最终 close 发出第 100 次 release 并让 resident/leased/bytes 回零；另测退出完成前重入、idle 缓存重入、容量换版本和旧测试宿主合同。`yarn test:consumer` 继续验证干净安装与公共实例资源表；`yarn test:motion-browser` 检查退出中间帧像素与终点停帧。Canvas 仅作正确性参考，不是性能数据。
+验证：`yarn test:presence-resources` 严格检查 Presence、连接层、通用 registry 与 Calcit WebGPU 宿主，并使用真实 Calcit Presence fixture 重复 100 次 10k 实例挂载/退出。单个 80 kB 容量下应为 `loads=100`、`evictions=99`，最终 close 回零；另以真实 WebGPU batch 宿主替身重复 100 次 device rebuild，保持一个 live batch 并最终 `created=released=101`。`yarn test:webgpu-instances` 尝试非软件 adapter 的两代 device 像素恢复。`yarn test:consumer` 继续验证干净安装；`yarn test:motion-browser` 检查退出中间帧像素与终点停帧。
 
 WebGPU 时间帧对照与可重建的归档缓存见 [Presence WebGPU 时间帧](webgpu-presence-time.md)。归档缓存不计入实时 Presence `live`，不能据此延后逻辑资源释放。
