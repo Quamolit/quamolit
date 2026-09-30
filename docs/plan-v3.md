@@ -6,7 +6,7 @@
 
 ## 当前事实与下一项交付
 
-#51 的 Presence WebGPU 切片已让 Calcit 宿主实际消费多资源注册表动作：创建、上传、安装、绘制和释放真实 `RectBatchHost`，device rebuild 删除 idle、为 active lease 递增资源 generation 并重传同一源。新的[组合状态机](presence-device-coordinator.md)统一 device 安装与 registry rebuild；[异步任务 runner](presence-resource-runner.md)将 Promise 结果提交给最新 state，上传失败或 device loss 期间迟到的孤立 batch 会立即清理。100 次重建保持一个 live batch，最终 `created=released=101`。下一项扩展 texture/font/pipeline loader 与 queue 安全延迟释放；不关闭 #51/M2。
+#51 的 Presence WebGPU 切片已让 Calcit 宿主实际消费多资源注册表动作：创建、上传、安装、绘制和释放真实 `RectBatchHost`，device rebuild 删除 idle、为 active lease 递增资源 generation 并重传同一源。新的[组合状态机](presence-device-coordinator.md)统一 device 安装与 registry rebuild；[异步任务 runner](presence-resource-runner.md)将 Promise 结果提交给最新 state，[多资源加载任务队列](resource-load-queue.md)增加优先级、FIFO、去重、有界 pending/并发背压及取消 token。[图片资源 runner](image-resource-runner.md)又将 Folding Fan 的真实 `ImageHost` 解码、尺寸验证、安装和释放从页面 JS 收回 Calcit，并复用同一队列。上传/解码失败、资源替换或 device/runtime generation 变化期间迟到的孤立结果都会清理。100 次图片装卸最终 `created=released=100`；100 次 GPU 重建最终 `created=released=101`。下一项扩展 WebGPU texture 与 font/glyph/geometry/pipeline loader，再补 queue-safe 延迟释放；不关闭 #51/M2。
 
 #118 已合并。#39/#104 三路径测量消费独立 Calcit 模块，记录实际计划采样、批次更新、绘制边界、queue 上传/提交、rAF 与资源计数，见[消费者帧测量](consumer-performance.md)。两个矩形只用于贯通测量链路；新增 10k 动态实例负载单列报告，不能用小负载 p95 代替画质/资源恢复门禁。
 
@@ -110,7 +110,7 @@
 - 已落地公共 [版本化实例源资源表](instance-resource-table.md)（`quamolit.instance-resource`，定义级 `:file` 宿主 + 类型化 Calcit 入口，100 次装卸回到 live 基线）。
 - 已落地纯 Calcit [通用资源生命周期](resource-lifecycle.md)及[多资源注册表](resource-registry.md)：图片、纹理、几何、字体、字形、buffer、pipeline 共用 logical identity、loading/ready/error、generation 隔离与动作协议；相同资源共享引用，零引用资源进入有界 LRU 缓存，迟到结果按完整身份安全释放。Folding Fan 与 100 次多资源装卸已进入自动测试。
 - 已落地纯 Calcit [Presence 资源连接](presence-resources.md)：唯一实例源按 buffer identity 获取一次 lease，退出转 idle、重入复用、容量换版本驱逐，100 次真实 Presence 出入后 close 回零。
-- 已落地 Calcit [Presence WebGPU 资源宿主](presence-webgpu-resources.md)、[device/registry 组合状态机](presence-device-coordinator.md)与[异步任务 runner](presence-resource-runner.md)：动作直接驱动实际 batch 创建、80 kB 上传、绘制和销毁；device rebuild 保持 Model/source 版本，异步结果只合并到最新 state。下一步扩展其他资源种类及 queue-safe 回收。
+- 已落地 Calcit [Presence WebGPU 资源宿主](presence-webgpu-resources.md)、[device/registry 组合状态机](presence-device-coordinator.md)、[异步任务 runner](presence-resource-runner.md)与[多资源加载任务队列](resource-load-queue.md)：动作直接驱动实际 batch 创建、80 kB 上传、绘制和销毁；队列对所有资源种类提供优先级、去重、有界背压和取消判定，Presence buffer 与 Folding Fan [Canvas 图片宿主](image-resource-runner.md)已实际接通。下一步扩展 WebGPU texture、font/glyph、geometry、pipeline loader 及 queue-safe 回收。
 
 ### #38：普通组件合批与显式 instances 共享入口
 

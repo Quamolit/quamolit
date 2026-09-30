@@ -33,7 +33,7 @@
 
 ## 首个真实消费者
 
-Folding Fan 不再用页面 JavaScript 的 `resource = "loading"` 布尔状态决定图片生命周期。`resource-initial` 从 Calcit 建立 `lotus@1`，页面仅通过 js-ffi 创建和解码 `ImageHost`、保存 generation 表，并执行 Calcit 动作。图片成功、失败、重试、卸载都会回到统一状态机；原有 24 切片与历史参考渲染保持逐像素一致。
+Folding Fan 不再用页面 JavaScript 的 `resource = "loading"` 布尔状态决定图片生命周期。`resource-initial` 从 Calcit 建立 `lotus@1`，[图片资源 runner](image-resource-runner.md)通过 js-ffi 创建和解码 `ImageHost`，并在 Calcit 中维护 generation 表、统一任务队列、安装和释放。图片成功、失败、重试、取消、卸载都会回到统一状态机；原有 24 切片与历史参考渲染保持逐像素一致。
 
 验证命令：
 
@@ -41,7 +41,7 @@ Folding Fan 不再用页面 JavaScript 的 `resource = "loading"` 布尔状态�
 yarn test:folding-fan
 ```
 
-该命令覆盖严格 public schema、loading/ready/error、版本替换、迟到完成、失败重试、close、共享引用、LRU 容量、活跃资源保护、100 次替换和多资源装卸上界、真实图片失败重试，以及 DPR 1/2 历史像素零差异。
+该命令覆盖 109/109 严格 public schema、loading/ready/error、版本替换、迟到完成、失败重试、close、共享引用、LRU 容量、活跃资源保护、100 次图片宿主及多资源装卸上界、真实图片失败重试，以及 DPR 1/2 历史像素零差异。
 
 ## 后续切片
 
