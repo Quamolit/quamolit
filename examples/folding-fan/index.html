@@ -11,9 +11,10 @@
     <p>点击 Toggle 展开或收拢；过渡中再点击会从当前姿态继续。拖动时间条可查看任意中间帧；回到历史时间再点击会从该处创建新分支。</p>
     <div class="buttons"><button id="toggle-fold">Toggle · 展开/收拢</button><button id="play">播放时间</button><button id="reset">重置</button><button id="share">复制时间链接</button></div>
     <label>时间（秒） <input id="time" type="range" min="0" max="120" step="0.01" value="0"></label>
+    <label>绘制后端 <select id="backend"><option value="canvas">Canvas 参考</option><option value="webgpu">WebGPU 图片（实验）</option></select></label>
     <div class="buttons"><button data-time="0">0 s</button><button data-time="0.18">0.18 s</button><button data-time="0.36">0.36 s</button></div>
     <output id="status" aria-live="off"></output><p id="message" role="status"></p>
-    <p class="note">图片来自原有 assets/lotus.jpg。Calcit 定义状态、时间采样、切片、变换以及图片加载队列和句柄生命周期；页面只提供 URL、时钟、视口与 DOM。图片已接入 Scene IR 和 Canvas2D 参考绘制，GPU 纹理路径仍待集成。</p>
+    <p class="note">图片来自原有 assets/lotus.jpg。Calcit 定义状态、时间采样、切片、变换以及图片加载队列和句柄生命周期。可切换 Canvas 参考和 WebGPU 纹理绘制；GPU 的线性采样与边缘抗锯齿可能不同，硬件仅在 macOS/Metal 验证，其他设备未验证。</p>
     <a href="https://github.com/Quamolit/quamolit/blob/main/docs/folding-fan-restoration.md">行为依据与检验规则</a>
   </aside>
   <script type="module" src="./main.mjs"></script>

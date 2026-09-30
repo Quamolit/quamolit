@@ -18909,6 +18909,269 @@
         :doc "|Quamolit 的 WebGPU 设备探测薄适配；状态、失败与设备所有权由上游 Calcit API 定义。"
         :code $ quote $ ns quamolit.webgpu-capabilities
           :require $ js-ffi.webgpu-capabilities :as capabilities
+    'quamolit.webgpu-images $ %{} 'FileEntry
+      :defs $ {}
+        'BoundImage $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct BoundImage
+            :texture 'quamolit.webgpu-texture-runner/WebGpuTextureHost
+            :parameters $ :: 'List 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ImageLayerHost $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ deftrait ImageLayerHost (:capacity 'Number)
+            .begin $ :: 'Fn $ {}
+              :args $ [] 'quamolit.webgpu-images/ImageLayerHost 'Number 'Number 'Number 'Number 'Number 'Number
+              :return 'Unit
+            .image $ :: 'Fn $ {}
+              :args $ [] 'quamolit.webgpu-images/ImageLayerHost 'quamolit.webgpu-texture-runner/WebGpuTextureHost 'JsObject
+              :return 'Unit
+            .submit $ :: 'Fn $ {}
+              :args $ [] 'quamolit.webgpu-images/ImageLayerHost
+              :return 'JsObject
+            .dispose $ :: 'Fn $ {}
+              :args $ [] 'quamolit.webgpu-images/ImageLayerHost
+              :return 'Bool
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+          :schema $ :: 'Trait
+        'ImageMetrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageMetrics (:frames 'Number) (:draw-calls 'Number) (:uniform-bytes-uploaded 'Number) (:pipelines-created 'Number) (:buffers-created 'Number) (:bind-groups-created 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'ImageRuntime $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageRuntime (:layer 'quamolit.webgpu-images/ImageLayerHost)
+            :resources 'quamolit.webgpu-texture-runner/TextureResourceHost
+            :registry 'quamolit.resource-lifecycle/ResourceRegistry
+            :identity 'quamolit.resource-lifecycle/ResourceIdentity
+          :examples $ []
+          :schema $ :: 'StructDef
+        'close-runtime! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn close-runtime! (runtime)
+            when
+              dispose! $ :layer runtime
+              let
+                  closed $ resource/close-registry $ :registry runtime
+                textures/apply-texture-actions! (:resources runtime) (:actions closed)
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.webgpu-images/ImageRuntime
+            :features $ #{} :js-ffi
+        'compose-matrix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compose-matrix (view local)
+            scene/Matrix2D :a
+              +
+                * (:a view) (:a local)
+                * (:c view) (:b local)
+              , :b
+                +
+                  * (:b view) (:a local)
+                  * (:d view) (:b local)
+                , :c
+                  +
+                    * (:a view) (:c local)
+                    * (:c view) (:d local)
+                  , :d
+                    +
+                      * (:b view) (:c local)
+                      * (:d view) (:d local)
+                    , :e
+                      +
+                        * (:a view) (:e local)
+                        * (:c view) (:f local)
+                        :e view
+                      , :f $ +
+                        * (:b view) (:e local)
+                        * (:d view) (:f local)
+                        :f view
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] 'quamolit.scene-ir/Matrix2D 'quamolit.scene-ir/Matrix2D
+        'create! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn create! (canvas device format capacity)
+            unsafe-coerce
+              raw-create! (unsafe-coerce canvas JsObject) (unsafe-coerce device JsObject) format capacity
+              , quamolit.webgpu-images/ImageLayerHost
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-images/ImageLayerHost)
+            :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'Number
+            :features $ #{} :js-ffi
+        'dispose! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn dispose! (host) (host .dispose)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.webgpu-images/ImageLayerHost
+            :features $ #{} :js-ffi
+        'draw-document! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-document! (host document lookup view width height clear)
+            assert |invalid-image-clear-color $ scene/valid-color? clear
+            let
+                commands $ prepare-document document lookup view width height
+              assert |image-layer-capacity-exceeded $ <= (count commands)
+                contract/expect-number |ImageLayer.capacity $ contract/object-field |ImageLayer (unsafe-coerce host JsObject) |capacity
+              host .begin width height (:r clear) (:g clear) (:b clear) (:a clear)
+              each commands $ fn (command)
+                host .image (:texture command)
+                  unsafe-coerce
+                    to-js-data $ :parameters command
+                    , JsObject
+              metrics $ host .submit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-images/ImageMetrics)
+            :args $ [] 'quamolit.webgpu-images/ImageLayerHost 'quamolit.scene-ir/SceneDocument
+              :: 'Fn $ {}
+                :return 'quamolit.webgpu-texture-runner/WebGpuTextureHost
+                :args $ [] 'String 'Number
+              , 'quamolit.scene-ir/Matrix2D 'Number 'Number 'quamolit.motion/ColorRgba
+            :features $ #{} :js-ffi
+        'draw-runtime! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-runtime! (runtime document view width height clear)
+            draw-document! (:layer runtime) document
+              fn (id version) (runtime-texture runtime id version)
+              , view width height clear
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-images/ImageMetrics)
+            :args $ [] 'quamolit.webgpu-images/ImageRuntime 'quamolit.scene-ir/SceneDocument 'quamolit.scene-ir/Matrix2D 'Number 'Number 'quamolit.motion/ColorRgba
+            :features $ #{} :js-ffi
+        'metrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn metrics (result)
+            ImageMetrics :frames
+              contract/expect-number |ImageLayer.frames $ contract/object-field |ImageLayer result |frames
+              , :draw-calls
+                contract/expect-number |ImageLayer.drawCalls $ contract/object-field |ImageLayer result |drawCalls
+                , :uniform-bytes-uploaded
+                  contract/expect-number |ImageLayer.uniformBytesUploaded $ contract/object-field |ImageLayer result |uniformBytesUploaded
+                  , :pipelines-created
+                    contract/expect-number |ImageLayer.pipelinesCreated $ contract/object-field |ImageLayer result |pipelinesCreated
+                    , :buffers-created
+                      contract/expect-number |ImageLayer.buffersCreated $ contract/object-field |ImageLayer result |buffersCreated
+                      , :bind-groups-created $ contract/expect-number |ImageLayer.bindGroupsCreated $ contract/object-field |ImageLayer result |bindGroupsCreated
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-images/ImageMetrics)
+            :args $ [] 'JsObject
+            :features $ #{} :js-ffi
+        'open-runtime! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn open-runtime! (canvas device format descriptor generation capacity)
+            hint-fn $ {} (:async true)
+              :features $ #{} :js-ffi
+              :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.webgpu-texture-runner/TextureResourceDescriptor 'Number 'Number
+              :return 'quamolit.webgpu-images/ImageRuntime
+            let
+                resource-id $ :identity descriptor
+                bytes $ textures/texture-resource-bytes descriptor
+                acquired $ resource/acquire-registry (resource/initial-registry bytes) resource-id bytes
+                queued $ textures/enqueue-texture-actions (load-queue/initial-load-queue 1 4) generation $ :actions acquired
+                taken $ load-queue/take-load $ :queue queued
+                task $ -> (:task taken) .unwrap
+                result $ js-await $ textures/run-texture-load-task! descriptor device task
+                completed $ textures/complete-texture-load! (textures/initial-texture-resource-host) (:registry acquired) (:queue taken) result
+                host $ :host completed
+                registry $ :registry $ :transition completed
+              try
+                do
+                  match (:outcome result)
+                    (:failed _ message) (raise message)
+                    _ &unit
+                  ImageRuntime :layer (create! canvas device format capacity) :resources host :registry registry :identity resource-id
+                fn (error)
+                  let
+                      closed $ resource/close-registry registry
+                    textures/apply-texture-actions! host $ :actions closed
+                    raise error
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.webgpu-images/ImageRuntime)
+            :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.webgpu-texture-runner/TextureResourceDescriptor 'Number 'Number
+            :features $ #{} :js-ffi
+        'parameters $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn parameters (image view width height)
+            let
+                m $ compose-matrix view $ :matrix image
+                source $ :source image
+              [] width height 0 0 (:a m) (:c m) (:e m) 0 (:b m) (:d m) (:f m) 0 (:dx image) (:dy image) (:dw image) (:dh image)
+                / (:sx image) (:width source)
+                / (:sy image) (:height source)
+                / (:sw image) (:width source)
+                / (:sh image) (:height source)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-ir/ImageNode 'quamolit.scene-ir/Matrix2D 'Number 'Number
+            :return $ :: 'List 'Number
+        'prepare-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn prepare-document (document lookup view width height)
+            assert |unsupported-webgpu-image-scene $ supported-document? document
+            assert |invalid-image-viewport $ and (motion/finite-number? width) (> width 0) (motion/finite-number? height) (> height 0)
+            assert |invalid-image-view $ every?
+              [] (:a view) (:b view) (:c view) (:d view) (:e view) (:f view)
+              , motion/finite-number?
+            map (:nodes document)
+              fn (node)
+                match (:content node)
+                  (:image image)
+                    let
+                        source $ :source image
+                        texture $ lookup (:id source) (:version source)
+                      assert |texture-size-mismatch $ and
+                        = (js-get texture :width) (:width source)
+                        = (js-get texture :height) (:height source)
+                      BoundImage :texture texture :parameters $ parameters image view width height
+                  _ $ raise |unsupported-webgpu-image-node
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-ir/SceneDocument
+              :: 'Fn $ {}
+                :return 'quamolit.webgpu-texture-runner/WebGpuTextureHost
+                :args $ [] 'String 'Number
+              , 'quamolit.scene-ir/Matrix2D 'Number 'Number
+            :features $ #{} :js-ffi
+            :return $ :: 'List 'quamolit.webgpu-images/BoundImage
+        'raw-create! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-create! (canvas device format capacity) (raise |js-only-image-layer)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :file |src/host/webgpu-image-layer-create.js
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'JsObject 'JsObject 'String 'Number
+            :features $ #{} :js-ffi
+        'runtime-texture $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn runtime-texture (runtime id version)
+            ->
+              textures/installed-texture (:resources runtime)
+                resource/resource (resource/ResourceKind :texture) id version
+              .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.webgpu-texture-runner/WebGpuTextureHost
+            :args $ [] 'quamolit.webgpu-images/ImageRuntime 'String 'Number
+        'supported-document? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn supported-document? (document)
+            and (scene/validate-scene document)
+              every? (:nodes document) supported-node?
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneDocument
+        'supported-node? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn supported-node? (node)
+            and
+              empty? $ :parent node
+              empty? $ :bindings node
+              match (:content node)
+                (:image image)
+                  and
+                    >= (:sx image) 0
+                    >= (:sy image) 0
+                    <=
+                      + (:sx image) (:sw image)
+                      :width $ :source image
+                    <=
+                      + (:sy image) (:sh image)
+                      :height $ :source image
+                _ false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneNode
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.webgpu-images
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (js-ffi.contract :as contract) (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as load-queue) (quamolit.webgpu-texture-runner :as textures)
     'quamolit.webgpu-texture-runner $ %{} 'FileEntry
       :defs $ {}
         'QueuedTextureLoadResult $ %{} 'CodeEntry (:doc |)

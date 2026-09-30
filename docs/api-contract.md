@@ -31,13 +31,14 @@
 | `quamolit.resource-lifecycle` 的单资源状态机、`ResourceRegistry`、`rebuild-registry` | 已实现的纯 Calcit 通用异步资源状态、共享引用、有界 LRU 与 device rebuild 协议 | [通用资源生命周期](resource-lifecycle.md)、[多资源注册表](resource-registry.md)；支持完整身份动作、迟到结果隔离、active 重建与 idle 清除；非实例资源的实际 GPU 宿主仍待接入 |
 | `quamolit.resource-load-queue` | 已实现的纯 Calcit 有界多资源加载调度；非宿主 loader | [多资源加载任务队列](resource-load-queue.md)；支持优先级、FIFO、去重、并发/pending 背压、资源/device 取消与迟到结果判定；实际接入 Presence buffer 与 Canvas 图片 |
 | `quamolit.image-resource-runner` | 已实现的 Calcit Canvas 图片宿主 loader | [图片资源任务 runner](image-resource-runner.md)；真实 `ImageHost` 解码、尺寸验证、统一队列、generation 安装/释放和计数；不是 WebGPU texture |
-| `quamolit.webgpu-texture-runner` | 已实现的 Calcit WebGPU texture loader；尚未接 Scene 采样绘制 | [WebGPU texture 资源 runner](webgpu-texture-runner.md)；真实图片解码、GPUTexture 上传、registry/queue、两代 device 重建、读回与释放；原生 API 临时 inline 等待 js-ffi #151 |
+| `quamolit.webgpu-texture-runner` | 已实现的 Calcit WebGPU texture loader | [WebGPU texture 资源 runner](webgpu-texture-runner.md)；真实图片解码、GPUTexture 上传、registry/queue、两代 device 重建、读回与释放；原生 API 临时 inline 等待 js-ffi #151 |
+| `quamolit.webgpu-images` | 实验性纯图片 Scene 绘制与单资源 runtime | [Scene 图片绘制](webgpu-scene-images.md)；Calcit 预检/矩阵/裁剪归一化与资源编排，保留 GPU 宿主缓存；仅 macOS/Metal 验证，混合节点/组裁剪/组透明度未支持 |
 | `quamolit.presence/start-presence`、`reconcile-presence`、`sample-presence`、`settle-presence` | 已实现的 Scene 逻辑实例生命周期参考；非宿主资源管理器 | [进入退出](presence-lifecycle.md)；重排、fade、重入、一次性逻辑释放通知；#34/#51 宿主清理未完成 |
 | `PresenceInstanceResources`（JS 宿主适配器） | 已实现的 instances Float32 快照所有权；非通用资源表 | [Presence 宿主资源跟踪](presence-resources.md)；退出期间保留、终点最后引用释放、100 次装卸计数回基线；GPU/指针捕获未覆盖 |
 | `quamolit.presence-resource-registry` / `quamolit.presence-device-coordinator` / `quamolit.presence-webgpu-resources` | 已实现的 Presence 实例资源 lease、device/registry 组合恢复、队列化异步 runner 与 Calcit WebGPU 宿主；当前限矩形 instances | [Presence device 组合状态机](presence-device-coordinator.md)、[异步资源任务 runner](presence-resource-runner.md)、[多资源加载任务队列](resource-load-queue.md)、[Presence WebGPU 资源宿主](presence-webgpu-resources.md)；新 device 安装后自动重建 active lease，Promise 结果先经 token 结算再提交最新 state，异常/迟到 batch 安全清理 |
 | `quamolit.device-recovery` 的 `RecoveryState` / `RecoveryTransition` | 已实现的单图层 device generation 恢复协议；非完整资源表 | [device loss 恢复](device-recovery.md)；纯 Calcit 决策、迟到结果隔离、Canvas 回退、同版本自动重建与实际 batch/device 释放 |
 | 完整 Scene IR / 完整 Motion IR / 执行计划 | 拟议、尚未实现 | #32/#48/#50；现有切片不持有 DOM/GPU 句柄 |
-| 完整 WebGPU/Canvas2D 双后端、资源表、命中索引 | 仅矩形实例切片可运行；完整能力尚未实现 | #40/#33/#51/#34 |
+| 完整 WebGPU/Canvas2D 双后端、资源表、命中索引 | 矩形实例与实验性纯图片 GPU 切片可运行；完整能力尚未实现 | #40/#33/#51/#34 |
 
 `evaluate-at` 不是新的 `quamolit.direct-frame/sample-at`：前者从上一帧按非倒退时间更新模型，相同时间直接复用旧场景；它既不能任意乱序求值，也不会在相同时间但资源/模型改变时自动刷新。新的 Calcit CPU 切片可以直接乱序求值，并通过显式版本使相同时间的依赖变更失效，但还不是组件公共入口。应用不得用“先把历史跑一遍”的隐藏全局状态伪装成直接采样。
 
