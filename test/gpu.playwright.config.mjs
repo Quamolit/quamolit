@@ -11,6 +11,7 @@ export default defineConfig({
     "webgpu-presence.spec.mjs",
     "webgpu-motion.spec.mjs",
     "presence-webgpu-registry.spec.mjs",
+    "webgpu-texture-runner.spec.mjs",
   ],
   workers: 1,
   retries: 0,
