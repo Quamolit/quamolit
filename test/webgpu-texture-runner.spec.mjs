@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("Calcit texture runner 在两代 device 上上传同一像素并完整释放", async ({ page }) => {
+test("Calcit texture runner 在两代 device 上上传同一像素并完整释放", async ({ page }, testInfo) => {
   await page.goto("/test/instance-sources.html");
   const report = await page.evaluate(async () => {
     const adapter = await navigator.gpu?.requestAdapter();
@@ -86,7 +86,15 @@ test("Calcit texture runner 在两代 device 上上传同一像素并完整释�
       host = textures.apply_texture_actions_$x_(host, closed.get(tags.actions));
       return {
         result: "PASS",
-        adapter: adapter.info ?? {},
+        adapter: adapter.info
+          ? (adapter.info.toJSON?.() ?? {
+              vendor: adapter.info.vendor,
+              architecture: adapter.info.architecture,
+              device: adapter.info.device,
+              description: adapter.info.description,
+              isFallbackAdapter: adapter.info.isFallbackAdapter,
+            })
+          : {},
         firstPixel,
         secondPixel,
         firstMetrics,
@@ -100,6 +108,11 @@ test("Calcit texture runner 在两代 device 上上传同一像素并完整释�
     }
   });
 
+  await testInfo.attach("texture-resource-report", {
+    body: JSON.stringify(report, null, 2),
+    contentType: "application/json",
+  });
+  console.log(`Texture GPU report: ${JSON.stringify(report)}`);
   test.skip(report.result === "SKIP", JSON.stringify(report));
   expect(report.errors).toEqual([]);
   expect(report.firstPixel).toEqual([255, 0, 0, 255]);
