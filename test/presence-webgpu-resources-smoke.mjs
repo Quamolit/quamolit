@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { init_tags as initTags, to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
+import {
+  init_tags as initTags,
+  option_$o_unwrap as unwrapOption,
+  to_js_data as toJsData,
+} from "../target/js/motion/calcit.core.mjs";
 import { instance_presence_document as instanceDocument } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 import {
   close_presence_resources as closeResources,
@@ -12,11 +16,14 @@ import {
 } from "../target/js/motion/quamolit.presence-resource-registry.mjs";
 import {
   close_presence_gpu_host_$x_ as closeGpuHost,
+  complete_presence_load_$x_ as completeLoad,
   draw_presence_buffer_$x_ as drawBuffer,
   execute_presence_device_action_$x_ as executeDeviceAction,
   execute_presence_resource_action_$x_ as executeAction,
   initial_presence_gpu_host as initialGpuHost,
+  presence_load_request as presenceLoadRequest,
   presence_gpu_metrics as gpuMetrics,
+  run_presence_load_request_$x_ as runLoadRequest,
 } from "../target/js/motion/quamolit.presence-webgpu-resources.mjs";
 import {
   close as closeCoordinator,
@@ -39,14 +46,14 @@ import {
 import { color } from "../target/js/motion/quamolit.webgpu-batches.mjs";
 import { start_presence as start } from "../target/js/motion/quamolit.presence.mjs";
 
-const tags = initTags(["actions", "plan", "references", "resources", "source", "state"]);
+const tags = initTags(["actions", "host", "plan", "references", "resources", "source", "state", "transition"]);
 const listValues = (list) => list.value.slice(list.start, list.end);
 const stateOf = (transition) => transition.get(tags.state);
 const actionsOf = (transition) => listValues(transition.get(tags.actions));
 const referencesOf = (resources) => resources.get(tags.plan).get(tags.references);
 const sourceOf = (resources) => listValues(referencesOf(resources))[0].get(tags.source);
 
-function mockGpu() {
+function mockGpu({ writeError, pipelineGate } = {}) {
   const calls = { buffers: [], writes: [], draws: [], submits: 0, configurations: 0, unconfigurations: 0 };
   const context = {
     configure() {
@@ -71,6 +78,7 @@ function mockGpu() {
     limits: { maxBufferSize: 80000 },
     queue: {
       writeBuffer(...args) {
+        if (writeError) throw writeError;
         calls.writes.push(args);
       },
       submit(commands) {
@@ -82,6 +90,7 @@ function mockGpu() {
       return {};
     },
     async createRenderPipelineAsync() {
+      if (pipelineGate) await pipelineGate;
       return { getBindGroupLayout: () => ({}) };
     },
     createBuffer(descriptor) {
@@ -335,4 +344,118 @@ test("组合状态机动作自动关闭旧 GPU host、重建新 generation 并�
     "live-bytes": 0,
     "uploaded-bytes": 160000,
   });
+});
+
+function prepareCoordinatorLoad(id) {
+  const positions = new Float32Array(20000);
+  const model = start(instanceDocument(id, true));
+  const table = createTable();
+  let coordinator = initialCoordinator(80000, 1);
+  coordinator = stateOf(syncCoordinator(coordinator, model));
+  const resources = coordinator.get(tags.resources);
+  registerSource(table, sourceOf(resources), positions);
+  coordinator = stateOf(coordinatorRequestOpen(coordinator, 1));
+  coordinator = stateOf(coordinatorProbeResolved(coordinator, 1, probeReady()));
+  const ready = coordinatorCreateResolved(coordinator, 1, createReady());
+  coordinator = stateOf(ready);
+  const loadAction = actionsOf(ready).find((action) => toJsData(action)?.[2]?.[2]?.[0] === "load");
+  assert.ok(loadAction, "新 device 安装后必须生成一个类型化 load request");
+  return {
+    coordinator,
+    table,
+    loadAction,
+    request: unwrapOption(presenceLoadRequest(loadAction)),
+  };
+}
+
+test("异步 load runner 成功后提交到最新 coordinator，再安装实际 batch", async () => {
+  let { coordinator, table, request } = prepareCoordinatorLoad(21);
+  const gpu = mockGpu();
+  let host = initialGpuHost();
+  const result = await runLoadRequest(
+    host,
+    1,
+    gpu.canvas,
+    gpu.device,
+    "bgra8unorm",
+    table,
+    referencesOf(coordinator.get(tags.resources)),
+    request,
+  );
+  const completion = completeLoad(host, coordinator, result);
+  host = completion.get(tags.host);
+  const transition = completion.get(tags.transition);
+  coordinator = stateOf(transition);
+  assert.deepEqual(
+    actionsOf(transition).map((action) => toJsData(action)?.[2]?.[2]?.[0]),
+    ["install", "wake-frame"],
+  );
+  assert.equal(toJsData(gpuMetrics(host)).live, 1);
+  host = await applyDeviceActions(host, 1, gpu, table, coordinator, actionsOf(transition));
+  assert.equal(toJsData(gpuMetrics(host)).live, 1);
+  host = closeGpuHost(host);
+  assert.ok(gpu.calls.buffers.every((buffer) => buffer.destroyed));
+});
+
+test("upload 抛错时 runner 销毁已创建 batch，并把失败提交给 registry", async () => {
+  const { coordinator, table, request } = prepareCoordinatorLoad(22);
+  const gpu = mockGpu({ writeError: new Error("upload exploded") });
+  const host = initialGpuHost();
+  const result = await runLoadRequest(
+    host,
+    1,
+    gpu.canvas,
+    gpu.device,
+    "bgra8unorm",
+    table,
+    referencesOf(coordinator.get(tags.resources)),
+    request,
+  );
+  const completion = completeLoad(host, coordinator, result);
+  assert.deepEqual(toJsData(gpuMetrics(completion.get(tags.host))), {
+    created: 0,
+    released: 0,
+    live: 0,
+    "live-bytes": 0,
+    "uploaded-bytes": 0,
+  });
+  const failureActions = actionsOf(completion.get(tags.transition)).map((action) => toJsData(action));
+  assert.deepEqual(
+    failureActions.map((action) => action[2][2][0]),
+    ["release", "show-error", "wake-frame"],
+  );
+  assert.equal(failureActions[1][2][2][2], "upload exploded");
+  assert.ok(gpu.calls.buffers.every((buffer) => buffer.destroyed));
+  assert.equal(gpu.calls.unconfigurations, 1);
+});
+
+test("load 等待期间 device loss，任务完成时按最新状态丢弃并销毁孤立 batch", async () => {
+  const { coordinator: loadingCoordinator, table, request } = prepareCoordinatorLoad(23);
+  let releasePipeline;
+  const pipelineGate = new Promise((resolve) => {
+    releasePipeline = resolve;
+  });
+  const gpu = mockGpu({ pipelineGate });
+  const host = initialGpuHost();
+  const task = runLoadRequest(
+    host,
+    1,
+    gpu.canvas,
+    gpu.device,
+    "bgra8unorm",
+    table,
+    referencesOf(loadingCoordinator.get(tags.resources)),
+    request,
+  );
+  const latestCoordinator = stateOf(coordinatorDeviceLost(loadingCoordinator, 1, "lost-during-load"));
+  releasePipeline();
+  const result = await task;
+  const completion = completeLoad(host, latestCoordinator, result);
+  assert.equal(toJsData(gpuMetrics(completion.get(tags.host))).live, 0);
+  assert.deepEqual(
+    actionsOf(completion.get(tags.transition)).map((action) => toJsData(action)?.[2]?.[2]?.[0]),
+    ["release"],
+  );
+  assert.ok(gpu.calls.buffers.every((buffer) => buffer.destroyed));
+  assert.equal(gpu.calls.unconfigurations, 1);
 });
