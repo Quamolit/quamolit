@@ -6,7 +6,7 @@
 
 ## 当前事实与下一项交付
 
-#51 的 Presence WebGPU 切片已让 Calcit 宿主实际消费多资源注册表动作：创建、上传、安装、绘制和释放真实 `RectBatchHost`，device rebuild 删除 idle、为 active lease 递增资源 generation 并重传同一源。100 次重建保持一个 live batch，最终 `created=released=101`。下一项是把 device loss Promise 与 registry rebuild 合为公共组合状态机，再扩展 texture/font/pipeline 与 queue 安全延迟释放；不关闭 #51/M2。
+#51 的 Presence WebGPU 切片已让 Calcit 宿主实际消费多资源注册表动作：创建、上传、安装、绘制和释放真实 `RectBatchHost`，device rebuild 删除 idle、为 active lease 递增资源 generation 并重传同一源。新的[组合状态机](presence-device-coordinator.md)统一 device 安装与 registry rebuild，资源动作携带 device generation，旧设备 ready/failure 不再由调用方自行判断。100 次重建保持一个 live batch，最终 `created=released=101`。下一项是异步 load 成功/失败统一 runner，再扩展 texture/font/pipeline 与 queue 安全延迟释放；不关闭 #51/M2。
 
 #118 已合并。#39/#104 三路径测量消费独立 Calcit 模块，记录实际计划采样、批次更新、绘制边界、queue 上传/提交、rAF 与资源计数，见[消费者帧测量](consumer-performance.md)。两个矩形只用于贯通测量链路；新增 10k 动态实例负载单列报告，不能用小负载 p95 代替画质/资源恢复门禁。
 
@@ -110,7 +110,7 @@
 - 已落地公共 [版本化实例源资源表](instance-resource-table.md)（`quamolit.instance-resource`，定义级 `:file` 宿主 + 类型化 Calcit 入口，100 次装卸回到 live 基线）。
 - 已落地纯 Calcit [通用资源生命周期](resource-lifecycle.md)及[多资源注册表](resource-registry.md)：图片、纹理、几何、字体、字形、buffer、pipeline 共用 logical identity、loading/ready/error、generation 隔离与动作协议；相同资源共享引用，零引用资源进入有界 LRU 缓存，迟到结果按完整身份安全释放。Folding Fan 与 100 次多资源装卸已进入自动测试。
 - 已落地纯 Calcit [Presence 资源连接](presence-resources.md)：唯一实例源按 buffer identity 获取一次 lease，退出转 idle、重入复用、容量换版本驱逐，100 次真实 Presence 出入后 close 回零。
-- 已落地 Calcit [Presence WebGPU 资源宿主](presence-webgpu-resources.md)：动作直接驱动实际 batch 创建、80 kB 上传、绘制和销毁；device rebuild 保持 Model/source 版本并隔离迟到 generation。下一步把 recovery + registry 顺序收成公共组合入口，并扩展其他资源种类。
+- 已落地 Calcit [Presence WebGPU 资源宿主](presence-webgpu-resources.md)与 [device/registry 组合状态机](presence-device-coordinator.md)：动作直接驱动实际 batch 创建、80 kB 上传、绘制和销毁；device rebuild 保持 Model/source 版本并隔离迟到 generation。下一步补异步 load 结果统一 runner，并扩展其他资源种类。
 
 ### #38：普通组件合批与显式 instances 共享入口
 
