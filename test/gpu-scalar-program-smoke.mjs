@@ -69,7 +69,7 @@ test("constant、smoothstep 和零时长保留参数，不提前按某一时刻�
 });
 
 test("组件与实例共用参数编码：轴、索引和完整 f32 域保持同一规则", () => {
-  assert.deepEqual(js(program.make_axis_parameter(7, 1, tween())), {
+  assert.deepEqual(js(program.make_axis_parameter(7, 1, tween()).extra[0]), {
     ...js(prepare(tween()).extra[0]),
     index: 7,
     axis: 1,
