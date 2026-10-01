@@ -6,6 +6,54 @@ async function savePureCanvas(page, path) {
   await writeFile(path, Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64"));
 }
 
+test("父组窗口裁剪保持原模型，窗口外无残留，分享与 DPR 2 暂停 resize 可重放", async ({ browser }, testInfo) => {
+  const context = await browser.newContext({ deviceScaleFactor: 2, viewport: { width: 900, height: 650 } });
+  const page = await context.newPage();
+  try {
+    await page.goto("/examples/folding-fan/index.html?t=0.18&events=0&clip=window");
+    await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+    const before = await page.evaluate(() => window.foldingFanDemo.snapshot());
+    expect(before.clipped).toBe(true);
+    const inspect = () =>
+      page.locator("canvas").evaluate((canvas) => {
+        const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+        const scale = Math.min(canvas.width / 900, canvas.height / 650);
+        const left = canvas.width / 2 - 150 * scale,
+          right = canvas.width / 2 + 150 * scale;
+        const top = canvas.height * 0.77 - 400 * scale,
+          bottom = canvas.height * 0.77 - 100 * scale;
+        let escaped = 0,
+          inside = 0;
+        for (let y = 0; y < canvas.height; y++)
+          for (let x = 0; x < canvas.width; x++) {
+            const i = (y * canvas.width + x) * 4;
+            if (data[i] === 23 && data[i + 1] === 16 && data[i + 2] === 34 && data[i + 3] === 255) continue;
+            // Only allow the declared Canvas antialias boundary, not leaking descendants.
+            if (x < Math.floor(left) || x >= Math.ceil(right) || y < Math.floor(top) || y >= Math.ceil(bottom))
+              escaped++;
+            else inside++;
+          }
+        return { escaped, inside };
+      });
+    expect(await inspect()).toMatchObject({ escaped: 0 });
+    expect((await inspect()).inside).toBeGreaterThan(1000);
+    await page.setViewportSize({ width: 700, height: 500 });
+    await expect.poll(() => page.evaluate(() => window.foldingFanDemo.snapshot().width)).toBe(1400);
+    expect((await page.evaluate(() => window.foldingFanDemo.snapshot())).model).toEqual(before.model);
+    expect(await inspect()).toMatchObject({ escaped: 0 });
+    await page.click("#share");
+    expect(new URL(page.url()).searchParams.get("clip")).toBe("window");
+    await page.reload();
+    await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+    expect((await page.evaluate(() => window.foldingFanDemo.snapshot())).model).toEqual(before.model);
+    await page.screenshot({ path: testInfo.outputPath("fan-canvas-window-dpr2.png") });
+    await page.uncheck("#clip-window");
+    expect((await page.evaluate(() => window.foldingFanDemo.snapshot())).model).toEqual(before.model);
+  } finally {
+    await context.close();
+  }
+});
+
 async function compareHistoricalRenderer(page) {
   return page.evaluate(async () => {
     const canvas = document.querySelector("canvas");

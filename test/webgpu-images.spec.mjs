@@ -25,6 +25,7 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
     const lifecycle = await import("/target/js/motion/quamolit.resource-lifecycle.mjs");
     const queues = await import("/target/js/motion/quamolit.resource-load-queue.mjs");
     const canvasImages = await import("/target/js/motion/quamolit.canvas-images.mjs");
+    const canvasScene = await import("/target/js/motion/quamolit.canvas-scene.mjs");
     const tags = core.init_tags([
       "a",
       "b",
@@ -63,6 +64,13 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
       "bindings",
       "interaction",
       "none",
+      "group",
+      "transform",
+      "clip",
+      "rect",
+      "x",
+      "y",
+      "opacity",
     ]);
     const R = (type, fields) =>
       core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([key, value]) => [tags[key], value]));
@@ -144,6 +152,48 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
       await sourceImage.decode();
       canvasImages.draw_document_$x_(referenceContext, document, () => sourceImage);
       const referencePixels = points.map(([x, y]) => Array.from(referenceContext.getImageData(x, y, 1, 1).data));
+      const group = (id, parent, transform, extent) =>
+        R(scene.SceneNode, {
+          id,
+          key: id,
+          parent,
+          bindings: L([]),
+          interaction: E(scene.SceneInteraction, "none"),
+          content: E(
+            scene.SceneContent,
+            "group",
+            R(scene.GroupNode, {
+              transform,
+              opacity: 1,
+              clip: E(scene.ClipSpec, "rect", R(scene.ClipRect, { x: 0, y: 0, width: extent, height: extent })),
+            }),
+          ),
+        });
+      const scopedDocument = R(scene.SceneDocument, {
+        nodes: L([
+          group("outer", "", matrix(1, 0, 0, 1, 4, 4), 20),
+          group("inner", "outer", matrix(1, 0, 0, 1, 4, 4), 8),
+          node("scoped-red", image(0, matrix(1, 0, 0, 1, 0, 0))).assoc(tags.parent, "inner"),
+        ]),
+      });
+      images.draw_document_$x_(host, scopedDocument, () => texture, view, 48, 48, clear);
+      await device.queue.onSubmittedWorkDone();
+      const scopedBitmap = await createImageBitmap(canvas);
+      context.drawImage(scopedBitmap, 0, 0);
+      scopedBitmap.close();
+      const scopedPoints = [
+        [10, 10],
+        [18, 10],
+        [6, 10],
+        [10, 18],
+      ];
+      const scopedPixels = scopedPoints.map(([x, y]) => Array.from(context.getImageData(x, y, 1, 1).data));
+      referenceContext.fillStyle = "black";
+      referenceContext.fillRect(0, 0, 48, 48);
+      canvasScene.draw_document_$x_(referenceContext, scopedDocument, 48, 48, () => sourceImage);
+      const scopedReferencePixels = scopedPoints.map(([x, y]) =>
+        Array.from(referenceContext.getImageData(x, y, 1, 1).data),
+      );
       return {
         result: "PASS",
         adapter: {
@@ -153,6 +203,8 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
         },
         pixels,
         referencePixels,
+        scopedPixels,
+        scopedReferencePixels,
         first,
         last,
         errors,
@@ -172,6 +224,13 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
   console.log(`Scene image report: ${JSON.stringify(report)}`);
   test.skip(report.result === "SKIP", JSON.stringify(report));
   expect(report.errors).toEqual([]);
+  expect(report.scopedPixels).toEqual([
+    [255, 0, 0, 255],
+    [0, 0, 0, 255],
+    [0, 0, 0, 255],
+    [0, 0, 0, 255],
+  ]);
+  expect(report.scopedPixels).toEqual(report.scopedReferencePixels);
   // Solid interiors; permit one channel level for 0.5-alpha conversion/rounding.
   const expected = [
     [255, 0, 0, 255],
@@ -187,7 +246,7 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
       expect(Math.abs(value - report.referencePixels[index][channel])).toBeLessThanOrEqual(1),
     ),
   );
-  expect(report.first).toMatchObject({ "draw-calls": 2, "uniform-bytes-uploaded": 160, "bind-groups-created": 2 });
+  expect(report.first).toMatchObject({ "draw-calls": 2, "uniform-bytes-uploaded": 192, "bind-groups-created": 2 });
   expect(report.last).toMatchObject({
     frames: 1001,
     "uniform-bytes-uploaded": 0,
@@ -219,6 +278,12 @@ test("Folding Fan 保持原动画，状态切换 GPU/Canvas 与暂停 resize", a
   }
   const repeated = await page.evaluate(() => window.foldingFanDemo.seek(0.18));
   expect(repeated.gpuMetrics["uniform-bytes-uploaded"]).toBe(0);
+  await page.check("#clip-window");
+  const clipped = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(clipped.clipped).toBe(true);
+  expect(clipped.model).toEqual(repeated.model);
+  expect(clipped.gpuMetrics["draw-calls"]).toBe(24);
+  await page.screenshot({ path: testInfo.outputPath("fan-gpu-window.png") });
   await page.setViewportSize({ width: 900, height: 600 });
   await expect.poll(() => page.evaluate(() => window.foldingFanDemo.snapshot().width)).toBe(900);
   const resized = await page.evaluate(() => window.foldingFanDemo.snapshot());

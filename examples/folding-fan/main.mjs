@@ -10,6 +10,8 @@ import {
   draw_$x_,
   resource_initial,
   scene_at,
+  windowed_scene,
+  draw_windowed_$x_,
 } from "../../target/js/folding-fan/quamolit.examples.folding-fan.mjs";
 import * as gpuImages from "../../target/js/folding-fan/quamolit.webgpu-images.mjs";
 import * as textures from "../../target/js/folding-fan/quamolit.webgpu-texture-runner.mjs";
@@ -49,10 +51,13 @@ export function mountDemo() {
     panelToggle = document.querySelector("#panel-toggle");
   const params = new URLSearchParams(location.search);
   const backendControl = document.querySelector("#backend");
+  const clipControl = document.querySelector("#clip-window");
+  clipControl.checked = params.get("clip") === "window";
   const gpuTags = init_tags(["a", "b", "c", "d", "e", "f", "r", "g"]);
   const record = (type, fields) =>
     struct(type, ...Object.entries(fields).flatMap(([key, value]) => [gpuTags[key], value]));
   const background = record(ColorRgba, { r: 23 / 255, g: 16 / 255, b: 34 / 255, a: 1 });
+  const identityView = record(Matrix2D, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
   let gpu = null,
     gpuEpoch = 0,
     backend = "canvas",
@@ -98,19 +103,28 @@ export function mountDemo() {
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.fillStyle = "#171022";
     context.fillRect(0, 0, width, height);
+    const scale = Math.min(width / 900, height / 650);
+    const view = record(Matrix2D, { a: scale, b: 0, c: 0, d: scale, e: width / 2, f: height * 0.77 });
     if (resource === "ready") {
       const image = option_$o_unwrap(installed_image(imageHost));
-      const scale = Math.min(width / 900, height / 650);
-      context.setTransform(scale, 0, 0, scale, width / 2, height * 0.77);
-      draw_$x_(context, image, model, time);
+      if (clipControl.checked) draw_windowed_$x_(context, image, model, time, view, width, height);
+      else {
+        context.setTransform(scale, 0, 0, scale, width / 2, height * 0.77);
+        draw_$x_(context, image, model, time);
+      }
     }
     if (gpu) {
       if (gpu.canvas.width !== width) gpu.canvas.width = width;
       if (gpu.canvas.height !== height) gpu.canvas.height = height;
-      const scale = Math.min(width / 900, height / 650);
-      const view = record(Matrix2D, { a: scale, b: 0, c: 0, d: scale, e: width / 2, f: height * 0.77 });
       gpuMetrics = to_js_data(
-        gpuImages.draw_runtime_$x_(gpu.runtime, scene_at(model, time), view, width, height, background),
+        gpuImages.draw_runtime_$x_(
+          gpu.runtime,
+          clipControl.checked ? windowed_scene(model, time, view) : scene_at(model, time),
+          clipControl.checked ? identityView : view,
+          width,
+          height,
+          background,
+        ),
       );
     }
     paints++;
@@ -171,6 +185,7 @@ export function mountDemo() {
       paints,
       backend,
       gpuMetrics,
+      clipped: clipControl.checked,
       width: canvas.width,
       height: canvas.height,
     };
@@ -210,6 +225,9 @@ export function mountDemo() {
     const recorded = to_js_data(events).map((event) => event.at);
     if (recorded.length) url.searchParams.set("events", recorded.join(","));
     else url.searchParams.delete("events");
+    if (clipControl.checked) url.searchParams.set("clip", "window");
+    else url.searchParams.delete("clip");
+    url.searchParams.set("backend", backend);
     history.replaceState(null, "", url);
     try {
       await navigator.clipboard.writeText(url.href);
@@ -325,6 +343,7 @@ export function mountDemo() {
     return snapshot();
   }
   backendControl.onchange = () => void selectBackend(backendControl.value);
+  clipControl.onchange = () => draw();
   document.addEventListener(
     "visibilitychange",
     () => {

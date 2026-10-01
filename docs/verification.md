@@ -143,9 +143,11 @@ yarn bench
 
 `yarn test:motion-browser` 还验证 [WebGPU 能力探测诊断夹具](webgpu-capability-probe.md)：通过 js-ffi 0.1.44 的 Calcit 公共 API，分别模拟 adapter 失败、ready 和设备丢失，并确认 Canvas 参考时间帧仍可绘制、探测设备被释放。真实浏览器的 `ready` 仅代表可获取 device，不是 GPU 画面或吞吐验收。
 
-## 待实现的统一命令
+`yarn test:webgpu-images` 验证[公共 Scene 图片图层](webgpu-scene-images.md)：26 项严格类型、初始化失败的纹理释放、Calcit 仿射矩阵合成、原有 24 片裁剪参数、祖先组矩阵与嵌套窗口求交、镜像边界，以及绘制开始前的全资源/容量/f32 数值预检。旋转 clip 和非 1 的组透明度必须在 begin 前拒绝，不允许半帧。Chromium 按独立手算和同源 Canvas 检查图片裁剪、90° 旋转、源透明度、声明层序和整数嵌套窗口内外像素；1000 帧保持一个 pipeline/buffer 和两个 bind group，首帧 uniform=192 B、热帧=0 B。Folding Fan GPU/Canvas 状态切换、窗口开关不改变 Model、乱序时间、固定帧截图与暂停 resize 也被覆盖。无 adapter/软件 adapter 的图片专项明确 SKIP，不算硬件通过；硬件仅在 macOS/Metal 验证，其他设备未验证。分数裁剪/旋转边缘仍由 #144 跟踪，不以实色样本宣称全帧等价。
 
-`yarn test:webgpu-images` 验证[公共 Scene 图片图层](webgpu-scene-images.md)：18 项严格类型、初始化失败的纹理释放、Calcit 仿射矩阵合成、原有 24 片裁剪参数、绘制开始前的全资源/容量预检；Chromium 按独立手算和同源 Canvas 检查图片裁剪、90° 旋转、源透明度与声明层序，1000 帧保持一个 pipeline/buffer 和两个 bind group，热帧 uniform=0 B。Folding Fan GPU/Canvas 状态切换、乱序时间、固定帧截图与暂停 resize 也被覆盖。无 adapter/软件 adapter 的图片专项明确 SKIP，不算硬件通过；硬件仅在 macOS/Metal 验证，其他设备未验证。分数裁剪/旋转边缘仍由 #144 跟踪，不以实色样本宣称全帧等价。
+`yarn test:folding-fan` 的可选父组窗口另在 Canvas DPR 2 下检查窗口外全图无残留、暂停 resize、分享刷新与 Model 不变。默认历史效果和 DPR 1/2 整帧 RGBA 零差异阈值保持不变。
+
+## 待实现的统一命令
 
 | 命令 | 负责工作项 | 完成条件 |
 | --- | --- | --- |

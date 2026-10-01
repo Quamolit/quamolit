@@ -21,4 +21,6 @@ QUAMOLIT_DEMO_TEST_PORT=5192 yarn test:demo-nav
 
 此参考入口每帧仍完整构造 Scene 并遍历 24 片，重放至多 100 条输入；GPU 图层复用 pipeline/buffer/bind group，重复矩阵不上传 uniform，但不宣称已达到 #50 的保留结构编译或正式性能目标。
 
+可选“父组矩形窗口裁剪”由 Calcit `windowed-scene` 把原 24 片重挂到同一个 group，携带视口矩阵与局部 clip；两后端读取相同 Scene。URL `clip=window` 与分享按钮保存该选择；默认关闭，不影响历史全帧零差异门禁。新增 DPR 2 的全图窗口外零残留、resize、分享刷新和 Model 不变回归。GPU 目前只支持累计矩阵轴对齐的窗口和 opacity=1 的组；旋转裁剪和隔离透明度仍未实现。
+
 限制：WebGPU 图片采用线性采样、单采样边缘，目前为实验路径，不声称与 Canvas 全像素一致；历史 Canvas 零差异门禁不变，GPU 栅格化差异由 #144 跟踪。输入日志合同目前落在折扇示例，尚未抽成通用组件 API。Canvas 历史像素对照不外推 Safari/Firefox 或任意显卡；完整跨后端图片、复杂遮挡语义及 M3 其他能力仍由 #53/#37 承接。

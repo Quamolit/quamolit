@@ -76,7 +76,7 @@
       "path": "examples/folding-fan/index.html",
       "title": "Folding Fan · 折扇",
       "group": "originals",
-      "summary": "原有荷花图片的 24 切片旋转；Calcit 采样可打断的开合，全屏状态切换 Canvas 参考与 WebGPU 图片绘制。",
+      "summary": "原有荷花图片的 24 切片旋转；Calcit 采样可打断的开合，可选父组窗口裁剪，状态切换 Canvas 与 WebGPU 图片绘制。",
       "status": "恢复切片 · Canvas / WebGPU 图片实验",
       "docs": "docs/folding-fan-restoration.md",
       "compile": "compile:folding-fan"
