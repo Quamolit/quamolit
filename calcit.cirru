@@ -9615,7 +9615,7 @@
               SourceDraw :version (:version source) :uploaded? (:uploaded? upload) :upload-bytes (:bytes upload) :instances (:instances draw) :draw-calls $ :draw-calls draw
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.instance-gpu/SourceDraw)
-            :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'JsObject 'quamolit.scene-ir/InstanceNode
+            :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceNode
         'upload-source! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn upload-source! (previous batch table source)
             let
@@ -9627,37 +9627,62 @@
                       and (:available? patch)
                         = previous $ :base-version patch
                       gpu/upload-patch! batch (:positions patch) (:start patch) (:count patch)
-                      gpu/upload! batch
-                        unsafe-coerce (resource/resolve table source) js-ffi.typed-arrays/Float32ArrayHost
-                        :count source
+                      gpu/upload! batch (resource/resolve table source) (:count source)
                   SourceUpload :version version :bytes bytes :uploaded? true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.instance-gpu/SourceUpload)
-            :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'JsObject 'quamolit.scene-ir/InstanceSource
+            :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.instance-gpu
           :require (quamolit.instance-resource :as resource) (quamolit.webgpu-batches :as gpu) (js-ffi.typed-arrays :as arrays)
     'quamolit.instance-resource $ %{} 'FileEntry
       :defs $ {}
+        'InstanceTableHost $ %{} 'CodeEntry
+          :doc "|Quamolit 实例源表专属宿主类型；由 create-table! 创建，公共参数不再使用裸 JsObject。"
+          :code $ quote $ deftrait InstanceTableHost
+            .register $ :: 'Fn $ {}
+              :args $ [] 'quamolit.instance-resource/InstanceTableHost 'String 'Number 'Number 'js-ffi.typed-arrays/Float32ArrayHost
+              :return 'js-ffi.typed-arrays/Float32ArrayHost
+            .register-patch $ :: 'Fn $ {}
+              :args $ [] 'quamolit.instance-resource/InstanceTableHost 'String 'Number 'Number 'Number 'Number 'js-ffi.typed-arrays/Float32ArrayHost
+              :return 'Number
+            .resolve $ :: 'Fn $ {}
+              :args $ [] 'quamolit.instance-resource/InstanceTableHost 'String 'Number 'Number
+              :return 'js-ffi.typed-arrays/Float32ArrayHost
+            .patch-info $ :: 'Fn $ {}
+              :args $ [] 'quamolit.instance-resource/InstanceTableHost 'String 'Number 'Number
+              :return 'JsObject
+            .release $ :: 'Fn $ {}
+              :args $ [] 'quamolit.instance-resource/InstanceTableHost 'String 'Number 'Number
+              :return 'Bool
+            .live-count $ :: 'Fn $ {}
+              :args $ [] 'quamolit.instance-resource/InstanceTableHost
+              :return 'Number
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+          :schema $ :: 'Trait
         'PatchInfo $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct PatchInfo (:available? 'Bool) (:base-version 'Number) (:start 'Number) (:count 'Number) (:positions 'js-ffi.typed-arrays/Float32ArrayHost)
           :examples $ []
           :schema $ :: 'StructDef
         'create-table! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn create-table! () (raw-create-table!)
+          :code $ quote $ defn create-table! ()
+            unsafe-coerce (raw-create-table!) InstanceTableHost
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'JsObject)
+          :schema $ :: 'Fn $ {} (:return 'quamolit.instance-resource/InstanceTableHost)
             :args $ []
+            :features $ #{} :js-ffi
         'live-count $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn live-count (table) (raw-live-count table)
+          :code $ quote $ defn live-count (table) (.live-count table)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
-            :args $ [] 'JsObject
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost
+            :features $ #{} :js-ffi
         'patch-info $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn patch-info (table source)
             let
-                raw $ raw-patch-info table (:id source) (:version source) (:count source)
+                raw $ .patch-info table (:id source) (:version source) (:count source)
                 available $ contract/expect-bool |InstancePatch.available $ contract/object-field |InstancePatch raw |available
                 base-version $ contract/expect-number |InstancePatch.baseVersion $ contract/object-field |InstancePatch raw |baseVersion
                 start $ contract/expect-number |InstancePatch.start $ contract/object-field |InstancePatch raw |start
@@ -9666,7 +9691,7 @@
               PatchInfo :available? available :base-version base-version :start start :count amount :positions positions
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.instance-resource/PatchInfo)
-            :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource
             :features $ #{} :js-ffi
         'raw-create-table! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-create-table! () (raise |js-only-instance-resource)
@@ -9726,29 +9751,32 @@
             :features $ #{} :js-ffi
         'register! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn register! (table source positions)
-            raw-register! table (:id source) (:version source) (:count source) positions
+            .register table (:id source) (:version source) (:count source) positions
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'JsObject)
-            :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource 'JsObject
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.typed-arrays/Float32ArrayHost)
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource 'js-ffi.typed-arrays/Float32ArrayHost
+            :features $ #{} :js-ffi
         'register-patch! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn register-patch! (table source base-version start positions)
-            raw-register-patch! table (:id source) (:version source) (:count source) base-version start $ unsafe-coerce positions JsObject
+            .register-patch table (:id source) (:version source) (:count source) base-version start positions
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
-            :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource 'Number 'Number 'js-ffi.typed-arrays/Float32ArrayHost
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource 'Number 'Number 'js-ffi.typed-arrays/Float32ArrayHost
             :features $ #{} :js-ffi
         'release! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release! (table source)
-            raw-release! table (:id source) (:version source) (:count source)
+            .release table (:id source) (:version source) (:count source)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource
+            :features $ #{} :js-ffi
         'resolve $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn resolve (table source)
-            raw-resolve table (:id source) (:version source) (:count source)
+            .resolve table (:id source) (:version source) (:count source)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'JsObject)
-            :args $ [] 'JsObject 'quamolit.scene-ir/InstanceSource
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.typed-arrays/Float32ArrayHost)
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource
+            :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.instance-resource
           :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
@@ -12679,7 +12707,7 @@
         'execute-presence-device-action! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn execute-presence-device-action! (host active-device-generation canvas device format table references action)
             hint-fn $ {} (:async true)
-              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence-device-coordinator/PresenceDeviceAction
+              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence-device-coordinator/PresenceDeviceAction
               :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
               :features $ #{} :js-ffi
             match action
@@ -12695,12 +12723,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:async true)
             :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
-            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence-device-coordinator/PresenceDeviceAction
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence-device-coordinator/PresenceDeviceAction
             :features $ #{} :js-ffi
         'execute-presence-resource-action! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn execute-presence-resource-action! (host device-generation canvas device format table references registry-action)
             hint-fn $ {} (:async true)
-              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-lifecycle/RegistryAction
+              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-lifecycle/RegistryAction
               :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
               :features $ #{} :js-ffi
             match registry-action $
@@ -12721,7 +12749,7 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:async true)
             :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
-            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-lifecycle/RegistryAction
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-lifecycle/RegistryAction
             :features $ #{} :js-ffi
         'finish-presence-buffer-load $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn finish-presence-buffer-load (host device-generation source generation batch upload)
@@ -12779,7 +12807,7 @@
         'load-presence-buffer! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn load-presence-buffer! (host device-generation canvas device format table source generation)
             hint-fn $ {} (:async true)
-              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject 'quamolit.scene-ir/InstanceSource 'Number
+              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource 'Number
               :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
               :features $ #{} :js-ffi
             let
@@ -12790,12 +12818,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:async true)
             :return 'quamolit.presence-webgpu-resources/PresenceGpuHost
-            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject 'quamolit.scene-ir/InstanceSource 'Number
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource 'Number
             :features $ #{} :js-ffi
         'load-presence-buffer-safe! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn load-presence-buffer-safe! (host device-generation canvas device format table source generation)
             hint-fn $ {} (:async true)
-              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject 'quamolit.scene-ir/InstanceSource 'Number
+              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource 'Number
               :return 'quamolit.presence-webgpu-resources/PresenceGpuLoadOutcome
               :features $ #{} :js-ffi
             let
@@ -12823,7 +12851,7 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:async true)
             :return 'quamolit.presence-webgpu-resources/PresenceGpuLoadOutcome
-            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject 'quamolit.scene-ir/InstanceSource 'Number
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource 'Number
             :features $ #{} :js-ffi
         'presence-gpu-metrics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-gpu-metrics (host)
@@ -12892,7 +12920,7 @@
         'run-presence-load-request! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn run-presence-load-request! (host active-device-generation canvas device format table references request)
             hint-fn $ {} (:async true)
-              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence-webgpu-resources/PresenceLoadRequest
+              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence-webgpu-resources/PresenceLoadRequest
               :return 'quamolit.presence-webgpu-resources/PresenceLoadTaskResult
               :features $ #{} :js-ffi
             let
@@ -12912,12 +12940,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:async true)
             :return 'quamolit.presence-webgpu-resources/PresenceLoadTaskResult
-            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence-webgpu-resources/PresenceLoadRequest
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.presence-webgpu-resources/PresenceLoadRequest
             :features $ #{} :js-ffi
         'run-presence-load-task! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn run-presence-load-task! (host active-device-generation canvas device format table references task)
             hint-fn $ {} (:async true)
-              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-load-queue/ResourceLoadTask
+              :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-load-queue/ResourceLoadTask
               :return 'quamolit.presence-webgpu-resources/PresenceQueuedLoadResult
               :features $ #{} :js-ffi
             let
@@ -12927,7 +12955,7 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:async true)
             :return 'quamolit.presence-webgpu-resources/PresenceQueuedLoadResult
-            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'JsObject (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-load-queue/ResourceLoadTask
+            :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'Number 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String 'quamolit.instance-resource/InstanceTableHost (:: 'List 'quamolit.presence/InstanceResourceRef) 'quamolit.resource-load-queue/ResourceLoadTask
             :features $ #{} :js-ffi
         'same-handle? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn same-handle? (handle resource-id generation)
