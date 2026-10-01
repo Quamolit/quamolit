@@ -350,6 +350,26 @@ try {
     assert.equal(visibleGpu.gpuResources, 0);
     assert.notEqual(await page.locator("#gpu-note").textContent(), "", "GPU 不可用时应可见地回退 Canvas");
   }
+  await page.evaluate(() => window.consumer.setMode("instances"));
+  await page.check("#independent");
+  const independentFrames = [];
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    const state = await page.evaluate((time) => window.consumer.set({ time }), time);
+    assert.equal(state.pattern, "independent");
+    assert.equal(state.source.copiedBytes, 80000);
+    assert.equal(state.source.live, 1);
+    assert.equal(state.metrics["canvas-calls"], 10000);
+    independentFrames.push({ time, version: state.source.version });
+  }
+  await page.screenshot({ path: join(artifacts, "independent-instances-canvas.png"), fullPage: true });
+  const independentGpu = await page.evaluate(() => window.consumer.setMode("instances-gpu"));
+  if (independentGpu.recovery.phase[0] === "ready") {
+    assert.equal(independentGpu.metrics["upload-bytes"], 80000);
+    assert.equal((await page.evaluate(() => window.consumer.set({ time: 1 }))).metrics["upload-bytes"], 0);
+    assert.equal((await page.evaluate(() => window.consumer.set({ time: 0.5 }))).metrics["upload-bytes"], 80000);
+    await page.screenshot({ path: join(artifacts, "independent-instances-gpu.png"), fullPage: true });
+  }
+  await page.evaluate(() => window.consumer.setInstancePattern(false));
   await page.evaluate(() => window.consumer.setMode("mixed"));
   assert.equal(await page.locator("canvas").count(), 1);
   const gpuBrowser = await verifyGpuConsumerBrowser(page, artifacts);
@@ -383,6 +403,11 @@ try {
     modules: [...modules].sort(),
     counts,
     instancesCounts,
+    independentInstances: {
+      frames: independentFrames,
+      gpu: independentGpu.recovery.phase[0] === "ready" ? "PASS" : "SKIP",
+      scope: "CPU 采样→Canvas/GPU；未验收标准 GPU 采样、独立实例全图精度或正式性能",
+    },
     presenceCounts,
     recoveryCounts,
     gpuCounts,
