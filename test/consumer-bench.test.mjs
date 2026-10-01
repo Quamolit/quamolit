@@ -9,6 +9,47 @@ import {
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { formatConsumerSummary } from "./consumer-contract.mjs";
+
+test("关键链路摘要单列 SKIP，缺失/软件 GPU 不能伪装通过", () => {
+  const evidence = { result: "PASS", adapter: { vendor: "apple", architecture: "metal-3" } };
+  const report = {
+    result: "PASS",
+    gpuBrowser: evidence,
+    gpuDualBrowser: evidence,
+    gpuInstancesBrowser: { result: "SKIP", reason: "adapter-unavailable" },
+    independentInstances: { browser: { result: "SKIP", reason: "software-adapter" } },
+  };
+  const summary = formatConsumerSummary(report);
+  assert.match(summary, /PASS 2，SKIP 2，未执行 0/);
+  assert.match(summary, /adapter-unavailable/);
+  assert.match(summary, /software-adapter/);
+  assert.match(summary, /SKIP ≠ 硬件通过/);
+  assert.match(formatConsumerSummary({ result: "FAIL" }), /未执行 4/);
+  assert.match(formatConsumerSummary({ result: "NOT_RUN" }), /NOT_RUN/);
+  assert.throws(() => formatConsumerSummary({ result: "PASS" }), /缺少硬件专项/);
+  assert.throws(() => formatConsumerSummary({ ...report, gpuBrowser: { result: "SKIP" } }), /缺少原因/);
+  assert.throws(
+    () => formatConsumerSummary({ ...report, gpuBrowser: { result: "PASS", adapter: { vendor: "swiftshader" } } }),
+    /软件 adapter/,
+  );
+  assert.throws(() => formatConsumerSummary({ ...report, gpuBrowser: { result: "PASS" } }), /缺少 adapter/);
+  assert.throws(
+    () =>
+      formatConsumerSummary({
+        ...report,
+        gpuBrowser: { result: "PASS", adapter: { vendor: "apple", isFallbackAdapter: true } },
+      }),
+    /软件 adapter/,
+  );
+  assert.throws(() => formatConsumerSummary({ ...report, gpuBrowser: { result: "OK" } }), /未知 GPU/);
+  assert.throws(() => formatConsumerSummary({ result: "OK" }), /未知消费者/);
+  const hostile = formatConsumerSummary({
+    ...report,
+    gpuInstancesBrowser: { result: "SKIP", reason: "<script>|\n`reason`" },
+  });
+  assert.ok(!hostile.includes("<script>") && !hostile.includes("`reason`"));
+});
 
 test("正式时长默认值与非法配置", () => {
   assert.deepEqual(consumerBenchOptions({}), { warmupSeconds: 5, durationSeconds: 30, runs: 3 });

@@ -66,6 +66,7 @@ function run(command, args, cwd) {
   return result.stdout;
 }
 let server, browser, page;
+const hardwareEvidence = {};
 await writeFile(join(artifacts, "report.json"), JSON.stringify({ result: "RUNNING", candidate, temporary }, null, 2));
 try {
   await mkdir(source);
@@ -410,10 +411,14 @@ try {
   await page.evaluate(() => window.consumer.setInstancePattern(false));
   await page.evaluate(() => window.consumer.setMode("mixed"));
   assert.equal(await page.locator("canvas").count(), 1);
-  const gpuBrowser = await verifyGpuConsumerBrowser(page, artifacts);
-  const gpuDualBrowser = await verifyGpuConsumerBrowser(page, artifacts, true);
-  const gpuInstancesBrowser = await verifyGpuInstancesConsumerBrowser(page, artifacts);
+  const gpuBrowser = (hardwareEvidence.gpuBrowser = await verifyGpuConsumerBrowser(page, artifacts));
+  const gpuDualBrowser = (hardwareEvidence.gpuDualBrowser = await verifyGpuConsumerBrowser(page, artifacts, true));
+  const gpuInstancesBrowser = (hardwareEvidence.gpuInstancesBrowser = await verifyGpuInstancesConsumerBrowser(
+    page,
+    artifacts,
+  ));
   const independentGpuBrowser = await verifyIndependentGpuConsumerBrowser(page, artifacts);
+  hardwareEvidence.independentInstances = { browser: independentGpuBrowser };
   if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") {
     assert.equal(gpuBrowser.result, "PASS", `要求真实 GPU，但专项未运行：${JSON.stringify(gpuBrowser)}`);
     assert.equal(gpuDualBrowser.result, "PASS", `要求双轴真实 GPU，但专项未运行：${JSON.stringify(gpuDualBrowser)}`);
@@ -510,7 +515,7 @@ try {
 } catch (error) {
   await writeFile(
     join(artifacts, "report.json"),
-    JSON.stringify({ result: "FAIL", candidate, temporary, error: error.stack }, null, 2),
+    JSON.stringify({ result: "FAIL", candidate, temporary, error: error.stack, ...hardwareEvidence }, null, 2),
   );
   if (page) await page.screenshot({ path: join(artifacts, "failure.png"), fullPage: true }).catch(() => {});
   throw error;

@@ -1,5 +1,48 @@
 import assert from "node:assert/strict";
 
+// 摘要只读取现有报告；不执行测试，也不将 mock/缺失结果记为 GPU 通过。
+export function formatConsumerSummary(report) {
+  assert.ok(["PASS", "FAIL", "RUNNING", "NOT_RUN"].includes(report.result), "未知消费者结果");
+  const checks = [
+    ["线性矩形", report.gpuBrowser],
+    ["双轴 smoothstep", report.gpuDualBrowser],
+    ["单脏记录 10k", report.gpuInstancesBrowser],
+    ["独立动画 10k", report.independentInstances?.browser],
+  ];
+  const counts = { PASS: 0, SKIP: 0, NOT_RUN: 0 };
+  const text = (value) => String(value).replace(/[\\`|<>\r\n]/g, " ");
+  const rows = checks.map(([name, evidence]) => {
+    if (!evidence) {
+      assert.notEqual(report.result, "PASS", `PASS 报告缺少硬件专项：${name}`);
+      counts.NOT_RUN++;
+      return `| ${name} | NOT_RUN | 无结果，不能视为通过 |`;
+    }
+    assert.ok(["PASS", "SKIP"].includes(evidence.result), `未知 GPU 结果：${name}`);
+    counts[evidence.result]++;
+    if (evidence.result === "SKIP") {
+      assert.ok(typeof evidence.reason === "string" && evidence.reason.trim(), `SKIP 缺少原因：${name}`);
+      return `| ${name} | SKIP | ${text(evidence.reason)} |`;
+    }
+    assert.ok(evidence.adapter && typeof evidence.adapter === "object", `GPU PASS 缺少 adapter：${name}`);
+    assert.notEqual(evidence.adapter.isFallbackAdapter, true, `GPU PASS 不能使用软件 adapter：${name}`);
+    const adapter = Object.values(evidence.adapter).filter(Boolean).join(" / ");
+    assert.ok(adapter && !/swiftshader|software|llvmpipe/i.test(adapter), `GPU PASS 不能使用软件 adapter：${name}`);
+    return `| ${name} | PASS | ${text(adapter)} |`;
+  });
+  return [
+    "## 独立 Calcit 消费者关键链路",
+    "",
+    `安装/编译/搬移/语义门禁：${report.result}。硬件专项：PASS ${counts.PASS}，SKIP ${counts.SKIP}，未执行 ${counts.NOT_RUN}。`,
+    "",
+    "| GPU 专项 | 结果 | adapter / 原因 |",
+    "| --- | --- | --- |",
+    ...rows,
+    "",
+    "SKIP ≠ 硬件通过；原生设备 mock 不计硬件验收。GPU/GPU 帧通过也不证明 Canvas 中间帧等价，后者仍待 #144；本摘要不是性能报告。",
+    "",
+  ].join("\n");
+}
+
 // 独立于 Calcit sampler 的手算位置/颜色期望；同时检查真实对象身份。
 export function verifyConsumer(app, core) {
   const tags = core.init_tags([

@@ -15,7 +15,7 @@
 | T2：本机硬件 | `QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer` | macOS/Metal 实际画面、上传和恢复；无非软件 adapter 必须失败，不能将 SKIP 算通过 |
 | T3：阶段测量 | `yarn bench:consumer` | 正式预热 5 s / 采样 30 s / 3 轮；只验收报告实际包含的负载，不进日常 CI |
 
-这不是完整脚本分层盘点，也不替代既有 CI 回归。新增功能尽量沿同一消费者验证成功、回退和释放，底层纯语义保留独立单测；新增命令/job/主题文档须说明现有链路无法承接的原因。计数、画质和帧耗时分开报告，次要边界登记 issue。#179 的 Actions 耗时对比和 SKIP summary 仍待落地；这里不宣称 CI 已缩短。
+这不是完整脚本分层盘点，也不替代既有 CI 回归。新增功能尽量沿同一消费者验证成功、回退和释放，底层纯语义保留独立单测；新增命令/job/主题文档须说明现有链路无法承接的原因。计数、画质和帧耗时分开报告，次要边界登记 issue。现有 visual workflow 从消费者报告生成四项硬件专项摘要，分别统计 PASS、SKIP 和未执行，并显示 adapter/原因；报告缺失不记为通过，要求硬件时的失败报告保留已得到的 SKIP。摘要只覆盖这条关键链路，不冒充全部 Playwright 用例的 SKIP 总数。#179 的 Actions 耗时对比与 PR 模板仍待验收；不宣称 CI 已缩短。
 
 ## 当前可执行门禁
 
