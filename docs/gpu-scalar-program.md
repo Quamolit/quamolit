@@ -28,6 +28,8 @@ Apple/Metal-3（software=false）实际验证 t=1→0→0.5→0.25→1，每帧 
 
 矩形alpha复用原双轴消费者专项，不另建测试入口：整数几何的8个乱序/同时间失效画面使用原零差异断言；7个非整数/端点样本复用真实shader读回和既定`1e-5+1e-5*abs(expected)`。Apple/Metal-3候选ac73880已得到全图零差异及数值通过，未外推到分数几何、重叠透明节点、DPR或其他设备。CPU参考被停止时必须失败；GPU不可用仍明确SKIP，不作为alpha硬件通过。
 
+同一专项另在Model=80时将已有badge移到静态条带上，检查t=0/0.5/1的source-over层序，不新增节点、shader或消费者入口。新增整数重叠夹具仅在badge区域采用既有分层合同的RGB逐通道≤2（8位预乘与混合量化），区域外与整帧alpha仍零差异；内区像素须与独立混合公式完全相等，错误的灰色上层不能通过中间帧检查。GPU/Canvas/差异图保存到忽略的consumer artifact。原8帧仍要求全图零差异，数值容差不变；此规则不扩张到小数边缘、group opacity或其他设备。
+
 `yarn test:gpu-component` 纳入新命名空间严格检查及 `test/gpu-scalar-program-smoke.mjs`：公共计划参数、乱序时间不变、constant/smoothstep/零时长、CPU/算子/目标回退、重复目标、起点有效终点越界。测试调用编译后的 Calcit，而不是 JS 重写 lowering。
 
 独立消费者另以公共 Calcit 声明双轴 smoothstep，Apple/Metal-3 上 8 帧各 230400 通道零差异；非整数 .37/.81/.4999999 与区间外/端点共 7 次 xy 读回满足既定数值阈值。两个绑定常驻同一节点的两个参数槽，1000 时间帧 mock 仍只有每帧 16 B uniform；测试含切回单轴后的旧槽清理。详见 [独立消费检验](isolated-consumer.md)。页面可切换线性混合/双轴 Canvas 参考，GPU 对照由硬件门禁执行。

@@ -255,6 +255,8 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
         { time: 1, model: 41 },
         { time: 1, ready: true },
         { time: 1, viewport: 200 },
+        // 新夹具只移动已有 badge 到静态条带上，不增加节点或动画实现。
+        ...(alpha ? [0, 0.5, 1].map((time) => ({ time, model: 80, ready: true, overlap: true })) : []),
       ]) {
         model = request.model ?? model;
         ready = request.ready ?? ready;
@@ -285,10 +287,23 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
         const actual = capturedContext.getImageData(0, 0, 320, 180).data;
         const expected = referenceContext.getImageData(0, 0, 320, 180).data;
         let differences = 0,
-          maximumChannelDifference = 0;
+          maximumChannelDifference = 0,
+          maximumAlphaDifference = 0,
+          outsideBadgeDifferences = 0;
+        const diff = request.overlap ? referenceContext.createImageData(320, 180) : null;
         for (let i = 0; i < actual.length; i++) {
-          if (actual[i] !== expected[i]) differences++;
+          if (actual[i] !== expected[i]) {
+            differences++;
+            if (request.overlap) {
+              const pixel = Math.floor(i / 4),
+                x = pixel % 320,
+                y = Math.floor(pixel / 320);
+              if (x < 80 || x >= 100 || y < 102 || y >= 122) outsideBadgeDifferences++;
+              diff.data.set([255, 0, 0, 255], pixel * 4);
+            }
+          }
           maximumChannelDifference = Math.max(maximumChannelDifference, Math.abs(actual[i] - expected[i]));
+          if (i % 4 === 3) maximumAlphaDifference = Math.max(maximumAlphaDifference, Math.abs(actual[i] - expected[i]));
         }
         frames.push({
           time: request.time,
@@ -298,6 +313,27 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
           reused,
           differences,
           maximumChannelDifference,
+          ...(request.overlap
+            ? {
+                overlap: true,
+                maximumAlphaDifference,
+                outsideBadgeDifferences,
+                diffPng: (() => {
+                  const image = document.createElement("canvas");
+                  image.width = 320;
+                  image.height = 180;
+                  image.getContext("2d").putImageData(diff, 0, 0);
+                  return image.toDataURL();
+                })(),
+                // (82,104) 位于两整数矩形内区；独立 source-over 公式锁定层序。
+                overlapPixel: Array.from(capturedContext.getImageData(82, 104, 1, 1).data),
+                expectedOverlapPixel: (() => {
+                  const t = Math.max(0, Math.min(1, request.time)),
+                    a = t * t * (3 - 2 * t);
+                  return [0, 0.7, 0.4].map((c) => Math.round(255 * (c * a + 0.4 * (1 - a)))).concat(255);
+                })(),
+              }
+            : {}),
           uploadedBytes: host.uploadedBytes - recordsBefore,
           parameterBytes: host.parameterBytes - parametersBefore,
           actualPng: captured.toDataURL(),
@@ -338,6 +374,7 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
     for (const [key, suffix] of [
       ["actualPng", "gpu"],
       ["expectedPng", "canvas"],
+      ...(frame.overlap ? [["diffPng", "diff"]] : []),
     ]) {
       const filename = `gpu-${alpha ? "alpha-" : dual ? "dual-" : ""}frame-${index}-${suffix}.png`;
       await writeFile(join(artifacts, filename), Buffer.from(frame[key].split(",")[1], "base64"));
@@ -345,12 +382,22 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
     }
   }
   assert.deepEqual(report.errors, []);
-  assert.equal(report.frames.length, 8);
+  assert.equal(report.frames.length, alpha ? 11 : 8);
   for (const [index, frame] of report.frames.entries()) {
-    assert.equal(frame.differences, 0, JSON.stringify(frame));
-    assert.equal(frame.reused, index < 5);
-    assert.equal(frame.uploadedBytes, index < 5 ? 0 : 128);
-    assert.equal(frame.parameterBytes, index < 5 ? 0 : dual && !alpha ? 256 : 224);
+    if (frame.overlap) {
+      // 新的透明叠加夹具沿用分层合同的 RGB≤2；8个原画面的零差异门禁不变。
+      // 两边先预乘/量化再混合的8位路径可能相差1级，不适用于小数几何/边缘。
+      assert.ok(frame.maximumChannelDifference <= 2, JSON.stringify(frame));
+      assert.equal(frame.maximumAlphaDifference, 0, JSON.stringify(frame));
+      assert.equal(frame.outsideBadgeDifferences, 0, JSON.stringify(frame));
+      assert.deepEqual(frame.overlapPixel, frame.expectedOverlapPixel, JSON.stringify(frame));
+      if (frame.time === 0.5)
+        assert.ok(Math.abs(frame.overlapPixel[1] - 102) > 2, "错误层序的灰色上层必须被独立公式拒绝");
+    } else assert.equal(frame.differences, 0, JSON.stringify(frame));
+    const reused = index < 5 || index > 8;
+    assert.equal(frame.reused, reused);
+    assert.equal(frame.uploadedBytes, reused ? 0 : 128);
+    assert.equal(frame.parameterBytes, reused ? 0 : dual && !alpha ? 256 : 224);
   }
   assert.equal(report.numericSamples.length, dual ? 7 : 0);
   for (const sample of report.numericSamples) {
