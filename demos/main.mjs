@@ -2,8 +2,12 @@
 import catalog from "./catalog.json";
 
 const originals = catalog.entries.filter((entry) => entry.group === "originals");
-const inlineEntries = [...originals, ...catalog.entries.filter((entry) => entry.group === "art")];
+const inlineEntries = [...originals, ...catalog.entries.filter((entry) => entry.group === "art" || entry.id === "layer-composition")];
 const loaders = {
+  "layer-composition": [
+    () => import("../examples/layer-composition/index.html?raw"),
+    () => import("../examples/layer-composition/main.mjs"),
+  ],
   "layered-dashboard": [
     () => import("../examples/layered-dashboard/index.html?raw"),
     () => import("../examples/layered-dashboard/main.mjs"),

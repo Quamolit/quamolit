@@ -37,6 +37,10 @@ footer { color: #607987; font-size: 13px; padding-bottom: 48px; }
 :root { background: #07151d; }
 body { overflow: hidden; background: #07151d; }
 #scene { position: fixed; inset: 0; width: 100vw; height: 100dvh; z-index: 0; opacity: 0; transition: opacity 180ms ease; }
+body[data-demo="layer-composition"] #scene { z-index: 1; }
+body[data-demo="layer-composition"] canvas[data-layer="instances"] { position: fixed; inset: 0; width: 100vw; height: 100dvh; z-index: 0; pointer-events: none; opacity: 0; transition: opacity 180ms ease; }
+body[data-demo="layer-composition"][data-transition="idle"] canvas[data-layer="instances"] { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { canvas[data-layer="instances"] { transition-duration: 0ms !important; } }
 /* Canvas 是 #app 的兄弟，过渡状态由 body 同步设置。 */
 body[data-view="demo"][data-transition="idle"] #scene { opacity: 1; }
 #app { position: relative; z-index: 1; pointer-events: none; }

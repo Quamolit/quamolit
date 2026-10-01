@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Layer Composition · Quamolit</title>
+    <link rel="stylesheet" href="../layered-dashboard/style.css" />
+    <style>
+      canvas { position: fixed; inset: 0; }
+      canvas[data-layer="instances"] { z-index: 0; pointer-events: none; }
+      canvas[data-layer="ui"] { z-index: 1; }
+    </style>
+  </head>
+  <body>
+    <canvas aria-label="Canvas UI 与实例分层合成"></canvas>
+    <button id="panel-toggle" aria-expanded="true">收起控制</button>
+    <aside id="panel">
+      <nav aria-label="演示导航"><a href="../../demos/index.html">← 动画目录</a></nav>
+      <p class="eyebrow">QUAMOLIT / LAYER COMPOSITION</p>
+      <h1>Layer Composition</h1>
+      <p>10,000 个静态半透明实例作为底层；文字、柱图和看板渐入使用 Canvas UI 层。两层共享时间与视口。</p>
+      <label>实例后端 <select id="backend"><option value="canvas">Canvas 参考</option><option value="webgpu">WebGPU 实验</option></select></label>
+      <label>逻辑时间 <output id="time-output"></output></label>
+      <input id="time" type="range" min="0" max="1" step="0.01" />
+      <div class="actions"><button id="play">播放</button><button id="reset">重置</button></div>
+      <p id="status">准备中</p>
+    </aside>
+    <script type="module" src="./main.mjs"></script>
+  </body>
+</html>
