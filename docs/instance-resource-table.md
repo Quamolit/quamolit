@@ -17,22 +17,23 @@ let
 
 | 定义 | 语义 |
 | --- | --- |
-| `create-table! () -> JsObject` | 新建空表；由 `:file` 宿主片段返回句柄 |
-| `register! (table, source, positions) -> JsObject` | 校验 `id/version/count` 与交错 Float32，复制快照并登记；同 id 版本必须递增 |
+| `create-table! () -> InstanceTableHost` | 新建空表；由 `:file` 宿主片段返回专属句柄 |
+| `register! (table, source, positions) -> Float32ArrayHost` | 校验 `id/version/count` 与交错 Float32，复制快照并登记；同 id 版本必须递增 |
 | `register-patch! (table, new-source, base-version, start, positions-patch) -> Number` | 同一 id/count 的新版本只复制从 `start` 开始的连续实例片段，返回实际复制字节数；片段为交错 Float32，`base-version` 必须仍可解析 |
 | `patch-info (table, source) -> PatchInfo` | 返回类型化 `available?/base-version/start/count/positions`；补丁数据再次复制，调用方修改不会污染表。全量版本返回 `available?=false` |
-| `resolve (table, source) -> JsObject` | 返回已登记快照；缺失或计数不符显式失败 |
+| `resolve (table, source) -> Float32ArrayHost` | 返回已登记快照；缺失或计数不符显式失败 |
 | `release! (table, source) -> Bool` | 删除该版本；不存在返回 `false` |
 | `live-count (table) -> Number` | 当前 live 的 `(id,version)` 条目数 |
 
-`source` 是 `quamolit.scene-ir/InstanceSource`；`positions` 是 `JsObject` 的交错 `[x0, y0, x1, y1, ...]` Float32 数组，长度必须为 `count * 2`。
-新 `register-patch!` 的片段参数在 Calcit 公共 schema 中收窄为 `js-ffi.typed-arrays/Float32ArrayHost`；底层 raw FFI 因当前 ABI 约束用 `JsObject` 接收，在类型化入口的明确 `:js-ffi` 边界转换。片段长度必须为偶数。
+`table` 统一为本项目的 `InstanceTableHost`，`source` 是 `quamolit.scene-ir/InstanceSource`；全量及补丁 `positions` 都是 `js-ffi.typed-arrays/Float32ArrayHost`，交错 `[x0, y0, x1, y1, ...]`，全量长度必须为 `count * 2`，补丁长度必须为偶数。公共 API 不接受裸 JsObject 作为表或位置数组。
+
+此句柄用 `deftrait` + `:ffi (:kind :external-object)` 声明实际宿主方法，不新增 JS 包装对象或序列化表。`create-table!` 仅在可信的本项目 `raw-create-table!` 返回位置收窄；GPU/Presence 及独立消费者同步使用专属表类型。`patch-info` 的原生 DTO 仍是一个局部 JsObject 边界，进入 Calcit 后通过已有字段校验转换为 `PatchInfo`；不宣称整个 Trait/框架已消除 JsObject。表仍属实验接口，不提升稳定性标签。
 
 ## 归属与实现
 
 - 版本递增、计数校验、复制隔离、释放与 live 计数都在 `src/host/instance-resource-table.mjs` 中；该文件是 Calcit `:ffi :js :file` 单函数表达式，返回一个带方法的句柄，不含 `import`/`export`/`require` 词元。
-- Calcit 侧：`raw-create-table!` 走 `:file`，其余 `raw-*` 方法走 `:inline`；`create-table!`/`register!`/`resolve`/`release!`/`live-count` 是类型化 wrapper。
-- 该命名空间只依赖 host-free 的 `quamolit.scene-ir`，不引入 `@calcit/js-ffi` 或裸宿主文件，可被独立消费者直接引用。
+- Calcit 侧：`raw-create-table!` 走 `:file`，公共操作通过 `InstanceTableHost` 的类型化方法调用同一个宿主；历史 `raw-*` inline 原始 ABI 保留为内部实现兼容，不作为新应用推荐入口。
+- 类型引用 `quamolit.scene-ir` 与 `js-ffi.typed-arrays/Float32ArrayHost`，不新增裸宿主文件导入。独立消费者必须检查实际入口可达的编译模块和 npm 依赖，不能把类型化本身视为分发验证。
 
 ## 语义
 
@@ -44,7 +45,7 @@ let
 
 ## 测试与边界
 
-`yarn test:instance-resource` 严格检查 `quamolit.instance-resource`，编译 Motion 目标并运行 `test/instance-resource-smoke.mjs`；CI 的 `visual.yaml` 在 Canvas 实例入口后执行同一命令。命令覆盖复制隔离、解析身份、重复释放、版本递增、10k 源的 8 B 单实例补丁、跳版本解析、计数/类型非法与 100 次装卸回到 live 基线。
+`yarn test:instance-resource` 严格检查 `quamolit.instance-resource`，编译 Motion 目标并运行 `test/instance-resource-smoke.mjs` 和 `test/instance-resource-types.test.mjs`；CI 的 `visual.yaml` 在 Canvas 实例入口后执行同一命令。命令覆盖复制隔离、解析身份、重复释放、版本递增、10k 源的 8 B 单实例补丁、跳版本解析、计数/类型非法与 100 次装卸回到 live 基线。独立负例 Snapshot 验证数字、GPU 句柄不能冒充实例表，Calcit List 不能冒充 Float32Array；三个负例都须被严格公共检查拒绝。
 
 ## 尚未完成
 

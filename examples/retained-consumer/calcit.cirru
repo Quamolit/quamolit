@@ -47,7 +47,7 @@
         'create-instances-table! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-instances-table! () (resource/create-table!)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'JsObject)
+          :schema $ :: 'Fn $ {} (:return 'quamolit.instance-resource/InstanceTableHost)
             :args $ []
             :features $ #{} :js-ffi
         'declare $ %{} 'CodeEntry (:doc |)
@@ -152,13 +152,13 @@
             canvas/draw-instances! context (instances-declaration) positions
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.typed-arrays/Float32ArrayHost
         'draw-instances-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-instances-gpu! (previous batch table version)
             instance-gpu/draw-source! previous batch table $ instances-for-version version
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.instance-gpu/SourceDraw)
-            :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'JsObject 'Number
+            :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'quamolit.instance-resource/InstanceTableHost 'Number
         'draw-resolved-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-resolved-instances! (context table version)
             let
@@ -166,7 +166,7 @@
               canvas/draw-instances! context node $ resource/resolve table $ :source node
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject 'Number
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.instance-resource/InstanceTableHost 'Number
             :features $ #{} :js-ffi
         'empty-presence-resource-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-presence-resource-plan () (presence/empty-instance-resource-plan)
@@ -263,7 +263,7 @@
           :code $ quote $ defn instances-live-count (table) (resource/live-count table)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
-            :args $ [] 'JsObject
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost
             :features $ #{} :js-ffi
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () &unit
@@ -277,7 +277,7 @@
               , previous (:index frame) positions
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
-            :args $ [] 'JsObject 'Number 'Number 'app.main/InstanceFrame 'js-ffi.typed-arrays/Float32ArrayHost
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'Number 'Number 'app.main/InstanceFrame 'js-ffi.typed-arrays/Float32ArrayHost
             :features $ #{} :js-ffi
         'prepare-gpu $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn prepare-gpu (plan) (gpu/prepare-program plan)
@@ -362,8 +362,8 @@
               :source $ instances-for-version 1
               , positions
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'JsObject)
-            :args $ [] 'JsObject 'JsObject
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.typed-arrays/Float32ArrayHost)
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'js-ffi.typed-arrays/Float32ArrayHost
             :features $ #{} :js-ffi
         'register-instances-version! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn register-instances-version! (table version positions)
@@ -371,15 +371,15 @@
               :source $ instances-for-version version
               , positions
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'JsObject)
-            :args $ [] 'JsObject 'Number 'JsObject
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.typed-arrays/Float32ArrayHost)
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'Number 'js-ffi.typed-arrays/Float32ArrayHost
             :features $ #{} :js-ffi
         'release-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-instances! (table version)
             resource/release! table $ :source $ instances-for-version version
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ [] 'JsObject 'Number
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'Number
             :features $ #{} :js-ffi
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () &unit

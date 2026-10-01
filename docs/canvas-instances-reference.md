@@ -10,14 +10,14 @@ perm $ canvas/draw-instances! context instances positions
 
 - `context`：`js-ffi.canvas-batches/CanvasContextHost`（host-free，消费者可直接使用）。
 - `instances`：`quamolit.scene-ir/InstanceNode`，即 `SceneContent :instances` 的载荷；`count` 取自 `(:source instances)`，绘制尺寸取自 `:width`/`:height`，颜色取自 `:fill`。
-- `positions`：`JsObject`，宿主交错 `[x0, y0, x1, y1, ...]` 的 `Float32Array`，长度必须是 `count * 2`。这里用 `JsObject` 而不是 `js-ffi.typed-arrays/Float32ArrayHost`：`typed-arrays` 传递依赖 `@calcit/js-ffi` npm 包，而独立消费者只允许直接依赖 `@calcit/procs`；`JsObject` 边界由定义级 `:file` 片段中的 `instanceof Float32Array` 校验。
+- `positions`：`js-ffi.typed-arrays/Float32ArrayHost`，宿主交错 `[x0, y0, x1, y1, ...]` 的 `Float32Array`，长度必须是 `count * 2`。它与实例资源表 `resolve` 的返回类型一致，消费者无需将位置快照降回 `JsObject`。仅在本定义调用原始 `:file` ABI 的内部边界做局部转换；片段中的 `instanceof Float32Array` 与长度、有限值校验仍保留。
 - 返回本地 `quamolit.canvas-reference/InstancesMetrics`：`boundary-calls`、`canvas-calls`、`instances`、`position-bytes-read`。
 
 ## 实现与归属
 
 - `canvas-reference/raw-draw-instances!` 用定义级 `:ffi :js :file |src/host/canvas-rect-batches.mjs` 把批次循环嵌入 `quamolit.canvas-reference` 的生成模块；宿主文件是单个箭头函数表达式，不含 `import`/`export`/`require` 词元。
 - 同一份 `canvas-rect-batches.mjs` 也替换了 `quamolit.instance-ffi` 原有的 `:require |../../../src/host/...`，`instance-ffi` 的通用调用方不再依赖裸宿主路径。
-- 消费者的可达闭包因此保持全部 `./*.mjs`：不再出现 `src/host/*.mjs` 或 `@calcit/js-ffi`。`canvas-reference` 自身只依赖 host-free 的 `js-ffi.canvas-batches`、`js-ffi.contract` 与 `quamolit.scene-ir`。
+- `:file` 仍避免消费者直接导入 `src/host/*.mjs`。公共位置类型现在引用 `js-ffi.typed-arrays`；是否引入额外运行时依赖必须由独立消费者的编译与可达产物检查确认，不能仅以本仓库编译成功证明分发闭包保持不变。
 
 ## 语义与计数
 

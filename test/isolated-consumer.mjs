@@ -326,6 +326,8 @@ try {
   if (visibleGpu.recovery.phase[0] === "ready") {
     assert.equal(visibleGpu.metrics["upload-bytes"], 80000);
     assert.equal(visibleGpu.gpuResources, 1);
+    const reusedGpu = await page.evaluate(() => window.consumer.set({ time: 1 }));
+    assert.equal(reusedGpu.metrics["upload-bytes"], 0, "显式重复绘制才应返回零上传，不能覆盖首次安装计数");
     const previousGeneration = visibleGpu.recovery.generation;
     const changedGpu = await page.evaluate(() => window.consumer.set({ time: 0 }));
     assert.equal(changedGpu.metrics["upload-bytes"], 8);
