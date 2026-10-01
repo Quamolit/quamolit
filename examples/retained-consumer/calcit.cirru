@@ -152,7 +152,7 @@
             canvas/draw-instances! context (instances-declaration) positions
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.typed-arrays/Float32ArrayHost
         'draw-instances-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-instances-gpu! (previous batch table version)
             instance-gpu/draw-source! previous batch table $ instances-for-version version

@@ -33,7 +33,7 @@ let
 
 - 版本递增、计数校验、复制隔离、释放与 live 计数都在 `src/host/instance-resource-table.mjs` 中；该文件是 Calcit `:ffi :js :file` 单函数表达式，返回一个带方法的句柄，不含 `import`/`export`/`require` 词元。
 - Calcit 侧：`raw-create-table!` 走 `:file`，公共操作通过 `InstanceTableHost` 的类型化方法调用同一个宿主；历史 `raw-*` inline 原始 ABI 保留为内部实现兼容，不作为新应用推荐入口。
-- 该命名空间只依赖 host-free 的 `quamolit.scene-ir`，不引入 `@calcit/js-ffi` 或裸宿主文件，可被独立消费者直接引用。
+- 类型引用 `quamolit.scene-ir` 与 `js-ffi.typed-arrays/Float32ArrayHost`，不新增裸宿主文件导入。独立消费者必须检查实际入口可达的编译模块和 npm 依赖，不能把类型化本身视为分发验证。
 
 ## 语义
 
@@ -45,7 +45,7 @@ let
 
 ## 测试与边界
 
-`yarn test:instance-resource` 严格检查 `quamolit.instance-resource`，编译 Motion 目标并运行 `test/instance-resource-smoke.mjs`；CI 的 `visual.yaml` 在 Canvas 实例入口后执行同一命令。命令覆盖复制隔离、解析身份、重复释放、版本递增、10k 源的 8 B 单实例补丁、跳版本解析、计数/类型非法与 100 次装卸回到 live 基线。
+`yarn test:instance-resource` 严格检查 `quamolit.instance-resource`，编译 Motion 目标并运行 `test/instance-resource-smoke.mjs` 和 `test/instance-resource-types.test.mjs`；CI 的 `visual.yaml` 在 Canvas 实例入口后执行同一命令。命令覆盖复制隔离、解析身份、重复释放、版本递增、10k 源的 8 B 单实例补丁、跳版本解析、计数/类型非法与 100 次装卸回到 live 基线。独立负例 Snapshot 验证数字、GPU 句柄不能冒充实例表，Calcit List 不能冒充 Float32Array；三个负例都须被严格公共检查拒绝。
 
 ## 尚未完成
 

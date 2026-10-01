@@ -356,6 +356,8 @@ async function setMode(next) {
   if (mode.startsWith("instances")) updateInstanceTime(time);
   if (next === "instances-gpu") {
     await commitGpuRecovery(gpu_recovery_open(gpuRecoveryState, instanceVersion));
+    // install / fallback 动作已绘制这一帧；不能再 show() 覆盖首次上传计数。
+    return snapshot();
   } else replaceCanvas("canvas");
   return show();
 }
