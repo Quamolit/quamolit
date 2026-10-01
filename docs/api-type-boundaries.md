@@ -19,48 +19,19 @@ yarn audit:api-types
 
 ## 处理规则
 
-### 2026-10-01 显式声明结果
+### 当前关键消费边界
 
-完整扫描覆盖 118 个命名空间、1503 个定义；Snapshot SHA-256 为 `156d2b26d806a62991122329d16d16d8c7eae9fa1a3c0083433847731f6c5adf`。以下是该源码的人工阶段汇总，后续源码改变应重新扫描，不当作永远不变的全局预算。
+完整定义数、开放类型命中与源码 SHA 由上述命令生成的报告维护，不在主题文档持续追加会过期的全量清单。稳定 UI 合同及其 `quamolit.motion/Easing` 引用仍由轻量 CI 校验；缺 schema 和开放边界分列，未命中不等于间接类型关系已封闭。
 
-| 分类 | 定义数 | 缺 schema | 含 Dynamic 的定义 | 含 JsObject 的定义 |
-| --- | --- | --- | --- | --- |
-| 稳定 alpha | 11 | 0 | 0 | 0 |
-| 实验 | 774 | 0 | 0 | 55 |
-| 旧迁移 | 178 | 21 | 132 | 3 |
-| 内部 | 540 | 14 | 23 | 2 |
+以下只维护会影响实际消费者的边界与下一项动作，不按 `raw-` 前缀猜测归属：
 
-稳定 UI 合同引用的 `quamolit.motion/Easing` 也单独核对，声明无开放/未知类型。它在表中仍按所属实验 namespace 计数，不能重复计入稳定定义数。35 个缺 schema 定义仍是未知项；实验定义的 Dynamic=0 只说明直接声明，不证明推断类型或间接传播已封闭。
-
-本表已包含 Trait 方法签名的复验结果：前一轮未扫描 Trait，实验 JsObject=53、旧 Dynamic=131；本轮分别新增 `RectBatchHost`/`ImageLayerHost` 方法边界和一个旧 Trait 的 Dynamic 边界。源码 SHA 不变，计数变化来自扫描范围修订，不是新增业务债务。
-
-实验 JsObject 的具体定义清单（完整参数/返回/字段/方法路径在可复现报告中）：
-
-| 命名空间 | 定义 |
-| --- | --- |
-| `quamolit.canvas-reference` | `draw-instances!`, `raw-draw-instances!` |
-| `quamolit.canvas-scene` | `composite-layer!`, `layer-context!`, `raw-composite-layer!`, `raw-layer-context!`, `raw-layer-create!` |
-| `quamolit.gpu-component` | `create-renderer!`, `dispose-renderer!`, `raw-check!`, `raw-create!`, `raw-draw!`, `raw-write!`, `submit-batch!`, `submit-frame!`, `submit-update!` |
-| `quamolit.gpu-scalar-program` | `create-renderer!`, `draw-at!`, `install-program!`, `raw-create!`, `raw-parameter!`, `raw-ready!`, `raw-reset!`, `raw-time!`, `write-parameter!` |
-| `quamolit.instance-ffi` | `raw-draw-canvas!` |
-| `quamolit.instance-gpu` | `draw-source!`, `upload-source!` |
-| `quamolit.instance-resource` | `create-table!`, `live-count`, `patch-info`, `raw-create-table!`, `raw-live-count`, `raw-patch-info`, `raw-register!`, `raw-register-patch!`, `raw-release!`, `raw-resolve`, `register!`, `register-patch!`, `release!`, `resolve` |
-| `quamolit.presence-webgpu-resources` | `execute-presence-device-action!`, `execute-presence-resource-action!`, `load-presence-buffer!`, `load-presence-buffer-safe!`, `run-presence-load-request!`, `run-presence-load-task!` |
-| `quamolit.webgpu-batches` | `RectBatchHost`, `raw-create!` |
-| `quamolit.webgpu-images` | `ImageLayerHost`, `metrics`, `raw-create!` |
-| `quamolit.webgpu-texture-runner` | `raw-copy-image-to-texture!`, `raw-create-texture!` |
-
-下一优先级是独立消费者实际导入的 instance-resource/GPU 公共包装：审查哪些只是原始 ABI、哪些将宿主表/数据对象暴露给应用；先建立专属句柄与返回值契约，再验证下游，不批量重命名或移动宿主文件。旧迁移与内部的 Dynamic/缺 schema 分别继续由 #36 和相应夹具负责，不反向放宽现代 API。
-
-已核对的具体边界（不是按 `raw-` 前缀猜测归属）：
-
-| 定义 | 实际声明/用途 | 后续处理 |
+| 入口 | 实际声明/用途 | 状态与动作 |
 | --- | --- | --- |
-| `quamolit.instance-resource/raw-resolve` | 有 `:ffi :js :inline`；接收宿主表，返回原生数据对象，参数/返回包含 JsObject | 保留原始 ABI 适配于 Quamolit；此表为专属资源逻辑，不迁往 js-ffi |
-| `quamolit.instance-resource/resolve` | 普通 Calcit 函数，公开参数中的 table 与返回仍是 JsObject；另一个参数为 InstanceSource | 实验公共边界尚未封闭；稳定化前审查专属句柄类型及实际下游，不把 wrapper 名称当作类型隔离证据 |
+| `quamolit.instance-resource` 七项公共操作 | `InstanceTableHost` + `InstanceSource` + `Float32ArrayHost`；`patch-info` 返回 `PatchInfo` | 已迁移；保留类型/复制隔离/8 B 补丁/释放及独立消费门禁，不升为稳定 |
+| `raw-create-table!` / `InstanceTableHost.patch-info` | 唯一创建片段返回 JsObject；Trait 的原始补丁 DTO 是局部 JsObject，进入 Calcit 后校验字段并转换 | 仍为必要 ABI；不新增 JS 包装对象，不迁往 js-ffi，不宣称整个 Trait 无开放类型 |
+| 历史六个 `instance-resource/raw-*` 操作转发 | 裸 JsObject 平行入口，Calcit 引用查询和仓库调用方检查均无使用 | 已移除；[迁移对照](instance-resource-table.md)，历史 tag 不改写，不保证未知外部调用方无需迁移 |
+| GPU scalar/component renderer | 消费者的创建、安装、绘制、释放仍经实验 JsObject 句柄 | 后续从实际生命周期/原生方法审查专属契约；不能仅改标签冒充稳定 |
 | `quamolit.motion-cpu/CpuFunctionRegistry` | Struct 的 samplers 是 `Map<String, Fn<I, Number → O>>`，保留输入/输出泛型关系 | 继续保留泛型，不能为了兼容 JS 回调改为 Dynamic |
-
-前两项说明“原生 ABI 必须开放”并不自动证明其公共包装已经收窄。后续 #35/#104 应从真实消费者的资源表、数据对象和 await 返回边界开始逐定义迁移，并验证编译产物搬移和生命周期；不在本盘点 PR 重写 renderer。
 
 - 原生 DOM/Canvas/WebGPU 对象、Promise 或 TypedArray 搬运可在宿主 ABI 边界出现 JsObject；平台类型优先由 js-ffi 暴露 Calcit 定义。Quamolit 的资源/renderer 专用句柄仍留在本项目，不为减少命中计数把专属逻辑搬到 js-ffi。
 - 帧、Model、Motion/Scene 数据和生命周期动作不能借宿主需要而整体变为 JsObject/Dynamic；可以表达的字段用 Struct/Enum/泛型保留关系。

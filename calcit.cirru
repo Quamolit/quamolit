@@ -9836,54 +9836,6 @@
           :schema $ :: 'Fn $ {} (:return 'JsObject)
             :args $ []
             :features $ #{} :js-ffi
-        'raw-live-count $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn raw-live-count (h) (raise |js-only-instance-resource)
-          :examples $ []
-          :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|h=>h.liveCount()"
-          :schema $ :: 'Fn $ {} (:return 'Number)
-            :args $ [] 'JsObject
-            :features $ #{} :js-ffi
-        'raw-patch-info $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn raw-patch-info (h id version amount) (raise |js-only-instance-resource)
-          :examples $ []
-          :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,id,version,amount)=>h.patchInfo(id,version,amount)"
-          :schema $ :: 'Fn $ {} (:return 'JsObject)
-            :args $ [] 'JsObject 'String 'Number 'Number
-            :features $ #{} :js-ffi
-        'raw-register! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn raw-register! (h id version amount positions) (raise |js-only-instance-resource)
-          :examples $ []
-          :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,id,version,amount,positions)=>h.register(id,version,amount,positions)"
-          :schema $ :: 'Fn $ {} (:return 'JsObject)
-            :args $ [] 'JsObject 'String 'Number 'Number 'JsObject
-            :features $ #{} :js-ffi
-        'raw-register-patch! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn raw-register-patch! (h id version amount base-version start positions) (raise |js-only-instance-resource)
-          :examples $ []
-          :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,id,version,amount,baseVersion,start,positions)=>h.registerPatch(id,version,amount,baseVersion,start,positions)"
-          :schema $ :: 'Fn $ {} (:return 'Number)
-            :args $ [] 'JsObject 'String 'Number 'Number 'Number 'Number 'JsObject
-            :features $ #{} :js-ffi
-        'raw-release! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn raw-release! (h id version amount) (raise |js-only-instance-resource)
-          :examples $ []
-          :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,id,version,amount)=>h.release(id,version,amount)"
-          :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ [] 'JsObject 'String 'Number 'Number
-            :features $ #{} :js-ffi
-        'raw-resolve $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn raw-resolve (h id version amount) (raise |js-only-instance-resource)
-          :examples $ []
-          :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,id,version,amount)=>h.resolve(id,version,amount)"
-          :schema $ :: 'Fn $ {} (:return 'JsObject)
-            :args $ [] 'JsObject 'String 'Number 'Number
-            :features $ #{} :js-ffi
         'register! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn register! (table source positions)
             .register table (:id source) (:version source) (:count source) positions
