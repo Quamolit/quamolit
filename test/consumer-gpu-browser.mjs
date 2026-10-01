@@ -3,6 +3,89 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { readScalarSample } from "./host/gpu-scalar-readback.mjs";
 
+export async function verifyIndependentGpuConsumerBrowser(page) {
+  await page.addScriptTag({ content: `globalThis.__quamolitScalarProbe = ${readScalarSample.toString()}` });
+  const report = await page.evaluate(async () => {
+    const adapter = await navigator.gpu?.requestAdapter();
+    if (!adapter) return { result: "SKIP", reason: "adapter-unavailable" };
+    const identity = {
+      vendor: adapter.info?.vendor,
+      architecture: adapter.info?.architecture,
+      description: adapter.info?.description,
+    };
+    if (
+      adapter.info?.isFallbackAdapter ||
+      adapter.isFallbackAdapter ||
+      /swiftshader|software|llvmpipe/i.test(Object.values(identity).join(" "))
+    )
+      return { result: "SKIP", reason: "software-adapter", adapter: identity };
+    const app = await import("/target/js/app/app.main.mjs"),
+      device = await adapter.requestDevice(),
+      canvas = document.createElement("canvas");
+    canvas.width = 320;
+    canvas.height = 180;
+    const errors = [],
+      samples = [];
+    device.addEventListener("uncapturederror", (event) => errors.push(event.error.message));
+    device.pushErrorScope("validation");
+    let host;
+    try {
+      const motions = app.independent_instance_motions(),
+        prepared = app.prepare_independent_gpu(motions, 0);
+      if (prepared.tag.value !== "ready") throw Error(`unexpected fallback: ${prepared.extra[0]}`);
+      const program = prepared.extra[0];
+      host = app.create_gpu_$x_(canvas, device, navigator.gpu.getPreferredCanvasFormat(), 10000);
+      app.install_independent_gpu_$x_(host, program, 0);
+      const coldRecordBytes = host.uploadedBytes,
+        coldParameterBytes = host.parameterBytes;
+      for (const time of [1, 0, 0.5, 0.25, 1]) {
+        app.draw_independent_gpu_$x_(host, program, time);
+        for (const index of [0, 5050, 9999]) {
+          const actual = await globalThis.__quamolitScalarProbe(host, index, time);
+          let t = Math.min(1, Math.max(0, (time - 0.012 * (index % 13)) / (0.45 + 0.02 * (index % 17))));
+          if (index % 2) t = t * t * (3 - 2 * t);
+          const expected = [
+            8 + 2 * (index % 125) + (1 + (index % 7)) * t,
+            10 + 2 * Math.floor(index / 125) + ((index % 5) - 2) * t,
+          ];
+          samples.push({ index, time, actual, expected });
+        }
+      }
+      await device.queue.onSubmittedWorkDone();
+      return {
+        result: "PASS",
+        adapter: identity,
+        samples,
+        coldRecordBytes,
+        coldParameterBytes,
+        hotRecordBytes: host.uploadedBytes - coldRecordBytes,
+        hotParameterBytes: host.parameterBytes - coldParameterBytes,
+        diagnosticReadbackBytes: samples.length * 8,
+        errors,
+      };
+    } finally {
+      if (host) app.dispose_gpu_$x_(host);
+      const validation = await device.popErrorScope();
+      if (validation) errors.push(validation.message);
+      device.destroy();
+    }
+  });
+  if (report.result === "SKIP") return report;
+  assert.deepEqual(report.errors, []);
+  assert.equal(report.samples.length, 15);
+  assert.equal(report.coldRecordBytes, 640000);
+  assert.equal(report.coldParameterBytes, 1280000);
+  assert.equal(report.hotRecordBytes, 0);
+  assert.equal(report.hotParameterBytes, 0);
+  for (const sample of report.samples)
+    for (let axis = 0; axis < 2; axis++)
+      assert.ok(
+        Math.abs(sample.actual[axis] - sample.expected[axis]) <= 1e-5 + 1e-5 * Math.abs(sample.expected[axis]),
+        JSON.stringify(sample),
+      );
+  return report;
+}
+
 // 测试驱动仅导入搬移后的 app.main；不把测试文件放进消费者 runtime。
 export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
   // 诊断驱动注入自包含 probe，不安装到消费者，不增加生产模块/文件请求。

@@ -12,6 +12,11 @@ import {
   register_instances_version_$x_,
   independent_instance_motions,
   independent_instance_positions,
+  prepare_independent_gpu,
+  install_independent_gpu_$x_,
+  draw_independent_gpu_$x_,
+  create_gpu_$x_,
+  dispose_gpu_$x_,
   patch_instances_$x_,
   release_instances_$x_,
   draw_resolved_instances_$x_,
@@ -79,10 +84,10 @@ let time = 0,
   ready = false,
   viewport = 100;
 const requestedMode = new URLSearchParams(location.search).get("motion");
-let mode = ["mixed", "dual", "presence", "instances", "instances-gpu"].includes(requestedMode)
+let mode = ["mixed", "dual", "presence", "instances", "instances-gpu", "instances-scalar"].includes(requestedMode)
   ? requestedMode
   : "mixed";
-if (mode === "instances-gpu") mode = "instances";
+if (mode === "instances-gpu" || mode === "instances-scalar") mode = "instances";
 let presenceModel = presence_initial(),
   presenceVersion = 1,
   presencePhase = "full",
@@ -136,7 +141,7 @@ function updateInstanceTime(nextTime, force = false) {
   gpuRecoveryState = gpu_recovery_update_version(gpuRecoveryState, instanceVersion);
 }
 function snapshot() {
-  if (mode === "instances" || mode === "instances-gpu")
+  if (mode.startsWith("instances"))
     return {
       time,
       model,
@@ -149,7 +154,7 @@ function snapshot() {
         count: instanceCount,
         positionBytes: positions.byteLength,
         version: instanceVersion,
-        copiedBytes: instanceCopiedBytes,
+        copiedBytes: mode === "instances-scalar" && canvasKind === "gpu" ? 0 : instanceCopiedBytes,
         live: instances_live_count(instanceTable),
       },
       metrics: instanceMetrics,
@@ -184,7 +189,7 @@ function snapshot() {
   };
 }
 function show() {
-  document.querySelector("#independent").disabled = !mode.startsWith("instances");
+  document.querySelector("#independent").disabled = !mode.startsWith("instances") || mode === "instances-scalar";
   document
     .querySelectorAll("[data-mode]")
     .forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.mode === mode)));
@@ -209,12 +214,26 @@ function show() {
     const scale = Math.min(w / 320, h / 180);
     context.setTransform(scale, 0, 0, scale, (w - 320 * scale) / 2, (h - 180 * scale) / 2);
   }
-  if (mode === "instances-gpu" && gpuState) {
+  if (mode === "instances-scalar" && gpuState) {
+    const host = gpuState.batch;
+    const recordsBefore = host.uploadedBytes, parametersBefore = host.parameterBytes;
+    draw_independent_gpu_$x_(host, gpuState.program, time);
+    instanceMetrics = {
+      instances: instanceCount,
+      "upload-bytes": host.uploadedBytes - recordsBefore,
+      "parameter-bytes": host.parameterBytes - parametersBefore,
+      "uniform-bytes": 16,
+      "cold-record-bytes": host.uploadedBytes,
+      "cold-parameter-bytes": host.parameterBytes,
+      draws: 1,
+    };
+  } else if (mode === "instances-gpu" && gpuState) {
     instanceMetrics = to_js_data(
       draw_instances_gpu_$x_(gpuState.previousVersion, gpuState.batch, instanceTable, instanceVersion),
     );
     gpuState.previousVersion = instanceVersion;
   } else if (mode.startsWith("instances")) {
+    if (mode === "instances-scalar") updateInstanceTime(time);
     context.clearRect(0, 0, 320, 180);
     instanceMetrics = to_js_data(draw_resolved_instances_$x_(context, instanceTable, instanceVersion));
   } else draw_$x_(context, plan);
@@ -225,7 +244,7 @@ function show() {
 function set(next = {}) {
   if (mode.startsWith("instances")) {
     if (next.time !== undefined) {
-      updateInstanceTime(next.time);
+      if (mode !== "instances-scalar" || canvasKind !== "gpu") updateInstanceTime(next.time);
       time = next.time;
     }
     return show();
@@ -266,7 +285,7 @@ function releaseGpuGeneration(generation) {
   if (!resource) return [];
   const errors = [];
   try {
-    if (resource.batch) dispose_instances_gpu_$x_(resource.batch);
+    if (resource.batch) (resource.kind === "scalar" ? dispose_gpu_$x_ : dispose_instances_gpu_$x_)(resource.batch);
   } catch (error) {
     errors.push(error);
   }
@@ -317,11 +336,19 @@ async function executeGpuRecoveryActions(actions) {
       try {
         if (!resource) throw Error("GPU candidate 已失效");
         replaceCanvas("gpu");
-        resource.batch = await create_instances_gpu_$x_(
-          canvas,
-          resource.device,
-          navigator.gpu.getPreferredCanvasFormat(),
-        );
+        resource.kind = mode === "instances-scalar" ? "scalar" : "positions";
+        if (resource.kind === "scalar") {
+          independentMotions ??= independent_instance_motions();
+          const prepared = prepare_independent_gpu(independentMotions, time);
+          if (prepared.tag.value !== "ready") throw Error(`GPU 动画整层回退：${prepared.extra[0]}`);
+          resource.program = prepared.extra[0];
+          resource.batch = create_gpu_$x_(canvas, resource.device, navigator.gpu.getPreferredCanvasFormat(), instanceCount);
+          install_independent_gpu_$x_(resource.batch, resource.program, time);
+        } else resource.batch = await create_instances_gpu_$x_(
+            canvas,
+            resource.device,
+            navigator.gpu.getPreferredCanvasFormat(),
+          );
         await commitGpuRecovery(gpu_recovery_create_ready(gpuRecoveryState, generation));
       } catch (error) {
         await commitGpuRecovery(gpu_recovery_create_failed(gpuRecoveryState, generation, error.message));
@@ -335,6 +362,7 @@ async function executeGpuRecoveryActions(actions) {
         generation,
         device: resource.device,
         batch: resource.batch,
+        program: resource.program,
         previousVersion: -1,
         adapter: resource.adapter.info?.architecture ?? "unknown",
       };
@@ -350,7 +378,7 @@ async function executeGpuRecoveryActions(actions) {
           ),
         );
       });
-      if (mode === "instances-gpu") show();
+      if (mode === "instances-gpu" || mode === "instances-scalar") show();
     }
   }
 }
@@ -362,18 +390,21 @@ function disposeGpu() {
   void commitGpuRecovery(gpu_recovery_close(gpuRecoveryState));
 }
 async function setMode(next) {
-  if (!["mixed", "dual", "presence", "instances", "instances-gpu"].includes(next)) throw Error("unknown-consumer-mode");
+  if (!["mixed", "dual", "presence", "instances", "instances-gpu", "instances-scalar"].includes(next)) throw Error("unknown-consumer-mode");
   // 更换声明时建立新计划，不能让相同版本错误复用另一个声明的结构。
   const nextPlan = next.startsWith("instances")
     ? plan
     : next === "presence"
       ? presence_plan(presenceModel, time, presenceVersion)
       : (next === "dual" ? start_dual : start)(time, model, ready, viewport);
-  if (next !== "instances-gpu") disposeGpu();
+  if (next !== mode || !next.startsWith("instances")) disposeGpu();
   mode = next;
   plan = nextPlan;
-  if (mode.startsWith("instances")) updateInstanceTime(time);
-  if (next === "instances-gpu") {
+  if (next === "instances-scalar") {
+    independent = true;
+    document.querySelector("#independent").checked = true;
+  } else if (mode.startsWith("instances")) updateInstanceTime(time);
+  if (next === "instances-gpu" || next === "instances-scalar") {
     await commitGpuRecovery(gpu_recovery_open(gpuRecoveryState, instanceVersion));
     // install / fallback 动作已绘制这一帧；不能再 show() 覆盖首次上传计数。
     return snapshot();
@@ -411,6 +442,7 @@ function simulateGpuLoss(message = "simulated device loss") {
   return commitGpuRecovery(gpu_recovery_lost(gpuRecoveryState, gpuState.generation, message));
 }
 function setInstancePattern(value) {
+  if (mode === "instances-scalar" && !value) throw Error("gpu-scalar-independent-required");
   independent = Boolean(value);
   document.querySelector("#independent").checked = independent;
   if (mode.startsWith("instances")) updateInstanceTime(time, true);
@@ -434,4 +466,4 @@ if (fullscreen) {
   watchResolution();
 }
 show();
-if (requestedMode === "instances-gpu") void setMode("instances-gpu");
+if (requestedMode === "instances-gpu" || requestedMode === "instances-scalar") void setMode(requestedMode);

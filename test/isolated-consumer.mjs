@@ -11,8 +11,12 @@ import { verifyConsumer } from "./consumer-contract.mjs";
 import { verifyInstancesConsumer } from "./consumer-instances-contract.mjs";
 import { verifyPresenceConsumer } from "./consumer-presence-contract.mjs";
 import { verifyRecoveryConsumer } from "./consumer-recovery-contract.mjs";
-import { verifyGpuConsumer, verifyDualGpuConsumer } from "./consumer-gpu-contract.mjs";
-import { verifyGpuConsumerBrowser, verifyGpuInstancesConsumerBrowser } from "./consumer-gpu-browser.mjs";
+import { verifyGpuConsumer, verifyDualGpuConsumer, verifyIndependentGpuConsumer } from "./consumer-gpu-contract.mjs";
+import {
+  verifyGpuConsumerBrowser,
+  verifyGpuInstancesConsumerBrowser,
+  verifyIndependentGpuConsumerBrowser,
+} from "./consumer-gpu-browser.mjs";
 import { runConsumerBench } from "./consumer-bench.mjs";
 import { verifyFileRecompile } from "./consumer-ffi-recompile.mjs";
 
@@ -137,6 +141,7 @@ try {
   const recoveryCounts = verifyRecoveryConsumer(app, core);
   const gpuCounts = verifyGpuConsumer(app, core);
   const gpuDualCounts = verifyDualGpuConsumer(app, core);
+  const independentGpuCounts = verifyIndependentGpuConsumer(app, core);
   assert.throws(
     () => verifyDualGpuConsumer({ ...app, update_dual: (plan) => plan }, core),
     /AssertionError/,
@@ -374,15 +379,49 @@ try {
     assert.equal((await page.evaluate(() => window.consumer.set({ time: 0.5 }))).metrics["upload-bytes"], 80000);
     await page.screenshot({ path: join(artifacts, "independent-instances-gpu.png"), fullPage: true });
   }
+  const scalarGpu = await page.evaluate(() => window.consumer.setMode("instances-scalar"));
+  if (scalarGpu.recovery.phase[0] === "ready") {
+    assert.equal(scalarGpu.metrics["cold-record-bytes"], 640000);
+    assert.equal(scalarGpu.metrics["cold-parameter-bytes"], 1280000);
+    for (const time of [1, 0, 0.5, 0.25, 1]) {
+      const state = await page.evaluate((time) => window.consumer.set({ time }), time);
+      assert.equal(state.source.copiedBytes, 0);
+      assert.equal(state.metrics["upload-bytes"], 0);
+      assert.equal(state.metrics["parameter-bytes"], 0);
+      assert.equal(state.metrics["uniform-bytes"], 16);
+    }
+    const beforeGeneration = scalarGpu.recovery.generation;
+    await page.evaluate(() => window.consumer.simulateGpuLoss("scalar recovery test"));
+    await page.waitForFunction(
+      (generation) =>
+        window.consumer.snapshot().recovery.phase[0] === "ready" &&
+        window.consumer.snapshot().recovery.generation > generation,
+      beforeGeneration,
+    );
+    const recovered = await page.evaluate(() => window.consumer.snapshot());
+    assert.equal(recovered.gpuResources, 1);
+    assert.equal(recovered.metrics["cold-record-bytes"], 640000);
+    await page.screenshot({ path: join(artifacts, "independent-instances-scalar.png"), fullPage: true });
+  } else {
+    assert.equal(scalarGpu.metrics["canvas-calls"], 10000);
+    assert.notEqual(await page.locator("#gpu-note").textContent(), "");
+  }
+  await page.evaluate(() => window.consumer.setMode("instances"));
   await page.evaluate(() => window.consumer.setInstancePattern(false));
   await page.evaluate(() => window.consumer.setMode("mixed"));
   assert.equal(await page.locator("canvas").count(), 1);
   const gpuBrowser = await verifyGpuConsumerBrowser(page, artifacts);
   const gpuDualBrowser = await verifyGpuConsumerBrowser(page, artifacts, true);
   const gpuInstancesBrowser = await verifyGpuInstancesConsumerBrowser(page, artifacts);
+  const independentGpuBrowser = await verifyIndependentGpuConsumerBrowser(page);
   if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") {
     assert.equal(gpuBrowser.result, "PASS", `要求真实 GPU，但专项未运行：${JSON.stringify(gpuBrowser)}`);
     assert.equal(gpuDualBrowser.result, "PASS", `要求双轴真实 GPU，但专项未运行：${JSON.stringify(gpuDualBrowser)}`);
+    assert.equal(
+      independentGpuBrowser.result,
+      "PASS",
+      `要求独立动画真实 GPU，但专项未运行：${JSON.stringify(independentGpuBrowser)}`,
+    );
     assert.equal(
       gpuInstancesBrowser.result,
       "PASS",
@@ -411,7 +450,10 @@ try {
     independentInstances: {
       frames: independentFrames,
       gpu: independentGpu.recovery.phase[0] === "ready" ? "PASS" : "SKIP",
-      scope: "CPU 采样→Canvas/GPU；未验收标准 GPU 采样、独立实例全图精度或正式性能",
+      scalar: scalarGpu.recovery.phase[0] === "ready" ? "PASS" : "SKIP",
+      counts: independentGpuCounts,
+      browser: independentGpuBrowser,
+      scope: "同源 Canvas / CPU→GPU / GPU 时间采样；未验收独立实例全图精度或正式性能",
     },
     presenceCounts,
     recoveryCounts,

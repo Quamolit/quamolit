@@ -147,6 +147,12 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarProgram 'Number
             :features $ #{} :js-ffi
+        'draw-independent-gpu! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-independent-gpu! (host program time) (gpu/draw-instance-at! host program time)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'quamolit.gpu-scalar-program/InstanceProgram 'Number
+            :features $ #{} :js-ffi
         'draw-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-instances! (context positions)
             canvas/draw-instances! context (instances-declaration) positions
@@ -274,6 +280,12 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarProgram
             :features $ #{} :js-ffi
+        'install-independent-gpu! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn install-independent-gpu! (host program time) (gpu/install-instance-program! host program time)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'quamolit.gpu-scalar-program/InstanceProgram 'Number
+            :features $ #{} :js-ffi
         'instance-frame-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn instance-frame-at (time)
             InstanceFrame :index 5050 :x
@@ -319,6 +331,13 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
             :args $ [] 'quamolit.retained-component/ComponentPlan
+        'prepare-independent-gpu $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn prepare-independent-gpu (motions time)
+            gpu/prepare-instance-program (instances-declaration) motions time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.gpu-scalar-program/InstanceProgramResult
+            :args $ [] (:: 'List 'quamolit.motion/Vec2Descriptor) 'Number
         'presence-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-document (phase)
             let

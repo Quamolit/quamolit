@@ -68,6 +68,21 @@ test("constant、smoothstep 和零时长保留参数，不提前按某一时刻�
   assert.equal(js(instant.extra[0]).start, 0.5);
 });
 
+test("组件与实例共用参数编码：轴、索引和完整 f32 域保持同一规则", () => {
+  assert.deepEqual(js(program.make_axis_parameter(7, 1, tween())), {
+    ...js(prepare(tween()).extra[0]),
+    index: 7,
+    axis: 1,
+  });
+  for (const index of [-1, 0.5, NaN])
+    assert.throws(() => program.make_axis_parameter(index, 0, tween()), /invalid-scalar-instance-index/);
+  assert.throws(() => program.make_axis_parameter(0, 2, tween()), /invalid-scalar-instance-axis/);
+  assert.deepEqual(js(program.make_axis_parameter(0, 0, set(tween(), "to", 1e31))), [
+    "fallback",
+    "scalar-parameters-outside-f32-domain",
+  ]);
+});
+
 test("不支持算子/目标/CPU 变换均明确回退；重复绑定不能只保留一项", () => {
   assert.deepEqual(js(program.prepare_slot(withMotion(en(motion.ScalarMotion, "time", 1, 0)))), [
     "fallback",

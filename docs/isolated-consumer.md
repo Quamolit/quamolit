@@ -42,7 +42,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | GPU 浏览器专项 | 搬移后的同一矩形声明在非软件 adapter 比较 8 帧 × 230400 通道，默认精确像素；覆盖乱序/重复及同时间三类失效和上传量。无 GPU/软件 adapter 明确 SKIP，单独写入报告 |
 | 画面 | 实际画布 320×180、DPR=1；矩形内部粉色/绿色、静态横条灰色、变换折线蓝色与外部透明像素精确比较；另保存 Presence 退出中间帧与结算后画面 |
 | 公共 10k 动态实例 | 消费者 Calcit `instance-frame-at` 在绝对时间生成一个实例位置；`register-patch!` 仅复制 8 B。Node 连续 100 次更新、释放旧公开版本后 live 恒为 1，最终卸载为 0。页面 Canvas/GPU 模式保留同一 `(id,version)` 源、单 Canvas 舞台和可见的 GPU 不可用回退 |
-| 独立 10k CPU 数据源 | 同一消费方 Calcit 声明 10000 个不同 ID 的 Vec2Descriptor，from/to/start/duration/easing 由各实例参数决定。Node 在 `[1,0,0.5,0.25,1]` 对全部坐标核对独立公式并验证全部实例移动、声明不变；页面开关接现有 Canvas/CPU→GPU，全量变化 80 kB、重复 0 B。此项不证明 GPU 标准采样、独立负载全图精度或正式性能 |
+| 独立 10k 三路径 | 同一 Calcit 源驱动 Canvas / CPU→GPU / GPU 时间采样。Node 核对全部 CPU 坐标与 20000 个 GPU 参数；参数常驻的 1000 帧只写 uniform 16000 B，records/parameters 不上传，1 pipeline/3 buffers；非法数量、重复身份、精度域及伪造程序在上传前拒绝。页面复用已有 generation 恢复协议。硬件专项对 3 个索引 × 5 个乱序时间共读回 120 B，使用实际 WGSL、独立公式和既定 `1e-5+1e-5*abs(expected)`；无硬件单独 SKIP。未验收独立负载全图精度或正式性能 |
 | 真实 GPU 动态画面 | Apple/Metal-3 上独立消费者的像素对齐 10k 源，初始/补丁/同版本/跳版本位置上传为 80000/8/0/80000 B；四个时间点采样像素和终点整幅 320×180 RGBA 均与 Canvas 参考精确一致，差异图全零。headless 无 adapter 单独 SKIP |
 
 历史首次通过环境：Node 24.19.0、Calcit 0.22.0、Chromium 153.0.8010.12。当前恢复切片使用 Calcit 0.27.0，搬移后的入口可达编译闭包 29 个模块；唯一 npm 直接依赖是 Calcit runtime。不声称这是最小体积，namespace 级依赖仍可能引入未使用的函数。
@@ -65,7 +65,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 新增硬件专项在桌面 Chromium 153 / Apple `metal-3` 通过：8 帧各 230400 通道零差异，前 5 个时间帧 records/parameters 上传都是 0 B，后 3 个版本失效帧各重新上传 128/160 B。GPU 现有合同是白色清屏，测试将透明 Canvas 参考以 destination-over 合成相同白底，不改变任何几何或像素容差；首次背景未对齐被断言检出。`gpu-frame-<序号>-gpu.png` / `-canvas.png` 保存实际/参考画面。headless 在本机无 adapter，报告仍明确 SKIP。
 
-- #104 已在独立消费者接入进入/退出、目标打断、稳定 key 重排、一次性逻辑释放、真实实例资源表释放、单图层 device loss 后重建及 `:file` JS-only 显式重编译；尚未满足发布 tag 重跑及 10k 独立运动。
+- #104 已接入生命周期、实际资源释放、device loss 重建、`:file` JS-only 显式重编译和独立运动三路径；发布 tag 重跑、独立运动全图精度与正式测量仍未验收。
 - 重编译门禁只覆盖单函数 `:file` 片段，不声称 watch、inline 热更新或任意构建缓存行为已经验证。没有修改 caps 的共享不可变缓存。
 - 本例仍需页面提供原生 Canvas context；统一的挂载/调度/卸载入口仍属于后续公共 API 工作。它不需要框架内部 JS，却不等于完整应用迁移已经完成。
 - 后续应把通用纹理/字体/图片和多图层共享资源接到 device loss/rebuild 协议，并补发布 tag；当前保留模型/拓扑变化时整体重声明的合同。

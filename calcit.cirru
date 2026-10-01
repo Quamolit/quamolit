@@ -8688,6 +8688,25 @@
           :require (quamolit.scene-ir :as scene) (quamolit.retained-component :as retained) (quamolit.gpu-vec2-translation :as f32)
     'quamolit.gpu-scalar-program $ %{} 'FileEntry
       :defs $ {}
+        'InstanceParametersResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum InstanceParametersResult
+            :ready $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
+            :fallback 'String
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'InstanceProgram $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct InstanceProgram (:source 'quamolit.scene-ir/InstanceNode)
+            :motions $ :: 'List 'quamolit.motion/Vec2Descriptor
+            :frame 'quamolit.gpu-component/RectFrame
+            :parameters $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
+            :precision-base 'Number
+            :precision-slope 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
+        'InstanceProgramResult $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum InstanceProgramResult (:ready 'quamolit.gpu-scalar-program/InstanceProgram) (:fallback 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
         'ParameterResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum ParameterResult (:ready 'quamolit.gpu-scalar-program/ScalarParameter) (:fallback 'String)
           :examples $ []
@@ -8723,6 +8742,23 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'Number
+        'collect-instance-parameters $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn collect-instance-parameters (motions index parameters)
+            if (empty? motions) (InstanceParametersResult :ready parameters)
+              match
+                prepare-instance-axis index 0 $ -> (get motions 0) .unwrap
+                (:fallback reason) (InstanceParametersResult :fallback reason)
+                (:ready x)
+                  match
+                    prepare-instance-axis index 1 $ -> (get motions 0) .unwrap
+                    (:fallback reason) (InstanceParametersResult :fallback reason)
+                    (:ready y)
+                      recur (rest motions) (inc index)
+                        append (append parameters x) y
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.gpu-scalar-program/InstanceParametersResult
+            :args $ [] (:: 'List 'quamolit.motion/Vec2Descriptor) 'Number $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
         'collect-parameters $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn collect-parameters (slots plan frame parameters)
             if (empty? slots) (finish-program plan frame parameters)
@@ -8761,6 +8797,14 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarProgram 'Number
             :features $ #{} :js-ffi
+        'draw-instance-at! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-instance-at! (host program time)
+            assert |gpu-scalar-time-domain $ precision-time-supported? (:precision-base program) (:precision-slope program) time
+            gpu/raw-draw! host $ raw-time! host time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'quamolit.gpu-scalar-program/InstanceProgram 'Number
+            :features $ #{} :js-ffi
         'empty-parameters $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-parameters () ([])
           :examples $ []
@@ -8785,6 +8829,22 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/BoundScalar)
             :args $ [] $ :: 'List 'quamolit.retained-component/BoundScalar
+        'install-instance-program! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn install-instance-program! (host program time)
+            assert |gpu-instance-program-mismatch $ = (InstanceProgramResult :ready program)
+              prepare-instance-program (:source program) (:motions program) time
+            gpu/raw-check! host $ count $ :records (:frame program)
+            raw-reset! host
+              count $ :records $ :frame program
+              , time
+            each (:parameters program)
+              fn (parameter) (write-parameter! host parameter)
+            gpu/submit-frame! host (gpu/empty-frame) (:frame program)
+            raw-ready! host
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'quamolit.gpu-scalar-program/InstanceProgram 'Number
+            :features $ #{} :js-ffi
         'install-program! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-program! (host program)
             assert |gpu-scalar-program-mismatch $ = (ProgramResult :ready program)
@@ -8803,8 +8863,12 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarProgram
             :features $ #{} :js-ffi
-        'make-parameter $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn make-parameter (slot tween)
+        'make-axis-parameter $ %{} 'CodeEntry
+          :doc "|组件槽位和显式 instances 共用的标量参数校验/编码；axis=0/1，不解释 Scene 或创建宿主资源。"
+          :code $ quote $ defn make-axis-parameter (index axis tween)
+            assert |invalid-scalar-instance-index $ and (motion/finite-number? index) (>= index 0)
+              = index $ floor index
+            assert |invalid-scalar-instance-axis $ or (= axis 0) (= axis 1)
             let
                 values $ [] (:start tween) (:duration tween) (:from tween) (:to tween)
                   + (:start tween) (:duration tween)
@@ -8814,10 +8878,16 @@
                   or
                     = (:duration tween) 0
                     >= (:duration tween) 1e-30
-                ParameterResult :ready $ ScalarParameter :index (:index slot) :axis (axis-of slot) :start (:start tween) :duration (:duration tween) :from (:from tween) :to (:to tween) :easing $ match (:easing tween)
+                ParameterResult :ready $ ScalarParameter :index index :axis axis :start (:start tween) :duration (:duration tween) :from (:from tween) :to (:to tween) :easing $ match (:easing tween)
                   (:linear) 0
                   (:smoothstep) 1
                 ParameterResult :fallback |scalar-parameters-outside-f32-domain
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ParameterResult)
+            :args $ [] 'Number 'Number 'quamolit.motion/ScalarTween
+        'make-parameter $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn make-parameter (slot tween)
+            make-axis-parameter (:index slot) (axis-of slot) tween
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ParameterResult)
             :args $ [] 'quamolit.retained-component/BoundScalar 'quamolit.motion/ScalarTween
@@ -8884,6 +8954,75 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
             :args $ [] $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
+        'precision-time-supported? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn precision-time-supported? (base slope time)
+            and (bounded? time)
+              <=
+                + base $ * (abs time) slope
+                , 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'Number 'Number 'Number
+        'prepare-instance-axis $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn prepare-instance-axis (index axis descriptor)
+            match (lowering/lower-vec2 descriptor)
+              (:unsupported reason) (ParameterResult :fallback reason)
+              (:supported candidate)
+                match (:kernel candidate)
+                  (:constant value)
+                    make-axis-parameter index axis $ motion/ScalarTween :start 0 :duration 0 :from
+                      if (= axis 0) (:x value) (:y value)
+                      , :to
+                        if (= axis 0) (:x value) (:y value)
+                        , :easing $ motion/Easing :linear
+                  (:tween tween)
+                    make-axis-parameter index axis $ motion/ScalarTween :start (:start tween) :duration (:duration tween) :from
+                      if (= axis 0)
+                        :x $ :from tween
+                        :y $ :from tween
+                      , :to
+                        if (= axis 0)
+                          :x $ :to tween
+                          :y $ :to tween
+                        , :easing $ :easing tween
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ParameterResult)
+            :args $ [] 'Number 'Number 'quamolit.motion/Vec2Descriptor
+        'prepare-instance-program $ %{} 'CodeEntry
+          :doc "|将一个逻辑 InstanceNode 和同源 Vec2 Motion 列表降为冷执行帧；复用现有 scalar shader，无逐帧组件树或位置上传。不支持精度域整层回退。"
+          :code $ quote $ defn prepare-instance-program (source motions time)
+            assert |invalid-gpu-instance-source $ quamolit.scene-ir/valid-content? $ quamolit.scene-ir/SceneContent :instances source
+            assert |gpu-instance-motion-count $ =
+              :count $ :source source
+              count motions
+            assert |duplicate-gpu-instance-motion-id $ = (count motions)
+              count $ foldl motions (#{})
+                fn (ids m)
+                  hint-fn $ {}
+                    :args $ [] (:: 'Set 'String) 'quamolit.motion/Vec2Descriptor
+                    :return $ :: 'Set 'String
+                  include ids $ :id m
+            match
+              collect-instance-parameters motions 0 $ empty-parameters
+              (:fallback reason) (InstanceProgramResult :fallback reason)
+              (:ready parameters)
+                let
+                    precision $ precision-envelope parameters
+                    frame $ gpu/RectFrame :records $ map motions
+                      fn (m)
+                        gpu/RectRecord :id (:id m) :matrix (gpu/identity-matrix) :rect $ quamolit.scene-ir/RectNode :x 0 :y 0 :width (:width source) :height (:height source) :fill $ :fill source
+                    program $ InstanceProgram :source source :motions motions :frame frame :parameters parameters :precision-base (:x precision) :precision-slope $ :y precision
+                  if
+                    not $ every? (:records frame) gpu/valid-record?
+                    InstanceProgramResult :fallback |gpu-instance-record-domain
+                    if
+                      precision-time-supported? (:precision-base program) (:precision-slope program) time
+                      InstanceProgramResult :ready program
+                      InstanceProgramResult :fallback |scalar-precision-budget
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.gpu-scalar-program/InstanceProgramResult
+            :args $ [] 'quamolit.scene-ir/InstanceNode (:: 'List 'quamolit.motion/Vec2Descriptor) 'Number
         'prepare-program $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn prepare-program (plan)
             if
@@ -8968,11 +9107,7 @@
             :args $ [] 'quamolit.gpu-scalar-program/ScalarProgram 'quamolit.retained-component/ComponentPlan
         'time-supported? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn time-supported? (program time)
-            and (bounded? time)
-              <=
-                + (:precision-base program)
-                  * (abs time) (:precision-slope program)
-                , 1
+            precision-time-supported? (:precision-base program) (:precision-slope program) time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.gpu-scalar-program/ScalarProgram 'Number

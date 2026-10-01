@@ -32,7 +32,11 @@ Presence 模式的 Scene、稳定 key、协调、任意时间采样、是否继�
 
 第三、第四个模式分别是 10k Canvas 参考与 10k WebGPU 图层，可用 `?motion=instances` / `?motion=instances-gpu` 进入。初始 80 kB 网格输入由页面提供；Calcit 的 `instances-declaration`、`instance-frame-at`、资源表与 `draw-resolved-instances!` / `draw-instances-gpu!` 决定声明、任意时间的一个实例位置、版本与上传。页面只把 Calcit 帧的两个数值装入原生 Float32Array。连续时间变更复制/上传 8 B，同版本重绘上传 0 B；GPU 不可用或恢复中时页面可见地使用同源 Canvas。WebGPU 的 generation、迟到结果、回退和重建动作由纯 Calcit [`quamolit.device-recovery`](../../docs/device-recovery.md) 决定；按钮可以主动模拟 device loss，沿用当前 Model/资源版本重建，任意时刻只保留一代 GPU 句柄。Canvas 仍逐实例调用 10k 次 `fillRect`，GPU 是单次实例 draw。两个模式切换时只保留一个 Canvas 节点。网格为 125×80、2×2 整数无重叠矩形，用于同源精确像素对照；小数重叠的画质差异另见 [#144](https://github.com/Quamolit/quamolit/issues/144)。这不代表 10k 实例各自独立运动。
 
-勾选“全部 10k 实例独立动画”，或使用 `?motion=instances&independent=1`，即可复用同一舞台演示全部实例运动。消费方 Calcit 一次声明 10000 个有独立 ID、from/to/start/duration/easing 的现有 `Vec2Descriptor`，乱序时间直接调用 Quamolit `sample-vec2`；JS 仅把采样结果装入 Float32Array。Canvas 与 CPU→GPU 都消费同一全量快照，每次变化登记/上传 80 kB，同时间 GPU 重绘为 0 B。切回单脏记录模式会恢复原网格，不保留其他实例的偏移。这里只打通 #175 的 CPU 数据源和两条现有绘制入口，尚无 GPU 标准采样、独立运动全图精度或正式性能证据；不能宣称三路径/60 FPS 已验收。
+勾选“全部 10k 实例独立动画”，或使用 `?motion=instances&independent=1`，即可复用同一舞台演示全部实例运动。消费方 Calcit 一次声明 10000 个有独立 ID、from/to/start/duration/easing 的现有 `Vec2Descriptor`，乱序时间直接调用 Quamolit `sample-vec2`；JS 仅把采样结果装入 Float32Array。Canvas 与 CPU→GPU 都消费同一全量快照，每次变化登记/上传 80 kB，同时间 GPU 重绘为 0 B。切回单脏记录模式会恢复原网格，不保留其他实例的偏移。
+
+“10k GPU 时间采样”按钮或 `?motion=instances-scalar` 使用同一份动画声明。Calcit `quamolit.gpu-scalar-program/prepare-instance-program` 将一个逻辑 InstanceNode 和 Motion 列表降为冷执行帧，不创建 10k ComponentPlan；`InstanceProgramResult` 显式返回 ready/fallback。`install-instance-program!` 复用既有 scalar renderer，冷安装记录 640 kB、参数清零及写入 1280 kB；`draw-instance-at!` 检查共用精度预算后仅写 16 B 时间/视口，不进行 CPU 位置采样。常量、linear/smoothstep tween 共享既有参数编码和 WGSL；非法身份/数量立即拒绝，超出 f32/精度域整层回退 Canvas。实例程序只保存纯来源与执行记录，GPU 句柄仍由宿主拥有；设备重建重新安装，不沿用旧句柄。该 API 仍为实验入口，调用者维护 host 当前安装的 program。
+
+三路径功能与关键上传计数已接入同一个 `test:consumer`；真实 GPU 专项复用现有 shader 读回 3 个代表索引 × 5 个乱序时间，与独立公式核对既定数值误差。独立运动全图精度、1920×1080 和正式性能基线仍未验收，不宣称 60 FPS 达标。
 
 `QUAMOLIT_CONSUMER_BENCH=1` 仍只测原静态与单脏记录负载，不测独立模式；报告不把不同负载混算加速比。正式时长为每路径预热 5 秒、采样 30 秒、独立运行 3 次；短时参数只用于门禁烟测。
 

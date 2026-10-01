@@ -88,6 +88,78 @@ function nativeDevice() {
   return { device, canvas, buffers, writes, draws, counts: () => ({ pipelines, submissions, unconfigured }) };
 }
 
+export function verifyIndependentGpuConsumer(app, core) {
+  const motions = app.independent_instance_motions(),
+    prepared = app.prepare_independent_gpu(motions, 0);
+  assert.equal(prepared.tag.value, "ready");
+  const program = prepared.extra[0],
+    tags = core.init_tags(["parameters", "motions", "id", "frame", "records", "precision-base"]),
+    parameters = core.to_js_data(program.get(tags.parameters));
+  assert.equal(parameters.length, 20000);
+  assert.equal(program.get(tags.frame).get(tags.records).len(), 10000);
+  for (let index = 0; index < 10000; index++) {
+    const x = 8 + 2 * (index % 125),
+      y = 10 + 2 * Math.floor(index / 125);
+    for (let axis = 0; axis < 2; axis++)
+      assert.deepEqual(parameters[index * 2 + axis], {
+        index,
+        axis,
+        start: 0.012 * (index % 13),
+        duration: 0.45 + 0.02 * (index % 17),
+        from: axis === 0 ? x : y,
+        to: axis === 0 ? x + 1 + (index % 7) : y + (index % 5) - 2,
+        easing: index % 2,
+      });
+  }
+  assert.throws(() => app.prepare_independent_gpu(new core.CalcitSliceList([]), 0), /gpu-instance-motion-count/);
+  const duplicate = motions.assoc(1, motions.get(0));
+  assert.throws(() => app.prepare_independent_gpu(duplicate, 0), /duplicate-gpu-instance-motion-id/);
+  assert.deepEqual(core.to_js_data(app.prepare_independent_gpu(motions, 1e12)), [
+    "fallback",
+    "scalar-precision-budget",
+  ]);
+  const m = nativeDevice(),
+    host = app.create_gpu_$x_(m.canvas, m.device, "bgra8unorm", 10000);
+  try {
+    assert.throws(() => app.draw_independent_gpu_$x_(host, program, 0), /not-installed/);
+    app.install_independent_gpu_$x_(host, program, 0);
+    assert.equal(host.uploadedBytes, 640000);
+    assert.equal(host.parameterBytes, 1280000);
+    const cold = m.writes.length;
+    for (let index = 0; index < 1000; index++)
+      app.draw_independent_gpu_$x_(host, program, [1, 0, 0.5, 0.25, 1][index % 5]);
+    const hot = m.writes.slice(cold);
+    assert.equal(hot.length, 1000);
+    assert.ok(hot.every((w) => w.bytes === 16 && w.label === "Quamolit component viewport"));
+    assert.deepEqual(m.draws.at(-1), [6, 10000]);
+    assert.equal(host.uploadedBytes, 640000);
+    assert.equal(host.parameterBytes, 1280000);
+    const before = m.writes.length;
+    assert.throws(() => app.draw_independent_gpu_$x_(host, program, NaN), /gpu-scalar-time-domain/);
+    assert.throws(
+      () => app.install_independent_gpu_$x_(host, program.assoc(tags["precision-base"], 0), 0),
+      /gpu-instance-program-mismatch/,
+    );
+    assert.equal(m.writes.length, before, "非法时间或伪造程序不能发生任何上传");
+  } finally {
+    app.dispose_gpu_$x_(host);
+    app.dispose_gpu_$x_(host);
+  }
+  assert.ok(m.buffers.every((b) => b.destroyed === 1));
+  assert.equal(m.counts().pipelines, 1);
+  return {
+    instances: 10000,
+    parameters: 20000,
+    coldRecordBytes: 640000,
+    coldParameterBytes: 1280000,
+    hotFrames: 1000,
+    hotPositionBytes: 0,
+    hotUniformBytes: 16000,
+    buffers: 3,
+    pipelines: 1,
+  };
+}
+
 export function verifyGpuConsumer(app, core) {
   assert.deepEqual(
     core.to_js_data(app.prepare_gpu(app.start(0, 40, false, 100))),
