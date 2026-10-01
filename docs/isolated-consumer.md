@@ -47,7 +47,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 历史首次通过环境：Node 24.19.0、Calcit 0.22.0、Chromium 153.0.8010.12。当前恢复切片使用 Calcit 0.27.0，搬移后的入口可达编译闭包 29 个模块；唯一 npm 直接依赖是 Calcit runtime。不声称这是最小体积，namespace 级依赖仍可能引入未使用的函数。
 
-当前 10k 独立源在 Apple/Metal-3、320×180/DPR 1：两条 GPU 路径 `[1,0,0.5,0.25,1]` 的整帧均为零差异；Canvas 的整数端点也是零差异。t=0.5/0.25 相对 Canvas 分别有 32299/31249 个差异像素，最大通道差 210/205、平均通道差 12.8672/14.2957（0–255），非白覆盖像素差 -9772/-7599。这不是 sampler 数值失败，也不是可忽略的 1 LSB；中间帧仍按 #144 等待合同决策，不设新容差。`independent-frame-<序号>-{scalarPng,cpuGpuPng,canvasPng,diffPng}.png` 与全部统计复用同一忽略报告/CI artifact。
+当前 10k 独立源在 Apple/Metal-3、320×180/DPR 1：两条 GPU 路径 `[1,0,0.5,0.25,1]` 的整帧均为零差异；Canvas 的整数端点也是零差异。读回参考显式使用 `willReadFrequently: true`，避免不同读回顺序影响参考统计。t=0.5/0.25 相对该 Canvas 参考分别有 32299/31249 个差异像素，最大通道差 210/205、平均通道差 12.8672/14.2957（0–255），非白覆盖像素差 -9772/-7599。这不是 sampler 数值失败，也不是可忽略的 1 LSB；中间帧仍按 #144 等待合同决策，不设新容差。`independent-frame-<序号>-{scalarPng,cpuGpuPng,canvasPng,diffPng}.png` 与全部统计复用同一忽略报告/CI artifact。
 
 连续时间数值对比采用独立 `80 + 40*t`，而运行时 lerp 使用不同计算顺序。首次精确比较出现 `80.16000000000001` 对 `80.16` 的 IEEE754 舍入差异，因此连续数值采用 `8 * Number.EPSILON * abs(expected)` 的舍入预算；整数时间点与实色像素仍严格相等，不放宽截图阈值。
 

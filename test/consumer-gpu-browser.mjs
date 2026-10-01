@@ -99,7 +99,8 @@ export async function verifyIndependentGpuConsumerBrowser(page, artifacts) {
         if (version > 1) app.release_instances_$x_(table, version - 1);
         const cpuMetrics = core.to_js_data(app.draw_instances_gpu_$x_(previousCpuVersion, cpuHost, table, version));
         previousCpuVersion = version;
-        const context = reference.getContext("2d");
+        // 固定参考为 CPU backing；反复读回时不让 Chromium 自动切换 Canvas backing。
+        const context = reference.getContext("2d", { willReadFrequently: true });
         context.fillStyle = "white";
         context.fillRect(0, 0, 320, 180);
         app.draw_instances_$x_(context, positions);
