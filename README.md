@@ -4,9 +4,11 @@ Quamolit in calcit-js / Calcit 版 Quamolit
 
 Quamolit 是用 Calcit 编写的声明式 Canvas 动画库。组件描述画面，应用模型保存动画状态；框架提供绘制与帧更新能力。
 
+新项目先看 [API 稳定性与迁移清单](docs/api-contract.md#公共边界与-alpha-变更规则)。当前稳定 alpha 合同仅覆盖纯 Calcit `quamolit.ui-motion`；渲染/资源/保留计划仍明确标为实验。下方历史 DSL 示例不是新 API 推荐写法，旧入口不会在迁移验收前突然删除。运行 `yarn check:api-inventory` 检查清单与稳定签名。
+
 **查看演示：** 运行 `yarn demo` 打开[统一演示导航](demos/README.md)。所有入口按能力分类，支持搜索和返回导航；`yarn release:demos` 构建可部署的完整演示站点。
 
-原有 11 个示例已列入[完整恢复清单](docs/demo-restoration.md)。[Binary Tree](docs/binary-tree-restoration.md) 使用统一计划共享静态几何；[TodoList](docs/todolist-restoration.md) 已提供 Canvas 文字、完整列表操作、错峰进退、打断重排和日志重放。其余 9 项待恢复，同源 GPU 尚未完成。导航预留艺术动画分类，动画页面采用全屏 Canvas 与可收起 DOM 浮层。
+原有 11 个示例的实际恢复与验收边界见[完整恢复清单](docs/demo-restoration.md)。[Binary Tree](docs/binary-tree-restoration.md) 使用统一计划共享静态几何；[TodoList](docs/todolist-restoration.md) 已提供 Canvas 文字、完整列表操作、错峰进退、打断重排和日志重放。完整同源 GPU 仍未验收。导航包含图表 UI 作品分类，动画页面采用全屏 Canvas 与可收起 DOM 浮层。
 
 后续开发以 [技术路线与 milestones](docs/roadmap.md)、[工作项规格](docs/work-items.md) 和 [检验规则](docs/verification.md) 为准。计划分为 M0 基线、M1 动画函数、M2 增量执行与 WebGPU、M3 完整应用、M4 性能发布；性能目标均需实测，不能把编译成功当作功能或性能验收。接手编码前请阅读 [AGENTS.md](AGENTS.md)。
 
@@ -27,13 +29,15 @@ yarn test:runtime
 yarn release
 ```
 
-目前 `yarn compile` 仅验证 `quamolit.bootstrap`，还不能证明旧版应用入口的功能已恢复。新代码可以使用 `initial-frame` / `evaluate-at` 显式求值模型和场景，详见[显式帧求值](docs/frame-evaluation.md)。旧版 `paint` 会先执行独立的 `tick-tree` 阶段，再绘制；`paint-tree-only-with` 可在不推进动画状态的情况下重绘。下文保留英文说明及旧版 API 示例，作为迁移参考。
+目前 `yarn compile` 仅验证 `quamolit.bootstrap`，还不能证明旧版应用入口的功能已恢复。旧代码可以用 `initial-frame` / `evaluate-at` 作顺序求值迁移桥梁，详见[显式帧求值](docs/frame-evaluation.md)；新 UI 绝对时间渐变优先看 `quamolit.ui-motion`，完整执行入口仍为实验。旧版 `paint` 会先执行独立的 `tick-tree` 阶段，再绘制；`paint-tree-only-with` 可在不推进动画状态的情况下重绘。下文保留英文说明及旧版 API 示例，作为迁移参考。
 
 ---
 
 English documentation and legacy API examples follow.
 
-Binary Tree retains typed Scene IR polylines and local geometry through the unified execution plan. [TodoList](docs/todolist-restoration.md) now restores Canvas text, add/edit/toggle/delete/restore/reorder interactions, staggered transitions and replayable input. GPU integration and nine other original demos remain pending.
+See the [API stability and migration inventory](docs/api-contract.md) before using Quamolit. Only `quamolit.ui-motion` currently has a guarded alpha contract; renderer/resource/retained-plan APIs remain experimental. The historical DSL examples below are migration references, not stable new-project examples.
+
+Binary Tree retains typed Scene IR polylines and local geometry through the unified execution plan. [TodoList](docs/todolist-restoration.md) provides Canvas text, add/edit/toggle/delete/restore/reorder interactions, staggered transitions and replayable input. See the restoration checklist for all original demos; complete cross-backend validation remains pending.
 
 Run `yarn demo` for the [demo gallery](demos/README.md): all current entry pages, searchable by capability with return links. `yarn release:demos` builds a separate static demo site; experimental fixtures are clearly distinguished from the public Calcit integration.
 

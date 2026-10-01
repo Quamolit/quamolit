@@ -6,6 +6,8 @@
 
 ## 当前可执行门禁
 
+`yarn check:api-inventory` 核对 [API 稳定性清单](api-contract.md)：全部项目 namespace 显式分类、文档表格同步、说明链接存在、稳定 UI 构件 Fn 签名和 Struct/Enum 字段合同。负例覆盖新/已移除 namespace、重复分类、未知状态、旧入口无迁移去向、消费者内部/未分类导入，以及稳定签名/类型变更。它不代替严格类型/动画语义门禁；`yarn test:ui-motion` 继续负责后者。独立 `yarn audit:consumer-api` 当前会报告实验 API 依赖并失败，尚非必需 CI，不宣称 #176 完成。
+
 `yarn test:scene-hit` 检查 [Scene 独立命中内核](scene-ir-core.md)：严格公共类型、90° 旋转逆投影、祖先矩形裁剪、完全透明 group 仍可交互、重叠节点逆绘制层序、group target 后备、奇异矩阵拒绝、多边形填充与折线 stroke，以及编译后的候选计划排除非交互装饰节点。1000 个非交互装饰节点加 1 个 target 的夹具在编译后只保留 1 个候选，命中热路径 `visited=1`；该数字证明事件查询不再全树扫描，不代表当前全量 Scene 校验或计划编译已经优化。测试完全不依赖 Canvas，`HitPlan` 可跨同一 Scene 的多次指针查询复用；便利入口 `hit-test` 每次都会重新编译，实时宿主应缓存计划。该门禁尚不覆盖 cubic-path、instances、指针捕获/冒泡、节点卸载、resize/DPR 或浏览器事件桥，不能据此关闭 #34。
 
 `yarn test:scene-pointer` 检查 [Scene 指针路由](scene-pointer.md)：严格公共类型、叶节点到祖先 target 的冒泡顺序、捕获后移出命中范围仍投递、其他 pointer id 不继承捕获、`up/cancel` 释放、捕获源节点消失、父 target 卸载后叶节点重挂载，以及退出节点仍可见但 interaction 已禁用时的恰好一次清理。它是可乱序重放的纯 Calcit 状态机，不调用 DOM；当前不验证浏览器坐标归一化、DPR/resize、原生 `setPointerCapture`、任意嵌套退出子树屏蔽或 cubic-path/instances 命中，因此仍不能关闭 #34。

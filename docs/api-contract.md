@@ -1,6 +1,148 @@
 # M1 声明式组件与动画 API 契约
 
-对应 [#30](https://github.com/Quamolit/quamolit/issues/30)，以 [路线 v2](roadmap.md) 为上位约定。本文件规定用户可观察的语义和迁移边界；Motion/Scene IR 的具体类型与实现分别交给 #48/#32，任意时间采样和固定步长模拟由 #31 落实。没有标为“已实现”的名称，均不得在下游当作可调用 API。
+对应 [#30](https://github.com/Quamolit/quamolit/issues/30) 与 [#176](https://github.com/Quamolit/quamolit/issues/176)，以 [计划 v3](plan-v3.md) 为当前执行约定。本文件规定用户可观察的语义和迁移边界；没有标为“已实现”的名称，均不得在下游当作可调用 API。“已实现”不等于稳定；稳定性以本页命名空间清单为准。
+
+## 公共边界与 alpha 变更规则
+
+- **稳定（alpha 合同）**：本轮只选 `quamolit.ui-motion` 的全部 11 个具备 schema 的公开定义。它们有纯函数数值合同、三个实际图表消费者和严格类型门禁；兼容承诺限 API 参数/返回类型与已声明语义，不涵盖未实现的 GPU lowering、完整 Scene 或资源能力。`docs/api-stable-contract.json` 固定真实 Calcit 查询得到的签名/类型；移除、改名、参数/Struct 字段改变均使门禁失败。
+- **实验**：有可用切片，但边界仍可能变化；必须读相应文档的支持范围、临时 JsObject/宿主依赖和验收缺口。独立消费者目前大量使用实验接口，这是一项未完成事实，不因为它通过测试就把整个后端面标为稳定。
+- **旧（迁移中）**：旧 Shape/on-tick/绘制期事件与早期平行入口，仅作为迁移参考。新的声明/组件不要继续导入它们。
+- **内部**：应用/演示、配置、辅助实现与测试夹具不属于面向下游的 API；特别是生产路径不得反向导入 `quamolit.test.*`。
+
+alpha 阶段也不静默破坏稳定合同。稳定 API 的破坏性修改须在独立 PR 说明实际消费者、变更前后签名/语义、迁移方案与新的 alpha 版本计划，并显式审查合同差异；更新合同文件不等于获准发布。增加定义同样须说明稳定性，不自动把 namespace 内的新增辅助函数视为公共保证。实验入口可以调整，但要更新对应文档和调用者；修复已有合同错误不等于允许改变语义测试的阈值。非 alpha 正式稳定承诺仍待后续发布验收，不假称当前版本已是正式发布。
+
+`yarn check:api-inventory` 比对 Calcit 查询、显式分类、文档表格、文档文件和稳定签名。任意新 namespace（包括 examples/test）未标注、旧条目残留、重复分类或签名漂移都会失败，不用通配符自动接受。更新分类后用 `yarn update:api-inventory` 机械更新下表；它不会自动更新稳定合同。`node scripts/api-inventory.mjs --write-contract` 仅供经审查的初始化/合同迁移，必须检查差异及上述发布规则。
+
+`yarn audit:consumer-api` 单独审计独立消费者的实际 import，非稳定入口会明确失败；本轮尚未把它加入必需 CI，因为现有消费者仍使用实验 API。#176 的“消费者和 README 只使用稳定入口”、Dynamic/JsObject 出入口清单仍需后续完成，不以清单覆盖门禁代替。
+
+## 全部命名空间清单
+
+类型合同不仅记录 Fn schema：Struct/Enum 的 schema 本身可能只是 `StructDef`/`EnumDef` 标签，因此同时冻结其真实字段/枚举声明。`make-stagger` 参数使用的 `quamolit.motion/Easing` 也纳入类型合同；这不把整个 Motion namespace 的采样器升级为稳定。
+
+<!-- api-inventory:start -->
+全部 118 个项目命名空间（包含旧应用、示例和测试）；分类由 `docs/api-namespaces.json` 显式维护，不按前缀自动批准新增命名空间。
+
+| 命名空间 | 稳定性 | 用途 | 替代入口 | 文档/示例 |
+| --- | --- | --- | --- | --- |
+| `quamolit.$meta` | 内部 | 项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时 | — | [说明](../AGENTS.md) |
+| `quamolit.alias` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.app.comp.binary-tree` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.clock` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.code-table` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.container` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.digits` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.drag-demo` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.file-card` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.finder` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.folder` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.folding-fan` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.icon-increase` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.icon-play` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.icons-table` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.portal` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.raindrop` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.raining` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.ring` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.solar` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.task` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.task-toggler` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.comp.todolist` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.main` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.schema` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.app.updater` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
+| `quamolit.bootstrap` | 内部 | 项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时 | — | [说明](../AGENTS.md) |
+| `quamolit.canvas-images` | 实验 | Canvas 图片 Scene 参考 | — | [说明](../docs/webgpu-scene-images.md) |
+| `quamolit.canvas-reference` | 实验 | 受限矩形/实例 Canvas 参考 | — | [说明](../docs/canvas-instances-reference.md) |
+| `quamolit.canvas-scene` | 实验 | 完整层 Canvas Scene 遍历与隔离 | — | [说明](../docs/layered-dashboard.md) |
+| `quamolit.canvas-strokes` | 实验 | 线段/折线 Canvas 参考 | — | [说明](../docs/binary-tree-restoration.md) |
+| `quamolit.comp.debug` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.comp.fade-in-out` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.comp.slider` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.component-sample` | 实验 | 组件请求与全量直接采样声明 | quamolit.retained-component（执行入口，仍实验） | [说明](../docs/component-sample.md) |
+| `quamolit.config` | 内部 | 项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时 | — | [说明](../AGENTS.md) |
+| `quamolit.controller.resolve` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.core` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.cursor` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.device-recovery` | 实验 | 单层设备恢复 generation 决策 | — | [说明](../docs/device-recovery.md) |
+| `quamolit.direct-frame` | 实验 | 显式版本的任意时间直接采样 | — | [说明](../docs/direct-frame-sampling.md) |
+| `quamolit.examples.binary-tree` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.clock` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.cohort-pulse` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.curve` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.drag-demo` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.finder` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.folding-fan` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.icons` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.layer-composition` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.layered-dashboard` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.raining` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.signal-weave` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.solar` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.table` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.tidal-bloom` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.examples.todolist` | 内部 | 演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖 | — | [说明](../demos/README.md) |
+| `quamolit.fixed-step` | 实验 | 历史状态固定 tick 推进 | — | [说明](../docs/fixed-step-simulation.md) |
+| `quamolit.frame-clock` | 旧（迁移中） | 旧顺序帧的显式时钟 | quamolit.host-clock（实验） | [说明](../docs/frame-evaluation.md) |
+| `quamolit.frame-eval` | 旧（迁移中） | initial-frame/evaluate-at 顺序求值桥梁 | quamolit.direct-frame / quamolit.retained-component（实验） | [说明](../docs/frame-evaluation.md) |
+| `quamolit.global` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.gpu-component` | 实验 | 公共计划到 GPU 矩形批次 | — | [说明](../docs/gpu-component-plan.md) |
+| `quamolit.gpu-scalar-program` | 实验 | 标量 Motion 参数与 shader 子集 | — | [说明](../docs/gpu-scalar-program.md) |
+| `quamolit.gpu-vec2-translation` | 实验 | 二维平移 GPU 采样参数 | — | [说明](../docs/gpu-vec2-motion.md) |
+| `quamolit.host-clock` | 实验 | 宿主秒到显式动画时间映射 | — | [说明](../docs/host-clock.md) |
+| `quamolit.hud-logs` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.image-resource-runner` | 实验 | Canvas 图片异步加载执行器 | — | [说明](../docs/image-resource-runner.md) |
+| `quamolit.instance-ffi` | 实验 | 类型化实例宿主边界与指标 | — | [说明](../docs/instance-sources.md) |
+| `quamolit.instance-gpu` | 实验 | 版本化实例源的 GPU 差量上传 | — | [说明](../docs/instance-gpu-upload.md) |
+| `quamolit.instance-resource` | 实验 | 实例源快照与脏区资源表 | — | [说明](../docs/instance-resource-table.md) |
+| `quamolit.layers` | 实验 | Canvas UI 与实例层的统一时钟/DPR/层序/命中/后端契约 | — | [说明](../docs/layer-composition.md) |
+| `quamolit.math` | 内部 | 项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时 | — | [说明](../AGENTS.md) |
+| `quamolit.motion` | 实验 | 标准 Motion 类型和 CPU 数值参考 | — | [说明](../docs/motion-scalar.md) |
+| `quamolit.motion-cpu` | 实验 | 泛型 CPU-only 纯函数扩展 | — | [说明](../docs/cpu-motion-extension.md) |
+| `quamolit.motion-gpu` | 实验 | GPU Motion 候选能力分类 | — | [说明](../docs/motion-gpu-contract.md) |
+| `quamolit.playback` | 实验 | 直接帧与固定 tick 的时钟桥梁 | — | [说明](../docs/playback-boundary.md) |
+| `quamolit.presence` | 实验 | Scene 稳定 key 与逻辑进入退出 | — | [说明](../docs/presence-lifecycle.md) |
+| `quamolit.presence-component` | 实验 | Presence 到组件声明连接 | — | [说明](../docs/presence-component.md) |
+| `quamolit.presence-device-coordinator` | 实验 | 设备安装与 registry rebuild 协调 | — | [说明](../docs/presence-device-coordinator.md) |
+| `quamolit.presence-resource-registry` | 实验 | Presence 实例资源 lease | — | [说明](../docs/presence-resources.md) |
+| `quamolit.presence-webgpu-resources` | 实验 | Presence GPU batch 队列化执行 | — | [说明](../docs/presence-webgpu-resources.md) |
+| `quamolit.render.element` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.render.paint` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.replay-archive` | 实验 | 输入日志与有界检查点回放 | — | [说明](../docs/replay-archive.md) |
+| `quamolit.resource-lifecycle` | 实验 | 通用资源身份/generation/LRU 状态机 | — | [说明](../docs/resource-lifecycle.md) |
+| `quamolit.resource-load-queue` | 实验 | 有界异步加载队列与取消 | — | [说明](../docs/resource-load-queue.md) |
+| `quamolit.retained-component` | 实验 | 统一组件保留计划构建/更新/绘制 | — | [说明](../docs/retained-component.md) |
+| `quamolit.retained-path` | 旧（迁移中） | 早期独立路径保留计划；不发展平行运行时 | quamolit.retained-component（实验） | [说明](../docs/retained-component.md) |
+| `quamolit.retained-scene` | 实验 | Scene 静态编译与按需帧计划 | — | [说明](../docs/retained-scene-plan.md) |
+| `quamolit.scene-binding` | 实验 | 标量绑定的全量参考解析 | — | [说明](../docs/scene-binding.md) |
+| `quamolit.scene-diff` | 实验 | 逻辑身份索引与参考差分 | — | [说明](../docs/scene-diff.md) |
+| `quamolit.scene-hit` | 实验 | 绘制外的命中编译与逆层序查询 | — | [说明](../docs/scene-ir-core.md) |
+| `quamolit.scene-ir` | 实验 | 可序列化 Scene/资源/交互类型 | — | [说明](../docs/scene-ir-core.md) |
+| `quamolit.scene-pointer` | 实验 | 指针捕获/冒泡纯状态机 | — | [说明](../docs/scene-pointer.md) |
+| `quamolit.scene-pointer-browser` | 实验 | 类型化浏览器 PointerEvent 连接 | — | [说明](../docs/scene-pointer.md) |
+| `quamolit.test.component-fixture` | 内部 | 测试夹具与独立期望；生产消费者不得导入 | — | [说明](../test/README.md) |
+| `quamolit.test.cpu-motion-fixture` | 内部 | 测试夹具与独立期望；生产消费者不得导入 | — | [说明](../test/README.md) |
+| `quamolit.test.fade-migration-fixture` | 内部 | 测试夹具与独立期望；生产消费者不得导入 | — | [说明](../test/README.md) |
+| `quamolit.test.frame-fixture` | 内部 | 测试夹具与独立期望；生产消费者不得导入 | — | [说明](../test/README.md) |
+| `quamolit.test.gpu-component-fixture` | 内部 | 测试夹具与独立期望；生产消费者不得导入 | — | [说明](../test/README.md) |
+| `quamolit.test.motion-fixture` | 内部 | 测试夹具与独立期望；生产消费者不得导入 | — | [说明](../test/README.md) |
+| `quamolit.test.playback-fixture` | 内部 | 测试夹具与独立期望；生产消费者不得导入 | — | [说明](../test/README.md) |
+| `quamolit.test.replay-archive-fixture` | 内部 | 测试夹具与独立期望；生产消费者不得导入 | — | [说明](../test/README.md) |
+| `quamolit.test.retained-component-fixture` | 内部 | 测试夹具与独立期望；生产消费者不得导入 | — | [说明](../test/README.md) |
+| `quamolit.test.scene-hit-fixture` | 内部 | 测试夹具与独立期望；生产消费者不得导入 | — | [说明](../test/README.md) |
+| `quamolit.test.scene-pointer-browser-fixture` | 内部 | 测试夹具与独立期望；生产消费者不得导入 | — | [说明](../test/README.md) |
+| `quamolit.transition` | 实验 | 位置连续打断与事件重放 | — | [说明](../docs/transition-interruption.md) |
+| `quamolit.types` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
+| `quamolit.ui-motion` | 稳定（alpha 合同） | 纯 Calcit UI 渐变构件；alpha 合同限当前 11 个公开定义，不承诺 GPU lowering 或资源生命周期 | — | [说明](../docs/ui-motion-components.md) |
+| `quamolit.util.detect` | 内部 | 项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时 | — | [说明](../AGENTS.md) |
+| `quamolit.util.keyboard` | 内部 | 项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时 | — | [说明](../AGENTS.md) |
+| `quamolit.util.ref` | 内部 | 项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时 | — | [说明](../AGENTS.md) |
+| `quamolit.util.string` | 内部 | 项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时 | — | [说明](../AGENTS.md) |
+| `quamolit.util.time` | 内部 | 项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时 | — | [说明](../AGENTS.md) |
+| `quamolit.webgpu-batches` | 实验 | 矩形实例 GPU 句柄与绘制边界 | — | [说明](../docs/webgpu-instances.md) |
+| `quamolit.webgpu-capabilities` | 实验 | 设备获取/丢失能力诊断 | — | [说明](../docs/webgpu-capability-probe.md) |
+| `quamolit.webgpu-images` | 实验 | 受限图片层 GPU 与完整回退判定 | — | [说明](../docs/webgpu-scene-images.md) |
+| `quamolit.webgpu-texture-runner` | 实验 | WebGPU texture 资源 loader | — | [说明](../docs/webgpu-texture-runner.md) |
+<!-- api-inventory:end -->
 
 ## 能力状态与边界
 
@@ -69,6 +211,12 @@
 标准 Motion 描述是可检查、可序列化的数据，后端可识别其中明确的 GPU 子集。任意 Calcit 纯函数只能经注册的 CPU 扩展点求值，并显式声明输入依赖、输出类型与失败行为；它不能自动转成 WGSL，也不能塞入需要序列化的 Scene IR。普通组件无需了解 GPU；大量同类数据可用一个 `instances` 逻辑图层表达，数据源通过版本化引用或显式脏范围更新。
 
 ## 迁移对照与可编译入口
+
+### 旧入口弃用计划
+
+旧 `quamolit.render.paint/paint`、`tick-tree`、`paint-tree-only-with` 不再作为新应用推荐入口，但本轮不删除，也没有凭空设定移除日期。迁移到 `quamolit.retained-component` 的显式 request/build/update/draw，并将时间/Model/资源版本纳入请求；它仍为实验入口，先验证同一画面与交互，再改依赖。绝对时间 UI 渐变优先使用稳定的 `quamolit.ui-motion`，有历史模拟则使用实验 `fixed-step`，不能把两者混用。
+
+移除旧入口的前置条件：#176 给出实际消费者清单与可编译迁移例；#36 完成真实应用/原始示例替代；相关 #34/#51 的事件与释放合同有证据；新的 alpha tag 附迁移说明并让下游先验证。满足条件后另提移除 PR，未满足前不得把旧库删除当作完成迁移。此前 README 的旧 DSL 代码块只作历史参考，不是新的稳定示例。
 
 | 旧写法 | 当前可执行桥梁 | 拟议新位置 |
 | --- | --- | --- |
