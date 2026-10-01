@@ -8469,7 +8469,7 @@
           :code $ quote $ defn raw-dispose! (host) &unit
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|h=>{if(h.disposed)return;h.disposed=true;try{h.context.unconfigure();}finally{try{h.vertices.destroy();}finally{try{h.params.destroy();}finally{h.motions?.destroy();}}}}"
+            :js $ {} $ :inline "|h=>{if(h.disposed)return;h.disposed=true;h.scalarReady=false;h.scalarProgram=null;try{h.context.unconfigure();}finally{try{h.vertices.destroy();}finally{try{h.params.destroy();}finally{h.motions?.destroy();}}}}"
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject
             :features $ #{} :js-ffi
@@ -8812,7 +8812,7 @@
             let
                 raw-host $ unsafe-coerce host 'JsObject
               assert |gpu-scalar-time-domain $ time-supported? program time
-              gpu/raw-draw! raw-host $ raw-time! raw-host time
+              gpu/raw-draw! raw-host $ raw-time! raw-host time $ unsafe-coerce program 'JsObject
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/ScalarProgram 'Number
@@ -8822,7 +8822,7 @@
             let
                 raw-host $ unsafe-coerce host 'JsObject
               assert |gpu-scalar-time-domain $ precision-time-supported? (:precision-base program) (:precision-slope program) time
-              gpu/raw-draw! raw-host $ raw-time! raw-host time
+              gpu/raw-draw! raw-host $ raw-time! raw-host time $ unsafe-coerce program 'JsObject
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/InstanceProgram 'Number
@@ -8864,7 +8864,7 @@
               each (:parameters program)
                 fn (parameter) (write-parameter! host parameter)
               gpu/submit-frame! host (gpu/empty-frame) (:frame program)
-              raw-ready! raw-host
+              raw-ready! raw-host $ unsafe-coerce program 'JsObject
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/InstanceProgram 'Number
@@ -8884,7 +8884,7 @@
                 each (:parameters program)
                   fn (p) (write-parameter! host p)
                 gpu/submit-frame! host (gpu/empty-frame) (:frame program)
-                raw-ready! raw-host
+                raw-ready! raw-host $ unsafe-coerce program 'JsObject
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/ScalarProgram
@@ -9095,28 +9095,28 @@
             :args $ [] 'JsObject 'Number 'Number 'Number 'Number 'Number 'Number 'Number
             :features $ #{} :js-ffi
         'raw-ready! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn raw-ready! (host) &unit
+          :code $ quote $ defn raw-ready! (host program) &unit
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline |h=>{h.scalarReady=true;}
+            :js $ {} $ :inline "|(h,program)=>{h.scalarProgram=program;h.scalarReady=true;}"
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'JsObject
+            :args $ [] 'JsObject 'JsObject
             :features $ #{} :js-ffi
         'raw-reset! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-reset! (host instances time) &unit
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,count,time)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-scalar-capacity');\n h.scalarReady=false;h.scalarCount=count;h.viewScratch[2]=time;\n if(count>0){h.device.queue.writeBuffer(h.motions,0,new Float32Array(count*16));h.parameterBytes+=count*64;}\n}"
+            :js $ {} $ :inline "|(h,count,time)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-scalar-capacity');\n h.scalarReady=false;h.scalarProgram=null;h.scalarCount=count;h.viewScratch[2]=time;\n if(count>0){h.device.queue.writeBuffer(h.motions,0,new Float32Array(count*16));h.parameterBytes+=count*64;}\n}"
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'Number 'Number
             :features $ #{} :js-ffi
         'raw-time! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn raw-time! (host time) (raise |js-only-gpu-scalar)
+          :code $ quote $ defn raw-time! (host time program) (raise |js-only-gpu-scalar)
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,time)=>{if(h.disposed||!h.motions||!h.scalarReady)throw Error('gpu-scalar-not-installed');h.viewScratch[2]=time;return h.scalarCount;}"
+            :js $ {} $ :inline "|(h,time,program)=>{if(h.disposed||!h.motions||!h.scalarReady)throw Error('gpu-scalar-not-installed');if(h.scalarProgram!==program)throw Error('gpu-scalar-program-not-installed');h.viewScratch[2]=time;return h.scalarCount;}"
           :schema $ :: 'Fn $ {} (:return 'Number)
-            :args $ [] 'JsObject 'Number
+            :args $ [] 'JsObject 'Number 'JsObject
             :features $ #{} :js-ffi
         'reusable? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reusable? (program plan)

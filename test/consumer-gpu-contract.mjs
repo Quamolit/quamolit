@@ -135,6 +135,13 @@ export function verifyIndependentGpuConsumer(app, core) {
     assert.equal(host.uploadedBytes, 640000);
     assert.equal(host.parameterBytes, 1280000);
     const before = m.writes.length;
+    const beforeTime = host.viewScratch[2],
+      beforeDraws = m.draws.length;
+    const differentProgram = app.prepare_independent_gpu(motions, 0.25).extra[0];
+    assert.throws(() => app.draw_independent_gpu_$x_(host, differentProgram, 0.25), /gpu-scalar-program-not-installed/);
+    assert.equal(m.writes.length, before, "另一份合法 program 未安装也不能更新时间或上传");
+    assert.equal(host.viewScratch[2], beforeTime);
+    assert.equal(m.draws.length, beforeDraws);
     assert.throws(() => app.draw_independent_gpu_$x_(host, program, NaN), /gpu-scalar-time-domain/);
     assert.throws(
       () => app.install_independent_gpu_$x_(host, program.assoc(tags["precision-base"], 0), 0),

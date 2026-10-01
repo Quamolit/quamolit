@@ -202,6 +202,7 @@ test("编译后 file/inline 调用：参数常驻，1000 时间帧只更新 unif
   dispose_renderer_$x_(h);
   dispose_renderer_$x_(h);
   assert.equal(h.disposed, true);
+  assert.equal(h.scalarProgram, null, "释放不得保留旧 Calcit program 引用");
   assert.ok(m.buffers.every((b) => b.dead === 1));
   assert.throws(() => program.draw_at_$x_(h, prepared, 0.5), /not-installed/);
 });
@@ -223,6 +224,25 @@ test("同时间版本变化不能复用；重新安装清除旧参数槽", () =>
     before = m.writes.length;
   program.install_program_$x_(h, reset);
   assert.ok(m.writes[before].values.every((v) => v === 0));
+  const installedWrites = m.writes.length;
+  const installedTime = h.viewScratch[2],
+    installedDraws = h.draws;
+  assert.throws(() => program.draw_at_$x_(h, prepared, 0.5), /gpu-scalar-program-not-installed/);
+  assert.equal(m.writes.length, installedWrites, "旧 program 不得更新时间或产生 GPU 上传");
+  assert.equal(h.viewScratch[2], installedTime);
+  assert.equal(h.draws, installedDraws);
+  program.draw_at_$x_(h, reset, 0.5);
+  assert.equal(m.writes.length, installedWrites + 1);
+  const writeBuffer = m.device.queue.writeBuffer;
+  m.device.queue.writeBuffer = () => {
+    throw Error("injected-install-write-failure");
+  };
+  assert.throws(() => program.install_program_$x_(h, prepared), /injected-install-write-failure/);
+  assert.equal(h.scalarProgram, null);
+  assert.throws(() => program.draw_at_$x_(h, reset, 0.5), /not-installed/);
+  m.device.queue.writeBuffer = writeBuffer;
+  program.install_program_$x_(h, reset);
+  program.draw_at_$x_(h, reset, 0.5);
   dispose_renderer_$x_(h);
 });
 
