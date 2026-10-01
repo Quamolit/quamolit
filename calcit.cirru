@@ -8747,6 +8747,7 @@
             match (:target slot)
               (:x) 0
               (:y) 1
+              (:alpha) 2
               _ -1
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
@@ -8890,24 +8891,32 @@
             :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/ScalarProgram
             :features $ #{} :js-ffi
         'make-axis-parameter $ %{} 'CodeEntry
-          :doc "|组件槽位和显式 instances 共用的标量参数校验/编码；axis=0/1，不解释 Scene 或创建宿主资源。"
+          :doc "|组件槽位和显式 instances 共用的标量参数校验/编码；axis=0/1/2 对应 x/y/alpha，alpha 端点限于 [0,1]，不解释 Scene 或创建宿主资源。"
           :code $ quote $ defn make-axis-parameter (index axis tween)
             assert |invalid-scalar-instance-index $ and (motion/finite-number? index) (>= index 0)
               = index $ floor index
-            assert |invalid-scalar-instance-axis $ or (= axis 0) (= axis 1)
-            let
-                values $ [] (:start tween) (:duration tween) (:from tween) (:to tween)
-                  + (:start tween) (:duration tween)
-              if
-                and (every? values bounded?)
-                  >= (:duration tween) 0
-                  or
-                    = (:duration tween) 0
-                    >= (:duration tween) 1e-30
-                ParameterResult :ready $ ScalarParameter :index index :axis axis :start (:start tween) :duration (:duration tween) :from (:from tween) :to (:to tween) :easing $ match (:easing tween)
-                  (:linear) 0
-                  (:smoothstep) 1
-                ParameterResult :fallback |scalar-parameters-outside-f32-domain
+            assert |invalid-scalar-instance-axis $ or (= axis 0) (= axis 1) (= axis 2)
+            if
+              and (= axis 2)
+                not $ and
+                  >= (:from tween) 0
+                  <= (:from tween) 1
+                  >= (:to tween) 0
+                  <= (:to tween) 1
+              ParameterResult :fallback |scalar-alpha-outside-unit-interval
+              let
+                  values $ [] (:start tween) (:duration tween) (:from tween) (:to tween)
+                    + (:start tween) (:duration tween)
+                if
+                  and (every? values bounded?)
+                    >= (:duration tween) 0
+                    or
+                      = (:duration tween) 0
+                      >= (:duration tween) 1e-30
+                  ParameterResult :ready $ ScalarParameter :index index :axis axis :start (:start tween) :duration (:duration tween) :from (:from tween) :to (:to tween) :easing $ match (:easing tween)
+                    (:linear) 0
+                    (:smoothstep) 1
+                  ParameterResult :fallback |scalar-parameters-outside-f32-domain
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ParameterResult)
             :args $ [] 'Number 'Number 'quamolit.motion/ScalarTween
@@ -9090,7 +9099,7 @@
           :code $ quote $ defn raw-parameter! (host index axis start duration from to easing) &unit
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,index,axis,start,duration,from,to,easing)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(index)||index<0||index>=h.scalarCount||(axis!==0&&axis!==1))throw Error('gpu-scalar-index');\n h.scalarScratch.set([from,to,start,duration,1,easing,0,0]);\n h.device.queue.writeBuffer(h.motions,index*64+axis*32,h.scalarScratch);h.parameterBytes+=32;\n}"
+            :js $ {} $ :inline "|(h,index,axis,start,duration,from,to,easing)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(index)||index<0||index>=h.scalarCount||(axis!==0&&axis!==1&&axis!==2))throw Error('gpu-scalar-index');\n h.scalarScratch.set([from,to,start,duration,1,easing,0,0]);\n h.device.queue.writeBuffer(h.motions,index*96+axis*32,h.scalarScratch);h.parameterBytes+=32;\n}"
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'Number 'Number 'Number 'Number 'Number 'Number 'Number
             :features $ #{} :js-ffi
@@ -9106,7 +9115,7 @@
           :code $ quote $ defn raw-reset! (host instances time) &unit
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,count,time)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-scalar-capacity');\n h.scalarReady=false;h.scalarProgram=null;h.scalarCount=count;h.viewScratch[2]=time;\n if(count>0){h.device.queue.writeBuffer(h.motions,0,new Float32Array(count*16));h.parameterBytes+=count*64;}\n}"
+            :js $ {} $ :inline "|(h,count,time)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-scalar-capacity');\n h.scalarReady=false;h.scalarProgram=null;h.scalarCount=count;h.viewScratch[2]=time;\n if(count>0){h.device.queue.writeBuffer(h.motions,0,new Float32Array(count*24));h.parameterBytes+=count*96;}\n}"
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'Number 'Number
             :features $ #{} :js-ffi

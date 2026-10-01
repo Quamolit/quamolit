@@ -26,6 +26,8 @@ const tags = core.init_tags([
   "width",
   "linear",
   "smoothstep",
+  "alpha",
+  "opacity",
 ]);
 const js = core.to_js_data,
   get = (o, k) => o.get(tags[k]),
@@ -76,11 +78,50 @@ test("组件与实例共用参数编码：轴、索引和完整 f32 域保持同
   });
   for (const index of [-1, 0.5, NaN])
     assert.throws(() => program.make_axis_parameter(index, 0, tween()), /invalid-scalar-instance-index/);
-  assert.throws(() => program.make_axis_parameter(0, 2, tween()), /invalid-scalar-instance-axis/);
+  assert.throws(() => program.make_axis_parameter(0, 3, tween()), /invalid-scalar-instance-axis/);
   assert.deepEqual(js(program.make_axis_parameter(0, 0, set(tween(), "to", 1e31))), [
     "fallback",
     "scalar-parameters-outside-f32-domain",
   ]);
+});
+
+test("矩形 alpha 使用同一 sampler，端点限于单位区间；group opacity 仍回退", () => {
+  const alpha = set(set(tween(), "from", 0), "to", 1);
+  const alphaSlot = set(withMotion(en(motion.ScalarMotion, "tween", alpha)), "target", en(scene.ScalarTarget, "alpha"));
+  const parameter = program.prepare_slot(alphaSlot);
+  assert.equal(parameter.tag.value, "ready");
+  assert.equal(js(parameter.extra[0]).axis, 2);
+  assert.deepEqual(js(program.prepare_slot(set(alphaSlot, "target", en(scene.ScalarTarget, "opacity")))), [
+    "fallback",
+    "scalar-target-not-supported",
+  ]);
+  for (const [field, value] of [
+    ["from", -0.1],
+    ["to", 1.1],
+  ]) {
+    assert.deepEqual(js(program.make_axis_parameter(0, 2, set(alpha, field, value))), [
+      "fallback",
+      "scalar-alpha-outside-unit-interval",
+    ]);
+  }
+  const alphaPlan = set(base(), "slots", new core.CalcitSliceList([alphaSlot]));
+  const prepared = program.prepare_program(alphaPlan);
+  assert.equal(prepared.tag.value, "ready");
+  const m = mock(),
+    host = program.create_renderer_$x_(m.canvas, m.device, "bgra8unorm", 128);
+  try {
+    program.install_program_$x_(host, prepared.extra[0]);
+    const parameterWrite = m.writes.find((w) => w.label === "Quamolit scalar parameters" && w.bytes === 32);
+    assert.equal(parameterWrite.offset, 64 * 96 + 2 * 32);
+    assert.deepEqual(parameterWrite.values, [0, 1, 0, 1, 1, 0, 0, 0]);
+    assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*3u+2u], color.a)"));
+    const cold = m.writes.length;
+    for (const time of [1, 0, 0.5, 0.25, 1]) program.draw_at_$x_(host, prepared.extra[0], time);
+    assert.ok(m.writes.slice(cold).every((w) => w.bytes === 16));
+    assert.equal(m.buffers.length, 3);
+  } finally {
+    dispose_renderer_$x_(host);
+  }
 });
 
 test("不支持算子/目标/CPU 变换均明确回退；重复绑定不能只保留一项", () => {
@@ -188,16 +229,16 @@ test("编译后 file/inline 调用：参数常驻，1000 时间帧只更新 unif
   assert.throws(() => program.draw_at_$x_(h, prepared, 0), /not-installed/);
   program.install_program_$x_(h, prepared);
   assert.equal(h.uploadedBytes, 4160);
-  assert.equal(h.parameterBytes, 4192);
+  assert.equal(h.parameterBytes, 6272);
   const hotStart = m.writes.length;
   for (let i = 0; i < 1000; i++) program.draw_at_$x_(h, prepared, (i % 101) / 100);
   const hot = m.writes.slice(hotStart);
   assert.equal(hot.length, 1000);
   assert.ok(hot.every((w) => w.bytes === 16 && w.label === "Quamolit component viewport"));
   assert.equal(h.uploadedBytes, 4160);
-  assert.equal(h.parameterBytes, 4192);
+  assert.equal(h.parameterBytes, 6272);
   assert.equal(m.buffers.length, 3);
-  assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*2u]"));
+  assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*3u]"));
   assert.equal(hot[25].values[2], 0.25);
   dispose_renderer_$x_(h);
   dispose_renderer_$x_(h);

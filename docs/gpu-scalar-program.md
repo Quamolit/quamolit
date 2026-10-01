@@ -2,9 +2,11 @@
 
 推进 #52，消费 #118 的 ComponentPlan/矩形批次候选，不另造组件或 Scene。已接入参数常驻和 vertex shader 采样；已有真实 GPU 像素、线性及双轴 smoothstep 非整数读回，以及独立消费者分发验证。完整精度域与性能验收仍在开发，不以这些诊断帧代表完整数值等价。
 
-`quamolit.gpu-scalar-program/prepare-program(plan)` 返回 `ProgramResult :ready ScalarProgram` 或 `:fallback reason`。ready 保存同一来源计划、矩形帧和 ScalarParameter 列表。通过既有 `motion-gpu/lower-scalar` 检查描述符，再将明确支持的矩形 x/y constant 或 linear/smoothstep tween 转成参数。CPU 自定义变换、其他目标/算子以及不支持的节点整层回退，不返回部分有效绑定。
+`quamolit.gpu-scalar-program/prepare-program(plan)` 返回 `ProgramResult :ready ScalarProgram` 或 `:fallback reason`。ready 保存同一来源计划、矩形帧和 ScalarParameter 列表。通过既有 `motion-gpu/lower-scalar` 检查描述符，再将明确支持的矩形 x/y/alpha constant 或 linear/smoothstep tween 转成参数。alpha 是填充透明度替换，端点须在 `[0,1]`，不是 group opacity；隔离组、CPU 自定义变换、其他目标/算子及不支持的节点仍整层回退，不返回部分有效绑定。
 
-参数逻辑布局为 `index, axis, start, duration, from, to, easing, padding`，共 8 个 Number。axis 0/1 对应 x/y，easing 0/1 对应 linear/smoothstep。constant 归一化为相同 from/to、duration=0。零时长在 time < start 时取 from，否则取 to，shader 在除法前处理此分支。storage buffer 按节点保留两个 32 B 槽，每槽为 from/to/start/duration、enabled/easing/0/0；位置为 index×64+axis×32，不在 shader 中搜索全体绑定。
+参数逻辑布局为 `index, axis, start, duration, from, to, easing, padding`，共8个Number。axis 0/1/2 对应 x/y/alpha，easing 0/1 对应 linear/smoothstep。constant归一化为相同from/to、duration=0；零时长在 time<start 时取from，否则取to，shader在除法前处理分支。storage buffer按节点保留三个32B槽，每槽为from/to/start/duration、enabled/easing/0/0；位置为index×96+axis×32，不在shader中搜索绑定。alpha同样由 vertex sampler 求值，再交给原预乘混合，不改变绘制顺序。
+
+三槽共用原buffer与pipeline，不增加资源数量，但参数容量从每节点64B增为96B。10k现有双轴负载的参数冷安装为960000B清零+640000B写入=1600000B，热帧仍仅16B uniform。历史两槽硬件/正式基准的数据按当时源码保留，不冒充三槽布局的新性能报告；本轮是功能扩展，不声称加速。
 
 参数预检要求 f32 有限、绝对值及 start+duration 不超过 1e30；正 duration 至少 1e-30，排除 f32 下溢与过大中间值。除此之外，Calcit 冷准备计算保守精度预算，不能只凭有限性接受大绝对时间/短时长。
 

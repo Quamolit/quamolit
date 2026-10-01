@@ -72,6 +72,22 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'declare-alpha $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-alpha (props model input ready viewport)
+            let
+                declaration $ declare props model input ready viewport
+                document $ :scene declaration
+                nodes $ :nodes document
+                badge $ &list:nth nodes 1
+              struct-with declaration
+                :scene $ struct-with document $ :nodes
+                  assoc nodes 1 $ struct-with badge $ :bindings
+                    [] $ scene/ScalarBinding :target (scene/ScalarTarget :alpha) :motion-id |alpha :version 1
+                :motions $ [] $ motion/ScalarDescriptor :id |alpha :version 1 :motion
+                  motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from 0 :to 1 :easing $ motion/Easing :smoothstep
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
         'declare-dual $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-dual (props model input ready viewport)
             let
@@ -486,6 +502,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'start-alpha $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-alpha (time model ready viewport)
+            retained/build-component-plan (request time model ready viewport) declare-alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number 'Number 'Bool 'Number
         'start-dual $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-dual (time model ready viewport)
             retained/build-component-plan (request time model ready viewport) declare-dual
@@ -505,6 +527,12 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-component/BatchPlan
             :features $ #{} :js-ffi
+        'update-alpha $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-alpha (plan time model ready viewport)
+            retained/update-component-plan plan (request time model ready viewport) declare-alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
         'update-batch $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-batch (previous plan) (batch/update-batch previous plan)
           :examples $ []

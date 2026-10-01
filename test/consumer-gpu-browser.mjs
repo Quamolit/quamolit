@@ -157,7 +157,7 @@ export async function verifyIndependentGpuConsumerBrowser(page, artifacts) {
   assert.deepEqual(report.errors, []);
   assert.equal(report.samples.length, 15);
   assert.equal(report.coldRecordBytes, 640000);
-  assert.equal(report.coldParameterBytes, 1280000);
+  assert.equal(report.coldParameterBytes, 1600000);
   assert.equal(report.hotRecordBytes, 0);
   assert.equal(report.hotParameterBytes, 0);
   assert.equal(report.frames.length, 5);
@@ -191,10 +191,12 @@ export async function verifyIndependentGpuConsumerBrowser(page, artifacts) {
 
 // 测试驱动仅导入搬移后的 app.main；不把测试文件放进消费者 runtime。
 export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
+  const alpha = dual === "alpha";
   // 诊断驱动注入自包含 probe，不安装到消费者，不增加生产模块/文件请求。
   // probe 复用 host 内实际 shader 与参数；没有另写一份测试版 WGSL 公式。
   if (dual) await page.addScriptTag({ content: `globalThis.__quamolitScalarProbe = ${readScalarSample.toString()}` });
   const report = await page.evaluate(async (dual) => {
+    const alpha = dual === "alpha";
     if (!navigator.gpu) return { result: "SKIP", reason: "webgpu-unavailable" };
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) return { result: "SKIP", reason: "adapter-unavailable" };
@@ -213,8 +215,8 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
       return { result: "SKIP", reason: "software-adapter", adapter: identity };
     }
     const app = await import("/target/js/app/app.main.mjs");
-    const start = dual ? app.start_dual : app.start_rects;
-    const update = dual ? app.update_dual : app.update_rects;
+    const start = alpha ? app.start_alpha : dual ? app.start_dual : app.start_rects;
+    const update = alpha ? app.update_alpha : dual ? app.update_dual : app.update_rects;
     const device = await adapter.requestDevice();
     const errors = [],
       frames = [],
@@ -282,8 +284,12 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
         referenceContext.restore();
         const actual = capturedContext.getImageData(0, 0, 320, 180).data;
         const expected = referenceContext.getImageData(0, 0, 320, 180).data;
-        let differences = 0;
-        for (let i = 0; i < actual.length; i++) if (actual[i] !== expected[i]) differences++;
+        let differences = 0,
+          maximumChannelDifference = 0;
+        for (let i = 0; i < actual.length; i++) {
+          if (actual[i] !== expected[i]) differences++;
+          maximumChannelDifference = Math.max(maximumChannelDifference, Math.abs(actual[i] - expected[i]));
+        }
         frames.push({
           time: request.time,
           model,
@@ -291,6 +297,7 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
           viewport,
           reused,
           differences,
+          maximumChannelDifference,
           uploadedBytes: host.uploadedBytes - recordsBefore,
           parameterBytes: host.parameterBytes - parametersBefore,
           actualPng: captured.toDataURL(),
@@ -301,10 +308,10 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
         for (const time of [0.37, 0.81, 0.4999999, -0.1, 1.1, 0, 1]) {
           // 相同时间先走公共入口及其精度预算；probe 不自行绕过能力判定。
           app.draw_gpu_$x_(host, program, time);
-          const actual = await globalThis.__quamolitScalarProbe(host, 1, time);
+          const actual = await globalThis.__quamolitScalarProbe(host, 1, time, alpha ? 2 : 0);
           const t = Math.max(0, Math.min(1, time)),
             eased = t * t * (3 - 2 * t);
-          const expected = [80 + 64 * eased, 22 + model + 32 * eased];
+          const expected = alpha ? [eased, eased] : [80 + 64 * eased, 22 + model + 32 * eased];
           numericSamples.push({ time, actual, expected });
         }
       }
@@ -317,7 +324,7 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
     }
     return {
       result: "PASS",
-      mode: dual ? "smoothstep-xy" : "linear-x",
+      mode: alpha ? "smoothstep-alpha" : dual ? "smoothstep-xy" : "linear-x",
       adapter: identity,
       frames,
       numericSamples,
@@ -332,7 +339,7 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
       ["actualPng", "gpu"],
       ["expectedPng", "canvas"],
     ]) {
-      const filename = `gpu-${dual ? "dual-" : ""}frame-${index}-${suffix}.png`;
+      const filename = `gpu-${alpha ? "alpha-" : dual ? "dual-" : ""}frame-${index}-${suffix}.png`;
       await writeFile(join(artifacts, filename), Buffer.from(frame[key].split(",")[1], "base64"));
       frame[key] = filename;
     }
@@ -340,10 +347,13 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
   assert.deepEqual(report.errors, []);
   assert.equal(report.frames.length, 8);
   for (const [index, frame] of report.frames.entries()) {
-    assert.equal(frame.differences, 0, JSON.stringify(frame));
+    if (alpha) {
+      // 仅此整数几何 alpha 用例：8-bit 预乘/合成量化至多2级；不改变原 x/y 零差异门禁。
+      assert.ok(frame.maximumChannelDifference <= 2, JSON.stringify(frame));
+    } else assert.equal(frame.differences, 0, JSON.stringify(frame));
     assert.equal(frame.reused, index < 5);
     assert.equal(frame.uploadedBytes, index < 5 ? 0 : 128);
-    assert.equal(frame.parameterBytes, index < 5 ? 0 : dual ? 192 : 160);
+    assert.equal(frame.parameterBytes, index < 5 ? 0 : dual && !alpha ? 256 : 224);
   }
   assert.equal(report.numericSamples.length, dual ? 7 : 0);
   for (const sample of report.numericSamples) {
@@ -353,6 +363,10 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
         JSON.stringify(sample),
       );
     }
+  }
+  if (dual === true) {
+    report.alpha = await verifyGpuConsumerBrowser(page, artifacts, "alpha");
+    assert.equal(report.alpha.result, "PASS", "已取得真实GPU的双轴专项必须实际执行alpha，不将子项SKIP藏在PASS内");
   }
   return report;
 }
