@@ -15,7 +15,9 @@
 | T2：本机硬件 | `QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer` | macOS/Metal 实际画面、上传和恢复；无非软件 adapter 必须失败，不能将 SKIP 算通过 |
 | T3：阶段测量 | `yarn bench:consumer` | 正式预热 5 s / 采样 30 s / 3 轮；只验收报告实际包含的负载，不进日常 CI |
 
-这不是完整脚本分层盘点，也不替代既有 CI 回归。新增功能尽量沿同一消费者验证成功、回退和释放，底层纯语义保留独立单测；新增命令/job/主题文档须说明现有链路无法承接的原因。计数、画质和帧耗时分开报告，次要边界登记 issue。现有 visual workflow 从消费者报告生成四项硬件专项摘要，分别统计 PASS、SKIP 和未执行，并显示 adapter/原因；报告缺失不记为通过，要求硬件时的失败报告保留已得到的 SKIP。摘要只覆盖这条关键链路，不冒充全部 Playwright 用例的 SKIP 总数。#179 的 Actions 耗时对比与 PR 模板仍待验收；不宣称 CI 已缩短。
+这不是完整脚本分层盘点，也不替代既有 CI 回归。新增功能尽量沿同一消费者验证成功、回退和释放，底层纯语义保留独立单测；新增命令/job/主题文档须说明现有链路无法承接的原因。计数、画质和帧耗时分开报告，次要边界登记 issue。现有 visual workflow 从消费者报告生成四项硬件专项摘要，分别统计 PASS、SKIP 和未执行，并显示 adapter/原因；报告缺失不记为通过，要求硬件时的失败报告保留已得到的 SKIP。摘要只覆盖这条关键链路，不冒充全部 Playwright 用例的 SKIP 总数。[PR 模板](../.github/PULL_REQUEST_TEMPLATE.md)要求声明硬件、容差及新增复杂度的理由，不替代实际验证。
+
+#179 的耗时按实际 Actions job/step 比较，不用测试条数推算。5fd4a69 的 visual 为7m8s，其中完整导航/构建75s、Chromium安装48s、Motion浏览器30s、干净消费者21s；原始步骤可从 [Actions](https://github.com/Quamolit/quamolit/actions/runs/36921147534)复核。新必跑job/重型测试不得隐式增加；若持续超过这次预算，先比较安装/网络波动与重复准备，附前后数据解释，不靠删除作品覆盖或失败断言降时长。单次观测不是长期缩短证明，全部workflow的稳定成本对比仍待#179验收。
 
 ## 当前可执行门禁
 

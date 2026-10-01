@@ -98,7 +98,6 @@ test("真实 GPU 透明底层与 Canvas UI 同屏，切回 Canvas 不重置帧",
   // 8-bit 预乘量化在 alpha=0.5 时至多带来 2 个 RGB 级别；整图检查，不忽略边缘。
   expect(delta.maxRgb).toBeLessThanOrEqual(2);
   expect(delta.maxAlpha).toBeLessThanOrEqual(1);
-  await page.screenshot({ path: testInfo.outputPath("layer-composition-webgpu.png") });
   await page.evaluate(() => window.layerCompositionDemo.loseDevice());
   await expect.poll(() => page.evaluate(() => window.layerCompositionDemo.snapshot().reason)).toBe("device-lost");
   const lost = await page.evaluate(() => window.layerCompositionDemo.snapshot());
