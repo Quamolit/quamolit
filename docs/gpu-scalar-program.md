@@ -26,4 +26,4 @@ Apple/Metal-3（software=false）实际验证 t=1→0→0.5→0.25→1，每帧 
 
 独立消费者另以公共 Calcit 声明双轴 smoothstep，Apple/Metal-3 上 8 帧各 230400 通道零差异；非整数 .37/.81/.4999999 与区间外/端点共 7 次 xy 读回满足既定数值阈值。两个绑定常驻同一节点的两个参数槽，1000 时间帧 mock 仍只有每帧 16 B uniform；测试含切回单轴后的旧槽清理。详见 [独立消费检验](isolated-consumer.md)。页面可切换线性混合/双轴 Canvas 参考，GPU 对照由硬件门禁执行。
 
-下一步扩大精度回退与重建证据，并接同源端到端报告和 10k 实例。保守预算尚未由这些硬件样本全面验证，不作为完成的 #52 交付。任意 Calcit 函数仍保留 CPU 路径，#52/M2 不因此关闭。
+10k 独立实例现已复用本模块的参数编码、精度预算及 renderer；实验入口 `prepare-instance-program` / `install-instance-program!` / `draw-instance-at!` 接到同一消费者的 Canvas、CPU→GPU 和 GPU 时间采样模式，具体调用与边界见[消费者说明](../examples/retained-consumer/README.md)。未新增逻辑组件树或另一套 shader。下一步仍需独立负载全图画质与正式端到端报告；保守预算尚未由硬件样本全面验证。任意 Calcit 函数仍保留 CPU 路径，#52/M2 不因此关闭。
