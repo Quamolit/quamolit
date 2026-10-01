@@ -32,6 +32,16 @@
   "planned": [],
   "entries": [
     {
+      "id": "layer-composition",
+      "path": "examples/layer-composition/index.html",
+      "title": "Layer Composition · UI 与实例同屏",
+      "group": "gpu",
+      "summary": "共享 Calcit 时间与视口：10k 静态半透明实例底层与渐入 Canvas 看板叠加；实例层可单独回退 Canvas。",
+      "status": "开发中 · 分层组合实验",
+      "docs": "docs/layer-composition.md",
+      "compile": "compile:layer-composition"
+    },
+    {
       "id": "layered-dashboard",
       "path": "examples/layered-dashboard/index.html",
       "title": "Layered Signals · 分层数据看板",

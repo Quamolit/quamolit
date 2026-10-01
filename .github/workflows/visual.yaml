@@ -275,6 +275,21 @@ jobs:
         env:
           CI: "true"
 
+      - name: Check Calcit layer composition, viewport and fallback
+        if: inputs.mutation != 'color'
+        run: yarn test:layer-composition
+        env:
+          CI: "true"
+
+      - name: Upload layer composition evidence
+        if: always() && inputs.mutation != 'color'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quamolit-layer-composition-${{ github.run_id }}
+          path: test-results/layer-composition/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload Metric Flow fixed-time evidence
         if: always() && inputs.mutation != 'color'
         uses: actions/upload-artifact@v4

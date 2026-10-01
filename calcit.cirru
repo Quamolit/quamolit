@@ -5811,6 +5811,114 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.icons
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference)
+    'quamolit.examples.layer-composition $ %{} 'FileEntry
+      :defs $ {}
+        'draw-canvas! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-canvas! (context table view version)
+            canvas/draw-instances! context (instance-at view version)
+              resource/resolve table $ source-at version
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject 'quamolit.layers/LayerViewport 'Number
+            :features $ #{} :js-ffi
+        'draw-gpu! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-gpu! (batch table previous view version)
+            upload/upload-source! previous batch table $ source-at version
+            let
+                instance $ instance-at view version
+                fill $ :fill instance
+              gpu/draw-cleared! batch (:width instance) (:height instance)
+                gpu/color (:r fill) (:g fill) (:b fill) (:a fill)
+                , 1 (gpu/no-translation) (%some 10000) (gpu/color 0 0 0 0)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'JsObject 'Number 'quamolit.layers/LayerViewport 'Number
+            :features $ #{} :js-ffi
+        'draw-ui! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-ui! (context time view)
+            canvas-scene/draw-document! context (ui-at time view) (:width view) (:height view)
+              fn (id version) (raise |layer-ui-has-no-images)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'Number 'quamolit.layers/LayerViewport
+            :features $ #{} :js-ffi
+        'frame-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn frame-at (time view version)
+            let
+                instances $ scene/SceneNode :id |grid :key |grid :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :instances (instance-at view version)
+              layers/LayerFrame :time time :viewport view :layers $ []
+                layers/RenderLayer :id |instances :policy (layers/LayerPolicy :gpu-instances) :scene $ scene/SceneDocument :nodes $ [] instances
+                layers/RenderLayer :id |ui :policy (layers/LayerPolicy :canvas) :scene $ ui-at time view
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.layers/LayerFrame)
+            :args $ [] 'Number 'quamolit.layers/LayerViewport 'Number
+        'instance-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-at (view version)
+            scene/InstanceNode :source (source-at version) :width
+              round $ * 2 $ :dpr view
+              , :height
+                round $ * 2 $ :dpr view
+                , :fill $ motion/ColorRgba :r 0.2 :g 0.7 :b 0.6 :a 0.5
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/InstanceNode)
+            :args $ [] 'quamolit.layers/LayerViewport 'Number
+        'main! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn main! () &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ []
+        'positions-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn positions-at (view)
+            mapcat (range 10000)
+              fn (index)
+                []
+                  round $ * (:width view)
+                    /
+                      + 0.5 $ - index $ * 125
+                        floor $ / index 125
+                      , 125
+                  round $ * (:height view)
+                    /
+                      + 0.5 $ floor $ / index 125
+                      , 80
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.layers/LayerViewport
+            :return $ :: 'List 'Number
+        'source-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn source-at (version) (scene/InstanceSource :id |layer-grid :version version :count 10000)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/InstanceSource)
+            :args $ [] 'Number
+        'ui-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn ui-at (time view)
+            let
+                content $ dashboard/scene-at time (:css-width view) (:css-height view)
+                root $ dashboard/group-node |ui-root |
+                  dashboard/matrix (:dpr view) 0 0
+                  scene/ClipSpec :none
+                  , 1
+                children $ map
+                  filter (:nodes content)
+                    fn (node)
+                      not= |background $ :id node
+                  fn (node)
+                    let
+                        nested $ if
+                          empty? $ :parent node
+                          assoc node :parent |ui-root
+                          , node
+                      if
+                        = |metric-a $ :id node
+                        assoc nested :interaction $ scene/SceneInteraction :target |toggle-play
+                        , nested
+              scene/SceneDocument :nodes $ prepend children root
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number 'quamolit.layers/LayerViewport
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.examples.layer-composition
+          :require (quamolit.layers :as layers) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.examples.layered-dashboard :as dashboard) (quamolit.canvas-reference :as canvas) (quamolit.canvas-scene :as canvas-scene) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as upload) (quamolit.webgpu-batches :as gpu)
     'quamolit.examples.layered-dashboard $ %{} 'FileEntry
       :defs $ {}
         'color $ %{} 'CodeEntry (:doc |)
@@ -9644,6 +9752,155 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.instance-resource
           :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
+    'quamolit.layers $ %{} 'FileEntry
+      :defs $ {}
+        'LayerBackend $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum LayerBackend (:canvas 'String) (:webgpu)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'LayerFrame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct LayerFrame (:time 'Number) (:viewport 'quamolit.layers/LayerViewport)
+            :layers $ :: 'List 'quamolit.layers/RenderLayer
+          :examples $ []
+          :schema $ :: 'StructDef
+        'LayerHit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct LayerHit (:layer-id 'String) (:hit 'quamolit.scene-hit/HitResult)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'LayerHitPlan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct LayerHitPlan (:id 'String) (:plan 'quamolit.scene-hit/HitPlan)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'LayerPolicy $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum LayerPolicy (:canvas) (:gpu-instances)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'LayerViewport $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct LayerViewport (:css-width 'Number) (:css-height 'Number) (:dpr 'Number) (:width 'Number) (:height 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'RenderLayer $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct RenderLayer (:id 'String) (:policy 'quamolit.layers/LayerPolicy) (:scene 'quamolit.scene-ir/SceneDocument)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'backend-for $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn backend-for (layer available)
+            assert |invalid-layer-scene $ scene/validate-scene $ :scene layer
+            match (:policy layer)
+              (:canvas) (LayerBackend :canvas |declared-canvas)
+              (:gpu-instances)
+                cond
+                    not available
+                    LayerBackend :canvas |webgpu-unavailable
+                  (not (gpu-instances? (:scene layer)))
+                    LayerBackend :canvas |unsupported-instance-layer
+                  true $ LayerBackend :webgpu
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.layers/LayerBackend)
+            :args $ [] 'quamolit.layers/RenderLayer 'Bool
+        'compile-hit-layers $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compile-hit-layers (frame) (validate-frame! frame)
+            map
+              reverse $ :layers frame
+              fn (layer)
+                LayerHitPlan :id (:id layer) :plan $ hit/compile-hit-plan $ :scene layer
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.layers/LayerFrame
+            :return $ :: 'List 'quamolit.layers/LayerHitPlan
+        'gpu-instances? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-instances? (document)
+            let
+                nodes $ :nodes document
+              and
+                = 1 $ count nodes
+                let
+                    node $ option:unwrap $ nth nodes 0
+                  and
+                    empty? $ :parent node
+                    empty? $ :bindings node
+                    match (:content node)
+                      (:instances data) true
+                      _ false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneDocument
+        'hit-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-at (plans view x y)
+            hit-test-layers plans
+              * x $ :dpr view
+              * y $ :dpr view
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.layers/LayerHitPlan) 'quamolit.layers/LayerViewport 'Number 'Number
+            :return $ :: 'calcit.core/Option 'quamolit.layers/LayerHit
+        'hit-test-layers $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-test-layers (plans x y)
+            assert |invalid-layer-pointer $ and (motion/finite-number? x) (motion/finite-number? y)
+            if (empty? plans) (%none)
+              let
+                  layer $ option:unwrap $ first plans
+                match
+                  hit/hit-test-plan (:plan layer) x y
+                  (:hit result)
+                    %some $ LayerHit :layer-id (:id layer) :hit result
+                  (:miss visited)
+                    recur (rest plans) x y
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.layers/LayerHitPlan) 'Number 'Number
+            :return $ :: 'calcit.core/Option 'quamolit.layers/LayerHit
+        'pixel-size $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn pixel-size (css-size dpr)
+            let
+                value $ round $ * css-size dpr
+              if (< value 1) 1 value
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
+        'plan-for $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn plan-for (frame available) (validate-frame! frame)
+            map (:layers frame)
+              fn (layer) (backend-for layer available)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.layers/LayerFrame 'Bool
+            :return $ :: 'List 'quamolit.layers/LayerBackend
+        'validate-frame! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn validate-frame! (frame)
+            assert |invalid-layer-time $ motion/finite-number? $ :time frame
+            let
+                view $ :viewport frame
+                expected $ viewport (:css-width view) (:css-height view) (:dpr view)
+                ids $ map (:layers frame)
+                  fn (layer) (:id layer)
+              assert |inconsistent-layer-viewport $ = expected view
+              assert |duplicate-layer-id $ = (count ids)
+                count $ distinct ids
+              each (:layers frame)
+                fn (layer)
+                  assert |empty-layer-id $ not $ empty? (:id layer)
+                  assert |invalid-layer-scene $ scene/validate-scene $ :scene layer
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.layers/LayerFrame
+        'viewport $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn viewport (css-width css-height dpr)
+            assert |invalid-layer-viewport $ every? ([] css-width css-height dpr)
+              fn (value)
+                and (motion/finite-number? value) (> value 0)
+            let
+                width $ pixel-size css-width dpr
+                height $ pixel-size css-height dpr
+              assert |invalid-layer-pixels $ every? ([] width height) motion/finite-number?
+              LayerViewport :css-width css-width :css-height css-height :dpr dpr :width width :height height
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.layers/LayerViewport)
+            :args $ [] 'Number 'Number 'Number
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.layers
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.scene-hit :as hit)
     'quamolit.math $ %{} 'FileEntry
       :defs $ {}
         'bound-01 $ %{} 'CodeEntry (:doc |)
@@ -18819,10 +19076,14 @@
             :features $ #{} :js-ffi
         'draw! $ %{} 'CodeEntry (:doc "|提交一个实例图层帧；缺省 count 复用活跃实例，count=0 清空画布。")
           :code $ quote $ defn draw! (batch width height fill alpha motion instance-count)
-            hint-fn $ {}
-              :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number 'quamolit.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'quamolit.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number)
-              :return 'quamolit.webgpu-batches/RectMetrics
-              :features $ #{} :js-ffi
+            draw-cleared! batch width height fill alpha motion instance-count $ color 1 1 1 1
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number 'quamolit.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'quamolit.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number)
+            :features $ #{} :js-ffi
+        'draw-cleared! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-cleared! (batch width height fill alpha motion instance-count clear)
             let
                 translation $ if (option:some? motion)
                   let
@@ -18848,6 +19109,11 @@
                     :g $ :g fill
                     :b $ :b fill
                     :a $ :a fill
+                  :clear $ js-object
+                    :r $ :r clear
+                    :g $ :g clear
+                    :b $ :b clear
+                    :a $ :a clear
                   :alpha alpha
                   :translation translation
                   :count draw-count
@@ -18860,9 +19126,8 @@
                 buffers $ contract/expect-number |RectBatch.buffersCreated $ contract/object-field |RectBatch.draw result |buffersCreated
               RectMetrics :draw-calls draws :instances instances :position-bytes-uploaded uploaded :uniform-bytes-uploaded uniform :pipelines-created pipelines :buffers-created buffers
           :examples $ []
-          :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
-            :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number 'quamolit.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'quamolit.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number)
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number 'quamolit.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'quamolit.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number) 'quamolit.webgpu-batches/RectColor
             :features $ #{} :js-ffi
         'no-translation $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn no-translation () (%none)

@@ -3,6 +3,61 @@ import { readFile } from "node:fs/promises";
 const catalog = JSON.parse(await readFile(new URL("../demos/catalog.json", import.meta.url), "utf8"));
 const artifactURL = `http://127.0.0.1:${process.env.QUAMOLIT_DEMO_TEST_PORT || 5190}/preview/`;
 
+test("分层 GPU 初始化等待期间离开，迟到 adapter 不再创建设备或复活画布", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.layerCreatedDevices = 0;
+    Object.defineProperty(navigator, "gpu", {
+      configurable: true,
+      value: {
+        requestAdapter: () =>
+          new Promise((resolve) => {
+            window.layerResolveAdapter = () =>
+              resolve({
+                requestDevice() {
+                  window.layerCreatedDevices++;
+                  throw new Error("closed-layer-created-device");
+                },
+              });
+          }),
+      },
+    });
+  });
+  await page.goto("demos/index.html?demo=layer-composition&t=0.5&backend=webgpu");
+  await page.waitForFunction(() => window.layerResolveAdapter);
+  await page.getByRole("button", { name: /所有演示/ }).click();
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+  await page.evaluate(() => window.layerResolveAdapter());
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => window.layerCreatedDevices)).toBe(0);
+  await expect(page.locator("canvas")).toHaveCount(1);
+  expect(await page.evaluate(() => "layerCompositionDemo" in window)).toBe(false);
+});
+
+test("分层示例在统一页面切换，卸载底层 Canvas 并保留共享 UI Canvas", async ({ page }) => {
+  await page.goto("demos/index.html?demo=layer-composition&t=0.5");
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  await expect(page.locator("canvas")).toHaveCount(2);
+  await page.evaluate(() => {
+    window.layerSharedCanvas = document.querySelector("#scene");
+    window.layerDisposedApi = window.layerCompositionDemo;
+  });
+  expect((await page.evaluate(() => window.layerCompositionDemo.snapshot())).time).toBe(0.5);
+  await page.getByRole("button", { name: /所有演示/ }).click();
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+  await expect(page.locator("canvas")).toHaveCount(1);
+  expect(await page.evaluate(() => document.querySelector("#scene") === window.layerSharedCanvas)).toBe(true);
+  expect(await page.evaluate(() => "layerCompositionDemo" in window)).toBe(false);
+  expect(await page.evaluate(() => window.layerDisposedApi.snapshot().sourceLive)).toBe(0);
+  const before = await page.evaluate(() => window.layerDisposedApi.snapshot().time);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => window.layerDisposedApi.snapshot().time)).toBe(before);
+  await page.getByLabel("分类", { exact: true }).selectOption("gpu");
+  await page.locator('a[data-demo-id="layer-composition"]').click();
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  await expect(page.locator("canvas")).toHaveCount(2);
+  expect(await page.evaluate(() => document.querySelector("#scene") === window.layerSharedCanvas)).toBe(true);
+});
+
 test("导航分类、搜索、刷新与移动端可用", async ({ page }, testInfo) => {
   await page.goto("demos/index.html");
   await expect(page.locator("a[data-demo]")).toHaveCount(catalog.entries.length);
@@ -105,12 +160,13 @@ for (const entry of catalog.entries) {
     // 这个门禁验证入口与完整 Canvas 回退，不把 CI 软件 GPU 当作硬件验收。
     await page.addInitScript(() => Object.defineProperty(navigator, "gpu", { value: undefined, configurable: true }));
     await page.goto("demos/index.html");
-    if (["originals", "art"].includes(entry.group))
+    const inlineEntry = ["originals", "art"].includes(entry.group) || entry.id === "layer-composition";
+    if (inlineEntry)
       await page.evaluate(() => {
         window.__shellIdentity = crypto.randomUUID();
       });
     await page.locator(`a[data-demo="${entry.path}"]`).click();
-    if (["originals", "art"].includes(entry.group)) {
+    if (inlineEntry) {
       await expect(page).toHaveURL(new RegExp(`/preview/demos/index\\.html\\?demo=${entry.id}$`));
       await expect(page.locator("#app")).toHaveAttribute("data-view", "demo");
       expect(await page.evaluate(() => window.__shellIdentity)).toBeTruthy();
@@ -141,7 +197,7 @@ for (const entry of catalog.entries) {
       ),
       contentType: "application/json",
     });
-    if (["originals", "art"].includes(entry.group)) {
+    if (inlineEntry) {
       await page
         .getByRole("navigation", { name: "演示导航" })
         .getByRole("button", { name: /所有演示/ })
