@@ -5,6 +5,20 @@ import {
   exercise_browser_capture_$x_ as exerciseBrowserCapture,
   exercise_browser_dispose_$x_ as exerciseBrowserDispose,
 } from "../target/js/scene-pointer-browser/quamolit.test.scene-pointer-browser-fixture.mjs";
+import {
+  pointer_event_host as pointerEventHost,
+  pointer_surface_host as pointerSurfaceHost,
+} from "../target/js/scene-pointer-browser/quamolit.scene-pointer-browser.mjs";
+
+test("trusted pointer host boundaries retain object guards without claiming shape validation", () => {
+  for (const adapt of [pointerEventHost, pointerSurfaceHost]) {
+    for (const value of [null, undefined, 0, false, "element"]) {
+      assert.throws(() => adapt(value), /Pointer(Event|Surface)\.host/);
+    }
+    const trustedHost = {};
+    assert.equal(adapt(trustedHost), trustedHost, "adapter preserves the trusted browser object identity");
+  }
+});
 
 test("Calcit controls pointer capture while the host only exposes browser primitives", () => {
   let capturedPointer = null;

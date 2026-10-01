@@ -6,7 +6,7 @@
 
 ## 当前事实与下一项交付
 
-截至 2026-10-02，主项目使用 Calcit 0.27.0 / runtime 0.27.0 / js-ffi 0.2.1-alpha.10。实时完成状态以 GitHub 为准；以下只描述已经验证的链路，不再逐 PR 追加历史段落。
+截至 2026-10-02，候选 PR #188 同步采用已发布的 Calcit 0.28.0-alpha.3 / runtime 0.28.0-alpha.3 / js-ffi 0.2.1-alpha.11，版本合同见[工具链升级](calcit-027-upgrade.md)。实时完成状态以 GitHub 为准；以下只描述已经验证的链路，不再逐 PR 追加历史段落。
 
 - 声明式组件、Presence 生命周期和保留计划已接通 Canvas；TodoList 与图表作品覆盖出入、打断、重排和乱序时间。具体语义见[公共 API 合同](api-contract.md)，不等于所有实验入口均已稳定。
 - [独立消费者](isolated-consumer.md)覆盖干净安装、公共 Calcit 调用、产物搬移、1000 帧结构复用、版本失效、资源释放、设备恢复及 `:file` JS-only 显式重编译。发布 tag 重跑仍待验收。

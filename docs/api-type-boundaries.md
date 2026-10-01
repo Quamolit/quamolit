@@ -9,7 +9,7 @@ yarn check:api-inventory
 yarn audit:api-types
 ```
 
-工具链使用 `deps.cirru` 指定的 Calcit 0.27.0。脚本通过只读 `calcit query ns/defs/def --format json` 枚举全部项目定义，不直接解析或修改 Snapshot。每个 namespace 的定义计数、身份与分类均核对；缺少 schema 的定义单列为未知，不能因未发现 Dynamic 就说其类型封闭。
+工具链使用 `deps.cirru` 指定的 Calcit 版本；`docs/api-namespaces.json` 是人工审阅的分类与版本合同，不是自动诊断产物。脚本通过只读 `calcit query ns/defs/def --format json` 枚举全部项目定义，不直接解析或修改 Snapshot。每个 namespace 的定义计数、身份与分类均核对；缺少 schema 的定义单列为未知，不能因未发现 Dynamic 就说其类型封闭。
 
 检查包含函数 schema 的参数/返回值，以及 Struct/Enum/Type 的真实字段和 Trait 的方法签名（不是只检查 `StructDef`/`Trait` 标签）。普通函数体、文档和 JS 片段中的同名文本不算类型命中。报告逐定义保存 Dynamic/JsObject 的 token 与路径，汇总按定义数而非出现次数计数；同一定义可以同时出现在两类统计中。
 

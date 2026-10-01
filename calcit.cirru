@@ -16904,9 +16904,9 @@
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerInput 'quamolit.scene-pointer/PointerState
             :features $ #{} :js-ffi
         'pointer-event-host $ %{} 'CodeEntry
-          :doc "|临时把非空浏览器事件对象收窄为 PointerEventHost；只暴露 #34 当前所需原始字段。"
+          :doc "|临时平台边界：expect-object 只验证非空对象，unsafe-coerce 显式信任浏览器派发的 PointerEventHost 契约，不证明其字段形状；只暴露 #34 所需原始字段，上游 js-ffi #149 发布后替换。"
           :code $ quote $ defn pointer-event-host (value)
-            assert-type (contract/expect-object |PointerEvent.host value) (quote quamolit.scene-pointer-browser/PointerEventHost)
+            unsafe-coerce (contract/expect-object |PointerEvent.host value) 'quamolit.scene-pointer-browser/PointerEventHost
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer-browser/PointerEventHost)
             :args $ [] 'T
@@ -16932,10 +16932,9 @@
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerPhase 'quamolit.scene-pointer-browser/PointerEventHost
             :features $ #{} :js-ffi
         'pointer-surface-host $ %{} 'CodeEntry
-          :doc "|临时把非空浏览器对象收窄为 PointerSurfaceHost；上游 js-ffi #149 发布等价接口后删除。"
+          :doc "|临时平台边界：expect-object 只验证非空对象，unsafe-coerce 显式信任浏览器元素的 PointerSurfaceHost 契约，不证明其方法形状。上游 js-ffi #149 发布等价接口后删除；事件路由和捕获决策仍为 Calcit。"
           :code $ quote $ defn pointer-surface-host (value)
-            assert-type (contract/expect-object |PointerSurface.host value)
-              quote quamolit.scene-pointer-browser/PointerSurfaceHost
+            unsafe-coerce (contract/expect-object |PointerSurface.host value) 'quamolit.scene-pointer-browser/PointerSurfaceHost
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.scene-pointer-browser/PointerSurfaceHost
