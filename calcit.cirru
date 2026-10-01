@@ -5819,7 +5819,7 @@
               resource/resolve table $ source-at version
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject 'quamolit.layers/LayerViewport 'Number
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.instance-resource/InstanceTableHost 'quamolit.layers/LayerViewport 'Number
             :features $ #{} :js-ffi
         'draw-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-gpu! (batch table previous view version)
@@ -5832,7 +5832,7 @@
                 , 1 (gpu/no-translation) (%some 10000) (gpu/color 0 0 0 0)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
-            :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'JsObject 'Number 'quamolit.layers/LayerViewport 'Number
+            :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'quamolit.instance-resource/InstanceTableHost 'Number 'quamolit.layers/LayerViewport 'Number
             :features $ #{} :js-ffi
         'draw-ui! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-ui! (context time view)
