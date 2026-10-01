@@ -19,6 +19,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 1. 在系统临时目录创建独立消费者，只复制示例的源码/配置/锁文件，不复制作者 `.calcit`、`node_modules` 或编译输出。
 2. 使用 `caps --ci add` 安装指定候选提交及递归依赖，`caps verify` 验证存储，Yarn immutable + node-modules 安装唯一直接 npm 依赖 `@calcit/procs`。
 3. 对消费者 `app.main` 全部 62 个定义严格检查并编译。它不引用 `quamolit.test.*`、手写框架 JS 或 JS sampler Map；候选提交必须包含公共组件、Presence、版本化实例资源表、WebGPU 脏区上传与 device recovery 接口，不能用更早版本运行完整门禁。
+   随后只在临时模块副本修改 Canvas `:file` 提交片段，经同一公共 Calcit 入口验证：未重编译仍绘制 10k，显式重编译后新片段生效；每次使用新 Node 进程，消费者/库 Snapshot 与共享缓存均保持不变。不新增独立测试命令或 CI job。
 4. 根据当前 Calcit 单行静态 ESM import/export 收集入口可达文件；门禁拒绝动态 import、测试 namespace、原始文件路径与额外 npm 包。把这个闭包与标准 runtime 移到同级运行目录，原编译目录改名；运行目录不含 Calcit 源码、模块链接或 `src/host`。这不是通用 JS bundler，生成器格式变化时需更新并重新验证门禁。
 5. 从搬移目录执行 Node 合同和 Chromium 页面，检查固定时间、同时间失效、像素及页面按钮。Vite/Playwright 由测试工程提供，仅用于驱动，不进入消费模块；请求记录中 Vite 开发客户端来自测试工具是预期行为。
 
@@ -34,6 +35,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | Device loss 恢复 | 消费者只经 Calcit `RecoveryTransition` 决定 generation 与动作；Node 连续 100 次丢失/重建后只留一代，关闭后 live=0，停掉 loss 转移的反例被检出。非软件 GPU 浏览器主动丢失一次后沿用当前 Model/资源版本重建；无硬件时显示同源 Canvas 回退 |
 | 片段分发 | js-ffi 0.2.1-alpha.1 的 `document-available?` 使用依赖中的 `:file`；确认片段已安装、已嵌入，并在搬移后 Node 返回 false、Chromium 返回 true，无原始 JS 请求 |
 | GPU 片段消费 | Quamolit 的 `gpu-component-create.mjs` 以定义级 `:file` 嵌入；搬移后的消费者仅通过 `app.main` 创建、安装、绘制及释放 GPU 计划，无原始宿主文件依赖 |
+| JS-only 显式重编译 | 仅修改临时副本 `canvas-rect-batches.mjs`：新 Node 进程执行旧产物仍绘制 10000 次；显式编译后生成模块哈希改变，公共 Calcit 调用检出注入的错误且零次提交。消费者/库 Snapshot 哈希不变，共享缓存不变；结果写入同一报告的 `fileRecompile` |
 | GPU 实例片段消费 | `quamolit.webgpu-batches/raw-create!` 以定义级 `:file` 嵌入 `webgpu-rect-batch-create.js` 单函数表达式；消费者编译产物搬移后不含 `src/host`，仍可创建、绘制、释放 10k 图层 |
 | GPU ABI 计数 | 原生设备 mock：两个矩形冷启动上传 128 B records、160 B parameters；1000 时间帧只上传 16000 B uniform，records/parameters 均 0 B；1 pipeline、3 buffers，重复释放只销毁一次；不执行 shader，不算硬件验收 |
 | GPU 反例与失效 | 停止时间 uniform 写入会失败；同时间 Model/资源/视口变化不能复用旧程序；无效时间没有上传副作用；原混合折线场景明确返回 `cpu-transform-required`，不静默漏绘 |
@@ -62,9 +64,9 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 新增硬件专项在桌面 Chromium 153 / Apple `metal-3` 通过：8 帧各 230400 通道零差异，前 5 个时间帧 records/parameters 上传都是 0 B，后 3 个版本失效帧各重新上传 128/160 B。GPU 现有合同是白色清屏，测试将透明 Canvas 参考以 destination-over 合成相同白底，不改变任何几何或像素容差；首次背景未对齐被断言检出。`gpu-frame-<序号>-gpu.png` / `-canvas.png` 保存实际/参考画面。headless 在本机无 adapter，报告仍明确 SKIP。
 
-- #104 已在独立消费者接入进入/退出、目标打断、稳定 key 重排、一次性逻辑释放、真实实例资源表释放和单图层 device loss 后重建；尚未满足发布 tag 重跑、JS-only 显式重编译及 10k 独立运动。
-- 尚未验证“仅修改 `:file` JS 源码后的显式重编译”；这次只验证发布片段安装、嵌入和产物搬移，不声称热更新能力。没有修改 caps 的共享不可变缓存。
+- #104 已在独立消费者接入进入/退出、目标打断、稳定 key 重排、一次性逻辑释放、真实实例资源表释放、单图层 device loss 后重建及 `:file` JS-only 显式重编译；尚未满足发布 tag 重跑及 10k 独立运动。
+- 重编译门禁只覆盖单函数 `:file` 片段，不声称 watch、inline 热更新或任意构建缓存行为已经验证。没有修改 caps 的共享不可变缓存。
 - 本例仍需页面提供原生 Canvas context；统一的挂载/调度/卸载入口仍属于后续公共 API 工作。它不需要框架内部 JS，却不等于完整应用迁移已经完成。
-- 后续应把通用纹理/字体/图片和多图层共享资源接到 device loss/rebuild 协议，并补发布 tag 与 JS-only 显式重编译；当前保留模型/拓扑变化时整体重声明的合同。
+- 后续应把通用纹理/字体/图片和多图层共享资源接到 device loss/rebuild 协议，并补发布 tag；当前保留模型/拓扑变化时整体重声明的合同。
 
 本切片展示安装可用性与固定时间画面，未关闭任何 milestone；M2 结束仍需阶段验收矩阵、资源/回退/恢复及命名真实 GPU 的画面与性能证据。
