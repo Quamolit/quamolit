@@ -1,4 +1,36 @@
 import { expect, test } from "@playwright/test";
+import { compareFanDisplay } from "./host/folding-fan-reference.mjs";
+
+test("adapter 获取失败时混合 Scene 整层回退，图片/文字/折线无遗漏", async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "gpu", {
+      configurable: true,
+      value: {
+        requestAdapter: async () => {
+          throw new Error("fixture-adapter-failure");
+        },
+      },
+    });
+  });
+  await page.goto("/demos/index.html?demo=folding-fan&t=0.18&events=0&backend=webgpu&clip=window&annotations=1");
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  await expect(page.locator("#message")).toContainText("fixture-adapter-failure");
+  const before = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(before.backend).toBe("canvas");
+  expect(before.annotated).toBe(true);
+  expect(before.slices).toHaveLength(24);
+  await expect(page.locator("canvas")).toHaveCount(1);
+  const comparison = await compareFanDisplay(page);
+  expect(comparison).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  expect(comparison.notePixels).toBeGreaterThan(500);
+  await page.screenshot({ path: testInfo.outputPath("fan-adapter-failure-whole-layer.png") });
+  await page.evaluate(() => window.foldingFanDemo.seek(0.36));
+  expect(await compareFanDisplay(page)).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  await page.click("#back-to-gallery");
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+  await expect(page.locator("canvas")).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => typeof window.foldingFanDemo)).toBe("undefined");
+});
 
 test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资源", async ({ page }, testInfo) => {
   await page.goto("/test/instance-sources.html");
@@ -284,11 +316,31 @@ test("Folding Fan 保持原动画，状态切换 GPU/Canvas 与暂停 resize", a
   expect(clipped.model).toEqual(repeated.model);
   expect(clipped.gpuMetrics["draw-calls"]).toBe(24);
   await page.screenshot({ path: testInfo.outputPath("fan-gpu-window.png") });
+  await page.check("#annotations");
+  const fallback = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(fallback.backend).toBe("canvas");
+  expect(fallback.fallbackReason).toBe("unsupported-image-layer");
+  expect(fallback.gpuMetrics).toBeNull();
+  expect(fallback.model).toEqual(repeated.model);
+  expect(fallback.time).toBe(0.18);
+  await expect(page.locator("canvas")).toHaveCount(1);
+  expect(await compareFanDisplay(page)).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  await page.screenshot({ path: testInfo.outputPath("fan-whole-layer-fallback.png") });
+  await page.click("#share");
+  expect(new URL(page.url()).searchParams.get("backend")).toBe("webgpu");
+  expect(new URL(page.url()).searchParams.get("annotations")).toBe("1");
   await page.setViewportSize({ width: 900, height: 600 });
   await expect.poll(() => page.evaluate(() => window.foldingFanDemo.snapshot().width)).toBe(900);
   const resized = await page.evaluate(() => window.foldingFanDemo.snapshot());
   expect(resized.time).toBe(0.18);
   expect(resized.model).toEqual(repeated.model);
+  expect(await compareFanDisplay(page)).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  await page.uncheck("#annotations");
+  const restored = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(restored.backend).toBe("webgpu");
+  expect(restored.model).toEqual(repeated.model);
+  expect(restored.gpuMetrics["pipelines-created"]).toBe(1);
+  await expect(page.locator("canvas")).toHaveCount(1);
   await page.selectOption("#backend", "canvas");
   await expect.poll(() => page.evaluate(() => window.foldingFanDemo.snapshot().backend)).toBe("canvas");
   await expect(page.locator("canvas")).toHaveCount(1);

@@ -6,6 +6,8 @@
 
 ## 当前事实与下一项交付
 
+2026-10-01 的 #40 整层回退切片：纯 Calcit `render-decision` 先校验 Scene/view，再根据设备可用性、整层图元和累计裁剪矩阵返回封闭后端选择；不返回 GPU 子集。Folding Fan 的可选文字/折线标注与 24 图片同属于一个 Scene，真实 Metal 验证 GPU→完整 Canvas→暂停 resize→复用 GPU，DPR 2 以独立原生隔离层做全像素参考与分享刷新。单层回退已贯通，不等于 #177 的 UI/10k 实例双层同屏；下一主线推进该分层契约与消费者，M2 保持开放。
+
 2026-10-01 的 #40 图片作用域切片：父组累计矩阵与嵌套矩形 clip 求交由 Calcit 完成，GPU fragment 执行像素中心裁剪。Folding Fan 增加可选父组窗口，两后端用同一个 `windowed-scene`；默认历史效果不变。只支持 opacity=1 的 group 和累计轴对齐窗口，旋转 clip/半透明组在绘制开始前拒绝。macOS/Metal 的整数嵌套窗口内外像素与 Canvas 参考一致；亚像素抗锯齿边缘仍由 #144 跟踪，不能据此关闭 #40/M2。
 
 2026-09-30 的 #40/#51 [Scene 图片切片](webgpu-scene-images.md)：同一 Calcit Folding Fan Scene 已可切换 Canvas/WebGPU。Calcit 负责预检、矩阵合成、裁剪坐标和层序，宿主只编码数值与 texture；Apple Metal-3 的裁剪／旋转／透明实色样本通过，1000 个相同帧不创建 pipeline/buffer/bind group、不上传 uniform。Folding Fan 保留 24 片动画、打断、乱序采样与暂停 resize，提供实验后端入口。它不证明完整 Canvas/GPU 图片栅格一致或保留结构编译；#144 边缘差异、混合图元／整层回退、矩形 clip 和 fence-safe 释放继续推进，不关闭 M2。

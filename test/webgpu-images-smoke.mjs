@@ -67,6 +67,8 @@ test("嵌套父组变换与裁剪求交，镜像矩阵保留正确边界；不�
   const doc = original.assoc(tags.nodes, new core.CalcitSliceList([outer, inner, leaf.assoc(tags.parent, "inner")]));
   const identity = R(scene.Matrix2D, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
   assert.equal(images.supported_document_$q_(doc), true);
+  assert.deepEqual(core.to_js_data(images.render_decision(doc, identity, true)), ["webgpu"]);
+  assert.deepEqual(core.to_js_data(images.render_decision(doc, identity, false)), ["canvas", "webgpu-unavailable"]);
   const prepared = core.to_js_data(
     images.prepare_document(doc, () => ({ width: 650, height: 432 }), identity, 100, 100),
   );
@@ -88,6 +90,7 @@ test("嵌套父组变换与裁剪求交，镜像矩阵保留正确边界；不�
     },
   };
   const rotation = R(scene.Matrix2D, { a: 0, b: 1, c: -1, d: 0, e: 0, f: 0 });
+  assert.deepEqual(core.to_js_data(images.render_decision(doc, rotation, true)), ["canvas", "rotated-image-clip"]);
   assert.throws(
     () => images.draw_document_$x_(host, doc, () => ({ width: 650, height: 432 }), rotation, 100, 100, clear),
     /unsupported-rotated-image-clip/,
@@ -97,6 +100,10 @@ test("嵌套父组变换与裁剪求交，镜像矩阵保留正确边界；不�
     new core.CalcitSliceList([makeGroup("outer", "", outerMatrix, 0.5), inner, leaf.assoc(tags.parent, "inner")]),
   );
   assert.equal(images.supported_document_$q_(translucent), false);
+  assert.deepEqual(core.to_js_data(images.render_decision(translucent, identity, true)), [
+    "canvas",
+    "unsupported-image-layer",
+  ]);
   assert.throws(
     () => images.draw_document_$x_(host, translucent, () => ({ width: 650, height: 432 }), identity, 100, 100, clear),
     /unsupported-webgpu-image-scene/,
@@ -108,6 +115,43 @@ test("嵌套父组变换与裁剪求交，镜像矩阵保留正确边界；不�
     /invalid-image-parameters/,
   );
   assert.equal(begins, 0);
+});
+
+test("混合文字/折线 Scene 保留全部 24 图片和层序，Calcit 判定完整图层回退而不是 GPU 子集", () => {
+  const document = fan.display_scene(fan.initial(), 0.18, view, true, true);
+  const nodes = core.to_js_data(document).nodes;
+  assert.equal(scene.validate_scene(document), true);
+  assert.equal(nodes.length, 28);
+  assert.equal(nodes.filter((node) => node.content[0] === "image").length, 24);
+  assert.deepEqual(
+    nodes.slice(-3).map((node) => node.content[0]),
+    ["group", "polyline", "text"],
+  );
+  assert.deepEqual(core.to_js_data(images.render_decision(document, view, true)), [
+    "canvas",
+    "unsupported-image-layer",
+  ]);
+  let begins = 0;
+  assert.throws(
+    () =>
+      images.draw_document_$x_(
+        {
+          begin() {
+            begins++;
+          },
+        },
+        document,
+        () => ({ width: 650, height: 432 }),
+        view,
+        900,
+        650,
+        clear,
+      ),
+    /unsupported-webgpu-image-scene/,
+  );
+  assert.equal(begins, 0);
+  const invalid = document.assoc(tags.nodes, new core.CalcitSliceList([document.get(tags.nodes).get(1)]));
+  assert.throws(() => images.render_decision(invalid, view, false), /missing-or-non-group-parent/);
 });
 
 test("公共初始化在图层创建失败时释放已上传 texture，解码失败不创建句柄", async () => {

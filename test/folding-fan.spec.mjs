@@ -1,5 +1,33 @@
 import { expect, test } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
+import { compareFanDisplay } from "./host/folding-fan-reference.mjs";
+
+test("文字与折线使用完整 Canvas Scene，DPR 2 中间帧与独立原生参考全像素一致", async ({ browser }, testInfo) => {
+  const context = await browser.newContext({ deviceScaleFactor: 2, viewport: { width: 900, height: 650 } });
+  const page = await context.newPage();
+  try {
+    await page.goto("/examples/folding-fan/index.html?t=0.18&events=0&clip=window&annotations=1");
+    await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+    const before = await page.evaluate(() => window.foldingFanDemo.snapshot());
+    expect(before.annotated).toBe(true);
+    expect(before.slices).toHaveLength(24);
+    const comparison = await compareFanDisplay(page);
+    expect(comparison).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+    expect(comparison.notePixels).toBeGreaterThan(1000);
+    await page.setViewportSize({ width: 700, height: 500 });
+    await expect.poll(() => page.evaluate(() => window.foldingFanDemo.snapshot().width)).toBe(1400);
+    expect(await compareFanDisplay(page)).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+    await page.click("#share");
+    expect(new URL(page.url()).searchParams.get("annotations")).toBe("1");
+    await page.reload();
+    await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+    expect(await compareFanDisplay(page)).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+    expect((await page.evaluate(() => window.foldingFanDemo.snapshot())).model).toEqual(before.model);
+    await page.screenshot({ path: testInfo.outputPath("fan-mixed-canvas-dpr2.png") });
+  } finally {
+    await context.close();
+  }
+});
 
 async function savePureCanvas(page, path) {
   const dataUrl = await page.locator("canvas").evaluate((canvas) => canvas.toDataURL("image/png"));
