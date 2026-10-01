@@ -149,6 +149,11 @@ try {
     "反例：停止双轴 CPU 参考更新必须失败",
   );
   assert.throws(
+    () => verifyDualGpuConsumer({ ...app, update_alpha: (plan) => plan }, core),
+    /AssertionError/,
+    "反例：停止 alpha CPU 参考更新必须失败",
+  );
+  assert.throws(
     () => verifyGpuConsumer({ ...app, draw_gpu_$x_: () => {} }, core),
     /AssertionError/,
     "反例：停止 GPU 时间 uniform 写入必须失败",

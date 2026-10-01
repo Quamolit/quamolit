@@ -26,6 +26,8 @@ Apple/Metal-3（software=false）实际验证 t=1→0→0.5→0.25→1，每帧 
 
 安装身份以实际 `ScalarProgram` / `InstanceProgram` 对象为准：绘制须传入该 renderer 最后成功安装的对象，即使另一份重新准备的描述结构相等也须先安装。原始 inline 仅持有不透明引用并做身份比较，不解析 Scene/Motion；公开入口仍由 Calcit 检查类型与精度。开始写入新安装前清除旧身份，全部上传成功后才标记 ready；中途失败须重新安装或销毁重建，不能继续使用旧 program。释放同时清除引用。旧/另一 renderer 的 program 在更新 uniform 和提交前拒绝，现有消费者与 Node 门禁保留该反例。
 
+矩形alpha复用原双轴消费者专项，不另建测试入口：整数几何的8个乱序/同时间失效画面使用原零差异断言；7个非整数/端点样本复用真实shader读回和既定`1e-5+1e-5*abs(expected)`。Apple/Metal-3候选ac73880已得到全图零差异及数值通过，未外推到分数几何、重叠透明节点、DPR或其他设备。CPU参考被停止时必须失败；GPU不可用仍明确SKIP，不作为alpha硬件通过。
+
 `yarn test:gpu-component` 纳入新命名空间严格检查及 `test/gpu-scalar-program-smoke.mjs`：公共计划参数、乱序时间不变、constant/smoothstep/零时长、CPU/算子/目标回退、重复目标、起点有效终点越界。测试调用编译后的 Calcit，而不是 JS 重写 lowering。
 
 独立消费者另以公共 Calcit 声明双轴 smoothstep，Apple/Metal-3 上 8 帧各 230400 通道零差异；非整数 .37/.81/.4999999 与区间外/端点共 7 次 xy 读回满足既定数值阈值。两个绑定常驻同一节点的两个参数槽，1000 时间帧 mock 仍只有每帧 16 B uniform；测试含切回单轴后的旧槽清理。详见 [独立消费检验](isolated-consumer.md)。页面可切换线性混合/双轴 Canvas 参考，GPU 对照由硬件门禁执行。

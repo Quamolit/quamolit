@@ -347,10 +347,7 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
   assert.deepEqual(report.errors, []);
   assert.equal(report.frames.length, 8);
   for (const [index, frame] of report.frames.entries()) {
-    if (alpha) {
-      // 仅此整数几何 alpha 用例：8-bit 预乘/合成量化至多2级；不改变原 x/y 零差异门禁。
-      assert.ok(frame.maximumChannelDifference <= 2, JSON.stringify(frame));
-    } else assert.equal(frame.differences, 0, JSON.stringify(frame));
+    assert.equal(frame.differences, 0, JSON.stringify(frame));
     assert.equal(frame.reused, index < 5);
     assert.equal(frame.uploadedBytes, index < 5 ? 0 : 128);
     assert.equal(frame.parameterBytes, index < 5 ? 0 : dual && !alpha ? 256 : 224);
