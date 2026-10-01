@@ -179,7 +179,13 @@ export function verifyGpuConsumer(app, core, alpha = false) {
   const prepared = app.prepare_gpu(source);
   assert.equal(prepared.tag.value, "ready");
   const program = prepared.extra[0];
-  const fields = core.init_tags(["parameters", "scene", "declarations", "plan-builds", "binding-samples"]);
+  const fields = core.init_tags(["parameters", "scene", "declarations", "plan-builds", "binding-samples", "slots"]);
+  const bound = source.get(fields.slots).get(0);
+  assert.deepEqual(
+    core.to_js_data(app.prepare_gpu(source.assoc(fields.slots, new core.CalcitSliceList([bound, bound])))),
+    ["fallback", `duplicate-gpu-scalar-target;key=badge;target=:${alpha ? "alpha" : "x"};motion=:tween`],
+    "干净安装的公共入口须返回完整绑定诊断，不能部分绘制或仅测根仓库源码",
+  );
   assert.deepEqual(core.to_js_data(program.get(fields.parameters)), [
     alpha
       ? { index: 1, axis: 2, start: 0, duration: 1, from: 0, to: 1, easing: 1 }

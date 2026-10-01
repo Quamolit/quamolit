@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import * as core from "../target/js/gpu-component/calcit.core.mjs";
 import * as motion from "../target/js/gpu-component/quamolit.motion.mjs";
 import * as scene from "../target/js/gpu-component/quamolit.scene-ir.mjs";
 import * as program from "../target/js/gpu-component/quamolit.gpu-scalar-program.mjs";
+import * as lowering from "../target/js/gpu-component/quamolit.motion-gpu.mjs";
 import { dispose_renderer_$x_ } from "../target/js/gpu-component/quamolit.gpu-component.mjs";
 import { start, start_mixed } from "../target/js/gpu-component/quamolit.test.retained-component-fixture.mjs";
 import { sample_plan_at } from "../target/js/gpu-component/quamolit.retained-component.mjs";
@@ -28,6 +30,19 @@ const tags = core.init_tags([
   "smoothstep",
   "alpha",
   "opacity",
+  "height",
+  "x",
+  "y",
+  "scene",
+  "nodes",
+  "key",
+  "frames",
+  "loop",
+  "clamp",
+  "at",
+  "value",
+  "keyframes",
+  "content",
 ]);
 const js = core.to_js_data,
   get = (o, k) => o.get(tags[k]),
@@ -38,6 +53,81 @@ const slot = () => get(base(), "slots").get(0);
 const tween = () => core._$n_enum_$o_nth(get(get(slot(), "descriptor"), "motion"), 1);
 const withMotion = (m) => set(slot(), "descriptor", set(get(slot(), "descriptor"), "motion", m));
 const prepare = (t) => program.prepare_slot(withMotion(en(motion.ScalarMotion, "tween", t)));
+
+test("能力表区分候选 lowering 与真实标量执行；绑定回退定位逻辑 key", () => {
+  const track = (count) =>
+    core._$n__PCT__$M_(
+      motion.ScalarTrack,
+      tags.frames,
+      new core.CalcitSliceList(
+        Array.from({ length: count }, (_, at) =>
+          core._$n__PCT__$M_(
+            motion.ScalarKeyframe,
+            tags.at,
+            at,
+            tags.value,
+            at,
+            tags.easing,
+            en(motion.Easing, "linear"),
+          ),
+        ),
+      ),
+      tags.loop,
+      en(motion.TrackLoop, "clamp"),
+    );
+  const cases = [
+    ["constant", en(motion.ScalarMotion, "constant", 0.5), "supported", "ready"],
+    ["tween-linear", en(motion.ScalarMotion, "tween", tween()), "supported", "ready"],
+    [
+      "tween-smoothstep",
+      en(motion.ScalarMotion, "tween", set(tween(), "easing", en(motion.Easing, "smoothstep"))),
+      "supported",
+      "ready",
+    ],
+    ["time", en(motion.ScalarMotion, "time", 1, 0), "supported", "fallback"],
+    ["keyframes-16", en(motion.ScalarMotion, "keyframes", track(16)), "supported", "fallback"],
+    ["keyframes-17", en(motion.ScalarMotion, "keyframes", track(17)), "unsupported", "fallback"],
+  ];
+  const documented = Array.from(
+    readFileSync(new URL("../docs/motion-gpu-contract.md", import.meta.url), "utf8").matchAll(
+      /^\| ([a-z0-9-]+) \| yes \| (supported|unsupported) \| (ready|fallback) \|$/gm,
+    ),
+    ([, name, lower, execute]) => [name, lower, execute],
+  );
+  assert.deepEqual(
+    documented,
+    cases.map(([name, , lower, execute]) => [name, lower, execute]),
+  );
+  for (const [name, value, lower, execute] of cases) {
+    const changed = withMotion(value);
+    assert.equal(lowering.lower_scalar(get(changed, "descriptor")).tag.value, lower, name);
+    assert.equal(program.prepare_slot(changed).tag.value, execute, name);
+  }
+  for (const target of ["x", "y", "alpha", "width", "height", "opacity"]) {
+    const changed = set(withMotion(en(motion.ScalarMotion, "constant", 0.5)), "target", en(scene.ScalarTarget, target));
+    assert.equal(
+      program.prepare_slot(changed).tag.value,
+      ["x", "y", "alpha"].includes(target) ? "ready" : "fallback",
+      target,
+    );
+  }
+  const p = base(),
+    document = get(p, "scene"),
+    nodes = get(document, "nodes"),
+    changed = withMotion(en(motion.ScalarMotion, "time", 1, 0));
+  const contextual = set(
+    set(p, "scene", set(document, "nodes", nodes.assoc(64, set(nodes.get(64), "key", "stable-key")))),
+    "slots",
+    new core.CalcitSliceList([changed]),
+  );
+  assert.deepEqual(js(program.prepare_program(contextual)), [
+    "fallback",
+    "scalar-kernel-not-supported;key=stable-key;target=:x;motion=:time",
+  ]);
+  const sampled = sample_plan_at(contextual, 0.25);
+  assert.equal(get(core._$n_enum_$o_nth(get(get(get(sampled, "scene"), "nodes").get(64), "content"), 1), "x"), 0.25);
+  assert.equal(get(get(get(sampled, "scene"), "nodes").get(64), "key"), "stable-key");
+});
 
 test("公共计划生成固定参数；乱序时间不改变描述符参数", () => {
   const p = base(),
@@ -135,11 +225,17 @@ test("不支持算子/目标/CPU 变换均明确回退；重复绑定不能只�
   ]);
   assert.deepEqual(js(program.prepare_program(start_mixed(0, 40, false, 100))), ["fallback", "cpu-transform-required"]);
   const duplicate = set(base(), "slots", new core.CalcitSliceList([slot(), slot()]));
-  assert.deepEqual(js(program.prepare_program(duplicate)), ["fallback", "duplicate-gpu-scalar-target"]);
+  assert.deepEqual(js(program.prepare_program(duplicate)), [
+    "fallback",
+    "duplicate-gpu-scalar-target;key=badge;target=:x;motion=:tween",
+  ]);
 });
 
 test("检查完整参数域；起点有效但终点越界也不能交给 GPU", () => {
-  assert.deepEqual(js(program.prepare_program(extreme_plan(0))), ["fallback", "scalar-parameters-outside-f32-domain"]);
+  assert.deepEqual(js(program.prepare_program(extreme_plan(0))), [
+    "fallback",
+    "scalar-parameters-outside-f32-domain;key=badge;target=:x;motion=:tween",
+  ]);
   for (const [key, value] of [
     ["from", 1e31],
     ["to", 1e31],

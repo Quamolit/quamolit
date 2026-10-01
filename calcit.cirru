@@ -8786,16 +8786,27 @@
                     motion/valid-motion-version? $ :index slot
                     < (:index slot)
                       count $ :records frame
-                  match (prepare-slot slot)
-                    (:fallback reason) (ProgramResult :fallback reason)
-                    (:ready parameter)
-                      if
-                        any? parameters $ fn (old)
-                          and
-                            = (:index old) (:index parameter)
-                            = (:axis old) (:axis parameter)
-                        ProgramResult :fallback |duplicate-gpu-scalar-target
-                        recur (rest slots) plan frame $ append parameters parameter
+                  let
+                      context $ str |;key=
+                        :key $ &list:nth
+                          :nodes $ :scene plan
+                          :index slot
+                        , |;target=
+                          &enum:nth (:target slot) 0
+                          , |;motion= $ &enum:nth
+                            :motion $ :descriptor slot
+                            , 0
+                    match (prepare-slot slot)
+                      (:fallback reason)
+                        ProgramResult :fallback $ str reason context
+                      (:ready parameter)
+                        if
+                          any? parameters $ fn (old)
+                            and
+                              = (:index old) (:index parameter)
+                              = (:axis old) (:axis parameter)
+                          ProgramResult :fallback $ str |duplicate-gpu-scalar-target context
+                          recur (rest slots) plan frame $ append parameters parameter
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
             :args $ [] (:: 'List 'quamolit.retained-component/BoundScalar) 'quamolit.retained-component/ComponentPlan 'quamolit.gpu-component/RectFrame $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
@@ -17501,7 +17512,8 @@
               :tags $ #{} :gpu-component
             %{} 'TestEntry (:name |scalar-program-domain)
               :code $ quote $ do
-                is= (scalar-program/ProgramResult :fallback |scalar-parameters-outside-f32-domain)
+                is=
+                  scalar-program/ProgramResult :fallback |scalar-parameters-outside-f32-domain;key=badge;target=:x;motion=:tween
                   scalar-program/prepare-program $ extreme-plan 0
                 match (scalar-program-at 0.5)
                   (:fallback reason) (is= |ready reason)
