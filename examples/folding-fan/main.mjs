@@ -10,6 +10,8 @@ import {
   draw_$x_,
   resource_initial,
   scene_at,
+  display_scene,
+  draw_display_$x_,
 } from "../../target/js/folding-fan/quamolit.examples.folding-fan.mjs";
 import * as gpuImages from "../../target/js/folding-fan/quamolit.webgpu-images.mjs";
 import * as textures from "../../target/js/folding-fan/quamolit.webgpu-texture-runner.mjs";
@@ -49,15 +51,21 @@ export function mountDemo() {
     panelToggle = document.querySelector("#panel-toggle");
   const params = new URLSearchParams(location.search);
   const backendControl = document.querySelector("#backend");
+  const clipControl = document.querySelector("#clip-window");
+  clipControl.checked = params.get("clip") === "window";
+  const annotationControl = document.querySelector("#annotations");
+  annotationControl.checked = params.get("annotations") === "1";
   const gpuTags = init_tags(["a", "b", "c", "d", "e", "f", "r", "g"]);
   const record = (type, fields) =>
     struct(type, ...Object.entries(fields).flatMap(([key, value]) => [gpuTags[key], value]));
   const background = record(ColorRgba, { r: 23 / 255, g: 16 / 255, b: 34 / 255, a: 1 });
+  const identityView = record(Matrix2D, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
   let gpu = null,
     gpuEpoch = 0,
     backend = "canvas",
     gpuError = "",
-    gpuMetrics = null;
+    gpuMetrics = null,
+    fallbackReason = "";
   const parsed = Number(params.get("t") || 0);
   let time = Number.isFinite(parsed) && parsed >= 0 && parsed <= 120 ? parsed : 0;
   let model = initial(),
@@ -87,7 +95,7 @@ export function mountDemo() {
   model = replay(events, time);
   function draw() {
     const resource = to_js_data(resourceState).phase[0];
-    const rect = (gpu?.canvas || canvas).getBoundingClientRect(),
+    const rect = (gpu?.canvas.isConnected ? gpu.canvas : canvas).getBoundingClientRect(),
       dpr = devicePixelRatio || 1;
     const width = Math.max(1, Math.round(rect.width * dpr)),
       height = Math.max(1, Math.round(rect.height * dpr));
@@ -98,19 +106,49 @@ export function mountDemo() {
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.fillStyle = "#171022";
     context.fillRect(0, 0, width, height);
+    const scale = Math.min(width / 900, height / 650);
+    const view = record(Matrix2D, { a: scale, b: 0, c: 0, d: scale, e: width / 2, f: height * 0.77 });
+    const grouped = clipControl.checked || annotationControl.checked;
+    const frameDocument = grouped
+      ? display_scene(model, time, view, clipControl.checked, annotationControl.checked)
+      : scene_at(model, time);
+    const renderView = grouped ? identityView : view;
+    const decision = to_js_data(gpuImages.render_decision(frameDocument, renderView, Boolean(gpu)));
+    fallbackReason = backendControl.value === "webgpu" && decision[0] === "canvas" ? decision[1] : "";
+    if (gpu) {
+      if (decision[0] === "webgpu") {
+        if (!gpu.canvas.isConnected) canvas.replaceWith(gpu.canvas);
+        backend = "webgpu";
+      } else {
+        restoreCanvas(gpu);
+        backend = "canvas";
+        gpuMetrics = null;
+      }
+    }
     if (resource === "ready") {
       const image = option_$o_unwrap(installed_image(imageHost));
-      const scale = Math.min(width / 900, height / 650);
-      context.setTransform(scale, 0, 0, scale, width / 2, height * 0.77);
-      draw_$x_(context, image, model, time);
+      if (grouped)
+        draw_display_$x_(
+          context,
+          image,
+          model,
+          time,
+          view,
+          width,
+          height,
+          clipControl.checked,
+          annotationControl.checked,
+        );
+      else {
+        context.setTransform(scale, 0, 0, scale, width / 2, height * 0.77);
+        draw_$x_(context, image, model, time);
+      }
     }
-    if (gpu) {
+    if (gpu && decision[0] === "webgpu") {
       if (gpu.canvas.width !== width) gpu.canvas.width = width;
       if (gpu.canvas.height !== height) gpu.canvas.height = height;
-      const scale = Math.min(width / 900, height / 650);
-      const view = record(Matrix2D, { a: scale, b: 0, c: 0, d: scale, e: width / 2, f: height * 0.77 });
       gpuMetrics = to_js_data(
-        gpuImages.draw_runtime_$x_(gpu.runtime, scene_at(model, time), view, width, height, background),
+        gpuImages.draw_runtime_$x_(gpu.runtime, frameDocument, renderView, width, height, background),
       );
     }
     paints++;
@@ -120,7 +158,14 @@ export function mountDemo() {
     status.textContent = `t = ${time.toFixed(2)} s · 切片 24\n开合 ${fold_value(model, time).toFixed(3)} · 图片 ${resource} · host ${hostMetrics.live}/${hostMetrics.created}/${hostMetrics.released} · queue ${queueMetrics.pending}/${queueMetrics.running} · 绘制 ${paints}`;
     status.dataset.result = resource === "ready" ? "pass" : resource;
     status.textContent += `\n后端 ${backend}${gpuMetrics ? ` · GPU draws ${gpuMetrics["draw-calls"]} · uniform ${gpuMetrics["uniform-bytes-uploaded"]} B` : ""}`;
-    message.textContent = [error, resourceError, gpuError].filter(Boolean).join("；");
+    message.textContent = [
+      error,
+      resourceError,
+      gpuError,
+      fallbackReason ? `完整图层 Canvas 回退：${fallbackReason}` : "",
+    ]
+      .filter(Boolean)
+      .join("；");
   }
   function sample(value) {
     if (!Number.isFinite(value) || value < 0 || value > 120) throw new RangeError("演示时间必须在 0–120 秒内");
@@ -171,6 +216,9 @@ export function mountDemo() {
       paints,
       backend,
       gpuMetrics,
+      clipped: clipControl.checked,
+      annotated: annotationControl.checked,
+      fallbackReason,
       width: canvas.width,
       height: canvas.height,
     };
@@ -210,6 +258,11 @@ export function mountDemo() {
     const recorded = to_js_data(events).map((event) => event.at);
     if (recorded.length) url.searchParams.set("events", recorded.join(","));
     else url.searchParams.delete("events");
+    if (clipControl.checked) url.searchParams.set("clip", "window");
+    else url.searchParams.delete("clip");
+    if (annotationControl.checked) url.searchParams.set("annotations", "1");
+    else url.searchParams.delete("annotations");
+    url.searchParams.set("backend", backendControl.value);
     history.replaceState(null, "", url);
     try {
       await navigator.clipboard.writeText(url.href);
@@ -258,6 +311,7 @@ export function mountDemo() {
     canvas.style.opacity = "1";
     void closeGpu(previous);
     gpuError = "";
+    backendControl.value = value;
     if (value !== "webgpu") {
       draw();
       return snapshot();
@@ -325,6 +379,8 @@ export function mountDemo() {
     return snapshot();
   }
   backendControl.onchange = () => void selectBackend(backendControl.value);
+  clipControl.onchange = () => draw();
+  annotationControl.onchange = () => draw();
   document.addEventListener(
     "visibilitychange",
     () => {

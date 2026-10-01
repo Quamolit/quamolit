@@ -12,6 +12,8 @@
     <div class="buttons"><button id="toggle-fold">Toggle · 展开/收拢</button><button id="play">播放时间</button><button id="reset">重置</button><button id="share">复制时间链接</button></div>
     <label>时间（秒） <input id="time" type="range" min="0" max="120" step="0.01" value="0"></label>
     <label>绘制后端 <select id="backend"><option value="canvas">Canvas 参考</option><option value="webgpu">WebGPU 图片（实验）</option></select></label>
+    <label><input id="clip-window" type="checkbox">父组矩形窗口裁剪（原动画不变）</label>
+    <label><input id="annotations" type="checkbox">文字/折线标注（完整图层回退 Canvas）</label>
     <div class="buttons"><button data-time="0">0 s</button><button data-time="0.18">0.18 s</button><button data-time="0.36">0.36 s</button></div>
     <output id="status" aria-live="off"></output><p id="message" role="status"></p>
     <p class="note">图片来自原有 assets/lotus.jpg。Calcit 定义状态、时间采样、切片、变换以及图片加载队列和句柄生命周期。可切换 Canvas 参考和 WebGPU 纹理绘制；GPU 的线性采样与边缘抗锯齿可能不同，硬件仅在 macOS/Metal 验证，其他设备未验证。</p>

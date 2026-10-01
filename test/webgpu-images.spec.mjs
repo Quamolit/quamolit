@@ -1,4 +1,36 @@
 import { expect, test } from "@playwright/test";
+import { compareFanDisplay } from "./host/folding-fan-reference.mjs";
+
+test("adapter 获取失败时混合 Scene 整层回退，图片/文字/折线无遗漏", async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "gpu", {
+      configurable: true,
+      value: {
+        requestAdapter: async () => {
+          throw new Error("fixture-adapter-failure");
+        },
+      },
+    });
+  });
+  await page.goto("/demos/index.html?demo=folding-fan&t=0.18&events=0&backend=webgpu&clip=window&annotations=1");
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  await expect(page.locator("#message")).toContainText("fixture-adapter-failure");
+  const before = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(before.backend).toBe("canvas");
+  expect(before.annotated).toBe(true);
+  expect(before.slices).toHaveLength(24);
+  await expect(page.locator("canvas")).toHaveCount(1);
+  const comparison = await compareFanDisplay(page);
+  expect(comparison).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  expect(comparison.notePixels).toBeGreaterThan(500);
+  await page.screenshot({ path: testInfo.outputPath("fan-adapter-failure-whole-layer.png") });
+  await page.evaluate(() => window.foldingFanDemo.seek(0.36));
+  expect(await compareFanDisplay(page)).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  await page.click("#back-to-gallery");
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+  await expect(page.locator("canvas")).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => typeof window.foldingFanDemo)).toBe("undefined");
+});
 
 test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资源", async ({ page }, testInfo) => {
   await page.goto("/test/instance-sources.html");
@@ -25,6 +57,7 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
     const lifecycle = await import("/target/js/motion/quamolit.resource-lifecycle.mjs");
     const queues = await import("/target/js/motion/quamolit.resource-load-queue.mjs");
     const canvasImages = await import("/target/js/motion/quamolit.canvas-images.mjs");
+    const canvasScene = await import("/target/js/motion/quamolit.canvas-scene.mjs");
     const tags = core.init_tags([
       "a",
       "b",
@@ -63,6 +96,13 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
       "bindings",
       "interaction",
       "none",
+      "group",
+      "transform",
+      "clip",
+      "rect",
+      "x",
+      "y",
+      "opacity",
     ]);
     const R = (type, fields) =>
       core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([key, value]) => [tags[key], value]));
@@ -144,6 +184,48 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
       await sourceImage.decode();
       canvasImages.draw_document_$x_(referenceContext, document, () => sourceImage);
       const referencePixels = points.map(([x, y]) => Array.from(referenceContext.getImageData(x, y, 1, 1).data));
+      const group = (id, parent, transform, extent) =>
+        R(scene.SceneNode, {
+          id,
+          key: id,
+          parent,
+          bindings: L([]),
+          interaction: E(scene.SceneInteraction, "none"),
+          content: E(
+            scene.SceneContent,
+            "group",
+            R(scene.GroupNode, {
+              transform,
+              opacity: 1,
+              clip: E(scene.ClipSpec, "rect", R(scene.ClipRect, { x: 0, y: 0, width: extent, height: extent })),
+            }),
+          ),
+        });
+      const scopedDocument = R(scene.SceneDocument, {
+        nodes: L([
+          group("outer", "", matrix(1, 0, 0, 1, 4, 4), 20),
+          group("inner", "outer", matrix(1, 0, 0, 1, 4, 4), 8),
+          node("scoped-red", image(0, matrix(1, 0, 0, 1, 0, 0))).assoc(tags.parent, "inner"),
+        ]),
+      });
+      images.draw_document_$x_(host, scopedDocument, () => texture, view, 48, 48, clear);
+      await device.queue.onSubmittedWorkDone();
+      const scopedBitmap = await createImageBitmap(canvas);
+      context.drawImage(scopedBitmap, 0, 0);
+      scopedBitmap.close();
+      const scopedPoints = [
+        [10, 10],
+        [18, 10],
+        [6, 10],
+        [10, 18],
+      ];
+      const scopedPixels = scopedPoints.map(([x, y]) => Array.from(context.getImageData(x, y, 1, 1).data));
+      referenceContext.fillStyle = "black";
+      referenceContext.fillRect(0, 0, 48, 48);
+      canvasScene.draw_document_$x_(referenceContext, scopedDocument, 48, 48, () => sourceImage);
+      const scopedReferencePixels = scopedPoints.map(([x, y]) =>
+        Array.from(referenceContext.getImageData(x, y, 1, 1).data),
+      );
       return {
         result: "PASS",
         adapter: {
@@ -153,6 +235,8 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
         },
         pixels,
         referencePixels,
+        scopedPixels,
+        scopedReferencePixels,
         first,
         last,
         errors,
@@ -172,6 +256,13 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
   console.log(`Scene image report: ${JSON.stringify(report)}`);
   test.skip(report.result === "SKIP", JSON.stringify(report));
   expect(report.errors).toEqual([]);
+  expect(report.scopedPixels).toEqual([
+    [255, 0, 0, 255],
+    [0, 0, 0, 255],
+    [0, 0, 0, 255],
+    [0, 0, 0, 255],
+  ]);
+  expect(report.scopedPixels).toEqual(report.scopedReferencePixels);
   // Solid interiors; permit one channel level for 0.5-alpha conversion/rounding.
   const expected = [
     [255, 0, 0, 255],
@@ -187,7 +278,7 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
       expect(Math.abs(value - report.referencePixels[index][channel])).toBeLessThanOrEqual(1),
     ),
   );
-  expect(report.first).toMatchObject({ "draw-calls": 2, "uniform-bytes-uploaded": 160, "bind-groups-created": 2 });
+  expect(report.first).toMatchObject({ "draw-calls": 2, "uniform-bytes-uploaded": 192, "bind-groups-created": 2 });
   expect(report.last).toMatchObject({
     frames: 1001,
     "uniform-bytes-uploaded": 0,
@@ -219,11 +310,37 @@ test("Folding Fan 保持原动画，状态切换 GPU/Canvas 与暂停 resize", a
   }
   const repeated = await page.evaluate(() => window.foldingFanDemo.seek(0.18));
   expect(repeated.gpuMetrics["uniform-bytes-uploaded"]).toBe(0);
+  await page.check("#clip-window");
+  const clipped = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(clipped.clipped).toBe(true);
+  expect(clipped.model).toEqual(repeated.model);
+  expect(clipped.gpuMetrics["draw-calls"]).toBe(24);
+  await page.screenshot({ path: testInfo.outputPath("fan-gpu-window.png") });
+  await page.check("#annotations");
+  const fallback = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(fallback.backend).toBe("canvas");
+  expect(fallback.fallbackReason).toBe("unsupported-image-layer");
+  expect(fallback.gpuMetrics).toBeNull();
+  expect(fallback.model).toEqual(repeated.model);
+  expect(fallback.time).toBe(0.18);
+  await expect(page.locator("canvas")).toHaveCount(1);
+  expect(await compareFanDisplay(page)).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  await page.screenshot({ path: testInfo.outputPath("fan-whole-layer-fallback.png") });
+  await page.click("#share");
+  expect(new URL(page.url()).searchParams.get("backend")).toBe("webgpu");
+  expect(new URL(page.url()).searchParams.get("annotations")).toBe("1");
   await page.setViewportSize({ width: 900, height: 600 });
   await expect.poll(() => page.evaluate(() => window.foldingFanDemo.snapshot().width)).toBe(900);
   const resized = await page.evaluate(() => window.foldingFanDemo.snapshot());
   expect(resized.time).toBe(0.18);
   expect(resized.model).toEqual(repeated.model);
+  expect(await compareFanDisplay(page)).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  await page.uncheck("#annotations");
+  const restored = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(restored.backend).toBe("webgpu");
+  expect(restored.model).toEqual(repeated.model);
+  expect(restored.gpuMetrics["pipelines-created"]).toBe(1);
+  await expect(page.locator("canvas")).toHaveCount(1);
   await page.selectOption("#backend", "canvas");
   await expect.poll(() => page.evaluate(() => window.foldingFanDemo.snapshot().backend)).toBe("canvas");
   await expect(page.locator("canvas")).toHaveCount(1);

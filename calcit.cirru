@@ -5378,6 +5378,23 @@
           :code $ quote $ defstruct FanSlice (:index 'Number) (:source-x 'Number) (:source-width 'Number) (:angle 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'annotation-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn annotation-nodes (view)
+            let
+                color $ motion/ColorRgba :r 0.75 :g 0.9 :b 0.94 :a 1
+                group $ scene/GroupNode :transform view :clip (scene/ClipSpec :none) :opacity 1
+                root $ scene/SceneNode :id |fan-notes :key |fan-notes :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group group
+                text $ scene/TextNode :x -150 :y -65 :size 18 :text "|FOLDING FAN / 24 SLICES" :fill color
+                line $ scene/PolylineNode :points
+                  [] (motion/Vec2 :x -150 :y -95) (motion/Vec2 :x 150 :y -95)
+                  , :width 2 :stroke color
+                label $ scene/SceneNode :id |fan-caption :key |fan-caption :parent |fan-notes :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text text
+                rule $ scene/SceneNode :id |fan-rule :key |fan-rule :parent |fan-notes :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline line
+              [] root rule label
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-ir/Matrix2D
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'append-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn append-event (log at)
             assert |invalid-fan-event-time $ and (motion/finite-number? at) (>= at 0) (<= at 120)
@@ -5397,6 +5414,24 @@
           :schema $ :: 'Fn $ {}
             :args $ [] (:: 'List 'quamolit.examples.folding-fan/FanEvent) 'Number
             :return $ :: 'List 'quamolit.examples.folding-fan/FanEvent
+        'display-scene $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn display-scene (model time view clipped annotated)
+            let
+                clip $ if clipped
+                  scene/ClipSpec :rect $ scene/ClipRect :x -150 :y -400 :width 300 :height 300
+                  scene/ClipSpec :none
+                group $ scene/GroupNode :transform view :clip clip :opacity 1
+                root $ scene/SceneNode :id |fan-display :key |fan-display :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group group
+                children $ map
+                  :nodes $ scene-at model time
+                  fn (node) (assoc node :parent |fan-display)
+                base $ prepend children root
+              scene/SceneDocument :nodes $ if annotated
+                concat base $ annotation-nodes view
+                , base
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.examples.folding-fan/FanModel 'Number 'quamolit.scene-ir/Matrix2D 'Bool 'Bool
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context image model time)
             images/draw-document! context (scene-at model time)
@@ -5407,6 +5442,21 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.browser/ImageHost 'quamolit.examples.folding-fan/FanModel 'Number
+            :features $ #{} :js-ffi
+        'draw-display! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-display!
+            context image model time view width height clipped annotated
+            canvas-scene/draw-document! context (display-scene model time view clipped annotated) width height $ fn (id version) image
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.browser/ImageHost 'quamolit.examples.folding-fan/FanModel 'Number 'quamolit.scene-ir/Matrix2D 'Number 'Number 'Bool 'Bool
+            :features $ #{} :js-ffi
+        'draw-windowed! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-windowed! (context image model time view width height)
+            canvas-scene/draw-document! context (windowed-scene model time view) width height $ fn (id version) image
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.browser/ImageHost 'quamolit.examples.folding-fan/FanModel 'Number 'quamolit.scene-ir/Matrix2D 'Number 'Number
             :features $ #{} :js-ffi
         'empty-events $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-events () ([])
@@ -5524,9 +5574,22 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.folding-fan/FanModel)
             :args $ [] 'quamolit.examples.folding-fan/FanModel 'Number
+        'windowed-scene $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn windowed-scene (model time view)
+            let
+                window $ scene/ClipRect :x -150 :y -400 :width 300 :height 300
+                group $ scene/GroupNode :transform view :clip (scene/ClipSpec :rect window) :opacity 1
+                root $ scene/SceneNode :id |fan-window :key |fan-window :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group group
+                children $ map
+                  :nodes $ scene-at model time
+                  fn (node) (assoc node :parent |fan-window)
+              scene/SceneDocument :nodes $ prepend children root
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.examples.folding-fan/FanModel 'Number 'quamolit.scene-ir/Matrix2D
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.folding-fan
-          :require (quamolit.transition :as transition) (quamolit.motion :as motion) (quamolit.scene-ir :as scene) (quamolit.canvas-images :as images) (quamolit.resource-lifecycle :as resource) (quamolit.image-resource-runner :as image-runner)
+          :require (quamolit.transition :as transition) (quamolit.motion :as motion) (quamolit.scene-ir :as scene) (quamolit.canvas-images :as images) (quamolit.resource-lifecycle :as resource) (quamolit.image-resource-runner :as image-runner) (quamolit.canvas-scene :as canvas-scene)
     'quamolit.examples.icons $ %{} 'FileEntry
       :defs $ {}
         'IconModel $ %{} 'CodeEntry (:doc |)
@@ -18938,6 +19001,10 @@
           :code $ quote $ defstruct ImageMetrics (:frames 'Number) (:draw-calls 'Number) (:uniform-bytes-uploaded 'Number) (:pipelines-created 'Number) (:buffers-created 'Number) (:bind-groups-created 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'ImageRenderDecision $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum ImageRenderDecision (:webgpu) (:canvas 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
         'ImageRuntime $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ImageRuntime (:layer 'quamolit.webgpu-images/ImageLayerHost)
             :resources 'quamolit.webgpu-texture-runner/TextureResourceHost
@@ -18945,6 +19012,27 @@
             :identity 'quamolit.resource-lifecycle/ResourceIdentity
           :examples $ []
           :schema $ :: 'StructDef
+        'ImageScope $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageScope (:matrix 'quamolit.scene-ir/Matrix2D) (:clip 'quamolit.scene-ir/ClipRect)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'checked-parameters $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn checked-parameters (image scope width height)
+            let
+                clip $ :clip scope
+                values $ concat
+                  parameters image (:matrix scope) width height
+                  [] (:x clip) (:y clip)
+                    + (:x clip) (:width clip)
+                    + (:y clip) (:height clip)
+              assert |invalid-image-parameters $ every? values $ fn (number)
+                and (motion/finite-number? number)
+                  <= (abs number) 3.402823466e38
+              , values
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-ir/ImageNode 'quamolit.webgpu-images/ImageScope 'Number 'Number
+            :return $ :: 'List 'Number
         'close-runtime! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn close-runtime! (runtime)
             when
@@ -19033,6 +19121,49 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-images/ImageMetrics)
             :args $ [] 'quamolit.webgpu-images/ImageRuntime 'quamolit.scene-ir/SceneDocument 'quamolit.scene-ir/Matrix2D 'Number 'Number 'quamolit.motion/ColorRgba
             :features $ #{} :js-ffi
+        'image-node? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn image-node? (node)
+            match (:content node)
+              (:image _) true
+              _ false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneNode
+        'intersect-clip $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn intersect-clip (left right)
+            let
+                x $ max-number (:x left) (:x right)
+                y $ max-number (:y left) (:y right)
+                end-x $ min-number
+                  + (:x left) (:width left)
+                  + (:x right) (:width right)
+                end-y $ min-number
+                  + (:y left) (:height left)
+                  + (:y right) (:height right)
+              scene/ClipRect :x x :y y :width
+                max-number 0 $ - end-x x
+                , :height $ max-number 0 $ - end-y y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/ClipRect)
+            :args $ [] 'quamolit.scene-ir/ClipRect 'quamolit.scene-ir/ClipRect
+        'matrix-for $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn matrix-for (nodes id view)
+            if (empty? id) view $ let
+                node $ scene/node-for-id nodes id
+                parent $ matrix-for nodes (:parent node) view
+              match (:content node)
+                (:group group)
+                  compose-matrix parent $ :transform group
+                _ $ raise |invalid-image-scope-parent
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'String 'quamolit.scene-ir/Matrix2D
+        'max-number $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn max-number (a b)
+            if (> a b) a b
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
         'metrics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn metrics (result)
             ImageMetrics :frames
@@ -19050,6 +19181,12 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-images/ImageMetrics)
             :args $ [] 'JsObject
             :features $ #{} :js-ffi
+        'min-number $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn min-number (a b)
+            if (< a b) a b
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
         'open-runtime! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn open-runtime! (canvas device format descriptor generation capacity)
             hint-fn $ {} (:async true)
@@ -19103,18 +19240,21 @@
             assert |invalid-image-view $ every?
               [] (:a view) (:b view) (:c view) (:d view) (:e view) (:f view)
               , motion/finite-number?
-            map (:nodes document)
+            map
+              filter (:nodes document) image-node?
               fn (node)
-                match (:content node)
-                  (:image image)
-                    let
-                        source $ :source image
-                        texture $ lookup (:id source) (:version source)
-                      assert |texture-size-mismatch $ and
-                        = (js-get texture :width) (:width source)
-                        = (js-get texture :height) (:height source)
-                      BoundImage :texture texture :parameters $ parameters image view width height
-                  _ $ raise |unsupported-webgpu-image-node
+                let
+                    scope $ scope-for (:nodes document) (:parent node) view width height
+                  match (:content node)
+                    (:image image)
+                      let
+                          source $ :source image
+                          texture $ lookup (:id source) (:version source)
+                        assert |texture-size-mismatch $ and
+                          = (js-get texture :width) (:width source)
+                          = (js-get texture :height) (:height source)
+                        BoundImage :texture texture :parameters $ checked-parameters image scope width height
+                    _ $ raise |unsupported-webgpu-image-node
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.scene-ir/SceneDocument
@@ -19132,6 +19272,23 @@
           :schema $ :: 'Fn $ {} (:return 'JsObject)
             :args $ [] 'JsObject 'JsObject 'String 'Number
             :features $ #{} :js-ffi
+        'render-decision $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn render-decision (document view available)
+            assert |invalid-image-scene $ scene/validate-scene document
+            assert |invalid-image-view $ every?
+              [] (:a view) (:b view) (:c view) (:d view) (:e view) (:f view)
+              , motion/finite-number?
+            cond
+                not available
+                ImageRenderDecision :canvas |webgpu-unavailable
+              (not (supported-document? document))
+                ImageRenderDecision :canvas |unsupported-image-layer
+              (not (supported-clips? document view))
+                ImageRenderDecision :canvas |rotated-image-clip
+              true $ ImageRenderDecision :webgpu
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-images/ImageRenderDecision)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'quamolit.scene-ir/Matrix2D 'Bool
         'runtime-texture $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn runtime-texture (runtime id version)
             ->
@@ -19142,6 +19299,44 @@
           :schema $ :: 'Fn $ {}
             :return 'quamolit.webgpu-texture-runner/WebGpuTextureHost
             :args $ [] 'quamolit.webgpu-images/ImageRuntime 'String 'Number
+        'scope-for $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scope-for (nodes id view width height)
+            if (empty? id)
+              ImageScope :matrix view :clip $ scene/ClipRect :x 0 :y 0 :width width :height height
+              let
+                  node $ scene/node-for-id nodes id
+                  parent $ scope-for nodes (:parent node) view width height
+                match (:content node)
+                  (:group group)
+                    let
+                        matrix $ compose-matrix (:matrix parent) (:transform group)
+                        clip $ match (:clip group)
+                          (:none) (:clip parent)
+                          (:rect rectangle)
+                            intersect-clip (:clip parent) (transform-clip rectangle matrix)
+                      ImageScope :matrix matrix :clip clip
+                  _ $ raise |invalid-image-scope-parent
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-images/ImageScope)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'String 'quamolit.scene-ir/Matrix2D 'Number 'Number
+        'supported-clips? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn supported-clips? (document view)
+            every? (:nodes document)
+              fn (node)
+                match (:content node)
+                  (:group group)
+                    match (:clip group)
+                      (:none) true
+                      (:rect rectangle)
+                        let
+                            matrix $ matrix-for (:nodes document) (:id node) view
+                          and
+                            = (:b matrix) 0
+                            = (:c matrix) 0
+                  _ true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'quamolit.scene-ir/Matrix2D
         'supported-document? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn supported-document? (document)
             and (scene/validate-scene document)
@@ -19152,9 +19347,10 @@
         'supported-node? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn supported-node? (node)
             and
-              empty? $ :parent node
               empty? $ :bindings node
               match (:content node)
+                (:group group)
+                  = 1 $ :opacity group
                 (:image image)
                   and
                     >= (:sx image) 0
@@ -19169,6 +19365,28 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
+        'transform-clip $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transform-clip (clip matrix)
+            assert |unsupported-rotated-image-clip $ and
+              = (:b matrix) 0
+              = (:c matrix) 0
+            let
+                x0 $ + (:e matrix)
+                  * (:a matrix) (:x clip)
+                x1 $ + (:e matrix)
+                  * (:a matrix)
+                    + (:x clip) (:width clip)
+                y0 $ + (:f matrix)
+                  * (:d matrix) (:y clip)
+                y1 $ + (:f matrix)
+                  * (:d matrix)
+                    + (:y clip) (:height clip)
+              scene/ClipRect :x (min-number x0 x1) :y (min-number y0 y1) :width
+                abs $ - x1 x0
+                , :height $ abs $ - y1 y0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/ClipRect)
+            :args $ [] 'quamolit.scene-ir/ClipRect 'quamolit.scene-ir/Matrix2D
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.webgpu-images
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (js-ffi.contract :as contract) (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as load-queue) (quamolit.webgpu-texture-runner :as textures)

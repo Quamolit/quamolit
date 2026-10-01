@@ -8,7 +8,7 @@
   try {
     const shader = device.createShaderModule({
       code: `
-struct Params { viewport: vec4f, row0: vec4f, row1: vec4f, dest: vec4f, crop: vec4f }
+struct Params { viewport: vec4f, row0: vec4f, row1: vec4f, dest: vec4f, crop: vec4f, clip: vec4f }
 @group(0) @binding(0) var<uniform> params: Params;
 @group(0) @binding(1) var source: texture_2d<f32>;
 @group(0) @binding(2) var filtering: sampler;
@@ -25,6 +25,8 @@ struct Vertex { @builtin(position) position: vec4f, @location(0) uv: vec2f }
   return output;
 }
 @fragment fn fragment(input: Vertex) -> @location(0) vec4f {
+  if (input.position.x < params.clip.x || input.position.y < params.clip.y ||
+      input.position.x >= params.clip.z || input.position.y >= params.clip.w) { discard; }
   let color = textureSample(source, filtering, input.uv);
   return vec4f(color.rgb * color.a, color.a);
 }`,
@@ -85,8 +87,8 @@ struct Vertex { @builtin(position) position: vec4f, @location(0) uv: vec2f }
       image(texture, parameters) {
         live();
         if (!pass || count >= capacity) throw new RangeError("image frame capacity exceeded");
-        if (!Array.isArray(parameters) || parameters.length !== 20 || !parameters.every(Number.isFinite)) {
-          throw new TypeError("20 finite image parameters required");
+        if (!Array.isArray(parameters) || parameters.length !== 24 || !parameters.every(Number.isFinite)) {
+          throw new TypeError("24 finite image parameters required");
         }
         let slot = slots[count];
         if (!slot || slot.texture !== texture) {
@@ -96,7 +98,7 @@ struct Vertex { @builtin(position) position: vec4f, @location(0) uv: vec2f }
             binding: device.createBindGroup({
               layout: pipeline.getBindGroupLayout(0),
               entries: [
-                { binding: 0, resource: { buffer, offset: count * stride, size: 80 } },
+                { binding: 0, resource: { buffer, offset: count * stride, size: 96 } },
                 { binding: 1, resource: texture.createView() },
                 { binding: 2, resource: sampler },
               ],
@@ -109,7 +111,7 @@ struct Vertex { @builtin(position) position: vec4f, @location(0) uv: vec2f }
         if (!slot.params || values.some((v, index) => v !== slot.params[index])) {
           device.queue.writeBuffer(buffer, count * stride, values);
           slot.params = values;
-          uploaded += 80;
+          uploaded += 96;
         }
         pass.setBindGroup(0, slot.binding);
         pass.draw(6);
