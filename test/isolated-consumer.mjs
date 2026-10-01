@@ -265,6 +265,18 @@ try {
     [0, 179, 102, 255],
   );
   await page.screenshot({ path: join(artifacts, "dual-frame-0.5.png"), fullPage: true });
+  await page.click('[data-mode="alpha"]');
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    await page.click(`[data-time="${time}"]`);
+    const alpha = await page.evaluate(() => window.consumer.snapshot());
+    assert.equal(alpha.mode, "alpha");
+    assert.equal(alpha.scene.nodes[1].content[1].fill.a, time * time * (3 - 2 * time));
+    const pixelAlpha = await page.evaluate(
+      () => document.querySelector("canvas").getContext("2d").getImageData(82, 65, 1, 1).data[3],
+    );
+    assert.equal(pixelAlpha, Math.round(255 * time * time * (3 - 2 * time)));
+    if (time === 0.5) await page.screenshot({ path: join(artifacts, "alpha-frame-0.5.png"), fullPage: true });
+  }
   await page.click('[data-mode="mixed"]');
   assert.equal(await page.evaluate(() => window.consumer.snapshot().scene.nodes[2].content[0]), "polyline");
   await page.evaluate(async () => {
@@ -478,6 +490,7 @@ try {
       "停止 CPU 时间采样被断言检出",
       "停止 GPU uniform 写入被断言检出",
       "停止双轴 CPU 参考更新被断言检出",
+      "停止 alpha CPU 参考更新被断言检出",
       "伪造实例计数被断言检出",
       "停止 Presence 资源同步被断言检出",
       "停止 device loss 转移被断言检出",
