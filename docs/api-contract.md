@@ -153,9 +153,9 @@ alpha 阶段也不静默破坏稳定合同。稳定 API 的破坏性修改须在
 | `initial-frame` / `evaluate-at` 和泛型 `EvaluatedFrame<M,S>` | 已实现；顺序帧求值 | [显式帧求值](frame-evaluation.md)、`yarn test:clock`、`yarn compile:visual` |
 | `tick-tree` / `paint-tree-only-with` | 已实现；旧树迁移桥梁 | [确定性帧测试](../test/README.md) |
 | `defcomp` / `on-tick` / `fade` 缓存 | 兼容旧组件写法；不承诺新架构语义 | 旧入口未恢复，不应据 bootstrap 编译推断可用 |
-| `quamolit.direct-frame/sample-at`、`resample-at` | 已实现的实验性泛型 CPU 直接采样切片；非组件公共入口 | [直接采样](direct-frame-sampling.md)；显式请求与依赖版本；#31 尚未完成 |
-| `quamolit.component-sample/sample-component-at`、`resample-component-at` 及宿主时间变体 | 已实现的实验性声明式组件 CPU 入口；非生产执行计划 | [组件直接采样](component-sample.md)；纯组件声明返回 Scene 与 Motion 描述，固定时间浏览器夹具通过；#31 尚未完成 |
-| 组件公共 `sample-at(motion, time, parameters)` | 拟议；尚未实现 | #31；Motion 描述由 #48 定义 |
+| `quamolit.direct-frame/sample-at`、`resample-at` | 已实现的实验性泛型 CPU 直接采样；非组件声明入口 | [直接采样](direct-frame-sampling.md)；显式请求与依赖版本，#31 已关闭 |
+| `quamolit.component-sample/sample-component-at`、`resample-component-at` 及宿主时间变体 | 已实现的实验性声明式组件 CPU 入口；非保留执行计划 | [组件直接采样](component-sample.md)；纯组件声明返回 Scene 与 Motion 描述；保留执行使用下一行 |
+| `quamolit.retained-component/build-execution-plan`、`update-execution-plan`、`sample-plan-at` | 已实现的实验性统一声明/保留执行入口，不另建草案 `sample-at` | [保留组件](retained-component.md)、[Presence 连接](presence-component.md)、[独立消费者](isolated-consumer.md)；完整增量与后端验收仍归 #50/#104 |
 | `quamolit.motion/sample-scalar`、`sample-vec2`、`sample-track`、`sample-color`、`sample-scalar-composition` | 已实现的实验性内部 CPU 参考切片；非公共组件入口 | [Motion 数值与浏览器验证](motion-scalar.md)、#48 的局部进展 |
 | `CpuScalarDescriptor`、`CpuScalarRegistry`、`register-cpu-scalar`、`sample-cpu-scalar` | 已实现的实验性 CPU-only 标量扩展切片；非组件公共入口 | 描述符仅保存回调 ID，注册表不参与序列化，GPU 明确为 `unsupported`；[Motion 数值与浏览器验证](motion-scalar.md) |
 | `quamolit.motion-cpu/CpuFunctionRequest<I>`、`CpuFunctionRegistry<I,O>`、`sample-function`、`resample-function` | 已实现的实验性泛型 CPU-only 扩展切片；非组件公共入口 | 显式输入/输出校验和六类依赖版本；Vec2 浏览器夹具通过，回调本身不序列化；[泛型 CPU 扩展](cpu-motion-extension.md) |

@@ -14,7 +14,7 @@
 
 有界组合切片新增 `ScalarComposeOp`（加、乘、带 `[0,1]` 右侧权重的 mix）、`ScalarComposition` 与 `sample-scalar-composition`。一个组合恰好有两个 `ScalarDescriptor` 叶子，结构上不可嵌套组合，避免在可序列化 IR 中引入任意深度或任意闭包；数值目前均视为无单位标量。两叶在同一绝对时间独立采样，结果必须有限。它是 CPU 正确性参考，不表示三个算子都能直接降低为 WGSL。`test/composition.html` 用旧 fade tween 加绝对时间项展示可乱序重放的位移；架构 scaffold 见 `docs/architectures/motion-composition.cirru`。
 
-关键帧切片新增 `ScalarKeyframe { at, value, easing }`、带类型列表的 `ScalarTrack { frames, loop }`，并成为 `ScalarMotion :keyframes` 分支。`sample-track` 是纯 CPU 参考：列表必须非空、按时间非降序、时间和值有限；相邻帧使用左帧的 easing。重复时间合法，恰在该时间取最后一帧，之后从它开始下一段。clamp 在边界外保留首尾值；repeat 使用半开区间 `[begin,end)`，恰在 end 回到 begin；mirror 在 end 折返，到 `begin + 2 * duration` 回到 begin。负时间按同一周期数学映射；首尾时间相同的零跨度轨道取最后一帧。当前每次采样都扫描验证列表，复杂度 O(n)，用于正确性参考，不是后续保留执行计划的性能实现。架构 scaffold 见 `docs/architectures/motion-keyframes.cirru`。
+关键帧使用 `ScalarKeyframe { at, value, easing }` 和 `ScalarTrack { frames, loop }`，是 `ScalarMotion :keyframes` 分支。`sample-track` 是纯 CPU 参考：列表非空、时间非降序、时间和值有限；段 easing 取左帧。重复时间在该点取最后一帧。clamp 边界外取首尾值；repeat 使用半开区间 `[begin,end)`，在 end 回到 begin；mirror 在 end 折返，到 `begin + 2 * duration` 回到 begin。负时间使用相同周期映射。零跨度的 clamp 在时间点前取首值、到点后取末值；repeat/mirror 则始终映射到该点，取末值。CPU 每次扫描校验 O(n)，不是性能承诺。实际 GPU 支持与回退以 [Motion GPU 合同](motion-gpu-contract.md) 为准，不把 CPU 支持等同 GPU 执行。
 
 CPU 自定义标量切片新增 `CpuScalarDescriptor { id, version, callback-id, gpu-status }` 和运行时 `CpuScalarRegistry`。描述符只含可序列化数据；回调函数只存于不可序列化的注册表，通过唯一 `callback-id` 解析。`register-cpu-scalar` 返回新注册表，拒绝空 ID 与重复 ID；`sample-cpu-scalar descriptor time registry` 可乱序、倒退或重复采样，拒绝缺失回调、非法版本/时间、非有限输出。`gpu-status` 当前只能为 `:unsupported reason`，原因不能为空；它是明确的 CPU-only 诊断，不会自动转换为 WGSL。调用方负责确保回调无副作用，并把所有影响结果的外部输入显式纳入自己的版本/失效规则；框架无法证明任意闭包纯净，也不会缓存其未知捕获。当前已有[受限 GPU 降低契约](motion-gpu-contract.md)，但依赖声明、输出类型扩展和真实 WGSL 执行仍待后续实现。架构 scaffold 见 `docs/architectures/motion-cpu-registry.cirru`，浏览器夹具见 [CPU 采样页面](../test/custom.html)。
 
@@ -22,4 +22,4 @@ CPU 自定义标量切片新增 `CpuScalarDescriptor { id, version, callback-id,
 
 运行 `yarn test:motion`、`yarn test:cpu-motion`，再运行 `yarn test:motion-browser`。后者需安装锁定的 Chromium；CI 使用 Node 24。浏览器测试检查二维位置、关键帧轨迹、颜色渐变、两输入组合和 CPU 自定义标量的乱序、倒退、重复采样及页面重载，失败时非零退出。手工检查可打开 `/test/motion.html?time=0.5`、[关键帧页面](../test/keyframes.html)、[颜色页面](../test/color.html)、[组合页面](../test/composition.html)、[CPU 标量页面](../test/custom.html)与[CPU Vec2 页面](../test/cpu-motion.html)；即使时间倒退也不依赖累积状态。
 
-尚未实现：通用曲线/向量/颜色扩展、CPU 回调依赖声明、组件绑定、目标切换和打断、固定步长模拟、资源生命周期、GPU lowering。此切片的 Canvas 画面与 CPU 数值通过，不可据此关闭 #48 或声称生产场景性能达标。
+本页只规定 Motion 的参考语义。组件绑定、打断与固定步长模拟已有独立实现，见 [M1 阶段验收](plan-v3.md#m1-阶段验收与展示)；#48 已关闭，不再将这些功能列为未实现。完整 GPU 算子、一般嵌套绘制与宿主资源仍按 M2/M3 支持矩阵验收；任意 Calcit 闭包不能自动转 WGSL，CPU 数值通过也不证明生产性能。

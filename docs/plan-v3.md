@@ -67,13 +67,23 @@
 - 新增整文件宿主导入必须记录最小复现、替代方案、上游 issue（有缺口时）、局部范围及撤销条件；不以 Dynamic 掩盖公共类型。
 - 通过 #104 验证模块安装、片段分发、输出搬移与真正的 Calcit 调用；不只直接测 JS。
 
-### #49：收口 M1 逻辑生命周期
+### M1 阶段验收与展示
 
-已有 #73/#74/#80/#84 的打断、Presence、fade 与 Float32 引用验证。接 #50/#104 展示同一可重排列表示例。
+M1 内功能 issues 已关闭，milestone 仍开放；阶段整理在候选 PR #188，待合并后再核对关闭，不以 issue 数量代替验收。2026-10-02 在 c4eb358、Calcit/runtime0.28.0-alpha.3、js-ffi0.2.1-alpha.11、Node24 与锁定 Chromium 上复核如下；命令均为既有门禁，不新增文件或框架。
 
-- M1 验收逻辑 enter/exit、重入、身份、释放通知与终点停帧；对应纯 Calcit 和可编译示例。
-- 真实设备资源释放由 #51 验收，指针捕获释放由 #34 验收；相关集成要求移交给这两项，不反向阻塞 M1 逻辑合同关闭。
-- 明确逐项证据后才关闭本 issue；现有测试不自动证明下游集成完成。
+| 阶段要求 | 实现及可定位断言 | 展示/边界 |
+| --- | --- | --- |
+| 声明式组件、显式 Model、类型化输入与版本 | [公共合同](api-contract.md)、[组件采样](component-sample.md)，component/direct 测试覆盖同时间失效与乱序采样 | Scene/Motion 无 DOM/GPU 句柄；接口仍多数为实验性，不等于稳定发布 |
+| Motion 与直接时间 | `motion-smoke.mjs`、`direct.spec.mjs`：标量/Vec2/颜色/组合、循环端点、非法数值与独立参考 | 导航 Motion 分类中的关键帧/颜色/直接采样页面；CPU 任意函数不自动转 WGSL |
+| 固定步长与输入重放 | `simulation-smoke.mjs`、`replay-archive.spec.mjs`：不同显示节奏、检查点、倒退与预算拒绝 | 固定 tick 模拟页面；不是 GPU 历史模拟 #54 |
+| Scene 身份及逻辑生命周期 | `presence` 原生/Node、`todolist-smoke.mjs`：重排、父级卸载、25/50/75%打断、重入、重复结算、100次装卸回空 | TodoList 退出期间禁交互，终点逻辑释放；真实资源/指针另归 #51/#34 |
+| 可打开的应用与停帧 | `todolist.spec.mjs`：实际增删编辑、Canvas命中、两秒空闲、输入唤醒、DPR1/2、独立原生像素 | 原有动画分类 TodoList，固定日志 `t=0.25/1.65/1.7/2.6/4`；动画与绘制不修改 Model |
+
+复现：`yarn test:motion-browser`（原生38、Node44、浏览器31通过）、`yarn test:simulation`（原生2、Node2通过）、`yarn test:todolist`（原生1、Node7、浏览器6通过）。TodoList 的1000时间帧断言静态节点/绑定身份共享、计划构建1次；100次逻辑装卸回空、释放不重复。这些是正确性/计数证据，不是帧率测量；M1无新的GPU性能承诺，M2同源性能见[消费者报告](consumer-performance.md)。
+
+直观展示：[本地TodoList](http://127.0.0.1:5191/demos/index.html?demo=todolist&t=1.65)，先用固定时间按钮看初始进入/退出中间帧/终点，再用行上的完成、编辑、置顶、删除和“恢复”操作。阶段截图来自已成功的[CI run 36942494503](https://github.com/Quamolit/quamolit/actions/runs/36942494503)：`quamolit-todolist-36942494503` artifact 包含 `todo-0.25.png`、`todo-1.65.png`、`todo-1.7.png`、`todo-2.6.png`、`todo-4.png`；下载复核过中间帧，过期后按上述命令重现，不将PNG/JSON入库。
+
+M1仅验收上述逻辑合同和可编译展示，不要求一般隔离组透明度、通用指针捕获、宿主GPU释放或稳定tag。下一阶段继续 #50/#104 的保留组件消费与 #40/#52 的受限GPU路径，完整绘制归 #53，性能验收暂不以功能通过代替。
 
 ### #39：测量协议先行，新增后端持续接入
 
