@@ -183,7 +183,10 @@ export function verifyGpuConsumer(app, core, alpha = false) {
   const bound = source.get(fields.slots).get(0);
   assert.deepEqual(
     core.to_js_data(app.prepare_gpu(source.assoc(fields.slots, new core.CalcitSliceList([bound, bound])))),
-    ["fallback", `duplicate-gpu-scalar-target;key=badge;target=:${alpha ? "alpha" : "x"};motion=:tween`],
+    [
+      "fallback",
+      `duplicate-gpu-scalar-target;key=badge;target=:${alpha ? "alpha" : "x"};motion=:${alpha ? "keyframes" : "tween"}`,
+    ],
     "干净安装的公共入口须返回完整绑定诊断，不能部分绘制或仅测根仓库源码",
   );
   assert.deepEqual(core.to_js_data(program.get(fields.parameters)), [

@@ -10,7 +10,7 @@
 
 ## 当前矩形标量执行能力
 
-下表是有效输入且满足[标量参数/精度合同](gpu-scalar-program.md)时的分类，`ready`仍需实际设备可用；候选lowering不等于shader已实现。`test:gpu-component`沿既有Node门禁核对这六行与编译后的Calcit，不增设注册表或测试命令。
+下表是有效输入且满足[标量参数/精度合同](gpu-scalar-program.md)时的分类，`ready`仍需实际设备可用；候选lowering不等于shader已实现。`test:gpu-component`沿既有Node门禁核对各行与编译后的Calcit，不增设注册表或测试命令。
 
 | ScalarMotion | CPU | lowering | 矩形标量执行 |
 | --- | --- | --- | --- |
@@ -18,8 +18,14 @@
 | tween-linear | yes | supported | ready |
 | tween-smoothstep | yes | supported | ready |
 | time | yes | supported | fallback |
+| keyframes-2-clamp | yes | supported | ready |
+| keyframes-2-repeat | yes | supported | fallback |
+| keyframes-2-mirror | yes | supported | fallback |
+| keyframes-3-clamp | yes | supported | fallback |
 | keyframes-16 | yes | supported | fallback |
 | keyframes-17 | yes | unsupported | fallback |
+
+恰好两点的 clamp 轨道由 Calcit 冷准备归一化为现有 tween 参数，使用首关键帧的 easing；末帧 easing 不参与该段插值。相同时间的两点保留“时间点前取首值，到点后右侧胜出”，非恒定零时长跳变仍被原 program 精度预算拒绝，不能改成全时间常量。仍使用原参数域、alpha 端点域和 f32 精度预算，来源轨道及候选 lowering 不变；多段和 repeat/mirror 仍整层回退。此实现没有新增轨道 shader、buffer 或时间帧 CPU 采样。
 
 当前矩形目标为x/y/填充alpha；width/height/group opacity整层回退，alpha不能代替隔离组透明度。颜色、旋转、缩放和任意Calcit闭包不由这个标量执行器处理。已有Vec2 tween实例路径使用同一参数编码，但不自动继承全部候选算子。GPU数值按既定`1e-5+1e-5*abs(expected)`验证；实际硬件证据、乱序时间与支持域见标量合同，不将其他设备或整个数值域视为已验证。
 

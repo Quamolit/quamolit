@@ -16,7 +16,7 @@ calcit query def app.main/update-plan --raw
 
 从 Quamolit 根目录可运行 `yarn vite examples/retained-consumer --host 127.0.0.1 --port 5183` 查看页面。Vite 只是开发服务器，不是 Calcit 消费者的运行时依赖。点击时间按钮可乱序查看中间帧，在相同时间修改 Model、资源 ready 与宽度版本，观察声明次数及画面更新。
 
-原页面的“矩形透明度渐入”或 `?motion=alpha` 使用 Calcit `declare-alpha` 复用原两矩形 Scene，只将徽章绑定改为0→1的smoothstep alpha；不是新JS动画或新页面。界面显示Canvas参考，GPU采样/上传/数值和画面对照复用已有双轴硬件专项，group opacity仍不支持。三槽布局的冷安装内存/字节变化见[GPU合同](../../docs/gpu-scalar-program.md)，旧性能样本仍属于旧源码。
+原页面的“矩形透明度渐入”或 `?motion=alpha` 使用 Calcit `declare-alpha` 复用原两矩形 Scene，以两点 clamp 关键帧声明0→1的smoothstep alpha；GPU冷准备归一化到已有tween内核，不新增JS动画或轨道shader。界面显示Canvas参考，GPU采样/上传/数值和画面对照复用已有双轴硬件专项，多段/循环与group opacity仍不支持。三槽布局的冷安装内存/字节变化见[GPU合同](../../docs/gpu-scalar-program.md)，旧性能样本仍属于旧源码。
 
 ## API 调用顺序
 

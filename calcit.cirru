@@ -9097,6 +9097,17 @@
                     (:constant value)
                       make-parameter slot $ motion/ScalarTween :start 0 :duration 0 :from value :to value :easing $ motion/Easing :linear
                     (:tween tween) (make-parameter slot tween)
+                    (:keyframes track)
+                      if
+                        and
+                          = 2 $ count $ :frames track
+                          = (:loop track) (motion/TrackLoop :clamp)
+                        let
+                            initial $ motion/first-keyframe $ :frames track
+                            final $ motion/last-keyframe $ :frames track
+                            duration $ - (:at final) (:at initial)
+                          make-parameter slot $ motion/ScalarTween :start (:at initial) :duration duration :from (:value initial) :to (:value final) :easing $ :easing initial
+                        ParameterResult :fallback |scalar-kernel-not-supported
                     _ $ ParameterResult :fallback |scalar-kernel-not-supported
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ParameterResult)

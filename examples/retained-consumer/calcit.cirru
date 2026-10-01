@@ -84,7 +84,11 @@
                   assoc nodes 1 $ struct-with badge $ :bindings
                     [] $ scene/ScalarBinding :target (scene/ScalarTarget :alpha) :motion-id |alpha :version 1
                 :motions $ [] $ motion/ScalarDescriptor :id |alpha :version 1 :motion
-                  motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from 0 :to 1 :easing $ motion/Easing :smoothstep
+                  motion/ScalarMotion :keyframes $ motion/ScalarTrack :frames
+                    []
+                      motion/ScalarKeyframe :at 0 :value 0 :easing $ motion/Easing :smoothstep
+                      motion/ScalarKeyframe :at 1 :value 1 :easing $ motion/Easing :linear
+                    , :loop $ motion/TrackLoop :clamp
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'Number 'Number 'Number 'Bool 'Number

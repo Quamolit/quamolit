@@ -43,6 +43,8 @@ const tags = core.init_tags([
   "value",
   "keyframes",
   "content",
+  "repeat",
+  "mirror",
 ]);
 const js = core.to_js_data,
   get = (o, k) => o.get(tags[k]),
@@ -53,27 +55,32 @@ const slot = () => get(base(), "slots").get(0);
 const tween = () => core._$n_enum_$o_nth(get(get(slot(), "descriptor"), "motion"), 1);
 const withMotion = (m) => set(slot(), "descriptor", set(get(slot(), "descriptor"), "motion", m));
 const prepare = (t) => program.prepare_slot(withMotion(en(motion.ScalarMotion, "tween", t)));
-
-test("能力表区分候选 lowering 与真实标量执行；绑定回退定位逻辑 key", () => {
-  const track = (count) =>
-    core._$n__PCT__$M_(
-      motion.ScalarTrack,
-      tags.frames,
-      new core.CalcitSliceList(
-        Array.from({ length: count }, (_, at) =>
-          core._$n__PCT__$M_(
-            motion.ScalarKeyframe,
-            tags.at,
-            at,
-            tags.value,
-            at,
-            tags.easing,
-            en(motion.Easing, "linear"),
-          ),
+const keyframeTrack = (frames, loop = "clamp") =>
+  core._$n__PCT__$M_(
+    motion.ScalarTrack,
+    tags.frames,
+    new core.CalcitSliceList(
+      frames.map(([at, value, easing = "linear"]) =>
+        core._$n__PCT__$M_(
+          motion.ScalarKeyframe,
+          tags.at,
+          at,
+          tags.value,
+          value,
+          tags.easing,
+          en(motion.Easing, easing),
         ),
       ),
-      tags.loop,
-      en(motion.TrackLoop, "clamp"),
+    ),
+    tags.loop,
+    en(motion.TrackLoop, loop),
+  );
+
+test("能力表区分候选 lowering 与真实标量执行；绑定回退定位逻辑 key", () => {
+  const track = (count, loop) =>
+    keyframeTrack(
+      Array.from({ length: count }, (_, at) => [at, at]),
+      loop,
     );
   const cases = [
     ["constant", en(motion.ScalarMotion, "constant", 0.5), "supported", "ready"],
@@ -85,6 +92,10 @@ test("能力表区分候选 lowering 与真实标量执行；绑定回退定位�
       "ready",
     ],
     ["time", en(motion.ScalarMotion, "time", 1, 0), "supported", "fallback"],
+    ["keyframes-2-clamp", en(motion.ScalarMotion, "keyframes", track(2)), "supported", "ready"],
+    ["keyframes-2-repeat", en(motion.ScalarMotion, "keyframes", track(2, "repeat")), "supported", "fallback"],
+    ["keyframes-2-mirror", en(motion.ScalarMotion, "keyframes", track(2, "mirror")), "supported", "fallback"],
+    ["keyframes-3-clamp", en(motion.ScalarMotion, "keyframes", track(3)), "supported", "fallback"],
     ["keyframes-16", en(motion.ScalarMotion, "keyframes", track(16)), "supported", "fallback"],
     ["keyframes-17", en(motion.ScalarMotion, "keyframes", track(17)), "unsupported", "fallback"],
   ];
@@ -127,6 +138,134 @@ test("能力表区分候选 lowering 与真实标量执行；绑定回退定位�
   const sampled = sample_plan_at(contextual, 0.25);
   assert.equal(get(core._$n_enum_$o_nth(get(get(get(sampled, "scene"), "nodes").get(64), "content"), 1), "x"), 0.25);
   assert.equal(get(get(get(sampled, "scene"), "nodes").get(64), "key"), "stable-key");
+});
+
+test("两点 clamp 轨道复用 tween 编码，保留首帧 easing、绝对时间与精度合同", () => {
+  for (const easing of ["linear", "smoothstep"]) {
+    const track = keyframeTrack([
+      [-2, 120, easing],
+      [3, 80, easing === "linear" ? "smoothstep" : "linear"],
+    ]);
+    const changed = withMotion(en(motion.ScalarMotion, "keyframes", track));
+    const source = set(base(), "slots", new core.CalcitSliceList([changed]));
+    const snapshot = js(source);
+    const prepared = program.prepare_program(source);
+    assert.equal(prepared.tag.value, "ready");
+    const encoded = js(get(prepared.extra[0], "parameters"))[0];
+    assert.deepEqual(encoded, {
+      index: 64,
+      axis: 0,
+      start: -2,
+      duration: 5,
+      from: 120,
+      to: 80,
+      easing: easing === "linear" ? 0 : 1,
+    });
+    const times = [3, -2, 0.5, -1, 3, -3, 4];
+    let seed = 527;
+    for (let i = 0; i < 100; i++) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      times.push(-3 + (seed / 2 ** 32) * 7);
+    }
+    for (const time of times) {
+      const linear = Math.max(0, Math.min(1, (time + 2) / 5));
+      const ratio = easing === "linear" ? linear : linear * linear * (3 - 2 * linear);
+      const expected = 120 * (1 - ratio) + 80 * ratio;
+      assert.ok(Math.abs(motion.sample_track(track, time) - expected) <= 1e-12);
+      assert.ok(program.time_supported_$q_(prepared.extra[0], time));
+      assert.ok(Math.abs(reference(encoded, time, true) - expected) <= 1e-5 + 1e-5 * Math.abs(expected));
+    }
+    assert.deepEqual(js(source), snapshot, "冷归一化不能修改原轨道或 ComponentPlan");
+  }
+});
+
+test("重复时间保留右侧胜出与跳变回退；多段/循环仍回退且非法轨道仍拒绝", () => {
+  const ready = (track) => program.prepare_slot(withMotion(en(motion.ScalarMotion, "keyframes", track)));
+  const duplicate = keyframeTrack([
+    [2, 80],
+    [2, 20, "smoothstep"],
+  ]);
+  const prepared = ready(duplicate);
+  assert.equal(prepared.tag.value, "ready");
+  const encoded = js(prepared.extra[0]);
+  assert.deepEqual([encoded.start, encoded.duration, encoded.from, encoded.to], [2, 0, 80, 20]);
+  for (const time of [-3, 0, 2, 4, 2]) {
+    const expected = time < 2 ? 80 : 20;
+    assert.equal(motion.sample_track(duplicate, time), expected);
+    assert.equal(reference(encoded, time, true), expected);
+  }
+  assert.deepEqual(
+    js(
+      program.prepare_program(
+        set(base(), "slots", new core.CalcitSliceList([withMotion(en(motion.ScalarMotion, "keyframes", duplicate))])),
+      ),
+    ),
+    ["fallback", "scalar-precision-budget"],
+    "非恒定零时长跳变仍由原 program 精度门禁拒绝",
+  );
+  for (const loop of ["repeat", "mirror"]) {
+    assert.deepEqual(
+      js(
+        ready(
+          keyframeTrack(
+            [
+              [0, 0],
+              [1, 1],
+            ],
+            loop,
+          ),
+        ),
+      ),
+      ["fallback", "scalar-kernel-not-supported"],
+    );
+  }
+  assert.deepEqual(
+    js(
+      ready(
+        keyframeTrack([
+          [0, 0],
+          [0.5, 1],
+          [1, 0],
+        ]),
+      ),
+    ),
+    ["fallback", "scalar-kernel-not-supported"],
+  );
+  assert.throws(
+    () =>
+      ready(
+        keyframeTrack([
+          [1, 0],
+          [0, 1],
+        ]),
+      ),
+    /unordered-keyframes/,
+  );
+  assert.throws(
+    () =>
+      ready(
+        keyframeTrack([
+          [0, 0],
+          [Infinity, 1],
+        ]),
+      ),
+    /invalid-keyframe-time/,
+  );
+  const alpha = set(
+    withMotion(
+      en(
+        motion.ScalarMotion,
+        "keyframes",
+        keyframeTrack([
+          [0, 0],
+          [1, 1.1],
+        ]),
+      ),
+    ),
+    "target",
+    en(scene.ScalarTarget, "alpha"),
+  );
+  assert.equal(program.prepare_slot(alpha).tag.value, "fallback", "归一化后仍检查 alpha 端点域");
 });
 
 test("公共计划生成固定参数；乱序时间不改变描述符参数", () => {
