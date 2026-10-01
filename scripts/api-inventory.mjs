@@ -95,7 +95,7 @@ export function renderInventory(rows) {
     "<!-- api-inventory:end -->",
   ].join("\n");
 }
-function query(args, cwd) {
+export function query(args, cwd) {
   return execFileSync(process.env.CALCIT_BIN ?? "calcit", ["query", ...args], {
     cwd,
     encoding: "utf8",
@@ -103,7 +103,7 @@ function query(args, cwd) {
     maxBuffer: 8 * 1024 * 1024,
   });
 }
-function queryJson(args, cwd) {
+export function queryJson(args, cwd) {
   const output = query(args, cwd);
   const start = output.search(/^\{/m);
   assert.ok(start >= 0, "缺少查询 JSON envelope");

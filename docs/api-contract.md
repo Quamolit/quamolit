@@ -13,7 +13,7 @@ alpha 阶段也不静默破坏稳定合同。稳定 API 的破坏性修改须在
 
 `yarn check:api-inventory` 比对 Calcit 查询、显式分类、文档表格、文档文件和稳定签名。任意新 namespace（包括 examples/test）未标注、旧条目残留、重复分类或签名漂移都会失败，不用通配符自动接受。更新分类后用 `yarn update:api-inventory` 机械更新下表；它不会自动更新稳定合同。`node scripts/api-inventory.mjs --write-contract` 仅供经审查的初始化/合同迁移，必须检查差异及上述发布规则。
 
-`yarn audit:consumer-api` 单独审计独立消费者的实际 import，非稳定入口会明确失败；本轮尚未把它加入必需 CI，因为现有消费者仍使用实验 API。#176 的“消费者和 README 只使用稳定入口”、Dynamic/JsObject 出入口清单仍需后续完成，不以清单覆盖门禁代替。
+`yarn audit:consumer-api` 单独审计独立消费者的实际 import，非稳定入口会明确失败；本轮尚未把它加入必需 CI，因为现有消费者仍使用实验 API。Dynamic/JsObject 的全部显式声明由 [类型边界盘点](api-type-boundaries.md) 单独检查，开放宿主边界与语义迁移仍需逐项审查。#176 的“消费者和 README 只使用稳定入口”仍未完成，不以清单覆盖门禁代替。
 
 产物归属：`docs/api-namespaces.json` 是人工维护的分类源，不标记 generated。`docs/api-stable-contract.json` 是只读 Calcit 查询生成的、刻意入库的兼容性审查基线，已精确标记 `linguist-generated`；否则 CI 没有可比较的已审查合同。本文只有清单标记之间的表格为生成内容，不把整篇人工契约文档或 `calcit.cirru` 标为 generated。测量报告与压缩样本另放被忽略的 `test-results/`，不混入 API 合同。
 
