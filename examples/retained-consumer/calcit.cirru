@@ -28,13 +28,13 @@
         'create-batch-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-batch-gpu! (canvas device format capacity) (batch/create-renderer! canvas device format capacity)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'JsObject)
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectRendererHost)
             :args $ [] 'JsObject 'js-ffi.webgpu/DeviceHost 'String 'Number
             :features $ #{} :js-ffi
         'create-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-gpu! (canvas device format capacity) (gpu/create-renderer! canvas device format capacity)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'JsObject)
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectRendererHost)
             :args $ [] 'JsObject 'js-ffi.webgpu/DeviceHost 'String 'Number
             :features $ #{} :js-ffi
         'create-instances-gpu! $ %{} 'CodeEntry (:doc |)
@@ -127,7 +127,7 @@
           :code $ quote $ defn dispose-gpu! (host) (batch/dispose-renderer! host)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'JsObject
+            :args $ [] 'quamolit.gpu-component/RectRendererHost
             :features $ #{} :js-ffi
         'dispose-instances-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn dispose-instances-gpu! (batch) (webgpu/dispose! batch)
@@ -145,13 +145,13 @@
           :code $ quote $ defn draw-gpu! (host program time) (gpu/draw-at! host program time)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarProgram 'Number
+            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/ScalarProgram 'Number
             :features $ #{} :js-ffi
         'draw-independent-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-independent-gpu! (host program time) (gpu/draw-instance-at! host program time)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'JsObject 'quamolit.gpu-scalar-program/InstanceProgram 'Number
+            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/InstanceProgram 'Number
             :features $ #{} :js-ffi
         'draw-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-instances! (context positions)
@@ -278,13 +278,13 @@
           :code $ quote $ defn install-gpu! (host program) (gpu/install-program! host program)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'JsObject 'quamolit.gpu-scalar-program/ScalarProgram
+            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/ScalarProgram
             :features $ #{} :js-ffi
         'install-independent-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-independent-gpu! (host program time) (gpu/install-instance-program! host program time)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'JsObject 'quamolit.gpu-scalar-program/InstanceProgram 'Number
+            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/InstanceProgram 'Number
             :features $ #{} :js-ffi
         'instance-frame-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn instance-frame-at (time)
@@ -503,7 +503,7 @@
             batch/submit-update! host $ :delta prepared
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'JsObject 'quamolit.gpu-component/BatchPlan
+            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-component/BatchPlan
             :features $ #{} :js-ffi
         'update-batch $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-batch (previous plan) (batch/update-batch previous plan)

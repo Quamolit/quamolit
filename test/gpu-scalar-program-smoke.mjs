@@ -182,6 +182,8 @@ function mock() {
 test("编译后 file/inline 调用：参数常驻，1000 时间帧只更新 uniform", () => {
   const m = mock(),
     h = program.create_renderer_$x_(m.canvas, m.device, "bgra8unorm", 128);
+  assert.equal(h.capacity, 128);
+  assert.equal(h.disposed, false);
   const prepared = program.prepare_program(base()).extra[0];
   assert.throws(() => program.draw_at_$x_(h, prepared, 0), /not-installed/);
   program.install_program_$x_(h, prepared);
@@ -199,6 +201,7 @@ test("编译后 file/inline 调用：参数常驻，1000 时间帧只更新 unif
   assert.equal(hot[25].values[2], 0.25);
   dispose_renderer_$x_(h);
   dispose_renderer_$x_(h);
+  assert.equal(h.disposed, true);
   assert.ok(m.buffers.every((b) => b.dead === 1));
   assert.throws(() => program.draw_at_$x_(h, prepared, 0.5), /not-installed/);
 });
