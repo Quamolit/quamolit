@@ -8,7 +8,7 @@ GPU 硬件验证仅 macOS / Apple Metal-3；其余设备未验证。软件 adapt
 
 - `create!(canvas,device,format,capacity)` 创建一个固定容量图片图层；调用者拥有 device 与 texture，图层只拥有 pipeline、sampler、uniform buffer 和 bind group 缓存。
 - `supported-document?` 检查 Scene 的图元与绑定：image 和 opacity=1 的 group 可用，不接受未解析绑定或混合图元。`prepare-document` 结合实际 view 检查裁剪能力：累计矩阵的 b/c 必须为 0 才能执行矩形 clip；不能把旋转矩形的外包框冒充原裁剪。半透明组需要隔离合成，本入口明确拒绝。调用者选择完整 Canvas 图层，不能跳过节点拼半帧。
-- `render-decision(document,view,available)` 是纯 Calcit 的完整图层判定，返回 `ImageRenderDecision :webgpu` 或 `:canvas reason`。原因分别为 `webgpu-unavailable`、`unsupported-image-layer`、`rotated-image-clip`；它先验证 Scene/view，不把非法父级或 NaN 当作正常回退。不创建设备，不查找纹理，也不输出局部图片子集。Canvas 仍须通过自身 `preflight!`，此结果不代表任何 Scene（如 instances）都被 Canvas 支持。
+- `render-decision(document,view,available)` 是纯 Calcit 的完整图层判定，返回 `ImageRenderDecision :webgpu` 或 `:canvas reason`。原因分别为 `webgpu-unavailable`、`unsupported-image-layer`、`rotated-image-clip`、`fractional-image-clip`；裁剪须经 view × 祖先矩阵变换后四边均落在整数物理像素上，DPR 由 view 表达，不取整或使用 epsilon 放行。每个祖先窗口分别检查，整数子窗口不能掩盖小数祖先。它先验证 Scene/view，不把非法父级或 NaN 当作正常回退。不创建设备，不查找纹理，也不输出局部图片子集。Canvas 仍须通过自身 `preflight!`，此结果不代表任何 Scene（如 instances）都被 Canvas 支持。
 - `prepare-document` 先检查整个 Scene、视口、view 矩阵与每个 texture 尺寸，保持声明顺序；准备结果是临时宿主执行数据，不写入 Scene/Model。
 - `draw-document!` 接受图层、document、`lookup(id,version)`、view `Matrix2D`、像素视口宽高和清屏颜色。Calcit 合成 view × 祖先矩阵 × image.matrix、归一化源裁剪、求交全部祖先窗口与视口；全资源/数值预检和容量检查完成后才开始绘制。矩阵合成溢出也在 begin 前拒绝。
 - `dispose!` 幂等释放图层自己的 buffer 与画布配置。调用者应先等待已提交 GPU 工作完成，再关闭 texture registry 和 device；通用 fence-safe 回收仍由 #51 继续实现。
@@ -39,9 +39,9 @@ let
 
 ## 验证与展示
 
-`yarn test:webgpu-images`：30/30 严格公共定义、6 个 Node 场景（嵌套/镜像/不支持语义/合成溢出预检和混合图层判定）、三个 Chromium 用例（adapter 失败 Canvas 与两个 GPU 专项）。1000 个重复帧的 GPU 计数为 pipeline=1、buffer=1、bind group=2、首帧 uniform=192 B、热帧=0 B。Apple Metal-3 的红色／交叠／蓝色／背景实色样本分别为 `[255,0,0,255]`、`[127,0,128,255]`、`[0,0,128,255]`、`[0,0,0,255]`，无 uncaptured GPU error；嵌套平移与整数 clip 的内区/三个外区样本与 Canvas 完全一致。GPU 图片的 full-frame Canvas 等价与其他硬件未验证；此结果不是性能测量。
+`yarn test:webgpu-images`：31/31 严格公共定义、7 个 Node 场景（嵌套/镜像、DPR 1/2 的物理裁剪判定、不支持语义在资源查询/绘制前拒绝、合成溢出预检和混合图层判定）、三个 Chromium 用例（adapter 失败 Canvas 与两个 GPU 专项）。1000 个重复帧的 GPU 计数为 pipeline=1、buffer=1、bind group=2、首帧 uniform=192 B、热帧=0 B。Apple Metal-3 的红色／交叠／蓝色／背景实色样本分别为 `[255,0,0,255]`、`[127,0,128,255]`、`[0,0,128,255]`、`[0,0,0,255]`，无 uncaptured GPU error；嵌套平移与整数 clip 的内区/三个外区样本与 Canvas 完全一致。GPU 图片的 full-frame Canvas 等价与其他硬件未验证；此结果不是性能测量。
 
-折扇增加“父组矩形窗口裁剪”，URL 可加 `clip=window`。Calcit `display-scene` 包装同一 24 片 Scene：父组拥有视口变换与可选局部裁剪，Canvas 通过 `canvas-scene` 正确性入口绘制，GPU 通过同源 group 解析；原 `windowed-scene/draw-windowed!` 便利入口保留。默认关闭，历史零差异合同不变。`yarn test:folding-fan` 另覆盖 DPR 2、窗口外全图无残留、暂停 resize、分享刷新与取消窗口时 Model 不变。
+折扇增加“父组矩形窗口裁剪”，URL 可加 `clip=window`。Calcit `display-scene` 包装同一 24 片 Scene：父组拥有视口变换与可选局部裁剪，Canvas 通过 `canvas-scene` 正确性入口绘制，GPU 通过同源 group 解析；原 `windowed-scene/draw-windowed!` 便利入口保留。小数物理窗口整层回退 Canvas，保持全部 24 片、Model、时间和请求后端；resize 到整数边界后复用已有 GPU runtime。默认关闭，历史零差异合同不变。这个保守边界不是图片栅格化等价证明；#144 的矩形实验只提供拒绝未验证 clip 的依据。`yarn test:folding-fan` 另覆盖 DPR 2、窗口外全图无残留、暂停 resize、分享刷新与取消窗口时 Model 不变。
 
 “文字/折线标注”增加另一个组和两个真实 Scene 图元，URL `annotations=1` 保存选择。请求 WebGPU 时，Calcit 把完整 28 节点 Scene 判为 Canvas：恢复导航原画布，图片、线与字全部走同一 `canvas-scene`，不提交局部 GPU 图片。关闭标注后复用已有 GPU runtime，无须重新创建 pipeline/texture；显式切回 Canvas、离开 demo 或设备丢失仍按原 fence 规则关闭 runtime。回退期间只显示一块 Canvas，时间/Model 不变；分享保存请求后端而非临时实际后端，因此刷新后仍能恢复相同策略。这里保留的一个 GPU runtime 是有界的暖缓存，不是逐帧分配。
 

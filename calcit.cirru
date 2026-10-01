@@ -19661,6 +19661,28 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.scene-ir/ImageNode 'quamolit.scene-ir/Matrix2D 'Number 'Number
             :return $ :: 'List 'Number
+        'pixel-aligned-clips? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn pixel-aligned-clips? (document view)
+            every? (:nodes document)
+              fn (node)
+                match (:content node)
+                  (:group group)
+                    match (:clip group)
+                      (:none) true
+                      (:rect rectangle)
+                        let
+                            clip $ transform-clip rectangle $ matrix-for (:nodes document) (:id node) view
+                          every?
+                            [] (:x clip) (:y clip)
+                              + (:x clip) (:width clip)
+                              + (:y clip) (:height clip)
+                            fn (value)
+                              and (motion/finite-number? value)
+                                = value $ round value
+                  _ true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'quamolit.scene-ir/Matrix2D
         'prepare-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn prepare-document (document lookup view width height)
             assert |unsupported-webgpu-image-scene $ supported-document? document
@@ -19668,6 +19690,8 @@
             assert |invalid-image-view $ every?
               [] (:a view) (:b view) (:c view) (:d view) (:e view) (:f view)
               , motion/finite-number?
+            assert |unsupported-rotated-image-clip $ supported-clips? document view
+            assert |unsupported-fractional-image-clip $ pixel-aligned-clips? document view
             map
               filter (:nodes document) image-node?
               fn (node)
@@ -19713,6 +19737,8 @@
                 ImageRenderDecision :canvas |unsupported-image-layer
               (not (supported-clips? document view))
                 ImageRenderDecision :canvas |rotated-image-clip
+              (not (pixel-aligned-clips? document view))
+                ImageRenderDecision :canvas |fractional-image-clip
               true $ ImageRenderDecision :webgpu
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-images/ImageRenderDecision)
