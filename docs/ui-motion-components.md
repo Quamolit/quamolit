@@ -30,6 +30,8 @@ Metric Flow、Signal Weave 与 Cohort Pulse 已共同使用 `ui/tween-at`。Coho
 
 这层 API 当前走 Canvas2D 参考渲染，但返回值与后端无关。未来 WebGPU 只需要消费相同 Scene/Motion 描述；本切片不声称已经完成 GPU lowering、资源释放或吞吐优化。
 
+三个图表页面统一复用既有 `DemandFrameScheduler` 管理 rAF 句柄：动画未结束时请求下一帧，终点或暂停时取消；输入重新播放，resize/DPR 合并为按需绘制且不改变动画时间，导航卸载时 dispose。同步 seek/快照合同保持不变。此宿主只管理浏览器调度，动画 Model、活动区间和中间帧仍由 Calcit 决定；不把调度统一当作整个图表已接入保留计划或性能验收。
+
 ## 检验
 
 ```sh
@@ -40,3 +42,5 @@ yarn test:cohort-pulse
 ```
 
 `test:ui-motion` 检查四个公共命名空间的严格类型，并用独立手算值验证错峰、数值渐变、交叉淡化、卸载端点和非法输入。三个作品命令继续负责 Node 重放合同和 Chromium 固定帧截图。
+
+既有 `yarn test:demo-nav` 对完整静态站点验证这三个页面空闲至少2秒不绘制、输入唤醒、暂停 resize、伴随尺寸通知的 DPR 1→2 以及导航卸载取消；不另增测试命令。Chromium/CDP 在尺寸不变时可能改变 DPR 而不发送 resize/resolution，当前不会自动重绘，作为 #50 的剩余项记录，不增加轮询定时器或宣称所有 DPR 更新已覆盖。其他示例与资源 ready 唤醒仍由 #50 后续收口。

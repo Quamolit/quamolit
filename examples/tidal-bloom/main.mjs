@@ -16,6 +16,8 @@ import {
 } from "../../target/js/tidal-bloom/quamolit.examples.tidal-bloom.mjs";
 import { to_js_data } from "../../target/js/tidal-bloom/calcit.core.mjs";
 
+import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+
 export function mountDemo() {
   const canvas = document.querySelector("canvas");
   const context = canvas.getContext("2d");
@@ -35,10 +37,19 @@ export function mountDemo() {
   let seriesModel = initial_series_model(params.has("seriesProgress") && Number.isFinite(sharedSeriesProgress) && sharedSeriesProgress >= 0 && sharedSeriesProgress <= 1
     ? sharedSeriesProgress : 0);
   let playing = false;
-  let frame = null;
   let anchor = 0;
   let started = 0;
   let paints = 0;
+  const scheduler = new DemandFrameScheduler({
+    requestFrame: (callback) => requestAnimationFrame(callback),
+    cancelFrame: (handle) => cancelAnimationFrame(handle),
+    paint: (now) => playing ? tick(now) : draw(),
+  });
+
+  function wake(reason) {
+    scheduler.request(reason);
+    scheduler.resume();
+  }
 
   function draw() {
     const bounds = canvas.getBoundingClientRect();
@@ -80,8 +91,7 @@ export function mountDemo() {
 
   function stop() {
     playing = false;
-    if (frame !== null) cancelAnimationFrame(frame);
-    frame = null;
+    scheduler.pause();
     playButton.textContent = "播放";
   }
 
@@ -90,7 +100,7 @@ export function mountDemo() {
     const next = anchor + Math.max(0, now - started) / 1000;
     sample(mode === "timeline" ? Math.min(8, next) : next);
     if (mode === "timeline" ? next >= 8 : !view_active_$q_(model, time) && !series_active_$q_(seriesModel, time)) stop();
-    else frame = requestAnimationFrame(tick);
+    else scheduler.request("animation");
   }
 
   function play() {
@@ -104,7 +114,7 @@ export function mountDemo() {
     started = performance.now();
     playing = true;
     playButton.textContent = "暂停";
-    frame = requestAnimationFrame(tick);
+    wake("animation");
   }
 
   function seek(value) {
@@ -162,6 +172,7 @@ export function mountDemo() {
       eventCount: mode === "interactive" ? to_js_data(model).events.length : 0,
       playing,
       paints,
+      pending: scheduler.pending,
       width: canvas.width,
       height: canvas.height,
       nodeCount: scene.nodes.length,
@@ -203,14 +214,14 @@ export function mountDemo() {
     toggle.textContent = panel.hidden ? "展开控制" : "收起控制";
   };
 
-  const observer = new ResizeObserver(draw);
+  const observer = new ResizeObserver(() => wake("resize"));
   observer.observe(canvas);
   let resolution;
   function watchDpr() {
     resolution?.removeEventListener("change", watchDpr);
     resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`);
     resolution.addEventListener("change", watchDpr);
-    draw();
+    wake("dpr");
   }
   watchDpr();
   const listeners = new AbortController();
@@ -222,6 +233,7 @@ export function mountDemo() {
   if (!params.has("t") && !params.has("progress") && !matchMedia("(prefers-reduced-motion: reduce)").matches) chooseView(1);
   return () => {
     stop();
+    scheduler.dispose();
     listeners.abort();
     observer.disconnect();
     resolution?.removeEventListener("change", watchDpr);

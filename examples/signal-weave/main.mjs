@@ -10,6 +10,8 @@ import {
 } from "../../target/js/signal-weave/quamolit.examples.signal-weave.mjs";
 import { to_js_data } from "../../target/js/signal-weave/calcit.core.mjs";
 
+import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+
 export function mountDemo() {
   const canvas = document.querySelector("canvas");
   const context = canvas.getContext("2d");
@@ -25,10 +27,19 @@ export function mountDemo() {
   let model = initial_model(Number.isFinite(initialPosition) && initialPosition >= 0 && initialPosition <= 1
     ? initialPosition : 0);
   let playing = false;
-  let frame = null;
   let anchor = 0;
   let started = 0;
   let paints = 0;
+  const scheduler = new DemandFrameScheduler({
+    requestFrame: (callback) => requestAnimationFrame(callback),
+    cancelFrame: (handle) => cancelAnimationFrame(handle),
+    paint: (now) => playing ? tick(now) : draw(),
+  });
+
+  function wake(reason) {
+    scheduler.request(reason);
+    scheduler.resume();
+  }
 
   function draw() {
     const bounds = canvas.getBoundingClientRect();
@@ -60,8 +71,7 @@ export function mountDemo() {
 
   function stop() {
     playing = false;
-    if (frame !== null) cancelAnimationFrame(frame);
-    frame = null;
+    scheduler.pause();
     playButton.textContent = "播放";
   }
 
@@ -75,7 +85,7 @@ export function mountDemo() {
     if (!playing) return;
     sample(anchor + Math.max(0, now - started) / 1000);
     if (time >= 1.2 && !active_$q_(model, time)) stop();
-    else frame = requestAnimationFrame(tick);
+    else scheduler.request("animation");
   }
 
   function play() {
@@ -88,7 +98,7 @@ export function mountDemo() {
     started = performance.now();
     playing = true;
     playButton.textContent = "暂停";
-    frame = requestAnimationFrame(tick);
+    wake("animation");
   }
 
   function seek(value) {
@@ -117,6 +127,7 @@ export function mountDemo() {
       eventCount: to_js_data(model).events.length,
       playing,
       paints,
+      pending: scheduler.pending,
       width: canvas.width,
       height: canvas.height,
       nodeCount: scene.nodes.length,
@@ -151,14 +162,14 @@ export function mountDemo() {
     toggle.textContent = panel.hidden ? "展开控制" : "收起控制";
   };
 
-  const observer = new ResizeObserver(draw);
+  const observer = new ResizeObserver(() => wake("resize"));
   observer.observe(canvas);
   let resolution;
   function watchDpr() {
     resolution?.removeEventListener("change", watchDpr);
     resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`);
     resolution.addEventListener("change", watchDpr);
-    draw();
+    wake("dpr");
   }
   watchDpr();
   const listeners = new AbortController();
@@ -169,6 +180,7 @@ export function mountDemo() {
   if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();
   return () => {
     stop();
+    scheduler.dispose();
     listeners.abort();
     observer.disconnect();
     resolution?.removeEventListener("change", watchDpr);
