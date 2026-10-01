@@ -1,0 +1,389 @@
+{
+  "schema": "quamolit-layer-cost-v1",
+  "createdAt": "2026-10-01T13:15:55.743Z",
+  "complete": true,
+  "url": "http://127.0.0.1:5195/preview/demos/index.html",
+  "command": "/Users/chenyong/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node /Users/chenyong/repo/quamolit/instance-layer-composition/test/layer-cost-bench.mjs",
+  "options": {
+    "warmupSeconds": 5,
+    "durationSeconds": 30,
+    "runs": 3
+  },
+  "formalDuration": true,
+  "fixture": {
+    "instances": 10000,
+    "animation": "static instances + Calcit UI reveal, t=(elapsed/1500)%1",
+    "viewport": [
+      1920,
+      1080
+    ],
+    "dpr": 1,
+    "alpha": "premultiplied; instances 0.5; UI unchanged",
+    "fonts": "demo system fonts",
+    "seed": null
+  },
+  "environment": {
+    "git": "4d1b317d328115276053d482d95aac66c2a90e6a",
+    "dirty": "M docs/layer-composition.md\n M examples/layer-composition/main.mjs\n M package.json\n?? docs/performance/\n?? test/layer-cost-bench.mjs\n?? test/layer-cost-metrics.mjs\n?? test/layer-cost-metrics.test.mjs",
+    "os": "darwin",
+    "release": "25.6.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Pro",
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=39256163)\t80%; AC attached; not charging present: true",
+    "calcit": "0.27.0",
+    "sourceHashes": {
+      "calcit.cirru": "156d2b26d806a62991122329d16d16d8c7eae9fa1a3c0083433847731f6c5adf",
+      "examples/layer-composition/main.mjs": "cfa96104b12255af4e0fdfc23f836d493f980344e6e473f8980477fa04abbdcc",
+      "test/layer-cost-bench.mjs": "38f9e627c4ba609ba4f066604d72ed4f2dd9e1815911f8ede24487adf217c599",
+      "test/layer-cost-metrics.mjs": "a701398bde4c15e22a749f77001b74d8994ab733ea9f8e84b4ed0e467c7c1524"
+    },
+    "browser": "153.0.8010.12"
+  },
+  "limitations": [
+    "rAF 是调度代理，不是精确呈现；不判定 60 FPS",
+    "compositor/GPU execution/分配量/UI native calls 未测",
+    "不是 #175 的 10k 独立动画，也不是三路径基线",
+    "生产路径仍每帧重新声明并编译 UI/命中计划；不宣称结构保留"
+  ],
+  "runs": [
+    {
+      "backend": "canvas",
+      "frames": 1800,
+      "elapsedMs": 30016.538,
+      "adapter": null,
+      "metrics": {
+        "viewportMs": {
+          "p50": 0.19999980926513672,
+          "p95": 0.3000001907348633,
+          "p99": 0.40000009536743164
+        },
+        "planningMs": {
+          "p50": 1.0999999046325684,
+          "p95": 1.3999996185302734,
+          "p99": 1.700000286102295
+        },
+        "surfacesMs": {
+          "p50": 0,
+          "p95": 0,
+          "p99": 0.09999990463256836
+        },
+        "instancesMs": {
+          "p50": 0.9000000953674316,
+          "p95": 1,
+          "p99": 1.0999999046325684
+        },
+        "uiMs": {
+          "p50": 1.1999998092651367,
+          "p95": 1.4000000953674316,
+          "p99": 1.6999998092651367
+        },
+        "controlsMs": {
+          "p50": 0,
+          "p95": 0.10000038146972656,
+          "p99": 0.20000028610229492
+        },
+        "cpuFrameMs": {
+          "p50": 3.4000000953674316,
+          "p95": 3.8999996185302734,
+          "p99": 4.5
+        },
+        "rafIntervalMs": {
+          "p50": 16.69999999999891,
+          "p95": 17.5,
+          "p99": 17.600000000002183
+        }
+      },
+      "compositorMs": null,
+      "gpuMs": null,
+      "allocationBytes": null,
+      "uiNativeCalls": null,
+      "rawFile": "run-1-canvas.json.gz",
+      "rawSha256": "9a108123bdb4ab1e69ea48f0dae0e2c53bb4a34f4119fb15ab44cf178f9d1405"
+    },
+    {
+      "backend": "webgpu",
+      "frames": 1801,
+      "elapsedMs": 30016.447999999997,
+      "adapter": {
+        "vendor": "apple",
+        "architecture": "metal-3",
+        "device": "",
+        "description": ""
+      },
+      "metrics": {
+        "viewportMs": {
+          "p50": 0.19999980926513672,
+          "p95": 0.20000028610229492,
+          "p99": 0.3000001907348633
+        },
+        "planningMs": {
+          "p50": 1.0999999046325684,
+          "p95": 1.299999713897705,
+          "p99": 1.4000000953674316
+        },
+        "surfacesMs": {
+          "p50": 0,
+          "p95": 0,
+          "p99": 0
+        },
+        "instancesMs": {
+          "p50": 0.19999980926513672,
+          "p95": 0.20000028610229492,
+          "p99": 0.3000001907348633
+        },
+        "uiMs": {
+          "p50": 1.299999713897705,
+          "p95": 1.4000000953674316,
+          "p99": 1.5
+        },
+        "controlsMs": {
+          "p50": 0,
+          "p95": 0.10000038146972656,
+          "p99": 0.19999980926513672
+        },
+        "cpuFrameMs": {
+          "p50": 2.700000286102295,
+          "p95": 3,
+          "p99": 3.1999998092651367
+        },
+        "rafIntervalMs": {
+          "p50": 16.699999999999818,
+          "p95": 17,
+          "p99": 17.600000000000364
+        }
+      },
+      "compositorMs": null,
+      "gpuMs": null,
+      "allocationBytes": null,
+      "uiNativeCalls": null,
+      "rawFile": "run-1-webgpu.json.gz",
+      "rawSha256": "e92e67eaebe6c2c2481c04bcf86083004fedb44f46f52bdd26ff996511d11b75"
+    },
+    {
+      "backend": "canvas",
+      "frames": 1799,
+      "elapsedMs": 30016.513999999996,
+      "adapter": null,
+      "metrics": {
+        "viewportMs": {
+          "p50": 0.19999980926513672,
+          "p95": 0.2999997138977051,
+          "p99": 0.3000001907348633
+        },
+        "planningMs": {
+          "p50": 1.0999999046325684,
+          "p95": 1.3000001907348633,
+          "p99": 1.602000370025633
+        },
+        "surfacesMs": {
+          "p50": 0,
+          "p95": 0,
+          "p99": 0.09999990463256836
+        },
+        "instancesMs": {
+          "p50": 0.8000001907348633,
+          "p95": 1,
+          "p99": 1
+        },
+        "uiMs": {
+          "p50": 1.1999998092651367,
+          "p95": 1.5,
+          "p99": 1.700000286102295
+        },
+        "controlsMs": {
+          "p50": 0,
+          "p95": 0.10000038146972656,
+          "p99": 0.20000028610229492
+        },
+        "cpuFrameMs": {
+          "p50": 3.3000001907348633,
+          "p95": 3.8999996185302734,
+          "p99": 4.300000190734863
+        },
+        "rafIntervalMs": {
+          "p50": 16.69999999999891,
+          "p95": 17.599999999998545,
+          "p99": 17.700000000000728
+        }
+      },
+      "compositorMs": null,
+      "gpuMs": null,
+      "allocationBytes": null,
+      "uiNativeCalls": null,
+      "rawFile": "run-2-canvas.json.gz",
+      "rawSha256": "cc7b88e7fb9a635d034687a2e39830129002b51f5c6df54772bc28dd2bb413a7"
+    },
+    {
+      "backend": "webgpu",
+      "frames": 1801,
+      "elapsedMs": 30000.767999999996,
+      "adapter": {
+        "vendor": "apple",
+        "architecture": "metal-3",
+        "device": "",
+        "description": ""
+      },
+      "metrics": {
+        "viewportMs": {
+          "p50": 0.19999980926513672,
+          "p95": 0.2999997138977051,
+          "p99": 0.3000001907348633
+        },
+        "planningMs": {
+          "p50": 1.1999998092651367,
+          "p95": 1.4000000953674316,
+          "p99": 1.799999713897705
+        },
+        "surfacesMs": {
+          "p50": 0,
+          "p95": 0,
+          "p99": 0.09999990463256836
+        },
+        "instancesMs": {
+          "p50": 0.19999980926513672,
+          "p95": 0.20000028610229492,
+          "p99": 0.3000001907348633
+        },
+        "uiMs": {
+          "p50": 1.200000286102295,
+          "p95": 1.4000000953674316,
+          "p99": 1.5999999046325684
+        },
+        "controlsMs": {
+          "p50": 0,
+          "p95": 0.10000038146972656,
+          "p99": 0.19999980926513672
+        },
+        "cpuFrameMs": {
+          "p50": 2.799999713897705,
+          "p95": 3.200000286102295,
+          "p99": 3.5
+        },
+        "rafIntervalMs": {
+          "p50": 16.69999999999709,
+          "p95": 17.69999999999709,
+          "p99": 17.700000000000728
+        }
+      },
+      "compositorMs": null,
+      "gpuMs": null,
+      "allocationBytes": null,
+      "uiNativeCalls": null,
+      "rawFile": "run-2-webgpu.json.gz",
+      "rawSha256": "6a78a67cfadc963f8ec157a1c065d40ac3f32df0eb0923216bc7ca7260801e61"
+    },
+    {
+      "backend": "canvas",
+      "frames": 1799,
+      "elapsedMs": 30000.5,
+      "adapter": null,
+      "metrics": {
+        "viewportMs": {
+          "p50": 0.19999980926513672,
+          "p95": 0.2999997138977051,
+          "p99": 0.3000001907348633
+        },
+        "planningMs": {
+          "p50": 1.0999999046325684,
+          "p95": 1.3000001907348633,
+          "p99": 1.5999999046325684
+        },
+        "surfacesMs": {
+          "p50": 0,
+          "p95": 0,
+          "p99": 0.09999990463256836
+        },
+        "instancesMs": {
+          "p50": 0.8999996185302734,
+          "p95": 1,
+          "p99": 1
+        },
+        "uiMs": {
+          "p50": 1.200000286102295,
+          "p95": 1.5,
+          "p99": 2.0999999046325684
+        },
+        "controlsMs": {
+          "p50": 0,
+          "p95": 0.10000038146972656,
+          "p99": 0.20000028610229492
+        },
+        "cpuFrameMs": {
+          "p50": 3.3999996185302734,
+          "p95": 3.8999996185302734,
+          "p99": 4.50199999809265
+        },
+        "rafIntervalMs": {
+          "p50": 16.69999999999891,
+          "p95": 17.600000000000364,
+          "p99": 17.699999999999818
+        }
+      },
+      "compositorMs": null,
+      "gpuMs": null,
+      "allocationBytes": null,
+      "uiNativeCalls": null,
+      "rawFile": "run-3-canvas.json.gz",
+      "rawSha256": "d2f1205bb96e08561a81a5e34dae79eb8d45035ff38595440a2ff9a58f3858b7"
+    },
+    {
+      "backend": "webgpu",
+      "frames": 1801,
+      "elapsedMs": 30016.534,
+      "adapter": {
+        "vendor": "apple",
+        "architecture": "metal-3",
+        "device": "",
+        "description": ""
+      },
+      "metrics": {
+        "viewportMs": {
+          "p50": 0.19999980926513672,
+          "p95": 0.3000001907348633,
+          "p99": 0.39999961853027344
+        },
+        "planningMs": {
+          "p50": 1.0999999046325684,
+          "p95": 1.4000000953674316,
+          "p99": 1.799999713897705
+        },
+        "surfacesMs": {
+          "p50": 0,
+          "p95": 0,
+          "p99": 0.09999990463256836
+        },
+        "instancesMs": {
+          "p50": 0.19999980926513672,
+          "p95": 0.20000028610229492,
+          "p99": 0.3000001907348633
+        },
+        "uiMs": {
+          "p50": 1.1999998092651367,
+          "p95": 1.4000000953674316,
+          "p99": 1.6000003814697266
+        },
+        "controlsMs": {
+          "p50": 0,
+          "p95": 0.10000038146972656,
+          "p99": 0.20000028610229492
+        },
+        "cpuFrameMs": {
+          "p50": 2.6999998092651367,
+          "p95": 3.1000003814697266,
+          "p99": 3.5999999046325684
+        },
+        "rafIntervalMs": {
+          "p50": 16.69999999999709,
+          "p95": 17.599999999998545,
+          "p99": 17.700000000000728
+        }
+      },
+      "compositorMs": null,
+      "gpuMs": null,
+      "allocationBytes": null,
+      "uiNativeCalls": null,
+      "rawFile": "run-3-webgpu.json.gz",
+      "rawSha256": "40f9406462908b117717e8f5cc741612c5949a68cb63a099bf97e75e07fe0a2a"
+    }
+  ]
+}

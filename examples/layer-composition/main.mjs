@@ -41,6 +41,7 @@ export function mountDemo() {
   }
   function draw() {
     if (disposed) return;
+    const frameStarted = performance.now();
     const bounds = canvas.getBoundingClientRect();
     const next = layers.viewport(bounds.width, bounds.height, devicePixelRatio || 1);
     const dimensions = plain(next);
@@ -51,6 +52,7 @@ export function mountDemo() {
       if (previous) resource.release_$x_(table, demo.source_at(previous));
       view = next;
     }
+    const viewportMs = performance.now() - frameStarted;
     const planningStarted = performance.now();
     const declaration = demo.frame_at(time, view, version);
     plan = plain(layers.plan_for(declaration, !!runtime));
@@ -62,10 +64,12 @@ export function mountDemo() {
     }
     hitPlans = layers.compile_hit_layers(declaration);
     const planningMs = performance.now() - planningStarted;
+    const surfacesStarted = performance.now();
     for (const surface of [canvas, bottom]) {
       if (surface.width !== dimensions.width) surface.width = dimensions.width;
       if (surface.height !== dimensions.height) surface.height = dimensions.height;
     }
+    const surfacesMs = performance.now() - surfacesStarted;
     const instancesStarted = performance.now();
     if (runtime) {
       try {
@@ -87,12 +91,14 @@ export function mountDemo() {
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, canvas.width, canvas.height);
     demo.draw_ui_$x_(context, time, view);
-    costs = { planningMs, instancesMs, uiMs: performance.now() - uiStarted, compositorMs: null };
+    const uiMs = performance.now() - uiStarted;
+    const controlsStarted = performance.now();
     slider.value = String(time);
     select.value = preferred;
     document.querySelector("#time-output").value = time.toFixed(2);
     status.textContent = `${runtime ? "WebGPU + Canvas" : "Canvas + Canvas"} · ${dimensions.width}×${dimensions.height} · ${reason}`;
     status.dataset.result = "pass";
+    costs = { viewportMs, planningMs, surfacesMs, instancesMs, uiMs, controlsMs: performance.now() - controlsStarted, cpuFrameMs: performance.now() - frameStarted, compositorMs: null, gpuMs: null };
   }
   async function setBackend(value) {
     preferred = value;

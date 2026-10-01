@@ -149,6 +149,8 @@ yarn bench
 
 `yarn test:layer-composition` 检查 [Calcit 分层契约与同屏示例](layer-composition.md)：严格公共类型、层 ID/视口/时间校验、整层后端选择、透明清屏 ABI、逆层序独立命中；Chromium DPR 1/2 全像素 Canvas 合成、暂停 resize、CDP 模拟运行中 DPR 1→2、卡片交互和 adapter 失败的完整实例占用。真实 GPU 专项仅由 `QUAMOLIT_LAYER_REQUIRE_GPU=1 ... --headed -g '真实 GPU'` 执行，验证 Apple/Metal-3 透明合成、device loss 整层回退与同版本重传；云端明确 SKIP，不冒充硬件通过。导航卸载和 adapter 迟到由 `test:demo-nav` 对完整静态产物验证。成本字段仅是 CPU 阶段计时，浏览器合成时间未知，不证明吞吐或 #177 全部完成。
 
+分层成本的实际命令为 `yarn bench:layer-composition`，默认静态产物、独立 Chromium 进程、双后端各 5 秒预热/30 秒采样/3 轮；原始样本和边界见 [分层测量](layer-composition.md#分层成本测量入口)。`test:layer-composition` 同时执行报告负例检查；GPU 缺失时正式命令失败，不用回退成绩替代。浏览器合成/GPU 执行时间未知，不构成性能达标或分层默认化证据。
+
 ## 待实现的统一命令
 
 | 命令 | 负责工作项 | 完成条件 |
