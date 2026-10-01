@@ -19,7 +19,7 @@ alpha 阶段也不静默破坏稳定合同。稳定 API 的破坏性修改须在
 
 ## 全部命名空间清单
 
-类型合同不仅记录 Fn schema：Struct/Enum 的 schema 本身可能只是 `StructDef`/`EnumDef` 标签，因此同时冻结其真实字段/枚举声明。`make-stagger` 参数使用的 `quamolit.motion/Easing` 也纳入类型合同；这不把整个 Motion namespace 的采样器升级为稳定。门禁还检查这些签名和类型声明引用的项目类型，包括嵌套引用：新增类型必须加入合同，不能只冻结类型名称而遗漏字段或枚举项。
+类型合同不仅记录 Fn schema：Struct/Enum/Trait 的 schema 本身可能只是 `StructDef`/`EnumDef`/`Trait` 标签，因此同时冻结其真实字段、枚举或方法声明。`make-stagger` 参数使用的 `quamolit.motion/Easing` 也纳入类型合同；这不把整个 Motion namespace 的采样器升级为稳定。门禁还检查这些签名和类型声明引用的项目类型，包括嵌套引用：新增类型必须加入合同，不能只冻结类型名称而遗漏字段、枚举项或方法签名。
 
 <!-- api-inventory:start -->
 全部 118 个项目命名空间（包含旧应用、示例和测试）；分类由 `docs/api-namespaces.json` 显式维护，不按前缀自动批准新增命名空间。

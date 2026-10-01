@@ -56,6 +56,17 @@ test("Struct/Enum 不能仅保存 StructDef/EnumDef 标签而遗漏字段", () =
   assert.throws(() => verifyStableContract(a, b));
   assert.throws(() => signatureEntry({ id: "x/A", schema: "'EnumDef" }));
 });
+
+test("稳定 Trait 需要冻结方法声明，不能只锁 Trait 标签", () => {
+  const entry = (type) =>
+    signatureEntry({
+      id: "x/Host",
+      schema: "'Trait",
+      code: ["deftrait", "Host", [".value", ["::", "'Fn", ["{}", [":return", type]]]]],
+    });
+  assert.throws(() => verifyStableContract(entry("'Number"), entry("'String")));
+  assert.throws(() => signatureEntry({ id: "x/Host", schema: "'Trait" }));
+});
 test("显式清单覆盖全部 namespace，不自动接受新的 test/examples", () => {
   const rows = expandManifest(manifest());
   verifyCoverage(rows, ["quamolit.ui-motion", "quamolit.test.demo"]);

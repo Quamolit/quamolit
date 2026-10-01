@@ -11,7 +11,7 @@ yarn audit:api-types
 
 工具链使用 `deps.cirru` 指定的 Calcit 0.27.0。脚本通过只读 `calcit query ns/defs/def --format json` 枚举全部项目定义，不直接解析或修改 Snapshot。每个 namespace 的定义计数、身份与分类均核对；缺少 schema 的定义单列为未知，不能因未发现 Dynamic 就说其类型封闭。
 
-检查包含函数 schema 的参数/返回值，以及 Struct/Enum/Type 声明的真实字段（不是只检查 `StructDef` 标签）。普通函数体、文档和 JS 片段中的同名文本不算类型命中。报告逐定义保存 Dynamic/JsObject 的 token 与路径，汇总按定义数而非出现次数计数；同一定义可以同时出现在两类统计中。
+检查包含函数 schema 的参数/返回值，以及 Struct/Enum/Type 的真实字段和 Trait 的方法签名（不是只检查 `StructDef`/`Trait` 标签）。普通函数体、文档和 JS 片段中的同名文本不算类型命中。报告逐定义保存 Dynamic/JsObject 的 token 与路径，汇总按定义数而非出现次数计数；同一定义可以同时出现在两类统计中。
 
 `test-results/api-types/report.json` 是自动生成且被忽略的原始报告，包含源码与分类清单的 SHA-256、工具链、范围、全部定义及命中路径。执行期间源文件或分类变化会使报告失败。本页只人工整理结果和处理规则，原始 JSON 不入库。
 
@@ -26,13 +26,15 @@ yarn audit:api-types
 | 分类 | 定义数 | 缺 schema | 含 Dynamic 的定义 | 含 JsObject 的定义 |
 | --- | --- | --- | --- | --- |
 | 稳定 alpha | 11 | 0 | 0 | 0 |
-| 实验 | 774 | 0 | 0 | 53 |
-| 旧迁移 | 178 | 21 | 131 | 3 |
+| 实验 | 774 | 0 | 0 | 55 |
+| 旧迁移 | 178 | 21 | 132 | 3 |
 | 内部 | 540 | 14 | 23 | 2 |
 
 稳定 UI 合同引用的 `quamolit.motion/Easing` 也单独核对，声明无开放/未知类型。它在表中仍按所属实验 namespace 计数，不能重复计入稳定定义数。35 个缺 schema 定义仍是未知项；实验定义的 Dynamic=0 只说明直接声明，不证明推断类型或间接传播已封闭。
 
-实验 JsObject 的具体定义清单（完整参数/返回/字段路径在可复现报告中）：
+本表已包含 Trait 方法签名的复验结果：前一轮未扫描 Trait，实验 JsObject=53、旧 Dynamic=131；本轮分别新增 `RectBatchHost`/`ImageLayerHost` 方法边界和一个旧 Trait 的 Dynamic 边界。源码 SHA 不变，计数变化来自扫描范围修订，不是新增业务债务。
+
+实验 JsObject 的具体定义清单（完整参数/返回/字段/方法路径在可复现报告中）：
 
 | 命名空间 | 定义 |
 | --- | --- |
@@ -44,8 +46,8 @@ yarn audit:api-types
 | `quamolit.instance-gpu` | `draw-source!`, `upload-source!` |
 | `quamolit.instance-resource` | `create-table!`, `live-count`, `patch-info`, `raw-create-table!`, `raw-live-count`, `raw-patch-info`, `raw-register!`, `raw-register-patch!`, `raw-release!`, `raw-resolve`, `register!`, `register-patch!`, `release!`, `resolve` |
 | `quamolit.presence-webgpu-resources` | `execute-presence-device-action!`, `execute-presence-resource-action!`, `load-presence-buffer!`, `load-presence-buffer-safe!`, `run-presence-load-request!`, `run-presence-load-task!` |
-| `quamolit.webgpu-batches` | `raw-create!` |
-| `quamolit.webgpu-images` | `metrics`, `raw-create!` |
+| `quamolit.webgpu-batches` | `RectBatchHost`, `raw-create!` |
+| `quamolit.webgpu-images` | `ImageLayerHost`, `metrics`, `raw-create!` |
 | `quamolit.webgpu-texture-runner` | `raw-copy-image-to-texture!`, `raw-create-texture!` |
 
 下一优先级是独立消费者实际导入的 instance-resource/GPU 公共包装：审查哪些只是原始 ABI、哪些将宿主表/数据对象暴露给应用；先建立专属句柄与返回值契约，再验证下游，不批量重命名或移动宿主文件。旧迁移与内部的 Dynamic/缺 schema 分别继续由 #36 和相应夹具负责，不反向放宽现代 API。

@@ -114,7 +114,7 @@ export function queryJson(args, cwd) {
 }
 export function signatureEntry(data) {
   assert.ok(data.schema, `缺少稳定定义 schema: ${data.id}`);
-  if (typeof data.schema === "string" && /(?:StructDef|EnumDef|TypeDef)$/.test(data.schema)) {
+  if (typeof data.schema === "string" && /(?:StructDef|EnumDef|TypeDef|Trait)$/.test(data.schema)) {
     assert.ok(Array.isArray(data.code), "类型声明不可丢失字段/枚举项");
     return { schema: data.schema, declaration: data.code };
   }

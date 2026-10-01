@@ -6,7 +6,7 @@
 
 ## 当前可执行门禁
 
-`yarn audit:api-types` 本地枚举全部项目定义的显式 schema 与类型声明，逐定义报告 Dynamic/JsObject 路径和缺少 schema 的未知项；原始 JSON 写入忽略目录。见 [类型边界盘点](api-type-boundaries.md) 的范围与限制。完整扫描不加入日常 CI；5 项盘点器负例作为 `check:api-inventory` 的轻量门禁，稳定 namespace 及其引用类型不能有开放/未知边界。它不是类型推断或 JS 对象内容验证。
+`yarn audit:api-types` 本地枚举全部项目定义的显式 schema 与类型声明（含 Trait 方法），逐定义报告 Dynamic/JsObject 路径和缺少 schema 的未知项；原始 JSON 写入忽略目录。见 [类型边界盘点](api-type-boundaries.md) 的范围与限制。完整扫描不加入日常 CI；6 项盘点器负例作为 `check:api-inventory` 的轻量门禁，稳定 namespace 及其引用类型不能有开放/未知边界。它不是类型推断或 JS 对象内容验证。
 
 `yarn check:api-inventory` 核对 [API 稳定性清单](api-contract.md)：全部项目 namespace 显式分类、文档表格同步、说明链接存在、稳定 UI 构件 Fn 签名和 Struct/Enum 字段合同。负例覆盖新/已移除 namespace、重复分类、未知状态、旧入口无迁移去向、消费者内部/未分类导入，以及稳定签名/类型变更。它不代替严格类型/动画语义门禁；`yarn test:ui-motion` 继续负责后者。独立 `yarn audit:consumer-api` 当前会报告实验 API 依赖并失败，尚非必需 CI，不宣称 #176 完成。
 

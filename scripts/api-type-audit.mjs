@@ -31,8 +31,8 @@ export function inspectTypeBoundary(data) {
     }
   }
   if (!missingSchema) scan(data.schema, "schema");
-  // StructDef/EnumDef 只是标签，实际字段类型在声明内；不扫描普通函数体/文档。
-  if (typeof data.schema === "string" && /(?:StructDef|EnumDef|TypeDef)$/.test(data.schema)) {
+  // 类型/trait schema 可能只是标签，字段和方法签名在声明内；不扫描普通函数体/文档。
+  if (typeof data.schema === "string" && /(?:StructDef|EnumDef|TypeDef|Trait)$/.test(data.schema)) {
     assert.ok(Array.isArray(data.code), `类型声明缺少字段: ${data.id}`);
     scan(data.code.slice(2), "declaration");
   }
@@ -104,7 +104,7 @@ export async function main(args = process.argv.slice(2)) {
     calcitVersion: manifest.calcitVersion,
     sourceSha256: digest(source),
     manifestSha256: digest(manifestBytes),
-    scope: "全部项目定义的显式 schema 及 Struct/Enum/Type 声明；不含推断类型、函数体、外部依赖或语义上的句柄传播",
+    scope: "全部项目定义的显式 schema 及 Struct/Enum/Type/Trait 声明；不含推断类型、函数体、外部依赖或语义上的句柄传播",
     namespaces: rows.length,
     definitions: entries.length,
     summary: summarizeBoundaries(entries),

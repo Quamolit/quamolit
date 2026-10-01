@@ -7,6 +7,20 @@ import {
   verifyStableTypeBoundaries,
 } from "../scripts/api-type-audit.mjs";
 
+test("Trait 的方法参数和返回值也属于宿主类型边界", () => {
+  const result = inspectTypeBoundary({
+    id: "quamolit.gpu/Host",
+    schema: "'Trait",
+    code: [
+      "deftrait",
+      "Host",
+      [".draw", ["::", "'Fn", ["{}", [":args", ["[]", "'JsObject"]], [":return", "'Dynamic"]]]],
+    ],
+  });
+  assert.deepEqual(result.findings.map((finding) => finding.kind).sort(), ["Dynamic", "JsObject"]);
+  assert.throws(() => inspectTypeBoundary({ id: "x/Host", schema: "'Trait" }));
+});
+
 test("稳定入口及引用类型都拒绝开放边界；缺少引用类型也不能通过", () => {
   const entry = { ...inspectTypeBoundary({ id: "x/A", schema: "'Dynamic" }), status: "experimental" };
   verifyStableTypeBoundaries([entry], []);
