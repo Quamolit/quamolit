@@ -9,6 +9,9 @@ import {
   browser_available_$q_,
   create_instances_table_$x_,
   register_instances_$x_,
+  register_instances_version_$x_,
+  independent_instance_motions,
+  independent_instance_positions,
   patch_instances_$x_,
   release_instances_$x_,
   draw_resolved_instances_$x_,
@@ -100,13 +103,27 @@ let instanceMetrics = null;
 let gpuRecoveryState = gpu_recovery_initial(instanceVersion);
 const gpuResources = new Map();
 let gpuReleaseWarning = "";
-function updateInstanceTime(nextTime) {
-  if (nextTime === instanceTime) return;
+let independent = new URLSearchParams(location.search).get("independent") === "1";
+let independentMotions = null;
+function updateInstanceTime(nextTime, force = false) {
+  if (nextTime === instanceTime && !force) return;
   const frame = instance_frame_at(nextTime);
   const values = to_js_data(frame);
   const previous = instanceVersion;
   const next = previous + 1;
-  instanceCopiedBytes = patch_instances_$x_(
+  if (independent || force) {
+    let snapshot;
+    if (independent) {
+      independentMotions ??= independent_instance_motions();
+      snapshot = new Float32Array(to_js_data(independent_instance_positions(independentMotions, nextTime)));
+    } else {
+      snapshot = createInstancePositions(instanceCount);
+      snapshot[values.index * 2] = values.x;
+      snapshot[values.index * 2 + 1] = values.y;
+    }
+    register_instances_version_$x_(instanceTable, next, snapshot);
+    instanceCopiedBytes = snapshot.byteLength;
+  } else instanceCopiedBytes = patch_instances_$x_(
     instanceTable,
     previous,
     next,
@@ -126,6 +143,7 @@ function snapshot() {
       ready,
       viewport,
       mode,
+      pattern: independent ? "independent" : "single-dirty",
       browser: browser_available_$q_(),
       source: {
         count: instanceCount,
@@ -166,6 +184,7 @@ function snapshot() {
   };
 }
 function show() {
+  document.querySelector("#independent").disabled = !mode.startsWith("instances");
   document
     .querySelectorAll("[data-mode]")
     .forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.mode === mode)));
@@ -391,7 +410,15 @@ function simulateGpuLoss(message = "simulated device loss") {
   if (!gpuState) throw Error("gpu-generation-not-ready");
   return commitGpuRecovery(gpu_recovery_lost(gpuRecoveryState, gpuState.generation, message));
 }
-window.consumer = { set, snapshot, setMode, setPresence, simulateGpuLoss };
+function setInstancePattern(value) {
+  independent = Boolean(value);
+  document.querySelector("#independent").checked = independent;
+  if (mode.startsWith("instances")) updateInstanceTime(time, true);
+  return show();
+}
+window.consumer = { set, snapshot, setMode, setPresence, simulateGpuLoss, setInstancePattern };
+document.querySelector("#independent").checked = independent;
+document.querySelector("#independent").onchange = (event) => setInstancePattern(event.target.checked);
 document.querySelector("#gpu-loss").onclick = () => void simulateGpuLoss("用户模拟 device loss");
 if (fullscreen) {
   resizeObserver = new ResizeObserver(show);

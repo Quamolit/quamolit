@@ -56,6 +56,28 @@ export function verifyInstancesConsumer(app, core) {
   assert.deepEqual(context.dynamicPosition, [0, 0], "Canvas 必须消费 Calcit 帧函数产生的最后一版坐标");
   assert.equal(app.release_instances_$x_(table, version), true);
   assert.equal(app.instances_live_count(table), 0, "卸载后公开版本计数回到基线");
+  const motions = app.independent_instance_motions();
+  const declarations = core.to_js_data(motions);
+  assert.equal(declarations.length, 10000);
+  assert.equal(new Set(declarations.map((item) => item.id)).size, 10000, "独立动画须保持不同身份");
+  let initial, final;
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    const sampled = core.to_js_data(app.independent_instance_positions(motions, time));
+    assert.equal(sampled.length, 20000);
+    for (let index = 0; index < 10000; index++) {
+      let progress = Math.min(1, Math.max(0, (time - 0.012 * (index % 13)) / (0.45 + 0.02 * (index % 17))));
+      if (index % 2 === 1) progress = progress * progress * (3 - 2 * progress);
+      const x = 8 + 2 * (index % 125) + (1 + (index % 7)) * progress;
+      const y = 10 + 2 * Math.floor(index / 125) + ((index % 5) - 2) * progress;
+      assert.ok(Math.abs(sampled[index * 2] - x) < 1e-10, `独立 x: ${index}/${time}`);
+      assert.ok(Math.abs(sampled[index * 2 + 1] - y) < 1e-10, `独立 y: ${index}/${time}`);
+    }
+    if (time === 0) initial = sampled;
+    if (time === 1) final = sampled;
+  }
+  assert.equal(final.filter((value, index) => index % 2 === 0 && value !== initial[index]).length, 10000);
+  assert.deepEqual(core.to_js_data(motions), declarations, "乱序采样不能改写声明");
+  assert.throws(() => app.independent_instance_positions(motions, NaN), /invalid-motion-time/);
   return {
     boundaryCalls: metrics["boundary-calls"],
     canvasCalls: metrics["canvas-calls"],
@@ -64,5 +86,6 @@ export function verifyInstancesConsumer(app, core) {
     dynamicPatchBytes: 8,
     dynamicUpdates: 100,
     liveAfterDispose: 0,
+    independent: { instances: 10000, sampledTimes: [1, 0, 0.5, 0.25, 1], changedInstances: 10000 },
   };
 }

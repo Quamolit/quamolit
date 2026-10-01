@@ -233,6 +233,41 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.gpu-scalar-program/ScalarProgram 'quamolit.retained-component/ComponentPlan
+        'independent-instance-motions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn independent-instance-motions ()
+            map (range 10000)
+              fn (index)
+                let
+                    x $ + 8 $ * 2 (&number:rem index 125)
+                    y $ + 10 $ * 2
+                      floor $ / index 125
+                    dx $ + 1 $ &number:rem index 7
+                    dy $ - (&number:rem index 5) 2
+                  quamolit.motion/Vec2Descriptor :id (str |independent- index) :version 1 :motion $ quamolit.motion/Vec2Motion :tween $ quamolit.motion/Vec2Tween :start
+                    * 0.012 $ &number:rem index 13
+                    , :duration
+                      + 0.45 $ * 0.02 $ &number:rem index 17
+                      , :from (quamolit.motion/Vec2 :x x :y y) :to
+                        quamolit.motion/Vec2 :x (+ x dx) :y $ + y dy
+                        , :easing
+                          if
+                            = 0 $ &number:rem index 2
+                            quamolit.motion/Easing :linear
+                            quamolit.motion/Easing :smoothstep
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.motion/Vec2Descriptor
+        'independent-instance-positions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn independent-instance-positions (motions time)
+            mapcat motions $ fn (descriptor)
+              let
+                  point $ quamolit.motion/sample-vec2 descriptor time
+                [] (:x point) (:y point)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.motion/Vec2Descriptor) 'Number
+            :return $ :: 'List 'Number
         'install-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-gpu! (host program) (gpu/install-program! host program)
           :examples $ []
