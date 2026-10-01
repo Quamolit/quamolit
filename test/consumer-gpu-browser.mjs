@@ -3,7 +3,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { readScalarSample } from "./host/gpu-scalar-readback.mjs";
 
-export async function verifyIndependentGpuConsumerBrowser(page) {
+export async function verifyIndependentGpuConsumerBrowser(page, artifacts) {
   await page.addScriptTag({ content: `globalThis.__quamolitScalarProbe = ${readScalarSample.toString()}` });
   const report = await page.evaluate(async () => {
     const adapter = await navigator.gpu?.requestAdapter();
@@ -20,15 +20,68 @@ export async function verifyIndependentGpuConsumerBrowser(page) {
     )
       return { result: "SKIP", reason: "software-adapter", adapter: identity };
     const app = await import("/target/js/app/app.main.mjs"),
+      core = await import("/target/js/app/calcit.core.mjs"),
       device = await adapter.requestDevice(),
-      canvas = document.createElement("canvas");
-    canvas.width = 320;
-    canvas.height = 180;
+      canvas = document.createElement("canvas"),
+      cpuCanvas = document.createElement("canvas"),
+      reference = document.createElement("canvas"),
+      captured = document.createElement("canvas"),
+      capturedCpu = document.createElement("canvas"),
+      diff = document.createElement("canvas");
+    for (const target of [canvas, cpuCanvas, reference, captured, capturedCpu, diff]) {
+      target.width = 320;
+      target.height = 180;
+    }
+    const capture = async (source, target) => {
+      const bitmap = await createImageBitmap(source);
+      target.getContext("2d").drawImage(bitmap, 0, 0);
+      bitmap.close();
+      return target.getContext("2d").getImageData(0, 0, 320, 180);
+    };
+    const compare = (actual, expected) => {
+      let differingPixels = 0,
+        maximumChannelDifference = 0,
+        total = 0,
+        actualCoverage = 0,
+        expectedCoverage = 0;
+      const image = diff.getContext("2d").createImageData(320, 180);
+      for (let index = 0; index < actual.data.length; index += 4) {
+        let changed = false;
+        for (let channel = 0; channel < 4; channel++) {
+          const delta = Math.abs(actual.data[index + channel] - expected.data[index + channel]);
+          maximumChannelDifference = Math.max(maximumChannelDifference, delta);
+          total += delta;
+          changed ||= delta !== 0;
+        }
+        actualCoverage +=
+          actual.data[index] !== 255 || actual.data[index + 1] !== 255 || actual.data[index + 2] !== 255;
+        expectedCoverage +=
+          expected.data[index] !== 255 || expected.data[index + 1] !== 255 || expected.data[index + 2] !== 255;
+        if (changed) {
+          differingPixels++;
+          image.data.set([255, 0, 0, 255], index);
+        }
+      }
+      diff.getContext("2d").putImageData(image, 0, 0);
+      return {
+        differingPixels,
+        maximumChannelDifference,
+        meanChannelDifference: total / actual.data.length,
+        actualCoverage,
+        expectedCoverage,
+        coveragePixelDifference: actualCoverage - expectedCoverage,
+      };
+    };
     const errors = [],
-      samples = [];
+      samples = [],
+      frames = [];
     device.addEventListener("uncapturederror", (event) => errors.push(event.error.message));
     device.pushErrorScope("validation");
-    let host;
+    const table = app.create_instances_table_$x_();
+    let host,
+      cpuHost,
+      version = 0,
+      previousCpuVersion = -1;
     try {
       const motions = app.independent_instance_motions(),
         prepared = app.prepare_independent_gpu(motions, 0);
@@ -36,10 +89,35 @@ export async function verifyIndependentGpuConsumerBrowser(page) {
       const program = prepared.extra[0];
       host = app.create_gpu_$x_(canvas, device, navigator.gpu.getPreferredCanvasFormat(), 10000);
       app.install_independent_gpu_$x_(host, program, 0);
+      cpuHost = await app.create_instances_gpu_$x_(cpuCanvas, device, navigator.gpu.getPreferredCanvasFormat());
       const coldRecordBytes = host.uploadedBytes,
         coldParameterBytes = host.parameterBytes;
       for (const time of [1, 0, 0.5, 0.25, 1]) {
         app.draw_independent_gpu_$x_(host, program, time);
+        const positions = new Float32Array(core.to_js_data(app.independent_instance_positions(motions, time)));
+        app.register_instances_version_$x_(table, ++version, positions);
+        if (version > 1) app.release_instances_$x_(table, version - 1);
+        const cpuMetrics = core.to_js_data(app.draw_instances_gpu_$x_(previousCpuVersion, cpuHost, table, version));
+        previousCpuVersion = version;
+        const context = reference.getContext("2d");
+        context.fillStyle = "white";
+        context.fillRect(0, 0, 320, 180);
+        app.draw_instances_$x_(context, positions);
+        const actual = await capture(canvas, captured),
+          cpuActual = await capture(cpuCanvas, capturedCpu),
+          expected = context.getImageData(0, 0, 320, 180);
+        const gpuVsCpuGpu = compare(actual, cpuActual),
+          gpuVsCanvas = compare(actual, expected);
+        frames.push({
+          time,
+          cpuMetrics,
+          gpuVsCpuGpu,
+          gpuVsCanvas,
+          scalarPng: captured.toDataURL(),
+          cpuGpuPng: capturedCpu.toDataURL(),
+          canvasPng: reference.toDataURL(),
+          diffPng: diff.toDataURL(),
+        });
         for (const index of [0, 5050, 9999]) {
           const actual = await globalThis.__quamolitScalarProbe(host, index, time);
           let t = Math.min(1, Math.max(0, (time - 0.012 * (index % 13)) / (0.45 + 0.02 * (index % 17))));
@@ -56,6 +134,8 @@ export async function verifyIndependentGpuConsumerBrowser(page) {
         result: "PASS",
         adapter: identity,
         samples,
+        frames,
+        intermediateCanvas: "PENDING_RASTERIZATION_CONTRACT_144",
         coldRecordBytes,
         coldParameterBytes,
         hotRecordBytes: host.uploadedBytes - coldRecordBytes,
@@ -65,6 +145,8 @@ export async function verifyIndependentGpuConsumerBrowser(page) {
       };
     } finally {
       if (host) app.dispose_gpu_$x_(host);
+      if (cpuHost) app.dispose_instances_gpu_$x_(cpuHost);
+      if (version > 0) app.release_instances_$x_(table, version);
       const validation = await device.popErrorScope();
       if (validation) errors.push(validation.message);
       device.destroy();
@@ -77,6 +159,26 @@ export async function verifyIndependentGpuConsumerBrowser(page) {
   assert.equal(report.coldParameterBytes, 1280000);
   assert.equal(report.hotRecordBytes, 0);
   assert.equal(report.hotParameterBytes, 0);
+  assert.equal(report.frames.length, 5);
+  for (const [index, frame] of report.frames.entries()) {
+    for (const key of ["scalarPng", "cpuGpuPng", "canvasPng", "diffPng"]) {
+      const filename = `independent-frame-${index}-${key}.png`;
+      await writeFile(join(artifacts, filename), Buffer.from(frame[key].split(",")[1], "base64"));
+      frame[key] = filename;
+    }
+    assert.equal(frame.cpuMetrics["upload-bytes"], 80000);
+    assert.equal(
+      frame.gpuVsCpuGpu.differingPixels,
+      0,
+      `同源两条 GPU 路径的完整帧应一致: ${JSON.stringify({ time: frame.time, comparison: frame.gpuVsCpuGpu })}`,
+    );
+    if (frame.time === 0 || frame.time === 1)
+      assert.equal(
+        frame.gpuVsCanvas.differingPixels,
+        0,
+        `整数端点保持完整 Canvas 零差异断言: ${JSON.stringify({ time: frame.time, comparison: frame.gpuVsCanvas })}`,
+      );
+  }
   for (const sample of report.samples)
     for (let axis = 0; axis < 2; axis++)
       assert.ok(

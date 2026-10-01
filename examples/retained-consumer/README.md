@@ -36,7 +36,7 @@ Presence 模式的 Scene、稳定 key、协调、任意时间采样、是否继�
 
 “10k GPU 时间采样”按钮或 `?motion=instances-scalar` 使用同一份动画声明。Calcit `quamolit.gpu-scalar-program/prepare-instance-program` 将一个逻辑 InstanceNode 和 Motion 列表降为冷执行帧，不创建 10k ComponentPlan；`InstanceProgramResult` 显式返回 ready/fallback。`install-instance-program!` 复用既有 scalar renderer，冷安装记录 640 kB、参数清零及写入 1280 kB；`draw-instance-at!` 检查共用精度预算后仅写 16 B 时间/视口，不进行 CPU 位置采样。常量、linear/smoothstep tween 共享既有参数编码和 WGSL；非法身份/数量立即拒绝，超出 f32/精度域整层回退 Canvas。实例程序只保存纯来源与执行记录，GPU 句柄仍由宿主拥有；设备重建重新安装，不沿用旧句柄。该 API 仍为实验入口，调用者维护 host 当前安装的 program。
 
-三路径功能与关键上传计数已接入同一个 `test:consumer`；真实 GPU 专项复用现有 shader 读回 3 个代表索引 × 5 个乱序时间，与独立公式核对既定数值误差。独立运动全图精度、1920×1080 和正式性能基线仍未验收，不宣称 60 FPS 达标。
+三路径功能与关键上传计数已接入同一个 `test:consumer`；真实 GPU 专项复用现有 shader 读回 3 个代表索引 × 5 个乱序时间，与独立公式核对既定数值误差。对同一 Float32 CPU 快照还比较两条 GPU 路径的完整画面，五个时间帧均零差异；Canvas 整数起点/终点也保持全图零差异。中间帧另输出差异图、通道差与覆盖像素计数，标为 `PENDING_RASTERIZATION_CONTRACT_144`，不以诊断产物替代画质通过。1920×1080、跨后端中间帧合同和正式性能基线仍未验收，不宣称 60 FPS 达标。
 
 `QUAMOLIT_CONSUMER_BENCH=1` 仍只测原静态与单脏记录负载，不测独立模式；报告不把不同负载混算加速比。正式时长为每路径预热 5 秒、采样 30 秒、独立运行 3 次；短时参数只用于门禁烟测。
 

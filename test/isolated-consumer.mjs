@@ -413,7 +413,7 @@ try {
   const gpuBrowser = await verifyGpuConsumerBrowser(page, artifacts);
   const gpuDualBrowser = await verifyGpuConsumerBrowser(page, artifacts, true);
   const gpuInstancesBrowser = await verifyGpuInstancesConsumerBrowser(page, artifacts);
-  const independentGpuBrowser = await verifyIndependentGpuConsumerBrowser(page);
+  const independentGpuBrowser = await verifyIndependentGpuConsumerBrowser(page, artifacts);
   if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") {
     assert.equal(gpuBrowser.result, "PASS", `要求真实 GPU，但专项未运行：${JSON.stringify(gpuBrowser)}`);
     assert.equal(gpuDualBrowser.result, "PASS", `要求双轴真实 GPU，但专项未运行：${JSON.stringify(gpuDualBrowser)}`);
@@ -453,7 +453,7 @@ try {
       scalar: scalarGpu.recovery.phase[0] === "ready" ? "PASS" : "SKIP",
       counts: independentGpuCounts,
       browser: independentGpuBrowser,
-      scope: "同源 Canvas / CPU→GPU / GPU 时间采样；未验收独立实例全图精度或正式性能",
+      scope: "同源 GPU 两路径固定完整帧及 Canvas 整数端点；Canvas 中间帧待 #144 合同，未验收正式性能",
     },
     presenceCounts,
     recoveryCounts,

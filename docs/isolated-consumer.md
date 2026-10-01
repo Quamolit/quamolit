@@ -42,10 +42,12 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | GPU 浏览器专项 | 搬移后的同一矩形声明在非软件 adapter 比较 8 帧 × 230400 通道，默认精确像素；覆盖乱序/重复及同时间三类失效和上传量。无 GPU/软件 adapter 明确 SKIP，单独写入报告 |
 | 画面 | 实际画布 320×180、DPR=1；矩形内部粉色/绿色、静态横条灰色、变换折线蓝色与外部透明像素精确比较；另保存 Presence 退出中间帧与结算后画面 |
 | 公共 10k 动态实例 | 消费者 Calcit `instance-frame-at` 在绝对时间生成一个实例位置；`register-patch!` 仅复制 8 B。Node 连续 100 次更新、释放旧公开版本后 live 恒为 1，最终卸载为 0。页面 Canvas/GPU 模式保留同一 `(id,version)` 源、单 Canvas 舞台和可见的 GPU 不可用回退 |
-| 独立 10k 三路径 | 同一 Calcit 源驱动 Canvas / CPU→GPU / GPU 时间采样。Node 核对全部 CPU 坐标与 20000 个 GPU 参数；参数常驻的 1000 帧只写 uniform 16000 B，records/parameters 不上传，1 pipeline/3 buffers；非法数量、重复身份、精度域及伪造程序在上传前拒绝。页面复用已有 generation 恢复协议。硬件专项对 3 个索引 × 5 个乱序时间共读回 120 B，使用实际 WGSL、独立公式和既定 `1e-5+1e-5*abs(expected)`；无硬件单独 SKIP。未验收独立负载全图精度或正式性能 |
+| 独立 10k 三路径 | 同一 Calcit 源驱动 Canvas / CPU→GPU / GPU 时间采样。Node 核对全部 CPU 坐标与 20000 个 GPU 参数；参数常驻的 1000 帧只写 uniform 16000 B，records/parameters 不上传，1 pipeline/3 buffers；非法数量、重复身份、精度域及伪造程序在上传前拒绝。页面复用已有 generation 恢复协议。硬件专项对 3 个索引 × 5 个乱序时间共读回 120 B，使用实际 WGSL、独立公式和既定 `1e-5+1e-5*abs(expected)`；两条 GPU 完整帧和 Canvas 整数端点零差异。Canvas 中间帧单列差异图/统计及 #144 待验收状态；无硬件单独 SKIP。未验收完整跨后端画质合同或正式性能 |
 | 真实 GPU 动态画面 | Apple/Metal-3 上独立消费者的像素对齐 10k 源，初始/补丁/同版本/跳版本位置上传为 80000/8/0/80000 B；四个时间点采样像素和终点整幅 320×180 RGBA 均与 Canvas 参考精确一致，差异图全零。headless 无 adapter 单独 SKIP |
 
 历史首次通过环境：Node 24.19.0、Calcit 0.22.0、Chromium 153.0.8010.12。当前恢复切片使用 Calcit 0.27.0，搬移后的入口可达编译闭包 29 个模块；唯一 npm 直接依赖是 Calcit runtime。不声称这是最小体积，namespace 级依赖仍可能引入未使用的函数。
+
+当前 10k 独立源在 Apple/Metal-3、320×180/DPR 1：两条 GPU 路径 `[1,0,0.5,0.25,1]` 的整帧均为零差异；Canvas 的整数端点也是零差异。t=0.5/0.25 相对 Canvas 分别有 32299/31249 个差异像素，最大通道差 210/205、平均通道差 12.8672/14.2957（0–255），非白覆盖像素差 -9772/-7599。这不是 sampler 数值失败，也不是可忽略的 1 LSB；中间帧仍按 #144 等待合同决策，不设新容差。`independent-frame-<序号>-{scalarPng,cpuGpuPng,canvasPng,diffPng}.png` 与全部统计复用同一忽略报告/CI artifact。
 
 连续时间数值对比采用独立 `80 + 40*t`，而运行时 lerp 使用不同计算顺序。首次精确比较出现 `80.16000000000001` 对 `80.16` 的 IEEE754 舍入差异，因此连续数值采用 `8 * Number.EPSILON * abs(expected)` 的舍入预算；整数时间点与实色像素仍严格相等，不放宽截图阈值。
 
