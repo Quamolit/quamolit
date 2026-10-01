@@ -40,7 +40,7 @@
 
 ### 2026-10-01 本机阶段报告
 
-[报告与六份原始样本](performance/layer-composition-2026-10-01/report.json)已入库。Apple M1 Pro、macOS Darwin 25.6.0、AC 供电、Chromium 153.0.8010.12、Calcit/runtime 0.27.0，真实 adapter `apple / metal-3`，1920×1080、DPR 1。各后端三轮分别预热 5 秒、采样 30 秒，独立浏览器进程；无并行回归测试。测量时源码为报告中注明的 dirty 候选，四份关键源码 SHA-256 可校验，不能把基底 Git SHA 当作未修改源码的成绩。
+以下保留人工整理的阶段结论。自动生成的报告 JSON 与六份 GZ 原始样本不入库，本机副本归档到被忽略的 `test-results/layer-cost-2026-10-01/`。正式阶段验收还应提供可下载 artifact；本地路径不等于长期在线证据。Apple M1 Pro、macOS Darwin 25.6.0、AC 供电、Chromium 153.0.8010.12、Calcit/runtime 0.27.0，真实 adapter `apple / metal-3`，1920×1080、DPR 1。各后端三轮分别预热 5 秒、采样 30 秒，独立浏览器进程；无并行回归测试。测量时源码为报告中注明的 dirty 候选，四份关键源码 SHA-256 可校验，不能把基底 Git SHA 当作未修改源码的成绩。
 
 | 同步 CPU 边界 / 调度代理 | 双 Canvas | WebGPU + Canvas |
 | --- | --- | --- |
@@ -50,7 +50,7 @@
 
 GPU 冷帧位置上传 80 kB，所有采样热帧为 0 B；源版本保持不变，热帧不重新创建设备，六轮卸载后源 live=0，GPU accepted-runtime created=released。其他内部 buffer/pipeline 和 Canvas 离屏分配未独立计数，不能把 accepted-runtime 计数当作全部资源计数。浏览器合成/GPU 执行时间仍 null；不宣称真实呈现时延、60 FPS 达标、默认后端推荐或 #175 完成。
 
-实际复现：先通过 `yarn test:layer-composition`，使用已有已验证的完整编译产物执行 `yarn vite build --config demos/vite.config.mjs --base=./`，再执行 `QUAMOLIT_LAYER_BENCH_OUTPUT=docs/performance/layer-composition-2026-10-01 node test/layer-cost-bench.mjs`。默认一条命令 `yarn bench:layer-composition` 会额外完整准备演示依赖；本轮该远程 tag 核对未完成，主动停止后使用本地既有依赖，未变更 tag。开发服务器上的两次不完整测量不采纳；静态产物的三轮双后端报告全部完成。
+实际复现：先通过 `yarn test:layer-composition`，使用已有已验证的完整编译产物执行 `yarn vite build --config demos/vite.config.mjs --base=./`，再执行 `QUAMOLIT_LAYER_BENCH_OUTPUT=test-results/layer-cost-2026-10-01 node test/layer-cost-bench.mjs`。默认一条命令 `yarn bench:layer-composition` 会额外完整准备演示依赖；本轮该远程 tag 核对未完成，主动停止后使用本地既有依赖，未变更 tag。开发服务器上的两次不完整测量不采纳；静态产物的三轮双后端报告全部完成。
 
 ## 当前验证与待办
 

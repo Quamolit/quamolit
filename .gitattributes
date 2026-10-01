@@ -1,2 +1,7 @@
 
 yarn.lock -diff linguist-generated
+
+# 已被文档引用的历史测量证据；新原始测量产物放 test-results/。
+docs/evidence/gpu-component-cache-bench.json linguist-generated
+docs/evidence/isolated-consumer-dual-gpu.json linguist-generated
+docs/evidence/isolated-consumer-gpu.json linguist-generated
