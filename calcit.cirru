@@ -5903,10 +5903,15 @@
                     fn (node)
                       not= |background $ :id node
                   fn (node)
-                    if
-                      empty? $ :parent node
-                      assoc node :parent |ui-root
-                      , node
+                    let
+                        nested $ if
+                          empty? $ :parent node
+                          assoc node :parent |ui-root
+                          , node
+                      if
+                        = |metric-a $ :id node
+                        assoc nested :interaction $ scene/SceneInteraction :target |toggle-play
+                        , nested
               scene/SceneDocument :nodes $ prepend children root
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
@@ -9758,6 +9763,14 @@
             :layers $ :: 'List 'quamolit.layers/RenderLayer
           :examples $ []
           :schema $ :: 'StructDef
+        'LayerHit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct LayerHit (:layer-id 'String) (:hit 'quamolit.scene-hit/HitResult)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'LayerHitPlan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct LayerHitPlan (:id 'String) (:plan 'quamolit.scene-hit/HitPlan)
+          :examples $ []
+          :schema $ :: 'StructDef
         'LayerPolicy $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum LayerPolicy (:canvas) (:gpu-instances)
           :examples $ []
@@ -9785,6 +9798,16 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.layers/LayerBackend)
             :args $ [] 'quamolit.layers/RenderLayer 'Bool
+        'compile-hit-layers $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compile-hit-layers (frame) (validate-frame! frame)
+            map
+              reverse $ :layers frame
+              fn (layer)
+                LayerHitPlan :id (:id layer) :plan $ hit/compile-hit-plan $ :scene layer
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.layers/LayerFrame
+            :return $ :: 'List 'quamolit.layers/LayerHitPlan
         'gpu-instances? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-instances? (document)
             let
@@ -9802,6 +9825,31 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneDocument
+        'hit-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-at (plans view x y)
+            hit-test-layers plans
+              * x $ :dpr view
+              * y $ :dpr view
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.layers/LayerHitPlan) 'quamolit.layers/LayerViewport 'Number 'Number
+            :return $ :: 'calcit.core/Option 'quamolit.layers/LayerHit
+        'hit-test-layers $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-test-layers (plans x y)
+            assert |invalid-layer-pointer $ and (motion/finite-number? x) (motion/finite-number? y)
+            if (empty? plans) (%none)
+              let
+                  layer $ option:unwrap $ first plans
+                match
+                  hit/hit-test-plan (:plan layer) x y
+                  (:hit result)
+                    %some $ LayerHit :layer-id (:id layer) :hit result
+                  (:miss visited)
+                    recur (rest plans) x y
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.layers/LayerHitPlan) 'Number 'Number
+            :return $ :: 'calcit.core/Option 'quamolit.layers/LayerHit
         'pixel-size $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn pixel-size (css-size dpr)
             let
@@ -9852,7 +9900,7 @@
             :args $ [] 'Number 'Number 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.layers
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.scene-hit :as hit)
     'quamolit.math $ %{} 'FileEntry
       :defs $ {}
         'bound-01 $ %{} 'CodeEntry (:doc |)

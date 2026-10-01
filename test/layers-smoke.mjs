@@ -78,6 +78,24 @@ test("整层能力判定拒绝混合 Scene，不将支持节点单独送入 GPU"
   assert.equal(layers.gpu_instances_$q_(make(scene.SceneDocument, { nodes: list() })), false);
 });
 
+test("跨层命中保持逆绘制层序，逻辑节点 ID 可在不同层复用", () => {
+  const plans = layers.compile_hit_layers(
+    frame(undefined, list(layer("bottom", "canvas", document), layer("top", "canvas", document))),
+  );
+  assert.deepEqual(
+    plain(plans).map((entry) => entry.id),
+    ["top", "bottom"],
+  );
+  const result = plain(layers.hit_test_layers(plans, 108, 50));
+  assert.deepEqual(result, [
+    "some",
+    { "layer-id": "top", hit: { target: "badge-click", "node-id": "badge", visited: 1 } },
+  ]);
+  assert.deepEqual(plain(layers.hit_test_layers(plans, 20, 20)), ["none"]);
+  assert.deepEqual(plain(layers.hit_at(plans, layers.viewport(800, 600, 2), 54, 25)), result);
+  assert.throws(() => layers.hit_test_layers(plans, NaN, 50), /invalid-layer-pointer/);
+});
+
 test("重复层 ID、空 ID、非法 Scene、时间和伪造物理视口在提交前失败", () => {
   assert.throws(
     () => layers.validate_frame_$x_(frame(undefined, list(layer("same", "canvas"), layer("same", "canvas")))),

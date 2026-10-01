@@ -19,6 +19,8 @@ export function mountDemo() {
   let playing = false, raf = 0, started = 0, anchor = 0, epoch = 0, disposed = false;
   let preferred = params.get("backend") === "webgpu" ? "webgpu" : "canvas";
   let reason = "declared-canvas", metrics = null, plan = null;
+  let hitPlans = null, lastHit = null, costs = null;
+  let gpuCreated = 0, gpuReleased = 0;
 
   function installCanvas() {
     bottom?.remove();
@@ -34,6 +36,7 @@ export function mountDemo() {
     if (old) {
       gpu.dispose_$x_(old.batch);
       old.device.destroy();
+      gpuReleased++;
     }
   }
   function draw() {
@@ -48,12 +51,22 @@ export function mountDemo() {
       if (previous) resource.release_$x_(table, demo.source_at(previous));
       view = next;
     }
+    const planningStarted = performance.now();
     const declaration = demo.frame_at(time, view, version);
     plan = plain(layers.plan_for(declaration, !!runtime));
+    if (runtime && plan[0][0] !== "webgpu") {
+      reason = plan[0][1];
+      releaseRuntime();
+      installCanvas();
+      return draw();
+    }
+    hitPlans = layers.compile_hit_layers(declaration);
+    const planningMs = performance.now() - planningStarted;
     for (const surface of [canvas, bottom]) {
       if (surface.width !== dimensions.width) surface.width = dimensions.width;
       if (surface.height !== dimensions.height) surface.height = dimensions.height;
     }
+    const instancesStarted = performance.now();
     if (runtime) {
       try {
         metrics = plain(demo.draw_gpu_$x_(runtime.batch, table, runtime.previousVersion, view, version));
@@ -69,9 +82,12 @@ export function mountDemo() {
       bottomContext.clearRect(0, 0, bottom.width, bottom.height);
       metrics = plain(demo.draw_canvas_$x_(bottomContext, table, view, version));
     }
+    const instancesMs = performance.now() - instancesStarted;
+    const uiStarted = performance.now();
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, canvas.width, canvas.height);
     demo.draw_ui_$x_(context, time, view);
+    costs = { planningMs, instancesMs, uiMs: performance.now() - uiStarted, compositorMs: null };
     slider.value = String(time);
     select.value = preferred;
     document.querySelector("#time-output").value = time.toFixed(2);
@@ -90,8 +106,10 @@ export function mountDemo() {
     try {
       if (!navigator.gpu) throw new Error("webgpu-unavailable");
       const adapter = await navigator.gpu.requestAdapter();
+      if (disposed || request !== epoch) return;
       if (!adapter) throw new Error("adapter-unavailable");
       device = await adapter.requestDevice();
+      if (disposed || request !== epoch) { device.destroy(); return; }
       candidate = document.createElement("canvas");
       candidate.dataset.layer = "instances";
       candidate.setAttribute("aria-hidden", "true");
@@ -105,6 +123,7 @@ export function mountDemo() {
       bottom = candidate;
       bottomContext = null;
       runtime = { batch, device, previousVersion: -1, adapter: { vendor: adapter.info?.vendor, architecture: adapter.info?.architecture, device: adapter.info?.device, description: adapter.info?.description } };
+      gpuCreated++;
       reason = "ready";
       device.lost.then(() => {
         if (disposed || request !== epoch || runtime?.device !== device) return;
@@ -137,7 +156,16 @@ export function mountDemo() {
     document.querySelector("#play").textContent = "暂停";
     raf = requestAnimationFrame(tick);
   }
-  function snapshot() { return { time, playing, version, viewport: plain(view), plan, metrics, preferred, backend: runtime ? "webgpu" : "canvas", adapter: runtime?.adapter ?? null, reason }; }
+  function snapshot() { return { time, playing, version, viewport: plain(view), plan, metrics, preferred, backend: runtime ? "webgpu" : "canvas", adapter: runtime?.adapter ?? null, reason, costs, lastHit, sourceLive: resource.live_count(table), gpuCreated, gpuReleased }; }
+  function onPointerUp(event) {
+    const bounds = canvas.getBoundingClientRect();
+    const outcome = plain(layers.hit_at(hitPlans, view, event.clientX - bounds.left, event.clientY - bounds.top));
+    lastHit = outcome[0] === "some" ? outcome[1] : null;
+    if (lastHit?.hit.target === "toggle-play") {
+      if (playing) stop(); else play();
+    }
+  }
+  canvas.addEventListener("pointerup", onPointerUp);
   slider.oninput = () => seek(Number(slider.value));
   select.onchange = () => setBackend(select.value);
   document.querySelector("#play").onclick = () => playing ? stop() : play();
@@ -158,12 +186,16 @@ export function mountDemo() {
   function dprChanged() { watchDpr(); draw(); }
   watchDpr();
   window.addEventListener("resize", draw);
-  const api = { seek, play, pause: stop, snapshot, setBackend, whenSubmitted: async () => runtime?.device.queue.onSubmittedWorkDone() };
+  // 部分浏览器/嵌入环境更新 DPR 而不发送 resolution 或 resize 事件；只在版本变化时重绘。
+  const dprMonitor = setInterval(() => {
+    if (!disposed && view && (devicePixelRatio || 1) !== plain(view).dpr) dprChanged();
+  }, 250);
+  const api = { seek, play, pause: stop, snapshot, setBackend, whenSubmitted: async () => runtime?.device.queue.onSubmittedWorkDone(), loseDevice: () => runtime?.device.destroy() };
   window.layerCompositionDemo = api;
   setBackend(preferred);
   if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();
   return () => {
-    disposed = true; epoch++; stop(); observer.disconnect(); dprQuery?.removeEventListener("change", dprChanged); window.removeEventListener("resize", draw); releaseRuntime(); bottom?.remove();
+    disposed = true; epoch++; stop(); observer.disconnect(); clearInterval(dprMonitor); dprQuery?.removeEventListener("change", dprChanged); window.removeEventListener("resize", draw); canvas.removeEventListener("pointerup", onPointerUp); releaseRuntime(); bottom?.remove();
     if (version) resource.release_$x_(table, demo.source_at(version));
     delete canvas.dataset.layer;
     if (window.layerCompositionDemo === api) delete window.layerCompositionDemo;

@@ -147,6 +147,8 @@ yarn bench
 
 `yarn test:folding-fan` 的可选父组窗口另在 Canvas DPR 2 下检查窗口外全图无残留、暂停 resize、分享刷新与 Model 不变。混合文字/折线 Scene 对照独立原生隔离层，分数缩放/暂停 resize/分享刷新均全像素零差异。默认历史效果和 DPR 1/2 整帧 RGBA 零差异阈值保持不变。
 
+`yarn test:layer-composition` 检查 [Calcit 分层契约与同屏示例](layer-composition.md)：严格公共类型、层 ID/视口/时间校验、整层后端选择、透明清屏 ABI、逆层序独立命中；Chromium DPR 1/2 全像素 Canvas 合成、暂停 resize、CDP 模拟运行中 DPR 1→2、卡片交互和 adapter 失败的完整实例占用。真实 GPU 专项仅由 `QUAMOLIT_LAYER_REQUIRE_GPU=1 ... --headed -g '真实 GPU'` 执行，验证 Apple/Metal-3 透明合成、device loss 整层回退与同版本重传；云端明确 SKIP，不冒充硬件通过。导航卸载和 adapter 迟到由 `test:demo-nav` 对完整静态产物验证。成本字段仅是 CPU 阶段计时，浏览器合成时间未知，不证明吞吐或 #177 全部完成。
+
 ## 待实现的统一命令
 
 | 命令 | 负责工作项 | 完成条件 |

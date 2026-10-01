@@ -1,5 +1,47 @@
 import { test, expect } from "@playwright/test";
 
+test("运行中 DPR 1→2 两层同步，Scene 命中不依赖 Canvas 后端", async ({ page }) => {
+  await page.goto("/examples/layer-composition/index.html?t=0.5");
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  const session = await page.context().newCDPSession(page);
+  await session.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 720,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await expect.poll(() => page.evaluate(() => window.layerCompositionDemo.snapshot().viewport.dpr)).toBe(1);
+  await session.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 720,
+    deviceScaleFactor: 2,
+    mobile: false,
+  });
+  await expect.poll(() => page.evaluate(() => window.layerCompositionDemo.snapshot().viewport.dpr)).toBe(2);
+  expect(await page.locator("canvas").evaluateAll((nodes) => nodes.map((node) => [node.width, node.height]))).toEqual([
+    [2560, 1440],
+    [2560, 1440],
+  ]);
+  expect((await page.evaluate(() => window.layerCompositionDemo.snapshot())).time).toBe(0.5);
+  await page.locator("#panel-toggle").click();
+  // 与独立 Calcit 数值测试使用同一 CSS 点：中心 + 父组 0.93 缩放 + rise=12。
+  await page.mouse.click(640 - 250 * 0.93, 360 + 12 - 88 * 0.93);
+  const hit = await page.evaluate(() => {
+    const state = window.layerCompositionDemo.snapshot();
+    window.layerCompositionDemo.pause();
+    return state;
+  });
+  expect(hit.lastHit).toEqual({ "layer-id": "ui", hit: { target: "toggle-play", "node-id": "metric-a", visited: 1 } });
+  expect(hit.playing).toBe(true);
+  expect(
+    Object.values(hit.costs)
+      .filter((value) => value !== null)
+      .every((value) => Number.isFinite(value) && value >= 0),
+  ).toBe(true);
+  expect(hit.costs.compositorMs).toBeNull();
+  await session.detach();
+});
+
 test("真实 GPU 透明底层与 Canvas UI 同屏，切回 Canvas 不重置帧", async ({ page }, testInfo) => {
   test.skip(!process.env.QUAMOLIT_LAYER_REQUIRE_GPU, "真实 GPU 使用本机 headed 专项，不以云端软件 adapter 验收");
   await page.goto("/examples/layer-composition/index.html?t=0.5");
@@ -57,6 +99,17 @@ test("真实 GPU 透明底层与 Canvas UI 同屏，切回 Canvas 不重置帧",
   expect(delta.maxRgb).toBeLessThanOrEqual(2);
   expect(delta.maxAlpha).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath("layer-composition-webgpu.png") });
+  await page.evaluate(() => window.layerCompositionDemo.loseDevice());
+  await expect.poll(() => page.evaluate(() => window.layerCompositionDemo.snapshot().reason)).toBe("device-lost");
+  const lost = await page.evaluate(() => window.layerCompositionDemo.snapshot());
+  expect(lost.time).toBe(0.5);
+  expect(lost.metrics.instances).toBe(10000);
+  expect(lost.gpuCreated).toBe(lost.gpuReleased);
+  await page.evaluate(() => window.layerCompositionDemo.setBackend("webgpu"));
+  const rebuilt = await page.evaluate(() => window.layerCompositionDemo.snapshot());
+  expect(rebuilt.backend).toBe("webgpu");
+  expect(rebuilt.version).toBe(state.version);
+  expect(rebuilt.metrics["position-bytes-uploaded"]).toBe(80000);
   await page.evaluate(() => window.layerCompositionDemo.setBackend("canvas"));
   expect((await page.evaluate(() => window.layerCompositionDemo.snapshot())).time).toBe(0.5);
 });
@@ -159,4 +212,11 @@ test("adapter 获取失败只回退实例层，无漏绘或逻辑时间变化", 
   expect(state.backend).toBe("canvas");
   expect(state.metrics.instances).toBe(10000);
   await expect(page.locator("canvas")).toHaveCount(2);
+  const occupied = await page.locator('canvas[data-layer="instances"]').evaluate((canvas) => {
+    const pixels = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+    let count = 0;
+    for (let i = 3; i < pixels.length; i += 4) if (pixels[i]) count++;
+    return count;
+  });
+  expect(occupied).toBe(40000 * state.viewport.dpr ** 2);
 });
