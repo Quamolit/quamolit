@@ -20,6 +20,23 @@ CI 在原有 `test:consumer` 步骤设置 `QUAMOLIT_CONSUMER_BENCH=1` 和短时�
 
 ## 同源输入与比较边界
 
+### 10k 独立动画（#175）
+
+沿用同一个测量函数和 `bench:consumer`，指定负载即可只测三条独立动画路径，跳过旧两矩形/静态/单脏记录负载；默认命令和 CI 范围不变：
+
+```sh
+QUAMOLIT_BENCH_LOAD=independent-10k QUAMOLIT_BENCH_SIZE=320x180 yarn bench:consumer
+QUAMOLIT_BENCH_LOAD=independent-10k QUAMOLIT_BENCH_SIZE=1920x1080 yarn bench:consumer
+```
+
+时间序列仍相同。每条路径冷创建同一 Calcit `independent-instance-motions`，CPU 路径通过公共 `independent-instance-positions` 采样，GPU 采样通过公共 instance program；测量驱动不重写 easing/lowering。CPU 每个不同时间生成并登记 80 kB 全快照，重复时间复用；不宣称按实际变更实例数做差量上传。GPU 采样冷记录 640 kB、参数清零加写入 1280 kB，热帧仅 16 B uniform；CPU→GPU 热帧上传 80 kB 位置和 64 B uniform。原生 draw、同步/异步 pipeline 和 buffer 创建分别计数，释放后 buffer 与实例表版本回零。
+
+`bench-independent-<尺寸>-report.json` 与对应三路径逐轮 JSON 保存在忽略目录，避免两种尺寸覆盖彼此；当前 `bench-report.json` 仍为本次运行的权威状态。报告记录实际 `coveredPixels`，1920×1080 只扩大画布、不放大 2×2 图元；不能将不同分辨率/覆盖率计算为加速比。采样、位置快照登记、绘制边界分开计时，queue 子区间不重复相加。
+
+测量末尾在区间外检查 t=1→1→0 的位置上传，固定 t=1 整数终点 checksum 继续要求三路径/各轮完全相同。五个乱序整帧和实际 WGSL 数值仍由 `test:consumer` 验证；Canvas 小数中间帧必须按 #144 最终合同验收，终点 checksum 和报告 PASS 均不能代替该合同。正式时长、60 FPS、供电环境与基线比较仍须审查真实报告；短测不能据此关闭 #175。
+
+### 原有两矩形负载
+
 三条路径使用相同的 `declare-dual`、Model=40、ready=false、viewport=100、320×180 实际像素、DPR=1、白底、相同矩形层序与 alpha。时间为 `abs((frameIndex % 120) / 60 - 1)`，按帧序号给定，不根据某一后端耗时改变运动输入；不同运行的帧数可以不同，原始样本记录每帧 time。固定 t=.5 的像素校验和必须跨后端/跨运行相同。
 
 | 路径 | 每帧工作 |

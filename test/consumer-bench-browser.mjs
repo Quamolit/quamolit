@@ -3,10 +3,18 @@ export async function measureConsumerFrames(options) {
   const app = await import("/target/js/app/app.main.mjs");
   const core = await import("/target/js/app/calcit.core.mjs");
   const tags = core.init_tags(["declarations", "plan-builds", "binding-samples"]);
+  const independent = options.workload === "independent-10k";
+  const [width, height] = options.pixelSize || [320, 180];
   const canvas = document.createElement("canvas");
-  canvas.width = 320;
-  canvas.height = 180;
-  Object.assign(canvas.style, { position: "fixed", inset: "0", width: "320px", height: "180px", zIndex: "100" });
+  canvas.width = width;
+  canvas.height = height;
+  Object.assign(canvas.style, {
+    position: "fixed",
+    inset: "0",
+    width: `${width}px`,
+    height: `${height}px`,
+    zIndex: "100",
+  });
   document.body.append(canvas);
   let device,
     host,
@@ -22,15 +30,24 @@ export async function measureConsumerFrames(options) {
     parameterBytes: 0,
     uniformBytes: 0,
     submits: 0,
+    drawCalls: 0,
     writeMs: 0,
     submitMs: 0,
   };
   const errors = [];
   const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
   const before = performance.now();
-  let plan = app.start_dual(0, 40, false, 100),
+  let plan = independent ? null : app.start_dual(0, 40, false, 100),
     batch,
-    program;
+    program,
+    table,
+    positions,
+    version = 0,
+    previousGpuVersion = -1,
+    positionTime = null;
+  const motions = independent ? app.independent_instance_motions() : null;
+  const sourceCount = independent ? core.to_js_data(app.instances_declaration()).source.count : 2;
+  if (independent && options.backend !== "gpu-scalar") table = app.create_instances_table_$x_();
   const declarationMs = performance.now() - before;
   const initStart = performance.now();
   try {
@@ -75,6 +92,12 @@ export async function measureConsumerFrames(options) {
         counters.pipelines++;
         return createPipeline(spec);
       };
+      const createPipelineAsync = device.createRenderPipelineAsync.bind(device);
+      device.createRenderPipelineAsync = async (spec) => {
+        const pipeline = await createPipelineAsync(spec);
+        counters.pipelines++;
+        return pipeline;
+      };
       const write = device.queue.writeBuffer.bind(device.queue),
         submit = device.queue.submit.bind(device.queue);
       device.queue.writeBuffer = (buffer, offset, data, dataOffset, size) => {
@@ -84,12 +107,11 @@ export async function measureConsumerFrames(options) {
         counters.writeCalls++;
         const unit = data.BYTES_PER_ELEMENT || 1;
         const bytes = size === undefined ? data.byteLength - (dataOffset || 0) * unit : size * unit;
-        const key =
-          buffer.label === "Quamolit component records"
-            ? "recordBytes"
-            : buffer.label === "Quamolit scalar parameters"
-              ? "parameterBytes"
-              : "uniformBytes";
+        const key = ["Quamolit component records", "Quamolit rectangle positions"].includes(buffer.label)
+          ? "recordBytes"
+          : buffer.label === "Quamolit scalar parameters"
+            ? "parameterBytes"
+            : "uniformBytes";
         counters[key] += bytes;
         return result;
       };
@@ -100,12 +122,29 @@ export async function measureConsumerFrames(options) {
         counters.submits++;
         return result;
       };
+      const createEncoder = device.createCommandEncoder.bind(device);
+      device.createCommandEncoder = (...args) => {
+        const encoder = createEncoder(...args),
+          begin = encoder.beginRenderPass.bind(encoder);
+        encoder.beginRenderPass = (...passArgs) => {
+          const pass = begin(...passArgs),
+            draw = pass.draw.bind(pass);
+          pass.draw = (...drawArgs) => {
+            counters.drawCalls++;
+            return draw(...drawArgs);
+          };
+          return pass;
+        };
+        return encoder;
+      };
       const format = navigator.gpu.getPreferredCanvasFormat();
       if (options.backend === "gpu-scalar") {
-        const prepared = app.prepare_gpu(plan);
+        const prepared = independent ? app.prepare_independent_gpu(motions, 0) : app.prepare_gpu(plan);
         if (prepared.tag.value !== "ready") throw Error(`scalar fallback: ${prepared.extra[0]}`);
         program = prepared.extra[0];
-        host = app.create_gpu_$x_(canvas, device, format, 2);
+        host = app.create_gpu_$x_(canvas, device, format, sourceCount);
+      } else if (independent) {
+        host = await app.create_instances_gpu_$x_(canvas, device, format);
       } else {
         batch = app.build_batch(plan);
         host = app.create_batch_gpu_$x_(canvas, device, format, 2);
@@ -113,7 +152,14 @@ export async function measureConsumerFrames(options) {
     } else context = canvas.getContext("2d", { alpha: true });
     const rendererSetupMs = performance.now() - initStart;
     const coldStart = performance.now();
-    if (options.backend === "gpu-scalar") app.install_gpu_$x_(host, program);
+    if (independent) {
+      if (options.backend === "gpu-scalar") app.install_independent_gpu_$x_(host, program, 0);
+      else {
+        samplePositions(0);
+        registerPositions();
+        drawInstances();
+      }
+    } else if (options.backend === "gpu-scalar") app.install_gpu_$x_(host, program);
     else if (gpu) app.submit_batch_$x_(host, batch);
     else drawCanvas();
     const firstDrawMs = performance.now() - coldStart,
@@ -124,21 +170,53 @@ export async function measureConsumerFrames(options) {
       context.save();
       context.globalCompositeOperation = "destination-over";
       context.fillStyle = "white";
-      context.fillRect(0, 0, 320, 180);
+      context.fillRect(0, 0, width, height);
       context.restore();
+    }
+    function samplePositions(time) {
+      if (time === positionTime) return;
+      positions = new Float32Array(core.to_js_data(app.independent_instance_positions(motions, time)));
+      positionTime = time;
+    }
+    function drawInstances() {
+      if (gpu) {
+        app.draw_instances_gpu_$x_(previousGpuVersion, host, table, version);
+        previousGpuVersion = version;
+      } else {
+        context.fillStyle = "white";
+        context.fillRect(0, 0, width, height);
+        const metrics = core.to_js_data(app.draw_resolved_instances_$x_(context, table, version));
+        counters.drawCalls += metrics["canvas-calls"];
+      }
+    }
+    function registerPositions() {
+      const previous = version;
+      app.register_instances_version_$x_(table, ++version, positions);
+      if (previous) app.release_instances_$x_(table, previous);
     }
     function draw(time) {
       const previous = { ...counters },
         started = performance.now();
       let sampled = started,
-        batched = started;
-      if (options.backend !== "gpu-scalar") {
+        batched = started,
+        positionSnapshotBytes = 0;
+      if (independent && options.backend !== "gpu-scalar") {
+        const changed = positionTime !== time;
+        samplePositions(time);
+        positionSnapshotBytes = changed ? positions.byteLength : 0;
+        sampled = performance.now();
+        if (changed) registerPositions();
+        batched = performance.now();
+      } else if (options.backend !== "gpu-scalar") {
         plan = app.update_dual(plan, time, 40, false, 100);
         sampled = performance.now();
         if (gpu) batch = app.update_batch(batch, plan);
         batched = performance.now();
       }
-      if (options.backend === "gpu-scalar") app.draw_gpu_$x_(host, program, time);
+      if (independent) {
+        if (options.backend === "gpu-scalar") app.draw_independent_gpu_$x_(host, program, time);
+        else drawInstances();
+      } else if (options.backend === "gpu-scalar") app.draw_gpu_$x_(host, program, time);
       else if (gpu) app.submit_batch_$x_(host, batch);
       else drawCanvas();
       const ended = performance.now();
@@ -156,6 +234,8 @@ export async function measureConsumerFrames(options) {
         parameterBytes: gpu ? delta.parameterBytes : null,
         uniformBytes: gpu ? delta.uniformBytes : null,
         submits: gpu ? delta.submits : null,
+        drawCalls: delta.drawCalls,
+        positionSnapshotBytes,
         newBuffers: delta.buffers,
         newPipelines: delta.pipelines,
         liveBuffers: counters.liveBuffers,
@@ -189,22 +269,33 @@ export async function measureConsumerFrames(options) {
     const warmup = await phase(options.warmupSeconds, false);
     const measure = await phase(options.durationSeconds, true);
     if (measure.samples.length < 2) throw Error("benchmark requires two measured frames");
-    draw(0.5);
+    if (independent) draw(0);
+    const byteProbes = independent ? [draw(1), draw(1), draw(0)] : null;
+    const checksumTime = independent ? 1 : 0.5;
+    draw(checksumTime);
     // 仅在测量结束后读回固定帧，排除截图/诊断成本。
     const bitmap = await createImageBitmap(canvas),
       reference = document.createElement("canvas");
-    reference.width = 320;
-    reference.height = 180;
+    reference.width = width;
+    reference.height = height;
     const pixels = reference.getContext("2d");
     pixels.drawImage(bitmap, 0, 0);
     bitmap.close();
     let checksum = 0x811c9dc5;
-    for (const byte of pixels.getImageData(0, 0, 320, 180).data)
-      checksum = Math.imul(checksum ^ byte, 0x01000193) >>> 0;
+    const image = pixels.getImageData(0, 0, width, height);
+    let coveredPixels = 0;
+    for (let i = 0; i < image.data.length; i += 4)
+      coveredPixels += image.data[i] !== 255 || image.data[i + 1] !== 255 || image.data[i + 2] !== 255;
+    for (const byte of image.data) checksum = Math.imul(checksum ^ byte, 0x01000193) >>> 0;
     if (device) await device.queue.onSubmittedWorkDone();
+    counters.liveVersions = table ? app.instances_live_count(table) : 0;
     return {
       result: "PASS",
       backend: options.backend,
+      workload: options.workload || "dual",
+      sourceCount,
+      coveredPixels,
+      byteProbes,
       adapter: adapterInfo,
       declarationMs,
       rendererSetupMs,
@@ -214,18 +305,25 @@ export async function measureConsumerFrames(options) {
       warmup,
       measure,
       checksum,
-      checksumTime: 0.5,
+      checksumTime,
       pixelSize: [canvas.width, canvas.height],
       devicePixelRatio,
       errors,
-      planCounts: Object.fromEntries(
-        ["declarations", "plan-builds", "binding-samples"].map((key) => [key, plan.get(tags[key])]),
-      ),
+      planCounts: independent
+        ? null
+        : Object.fromEntries(
+            ["declarations", "plan-builds", "binding-samples"].map((key) => [key, plan.get(tags[key])]),
+          ),
       beforeDispose: { ...counters },
       afterDispose: counters,
     };
   } finally {
-    if (host) app.dispose_gpu_$x_(host);
+    if (host) {
+      if (independent && options.backend === "gpu-cpu") app.dispose_instances_gpu_$x_(host);
+      else app.dispose_gpu_$x_(host);
+    }
+    if (table && version) app.release_instances_$x_(table, version);
+    counters.liveVersions = table ? app.instances_live_count(table) : 0;
     if (device) {
       const error = await device.popErrorScope();
       if (error) errors.push(error.message);

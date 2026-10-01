@@ -17,9 +17,69 @@ test("正式时长默认值与非法配置", () => {
     { QUAMOLIT_BENCH_DURATION: "NaN" },
     { QUAMOLIT_BENCH_DURATION: "0" },
     { QUAMOLIT_BENCH_RUNS: "1.5" },
+    { QUAMOLIT_BENCH_LOAD: "static" },
+    { QUAMOLIT_BENCH_SIZE: "1920x1080" },
+    { QUAMOLIT_BENCH_LOAD: "independent-10k", QUAMOLIT_BENCH_SIZE: "0x180" },
   ]) {
     assert.throws(() => consumerBenchOptions(env));
   }
+  assert.deepEqual(consumerBenchOptions({ QUAMOLIT_BENCH_LOAD: "independent-10k", QUAMOLIT_BENCH_SIZE: "1920x1080" }), {
+    warmupSeconds: 5,
+    durationSeconds: 30,
+    runs: 3,
+    workload: "independent-10k",
+    pixelSize: [1920, 1080],
+  });
+});
+
+test("同源独立实例测量拒绝热位置上传、重复帧上传与伪装画布尺寸", () => {
+  const run = {
+    ...validRun(),
+    workload: "independent-10k",
+    sourceCount: 10000,
+    pixelSize: [1920, 1080],
+    checksumTime: 1,
+    coveredPixels: 40000,
+    beforeDispose: { liveVersions: 0 },
+    afterDispose: { liveBuffers: 0, liveVersions: 0 },
+    coldCounters: { recordBytes: 640000, parameterBytes: 1280000 },
+    byteProbes: [1, 1, 0].map((time) => ({
+      time,
+      recordBytes: 0,
+      parameterBytes: 0,
+      uniformBytes: 16,
+      positionSnapshotBytes: 0,
+    })),
+  };
+  for (const sample of run.measure.samples) Object.assign(sample, { drawCalls: 1, positionSnapshotBytes: 0 });
+  assert.equal(summarizeConsumerRun(run).pixelSize[0], 1920);
+  for (const [key, value] of [
+    ["recordBytes", 80000],
+    ["drawCalls", 10000],
+    ["positionSnapshotBytes", 80000],
+  ]) {
+    const broken = structuredClone(run);
+    broken.measure.samples[1][key] = value;
+    assert.throws(() => summarizeConsumerRun(broken), key);
+  }
+  for (const [key, value] of [
+    ["sourceCount", 1],
+    ["pixelSize", [800, 600]],
+    ["checksumTime", 0.5],
+    ["coveredPixels", 0],
+  ]) {
+    assert.throws(() => summarizeConsumerRun({ ...run, [key]: value }), key);
+  }
+  const cpu = structuredClone(run);
+  cpu.backend = "gpu-cpu";
+  cpu.beforeDispose.liveVersions = 1;
+  cpu.coldCounters.recordBytes = 80000;
+  for (const sample of cpu.measure.samples)
+    Object.assign(sample, { recordBytes: 80000, uniformBytes: 64, positionSnapshotBytes: 80000 });
+  cpu.byteProbes[0].recordBytes = cpu.byteProbes[2].recordBytes = 80000;
+  assert.equal(summarizeConsumerRun(cpu).totals.recordBytes, 160000);
+  cpu.byteProbes[1].recordBytes = 80000;
+  assert.throws(() => summarizeConsumerRun(cpu), "重复帧上传必须失败");
 });
 
 function validRun() {
