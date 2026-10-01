@@ -19,6 +19,8 @@
 
 #179 的耗时按实际 Actions job/step 比较，不用测试条数推算。5fd4a69 的 visual 为7m8s，其中完整导航/构建75s、Chromium安装48s、Motion浏览器30s、干净消费者21s；原始步骤可从 [Actions](https://github.com/Quamolit/quamolit/actions/runs/36921147534)复核。新必跑job/重型测试不得隐式增加；若持续超过这次预算，先比较安装/网络波动与重复准备，附前后数据解释，不靠删除作品覆盖或失败断言降时长。单次观测不是长期缩短证明，全部workflow的稳定成本对比仍待#179验收。
 
+`test:motion-browser`在同一快照下只编译一次motion入口（原来四次），保留原14个namespace、4个原生过滤器、12个Node文件及31个浏览器用例；其他5个编译入口不变，独立测试命令仍自行编译。聚合命令复用第一次产物，不引入缓存、环境跳过开关或新调度器；修改相关独立命令时需同步聚合的检查/用例范围。Node分组可以合并，同一失败仍须使整条命令失败。实际本机单次91.16→58.12s只说明本切片观测，正式Actions成本以干净CI结果和稳定多轮比较为准。
+
 ## 当前可执行门禁
 
 `yarn audit:api-types` 本地枚举全部项目定义的显式 schema 与类型声明（含 Trait 方法），逐定义报告 Dynamic/JsObject 路径和缺少 schema 的未知项；原始 JSON 写入忽略目录。见 [类型边界盘点](api-type-boundaries.md) 的范围与限制。完整扫描不加入日常 CI；6 项盘点器负例作为 `check:api-inventory` 的轻量门禁，稳定 namespace 及其引用类型不能有开放/未知边界。它不是类型推断或 JS 对象内容验证。
