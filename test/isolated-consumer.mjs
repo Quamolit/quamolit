@@ -361,6 +361,11 @@ try {
     assert.equal(state.metrics["canvas-calls"], 10000);
     independentFrames.push({ time, version: state.source.version });
   }
+  const independentPixels = await page.evaluate(() => {
+    const context = document.querySelector("canvas").getContext("2d");
+    return [context.getImageData(8, 10, 1, 1).data[3], context.getImageData(9, 8, 1, 1).data[3]];
+  });
+  assert.deepEqual(independentPixels, [0, 255], "独立模式终点必须清除原坐标并绘制新坐标，不只更新计数");
   await page.screenshot({ path: join(artifacts, "independent-instances-canvas.png"), fullPage: true });
   const independentGpu = await page.evaluate(() => window.consumer.setMode("instances-gpu"));
   if (independentGpu.recovery.phase[0] === "ready") {
