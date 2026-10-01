@@ -16,6 +16,7 @@ js-ffi alpha.11 已同步 CLI/runtime，不再沿用 alpha.10 的旧版 runtime 
 - 先以严格 public schema、编译、Node、浏览器和独立消费者门禁暴露问题；不增加全局 allow 或宽泛 `Dynamic` 绕过。
 - 新版本若暴露编译器缺口，向 Calcit 仓库提交最小复现，同时采用局部、可撤销的适配继续推进。
 - Pointer 浏览器入口的两处旧 `assert-type` 改为显式宿主 `unsafe-coerce`，保留 `expect-object` 的拒绝与对象身份；它们信任真实浏览器提供的字段/方法，不是假装运行时 shape decoder。原有捕获/卸载合同与同文件的非法值断言覆盖此边界。[js-ffi #149](https://github.com/calcit-lang/js-ffi/issues/149) 发布通用入口后删除本地适配，不新增 JS wrapper。
+- alpha.11 的浏览器 adapter 在下游严格检查中仍有 12 项 assertion proof 错误，已上报 [js-ffi #155](https://github.com/calcit-lang/js-ffi/issues/155)。Drag listener 已提供 `EventHost`，因此 Calcit 路由 callback 声明精确参数/Unit/FFI capability 并直接调用 `.prevent-default!`，删除重复 `event-host` 转换。该局部绕过不证明整个上游 browser 模块通过；新 tag 发布后复测。
 - 全项目 preset 预览会在旧 `quamolit.render.element/textbox` 的原始 `keyCode/shiftKey` 访问处报告 `E_JS_FFI_FEATURE_REQUIRED`；这是 legacy 宿主边界迁移债，不是编译器缺陷，归入 #36。主路径编译成功不能冒充该预览通过，不给整个组件补宽泛 capability 来隐藏它。
 
 ## 验收

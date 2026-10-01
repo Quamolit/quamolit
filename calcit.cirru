@@ -4630,10 +4630,13 @@
             let
                 surface $ pointer-browser/pointer-surface-host element
                 route! $ fn (phase host-event)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.scene-pointer/PointerPhase 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   let
-                      typed-host $ dom/event-host host-event
                       event $ pointer-browser/pointer-event-host host-event
-                    typed-host .prevent-default!
+                    host-event .prevent-default!
                     if (handle-pointer-event! surface phase event) (render!) &unit
                     , &unit
                 on-down $ fn (event)
