@@ -5,3 +5,6 @@ yarn.lock -diff linguist-generated
 docs/evidence/gpu-component-cache-bench.json linguist-generated
 docs/evidence/isolated-consumer-dual-gpu.json linguist-generated
 docs/evidence/isolated-consumer-gpu.json linguist-generated
+
+# 有意入库的 API 审查基线，来自只读 Calcit 查询；分类清单为人工源。
+docs/api-stable-contract.json linguist-generated

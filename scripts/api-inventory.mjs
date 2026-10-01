@@ -61,6 +61,22 @@ export function consumerViolations(rows, declaration) {
 export function verifyStableContract(expected, actual) {
   assert.deepEqual(expected, actual, "稳定 API 签名/类型变更需单独审查、迁移说明及版本计划，不能自动接受");
 }
+export function verifyTypeCoverage(contract) {
+  const definitions = new Map(Object.entries(contract.types));
+  for (const [namespace, entries] of Object.entries(contract.namespaces)) {
+    for (const [name, entry] of Object.entries(entries)) definitions.set(`${namespace}/${name}`, entry);
+  }
+  const visit = (value) => {
+    if (typeof value === "string" && /^'quamolit\.[\w.$-]+\/[\w!?$-]+$/.test(value)) {
+      const id = value.slice(1);
+      assert.ok(definitions.has(id), `稳定合同缺少引用类型声明: ${id}`);
+      assert.ok(definitions.get(id).declaration, `稳定引用类型不能仅冻结名称: ${id}`);
+    } else if (Array.isArray(value)) value.forEach(visit);
+    else if (value && typeof value === "object") Object.values(value).forEach(visit);
+  };
+  // 同时检查外部类型的声明：嵌套类型也不能留在合同之外。
+  for (const entry of definitions.values()) visit(entry);
+}
 export function renderInventory(rows) {
   const cell = (value) =>
     String(value ?? "—")
@@ -120,7 +136,9 @@ async function stableContract(rows, cwd, stableTypes) {
   }
   const types = {};
   for (const id of stableTypes) types[id] = signatureEntry(queryJson(["def", id, "--format", "json"], cwd));
-  return { schemaVersion: 1, namespaces, types };
+  const contract = { schemaVersion: 1, namespaces, types };
+  verifyTypeCoverage(contract);
+  return contract;
 }
 export async function main(args = process.argv.slice(2)) {
   assert.ok(

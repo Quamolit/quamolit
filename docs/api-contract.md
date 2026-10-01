@@ -15,9 +15,11 @@ alpha 阶段也不静默破坏稳定合同。稳定 API 的破坏性修改须在
 
 `yarn audit:consumer-api` 单独审计独立消费者的实际 import，非稳定入口会明确失败；本轮尚未把它加入必需 CI，因为现有消费者仍使用实验 API。#176 的“消费者和 README 只使用稳定入口”、Dynamic/JsObject 出入口清单仍需后续完成，不以清单覆盖门禁代替。
 
+产物归属：`docs/api-namespaces.json` 是人工维护的分类源，不标记 generated。`docs/api-stable-contract.json` 是只读 Calcit 查询生成的、刻意入库的兼容性审查基线，已精确标记 `linguist-generated`；否则 CI 没有可比较的已审查合同。本文只有清单标记之间的表格为生成内容，不把整篇人工契约文档或 `calcit.cirru` 标为 generated。测量报告与压缩样本另放被忽略的 `test-results/`，不混入 API 合同。
+
 ## 全部命名空间清单
 
-类型合同不仅记录 Fn schema：Struct/Enum 的 schema 本身可能只是 `StructDef`/`EnumDef` 标签，因此同时冻结其真实字段/枚举声明。`make-stagger` 参数使用的 `quamolit.motion/Easing` 也纳入类型合同；这不把整个 Motion namespace 的采样器升级为稳定。
+类型合同不仅记录 Fn schema：Struct/Enum 的 schema 本身可能只是 `StructDef`/`EnumDef` 标签，因此同时冻结其真实字段/枚举声明。`make-stagger` 参数使用的 `quamolit.motion/Easing` 也纳入类型合同；这不把整个 Motion namespace 的采样器升级为稳定。门禁还检查这些签名和类型声明引用的项目类型，包括嵌套引用：新增类型必须加入合同，不能只冻结类型名称而遗漏字段或枚举项。
 
 <!-- api-inventory:start -->
 全部 118 个项目命名空间（包含旧应用、示例和测试）；分类由 `docs/api-namespaces.json` 显式维护，不按前缀自动批准新增命名空间。

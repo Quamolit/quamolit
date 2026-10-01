@@ -8,6 +8,7 @@ import {
   consumerViolations,
   verifyStableContract,
   signatureEntry,
+  verifyTypeCoverage,
 } from "../scripts/api-inventory.mjs";
 
 const manifest = () => ({
@@ -30,6 +31,23 @@ const manifest = () => ({
       replacement: null,
     },
   ],
+});
+
+test("稳定签名引用的项目类型必须冻结完整声明，包含嵌套依赖", () => {
+  const contract = {
+    namespaces: { "quamolit.ui-motion": { make: { schema: ["'quamolit.motion/A"] } } },
+    types: {
+      "quamolit.motion/A": { schema: "'StructDef", declaration: ["defstruct", "A", [":value", "'quamolit.motion/B"]] },
+      "quamolit.motion/B": { schema: "'EnumDef", declaration: ["defenum", "B", [":linear"]] },
+    },
+  };
+  verifyTypeCoverage(contract);
+  const missing = structuredClone(contract);
+  delete missing.types["quamolit.motion/B"];
+  assert.throws(() => verifyTypeCoverage(missing), /缺少引用类型声明/);
+  const labelOnly = structuredClone(contract);
+  delete labelOnly.types["quamolit.motion/A"].declaration;
+  assert.throws(() => verifyTypeCoverage(labelOnly), /不能仅冻结名称/);
 });
 
 test("Struct/Enum 不能仅保存 StructDef/EnumDef 标签而遗漏字段", () => {
