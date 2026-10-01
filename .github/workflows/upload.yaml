@@ -30,6 +30,9 @@ jobs:
         && yarn test:clock && yarn test:runtime && yarn test:fixtures && yarn compile:visual
         && cp -vr assets dist/
 
+    - name: Check API namespace inventory and alpha signatures
+      run: yarn check:api-inventory
+
     - name: Deploy to server
       if: github.event_name == 'workflow_dispatch'
       id: deploy

@@ -1,0 +1,443 @@
+{
+  "schemaVersion": 1,
+  "calcitVersion": "0.27.0",
+  "stableTypes": ["quamolit.motion/Easing"],
+  "groups": [
+    {
+      "status": "stable",
+      "purpose": "纯 Calcit UI 渐变构件；alpha 合同限当前 11 个公开定义，不承诺 GPU lowering 或资源生命周期",
+      "doc": "docs/ui-motion-components.md",
+      "replacement": null,
+      "namespaces": ["quamolit.ui-motion"]
+    },
+    {
+      "status": "legacy",
+      "purpose": "旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖",
+      "doc": "docs/api-contract.md",
+      "replacement": "quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验）",
+      "namespaces": [
+        "quamolit.alias",
+        "quamolit.core",
+        "quamolit.types",
+        "quamolit.comp.debug",
+        "quamolit.comp.fade-in-out",
+        "quamolit.comp.slider",
+        "quamolit.controller.resolve",
+        "quamolit.cursor",
+        "quamolit.global",
+        "quamolit.hud-logs",
+        "quamolit.render.element",
+        "quamolit.render.paint"
+      ]
+    },
+    {
+      "status": "legacy",
+      "purpose": "历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收",
+      "doc": "docs/demo-restoration.md",
+      "replacement": "quamolit.examples.*（内部示例；不是库 API）",
+      "namespaces": [
+        "quamolit.app.comp.binary-tree",
+        "quamolit.app.comp.clock",
+        "quamolit.app.comp.code-table",
+        "quamolit.app.comp.container",
+        "quamolit.app.comp.digits",
+        "quamolit.app.comp.drag-demo",
+        "quamolit.app.comp.file-card",
+        "quamolit.app.comp.finder",
+        "quamolit.app.comp.folder",
+        "quamolit.app.comp.folding-fan",
+        "quamolit.app.comp.icon-increase",
+        "quamolit.app.comp.icon-play",
+        "quamolit.app.comp.icons-table",
+        "quamolit.app.comp.portal",
+        "quamolit.app.comp.raindrop",
+        "quamolit.app.comp.raining",
+        "quamolit.app.comp.ring",
+        "quamolit.app.comp.solar",
+        "quamolit.app.comp.task",
+        "quamolit.app.comp.task-toggler",
+        "quamolit.app.comp.todolist",
+        "quamolit.app.main",
+        "quamolit.app.schema",
+        "quamolit.app.updater"
+      ]
+    },
+    {
+      "status": "internal",
+      "purpose": "项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时",
+      "doc": "AGENTS.md",
+      "replacement": null,
+      "namespaces": [
+        "quamolit.$meta",
+        "quamolit.bootstrap",
+        "quamolit.config",
+        "quamolit.math",
+        "quamolit.util.detect",
+        "quamolit.util.keyboard",
+        "quamolit.util.ref",
+        "quamolit.util.string",
+        "quamolit.util.time"
+      ]
+    },
+    {
+      "status": "internal",
+      "purpose": "演示自己的 Model、几何与入口；应导入库 API，不能由库反向依赖",
+      "doc": "demos/README.md",
+      "replacement": null,
+      "namespaces": [
+        "quamolit.examples.binary-tree",
+        "quamolit.examples.clock",
+        "quamolit.examples.cohort-pulse",
+        "quamolit.examples.curve",
+        "quamolit.examples.drag-demo",
+        "quamolit.examples.finder",
+        "quamolit.examples.folding-fan",
+        "quamolit.examples.icons",
+        "quamolit.examples.layered-dashboard",
+        "quamolit.examples.layer-composition",
+        "quamolit.examples.raining",
+        "quamolit.examples.signal-weave",
+        "quamolit.examples.solar",
+        "quamolit.examples.table",
+        "quamolit.examples.tidal-bloom",
+        "quamolit.examples.todolist"
+      ]
+    },
+    {
+      "status": "internal",
+      "purpose": "测试夹具与独立期望；生产消费者不得导入",
+      "doc": "test/README.md",
+      "replacement": null,
+      "namespaces": [
+        "quamolit.test.component-fixture",
+        "quamolit.test.cpu-motion-fixture",
+        "quamolit.test.fade-migration-fixture",
+        "quamolit.test.frame-fixture",
+        "quamolit.test.gpu-component-fixture",
+        "quamolit.test.motion-fixture",
+        "quamolit.test.playback-fixture",
+        "quamolit.test.replay-archive-fixture",
+        "quamolit.test.retained-component-fixture",
+        "quamolit.test.scene-hit-fixture",
+        "quamolit.test.scene-pointer-browser-fixture"
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "namespace": "quamolit.layers",
+      "status": "experimental",
+      "purpose": "Canvas UI 与实例层的统一时钟/DPR/层序/命中/后端契约",
+      "doc": "docs/layer-composition.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.canvas-images",
+      "status": "experimental",
+      "purpose": "Canvas 图片 Scene 参考",
+      "doc": "docs/webgpu-scene-images.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.canvas-reference",
+      "status": "experimental",
+      "purpose": "受限矩形/实例 Canvas 参考",
+      "doc": "docs/canvas-instances-reference.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.canvas-scene",
+      "status": "experimental",
+      "purpose": "完整层 Canvas Scene 遍历与隔离",
+      "doc": "docs/layered-dashboard.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.canvas-strokes",
+      "status": "experimental",
+      "purpose": "线段/折线 Canvas 参考",
+      "doc": "docs/binary-tree-restoration.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.component-sample",
+      "status": "experimental",
+      "purpose": "组件请求与全量直接采样声明",
+      "doc": "docs/component-sample.md",
+      "replacement": "quamolit.retained-component（执行入口，仍实验）"
+    },
+    {
+      "namespace": "quamolit.device-recovery",
+      "status": "experimental",
+      "purpose": "单层设备恢复 generation 决策",
+      "doc": "docs/device-recovery.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.direct-frame",
+      "status": "experimental",
+      "purpose": "显式版本的任意时间直接采样",
+      "doc": "docs/direct-frame-sampling.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.fixed-step",
+      "status": "experimental",
+      "purpose": "历史状态固定 tick 推进",
+      "doc": "docs/fixed-step-simulation.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.frame-clock",
+      "status": "legacy",
+      "purpose": "旧顺序帧的显式时钟",
+      "doc": "docs/frame-evaluation.md",
+      "replacement": "quamolit.host-clock（实验）"
+    },
+    {
+      "namespace": "quamolit.frame-eval",
+      "status": "legacy",
+      "purpose": "initial-frame/evaluate-at 顺序求值桥梁",
+      "doc": "docs/frame-evaluation.md",
+      "replacement": "quamolit.direct-frame / quamolit.retained-component（实验）"
+    },
+    {
+      "namespace": "quamolit.gpu-component",
+      "status": "experimental",
+      "purpose": "公共计划到 GPU 矩形批次",
+      "doc": "docs/gpu-component-plan.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.gpu-scalar-program",
+      "status": "experimental",
+      "purpose": "标量 Motion 参数与 shader 子集",
+      "doc": "docs/gpu-scalar-program.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.gpu-vec2-translation",
+      "status": "experimental",
+      "purpose": "二维平移 GPU 采样参数",
+      "doc": "docs/gpu-vec2-motion.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.host-clock",
+      "status": "experimental",
+      "purpose": "宿主秒到显式动画时间映射",
+      "doc": "docs/host-clock.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.image-resource-runner",
+      "status": "experimental",
+      "purpose": "Canvas 图片异步加载执行器",
+      "doc": "docs/image-resource-runner.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.instance-ffi",
+      "status": "experimental",
+      "purpose": "类型化实例宿主边界与指标",
+      "doc": "docs/instance-sources.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.instance-gpu",
+      "status": "experimental",
+      "purpose": "版本化实例源的 GPU 差量上传",
+      "doc": "docs/instance-gpu-upload.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.instance-resource",
+      "status": "experimental",
+      "purpose": "实例源快照与脏区资源表",
+      "doc": "docs/instance-resource-table.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.motion",
+      "status": "experimental",
+      "purpose": "标准 Motion 类型和 CPU 数值参考",
+      "doc": "docs/motion-scalar.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.motion-cpu",
+      "status": "experimental",
+      "purpose": "泛型 CPU-only 纯函数扩展",
+      "doc": "docs/cpu-motion-extension.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.motion-gpu",
+      "status": "experimental",
+      "purpose": "GPU Motion 候选能力分类",
+      "doc": "docs/motion-gpu-contract.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.playback",
+      "status": "experimental",
+      "purpose": "直接帧与固定 tick 的时钟桥梁",
+      "doc": "docs/playback-boundary.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.presence",
+      "status": "experimental",
+      "purpose": "Scene 稳定 key 与逻辑进入退出",
+      "doc": "docs/presence-lifecycle.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.presence-component",
+      "status": "experimental",
+      "purpose": "Presence 到组件声明连接",
+      "doc": "docs/presence-component.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.presence-device-coordinator",
+      "status": "experimental",
+      "purpose": "设备安装与 registry rebuild 协调",
+      "doc": "docs/presence-device-coordinator.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.presence-resource-registry",
+      "status": "experimental",
+      "purpose": "Presence 实例资源 lease",
+      "doc": "docs/presence-resources.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.presence-webgpu-resources",
+      "status": "experimental",
+      "purpose": "Presence GPU batch 队列化执行",
+      "doc": "docs/presence-webgpu-resources.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.replay-archive",
+      "status": "experimental",
+      "purpose": "输入日志与有界检查点回放",
+      "doc": "docs/replay-archive.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.resource-lifecycle",
+      "status": "experimental",
+      "purpose": "通用资源身份/generation/LRU 状态机",
+      "doc": "docs/resource-lifecycle.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.resource-load-queue",
+      "status": "experimental",
+      "purpose": "有界异步加载队列与取消",
+      "doc": "docs/resource-load-queue.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.retained-component",
+      "status": "experimental",
+      "purpose": "统一组件保留计划构建/更新/绘制",
+      "doc": "docs/retained-component.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.retained-path",
+      "status": "legacy",
+      "purpose": "早期独立路径保留计划；不发展平行运行时",
+      "doc": "docs/retained-component.md",
+      "replacement": "quamolit.retained-component（实验）"
+    },
+    {
+      "namespace": "quamolit.retained-scene",
+      "status": "experimental",
+      "purpose": "Scene 静态编译与按需帧计划",
+      "doc": "docs/retained-scene-plan.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.scene-binding",
+      "status": "experimental",
+      "purpose": "标量绑定的全量参考解析",
+      "doc": "docs/scene-binding.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.scene-diff",
+      "status": "experimental",
+      "purpose": "逻辑身份索引与参考差分",
+      "doc": "docs/scene-diff.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.scene-hit",
+      "status": "experimental",
+      "purpose": "绘制外的命中编译与逆层序查询",
+      "doc": "docs/scene-ir-core.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.scene-ir",
+      "status": "experimental",
+      "purpose": "可序列化 Scene/资源/交互类型",
+      "doc": "docs/scene-ir-core.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.scene-pointer",
+      "status": "experimental",
+      "purpose": "指针捕获/冒泡纯状态机",
+      "doc": "docs/scene-pointer.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.scene-pointer-browser",
+      "status": "experimental",
+      "purpose": "类型化浏览器 PointerEvent 连接",
+      "doc": "docs/scene-pointer.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.transition",
+      "status": "experimental",
+      "purpose": "位置连续打断与事件重放",
+      "doc": "docs/transition-interruption.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.webgpu-batches",
+      "status": "experimental",
+      "purpose": "矩形实例 GPU 句柄与绘制边界",
+      "doc": "docs/webgpu-instances.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.webgpu-capabilities",
+      "status": "experimental",
+      "purpose": "设备获取/丢失能力诊断",
+      "doc": "docs/webgpu-capability-probe.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.webgpu-images",
+      "status": "experimental",
+      "purpose": "受限图片层 GPU 与完整回退判定",
+      "doc": "docs/webgpu-scene-images.md",
+      "replacement": null
+    },
+    {
+      "namespace": "quamolit.webgpu-texture-runner",
+      "status": "experimental",
+      "purpose": "WebGPU texture 资源 loader",
+      "doc": "docs/webgpu-texture-runner.md",
+      "replacement": null
+    }
+  ]
+}

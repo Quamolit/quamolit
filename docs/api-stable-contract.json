@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "namespaces": {
+    "quamolit.ui-motion": {
+      "PresenceFrame": {
+        "schema": "'StructDef",
+        "declaration": [
+          "defstruct",
+          "PresenceFrame",
+          [
+            ":alpha",
+            "'Number"
+          ],
+          [
+            ":offset",
+            "'Number"
+          ],
+          [
+            ":mounted",
+            "'Bool"
+          ]
+        ]
+      },
+      "StaggerSpec": {
+        "schema": "'StructDef",
+        "declaration": [
+          "defstruct",
+          "StaggerSpec",
+          [
+            ":start",
+            "'Number"
+          ],
+          [
+            ":gap",
+            "'Number"
+          ],
+          [
+            ":duration",
+            "'Number"
+          ],
+          [
+            ":easing",
+            "'quamolit.motion/Easing"
+          ]
+        ]
+      },
+      "crossfade-in": {
+        "schema": [
+          "{}",
+          [
+            ":kind",
+            ":fn"
+          ],
+          [
+            ":return",
+            "'Number"
+          ],
+          [
+            ":args",
+            [
+              "[]",
+              "'Number"
+            ]
+          ]
+        ]
+      },
+      "crossfade-out": {
+        "schema": [
+          "{}",
+          [
+            ":kind",
+            ":fn"
+          ],
+          [
+            ":return",
+            "'Number"
+          ],
+          [
+            ":args",
+            [
+              "[]",
+              "'Number"
+            ]
+          ]
+        ]
+      },
+      "make-stagger": {
+        "schema": [
+          "{}",
+          [
+            ":kind",
+            ":fn"
+          ],
+          [
+            ":return",
+            "'quamolit.ui-motion/StaggerSpec"
+          ],
+          [
+            ":args",
+            [
+              "[]",
+              "'Number",
+              "'Number",
+              "'Number",
+              "'quamolit.motion/Easing"
+            ]
+          ]
+        ]
+      },
+      "morph-integer": {
+        "schema": [
+          "{}",
+          [
+            ":kind",
+            ":fn"
+          ],
+          [
+            ":return",
+            "'Number"
+          ],
+          [
+            ":args",
+            [
+              "[]",
+              "'Number",
+              "'Number",
+              "'Number"
+            ]
+          ]
+        ]
+      },
+      "morph-number": {
+        "schema": [
+          "{}",
+          [
+            ":kind",
+            ":fn"
+          ],
+          [
+            ":return",
+            "'Number"
+          ],
+          [
+            ":args",
+            [
+              "[]",
+              "'Number",
+              "'Number",
+              "'Number"
+            ]
+          ]
+        ]
+      },
+      "presence-frame": {
+        "schema": [
+          "{}",
+          [
+            ":kind",
+            ":fn"
+          ],
+          [
+            ":return",
+            "'quamolit.ui-motion/PresenceFrame"
+          ],
+          [
+            ":args",
+            [
+              "[]",
+              "'Number",
+              "'Number",
+              "'Number",
+              "'Number"
+            ]
+          ]
+        ]
+      },
+      "smooth-stagger": {
+        "schema": [
+          "{}",
+          [
+            ":kind",
+            ":fn"
+          ],
+          [
+            ":return",
+            "'quamolit.ui-motion/StaggerSpec"
+          ],
+          [
+            ":args",
+            [
+              "[]",
+              "'Number",
+              "'Number",
+              "'Number"
+            ]
+          ]
+        ]
+      },
+      "stagger-at": {
+        "schema": [
+          "{}",
+          [
+            ":kind",
+            ":fn"
+          ],
+          [
+            ":return",
+            "'Number"
+          ],
+          [
+            ":args",
+            [
+              "[]",
+              "'quamolit.ui-motion/StaggerSpec",
+              "'Number",
+              "'Number"
+            ]
+          ]
+        ]
+      },
+      "tween-at": {
+        "schema": [
+          "{}",
+          [
+            ":kind",
+            ":fn"
+          ],
+          [
+            ":return",
+            "'Number"
+          ],
+          [
+            ":args",
+            [
+              "[]",
+              "'Number",
+              "'Number",
+              "'Number",
+              "'Number",
+              "'Number"
+            ]
+          ]
+        ]
+      }
+    }
+  },
+  "types": {
+    "quamolit.motion/Easing": {
+      "schema": "'EnumDef",
+      "declaration": [
+        "defenum",
+        "Easing",
+        [
+          ":linear"
+        ],
+        [
+          ":smoothstep"
+        ]
+      ]
+    }
+  }
+}
