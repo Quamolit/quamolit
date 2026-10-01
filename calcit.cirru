@@ -1969,11 +1969,11 @@
         'draw-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-instances! (context instances positions)
             hint-fn $ {}
-              :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/InstanceNode 'JsObject
+              :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/InstanceNode 'js-ffi.typed-arrays/Float32ArrayHost
               :return 'quamolit.canvas-reference/InstancesMetrics
               :features $ #{} :js-ffi
             let
-                result $ raw-draw-instances! (unsafe-coerce context JsObject) positions 0
+                result $ raw-draw-instances! (unsafe-coerce context JsObject) (unsafe-coerce positions JsObject) 0
                   :count $ :source instances
                   :width instances
                   :height instances
@@ -1986,7 +1986,7 @@
               InstancesMetrics :boundary-calls boundary-calls :canvas-calls canvas-calls :instances instances-count :position-bytes-read bytes-read
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/InstanceNode 'JsObject
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/InstanceNode 'js-ffi.typed-arrays/Float32ArrayHost
             :features $ #{} :js-ffi
         'draw-polygon! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-polygon! (context polygon)
