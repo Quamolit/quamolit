@@ -31,7 +31,7 @@
 
 `yarn test:scene-hit` 检查 [Scene 独立命中内核](scene-ir-core.md)：严格公共类型、90° 旋转逆投影、祖先矩形裁剪、完全透明 group 仍可交互、重叠节点逆绘制层序、group target 后备、奇异矩阵拒绝、多边形填充与折线 stroke，以及编译后的候选计划排除非交互装饰节点。1000 个非交互装饰节点加 1 个 target 的夹具在编译后只保留 1 个候选，命中热路径 `visited=1`；该数字证明事件查询不再全树扫描，不代表当前全量 Scene 校验或计划编译已经优化。测试完全不依赖 Canvas，`HitPlan` 可跨同一 Scene 的多次指针查询复用；便利入口 `hit-test` 每次都会重新编译，实时宿主应缓存计划。该门禁尚不覆盖 cubic-path、instances、指针捕获/冒泡、节点卸载、resize/DPR 或浏览器事件桥，不能据此关闭 #34。
 
-`yarn test:scene-pointer` 检查 [Scene 指针路由](scene-pointer.md)：严格公共类型、冒泡、画布外捕获、pointer id 隔离、释放、源节点删除/重挂载，以及 `SceneInteraction :disabled` 屏蔽多层子树、清理 hover/capture、边界外祖先捕获释放、兄弟隔离与重入。`yarn test:scene-hit` 补充 disabled 叶节点不能继承祖先 target、屏蔽子树不遮挡背后命中和 1000 个装饰节点 `visited=1`。这些是纯 Calcit 协议，不调用 DOM，不证明完整 Presence group 退出或 cubic-path/instances 命中，仍不能关闭 #34。
+`yarn test:scene-pointer` 检查 [Scene 指针路由](scene-pointer.md)：严格公共类型、冒泡、画布外捕获、pointer id 隔离、释放、源节点删除/重挂载，以及 `SceneInteraction :disabled` 屏蔽多层子树、清理 hover/capture、边界外祖先捕获释放、兄弟隔离、叶节点不能继承祖先 target 与重入。`yarn test:scene-hit` 补充屏蔽子树不遮挡背后命中和 1000 个装饰节点 `visited=1`。这些是纯 Calcit 协议，不调用 DOM，不证明完整 Presence group 退出或 cubic-path/instances 命中，仍不能关闭 #34。
 
 `yarn test:scene-pointer-browser` 严格检查类型化 PointerEvent/DOM capture adapter：Node 替身验证 CSS px、画布外路由、捕获/释放各一次、surface dispose 与子树禁用协调；Chromium 验证真实鼠标捕获、抬起、取消、lost capture、blur 与 resize。DPR 1/2 的子树用例在 surface resize 与禁用同次提交时，无新输入即释放原生 capture；随后按新边界命中兄弟、重复禁用不再释放、重新启用后可新捕获。夹具的 Scene/状态与监听器均由 Calcit 定义，JS 只驱动浏览器和断言；没有新增命令/CI job，不能当作完整退出动画的像素证据。通用接口缺口跟踪 js-ffi #149；实际 demo dispose 由 `yarn test:drag-demo` 覆盖，应用 Presence group 的 resize/退出组合仍待接线。
 
