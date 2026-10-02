@@ -50,6 +50,43 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.instance-resource/InstanceTableHost)
             :args $ []
             :features $ #{} :js-ffi
+        'curve-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn curve-document (time)
+            do
+              assert |invalid-consumer-curve-time $ motion/finite-number? time
+              let
+                  offset $ * 10 time
+                scene/SceneDocument :nodes $ []
+                  scene/SceneNode :id |curve-root :parent | :key |curve-root :content
+                    scene/SceneContent :group $ scene/GroupNode :transform (hit/matrix 0 2 -2 0 240 0) :clip
+                      scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 100 :height 80
+                      , :opacity 1
+                    , :bindings ([]) :interaction $ scene/SceneInteraction :none
+                  scene/SceneNode :id |consumer-curve :parent |curve-root :key |consumer-curve :content
+                    scene/SceneContent :cubic-path $ scene/CubicPathNode :start
+                      motion/Vec2 :x (+ 20 offset) :y 70
+                      , :segments
+                        [] $ scene/CubicSegment :control-1
+                          motion/Vec2 :x (+ 20 offset) :y 10
+                          , :control-2
+                            motion/Vec2 :x (+ 80 offset) :y 10
+                            , :end $ motion/Vec2 :x (+ 80 offset) :y 70
+                        , :width 20 :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+                    , :bindings ([]) :interaction $ scene/SceneInteraction :target |curve-action
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+        'curve-hit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn curve-hit (plan x y) (hit/hit-test-plan plan x y)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitOutcome)
+            :args $ [] 'quamolit.scene-hit/HitPlan 'Number 'Number
+        'curve-hit-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn curve-hit-plan (time)
+            hit/compile-hit-plan $ curve-document time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'Number
         'declare $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare (props model input ready viewport)
             let
@@ -200,6 +237,14 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.retained-component/ComponentPlan
+            :features $ #{} :js-ffi
+        'draw-curve! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-curve! (context document)
+            do (platform/clear-canvas! context 320 180)
+              canvas-scene/draw-document! context document 320 180 $ fn (id version) (raise |consumer-curve-has-no-images)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument
             :features $ #{} :js-ffi
         'draw-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-gpu! (host program time) (gpu/draw-at! host program time)
@@ -674,4 +719,4 @@
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.main
-          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as lifecycle) (quamolit.resource-load-queue :as load-queue)
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as lifecycle) (quamolit.resource-load-queue :as load-queue) (quamolit.scene-hit :as hit) (quamolit.canvas-scene :as canvas-scene)
