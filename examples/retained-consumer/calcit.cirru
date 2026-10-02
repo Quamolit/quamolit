@@ -332,7 +332,10 @@
         'draw-layered! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-layered! (context plan width height)
             let
-                scale $ min (/ width 320) (/ height 180)
+                scale $ if
+                  < (/ width 320) (/ height 180)
+                  / width 320
+                  / height 180
                 document $ :scene plan
                 nodes $ :nodes document
                 root $ &list:nth nodes 0
