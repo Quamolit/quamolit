@@ -180,6 +180,163 @@ for (const dpr of [1, 2])
     expect(results.find((result) => result.profile === "collapsed").oldDiffering).toBeGreaterThan(0);
   });
 
+for (const dpr of [1, 2])
+  test(`三次曲线命中：DPR ${dpr} 自适应几何、真实切线与退化`, async ({ page }, testInfo) => {
+    test.setTimeout(90_000);
+    await ready(page);
+    const results = await page.evaluate(async (scale) => {
+      const { compile_hit_plan: compile, hit_test_plan: hit } = await import("/target/js/curve/quamolit.scene-hit.mjs");
+      const { to_js_data: plain } = await import("/target/js/curve/calcit.core.mjs");
+      const { cubic_stroke_scene: scene } = await import("/target/js/curve/quamolit.test.scene-hit-fixture.mjs");
+      const results = [];
+      for (const profile of [
+        "straight",
+        "arch",
+        "elbow",
+        "s-curve",
+        "loop",
+        "tangent-zero",
+        "reverse-line",
+        "collapsed",
+        "zero-segment",
+        "thin",
+      ]) {
+        const sceneDocument = scene(profile),
+          plan = compile(sceneDocument);
+        const { start, segments, width } = plain(sceneDocument).nodes[0].content[1];
+        const geometry = plain(plan).candidates[0]["curve-parts"];
+        // #34 的原生精度反例：默认尺度会漏细曲线中心点。
+        // 几何 oracle 放大坐标而非只改 CTM；默认尺度仍单列，不隐藏差异。
+        const makeContext = (precision) => {
+          const context = document.createElement("canvas").getContext("2d");
+          context.scale(scale, scale);
+          context.lineWidth = width * precision;
+          context.lineCap = "butt";
+          context.lineJoin = "miter";
+          context.miterLimit = 10;
+          context.beginPath();
+          context.moveTo(start.x * precision, start.y * precision);
+          for (const segment of segments)
+            context.bezierCurveTo(
+              segment["control-1"].x * precision,
+              segment["control-1"].y * precision,
+              segment["control-2"].x * precision,
+              segment["control-2"].y * precision,
+              segment.end.x * precision,
+              segment.end.y * precision,
+            );
+          return (x, y) => context.isPointInStroke(x * precision * scale, y * precision * scale);
+        };
+        // 起终点重合也不自动 closePath，与生产 CubicPath 的开放合同一致。
+        const native = makeContext(64),
+          defaultNative = makeContext(1);
+        let samples = 0,
+          boundary = 0,
+          differing = 0,
+          defaultDiffering = 0;
+        const mismatches = [];
+        // 在实现前固定的几何边界带：1/32 local CSS px；不接受带外误差。
+        const band = 1 / 32;
+        for (let y = -20.29; y < 100; y += 3)
+          for (let x = -20.37; x < 220; x += 3) {
+            const expected = native(x, y),
+              actual = plain(hit(plan, x, y))[0] === "hit";
+            if (actual !== defaultNative(x, y)) defaultDiffering++;
+            const nearBoundary = [
+              [-band, 0],
+              [band, 0],
+              [0, -band],
+              [0, band],
+              [-band, -band],
+              [-band, band],
+              [band, -band],
+              [band, band],
+            ].some(([dx, dy]) => native(x + dx, y + dy) !== expected);
+            if (nearBoundary) boundary++;
+            if (actual !== expected && !nearBoundary) {
+              differing++;
+              if (mismatches.length < 5) mismatches.push({ x, y, actual, expected });
+            }
+            samples++;
+          }
+        let thinProbes = 0,
+          oldThinMisses = 0,
+          defaultThinMisses = 0;
+        if (profile === "thin") {
+          const cubic = (t) => {
+            const u = 1 - t,
+              segment = segments[0];
+            const at = (axis) =>
+              u ** 3 * start[axis] +
+              3 * u ** 2 * t * segment["control-1"][axis] +
+              3 * u * t ** 2 * segment["control-2"][axis] +
+              t ** 3 * segment.end[axis];
+            return { x: at("x"), y: at("y") };
+          };
+          const wrong = document.createElement("canvas").getContext("2d");
+          wrong.lineWidth = width;
+          wrong.lineCap = "butt";
+          wrong.lineJoin = "miter";
+          wrong.beginPath();
+          wrong.moveTo(start.x, start.y);
+          for (let index = 1; index <= 16; index++) {
+            const point = cubic(index / 16);
+            wrong.lineTo(point.x, point.y);
+          }
+          for (let index = 0; index < 32; index++) {
+            const { x, y } = cubic((index + 0.5) / 32);
+            if (!native(x, y) || plain(hit(plan, x, y))[0] !== "hit") mismatches.push({ thinCenter: true, x, y });
+            if (!wrong.isPointInStroke(x, y)) oldThinMisses++;
+            if (!defaultNative(x, y)) defaultThinMisses++;
+            thinProbes++;
+          }
+        }
+        results.push({
+          profile,
+          samples,
+          boundary,
+          differing,
+          mismatches,
+          preparedPoints: geometry.map((part) => part.points.length),
+          thinProbes,
+          oldThinMisses,
+          defaultDiffering,
+          defaultThinMisses,
+          archCounterexample:
+            profile === "arch"
+              ? {
+                  defaultNative: defaultNative(12.63, 48.71),
+                  preciseNative: native(12.63, 48.71),
+                  actual: plain(hit(plan, 12.63, 48.71))[0] === "hit",
+                }
+              : null,
+        });
+      }
+      return results;
+    }, dpr);
+    const path = testInfo.outputPath(`cubic-hit-dpr-${dpr}.json`);
+    await writeFile(
+      path,
+      JSON.stringify({ dpr, nativeCoordinatePrecision: 64, localBoundaryBand: 1 / 32, results }, null, 2),
+    );
+    await testInfo.attach("cubic-hit-native-comparison", { path, contentType: "application/json" });
+    for (const result of results) {
+      expect(result.samples).toBe(3321);
+      expect(result.differing, JSON.stringify(result)).toBe(0);
+      expect(result.boundary).toBeLessThan(result.samples * 0.01);
+      expect(result.mismatches).toEqual([]);
+    }
+    const thin = results.find((result) => result.profile === "thin");
+    expect(thin.thinProbes).toBe(32);
+    expect(thin.oldThinMisses).toBeGreaterThan(0);
+    expect(thin.defaultThinMisses).toBe(12);
+    expect(results.find((result) => result.profile === "arch").archCounterexample).toEqual({
+      defaultNative: true,
+      preciseNative: false,
+      actual: false,
+    });
+  });
+
 test("动态闭合曲线：固定时间顶点与截图，重复采样一致", async ({ page }, testInfo) => {
   await ready(page);
   const at = (t) => page.evaluate((x) => window.curveDemo.seek(x), t);

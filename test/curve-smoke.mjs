@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { to_js_data as toJsData } from "../target/js/curve/calcit.core.mjs";
+import { to_js_data as toJsData, init_tags as initTags } from "../target/js/curve/calcit.core.mjs";
 import {
   curve_points as curvePoints,
   sampled_curve_points as sampledCurvePoints,
@@ -8,6 +8,51 @@ import {
   draw_$x_ as draw,
 } from "../target/js/curve/quamolit.examples.curve.mjs";
 import { validate_scene as validateScene } from "../target/js/curve/quamolit.scene-ir.mjs";
+import {
+  compile_hit_plan as compileHitPlan,
+  hit_test_plan as hitTestPlan,
+  local_hit_$q_ as localHit,
+} from "../target/js/curve/quamolit.scene-hit.mjs";
+import { cubic_stroke_scene as cubicScene } from "../target/js/curve/quamolit.test.scene-hit-fixture.mjs";
+
+test("三次曲线命中计划只在编译时准备几何，查询不重新读取原始控制段", () => {
+  const tags = initTags(["nodes", "content", "segments", "candidates", "curve-parts"]);
+  const scene = cubicScene("arch"),
+    plan = compileHitPlan(scene);
+  const content = scene.getRequired(tags.nodes).toArray()[0].getRequired(tags.content);
+  const segments = content.extra[0].getRequired(tags.segments).toArray();
+  const parts = plan.getRequired(tags.candidates).toArray()[0].getRequired(tags["curve-parts"]);
+  for (const segment of segments)
+    Object.defineProperty(segment, "nthAt", {
+      value() {
+        throw Error("unexpected-curve-refinement");
+      },
+    });
+  for (let index = 0; index < 1000; index++) {
+    assert.equal(toJsData(hitTestPlan(plan, 50, 30))[0], "hit");
+    assert.equal(toJsData(hitTestPlan(plan, 1000, 1000))[0], "miss");
+  }
+  assert.equal(plan.getRequired(tags.candidates).toArray()[0].getRequired(tags["curve-parts"]), parts);
+  assert.throws(() => localHit(content, 50, 30), /unexpected-curve-refinement/, "负例证明读取保护实际生效");
+});
+
+test("共线三次曲线按参数次序保留真实极值，尖点覆盖而不是扩大到控制点", () => {
+  const scene = cubicScene("reverse-line"),
+    plan = compileHitPlan(scene);
+  const hit = (x, y) => toJsData(hitTestPlan(plan, x, y))[0] === "hit";
+  // 独立解析根：x(t)=20+240t-720t²+480t³；x'(t)=0。
+  const at = (t) => 20 + 240 * t - 720 * t * t + 480 * t * t * t;
+  const high = at((3 - Math.sqrt(3)) / 6),
+    low = at((3 + Math.sqrt(3)) / 6);
+  for (const x of [high + 9, low - 9]) {
+    assert.equal(hit(x, 70), true);
+    assert.equal(hit(x, 73), true);
+    assert.equal(hit(x, 75), false);
+  }
+  assert.equal(hit(100, 70), false, "不能使用控制点的凸包替代真实曲线范围");
+  assert.equal(hit(-60, 70), false);
+  assert.equal(toJsData(hitTestPlan(compileHitPlan(cubicScene("collapsed")), 20, 70))[0], "miss");
+});
 
 test("32 段闭合曲线顶点数固定且只由绝对时间决定", () => {
   assert.equal(toJsData(curvePoints(0)).length, 98, "首尾闭合的 1 + 32 * 3 + 1 个控制点");
