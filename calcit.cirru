@@ -15740,12 +15740,15 @@
             :tags $ #{} :scene-hit
         'effective-target $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn effective-target (nodes node)
-            match (:interaction node)
-              (:target target) target
-              (:none)
-                if
-                  empty? $ :parent node
-                  , | $ effective-target nodes $ scene/node-for-id nodes (:parent node)
+            if (interaction-enabled? nodes node)
+              match (:interaction node)
+                (:target target) target
+                (:none)
+                  if
+                    empty? $ :parent node
+                    , | $ effective-target nodes $ scene/node-for-id nodes (:parent node)
+                (:disabled) |
+              , |
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-ir/SceneNode
@@ -15822,6 +15825,18 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'String 'Number 'Number
+        'interaction-enabled? $ %{} 'CodeEntry
+          :doc "|查询已验证Scene的节点及整条父链；任意祖先标为disabled时返回false，不按视觉opacity隐式禁用。"
+          :code $ quote $ defn interaction-enabled? (nodes node)
+            match (:interaction node)
+              (:disabled) false
+              _ $ if
+                empty? $ :parent node
+                , true $ recur nodes
+                  scene/node-for-id nodes $ :parent node
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-ir/SceneNode
         'inverse-point $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn inverse-point (matrix x y)
             let
@@ -16174,7 +16189,7 @@
           :schema $ :: 'StructDef
         'SceneInteraction $ %{} 'CodeEntry
           :doc "|Logical event target reference; hit testing is not performed during paint."
-          :code $ quote $ defenum SceneInteraction (:none) (:target 'String)
+          :code $ quote $ defenum SceneInteraction (:none) (:target 'String) (:disabled)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneNode $ %{} 'CodeEntry
@@ -16495,6 +16510,7 @@
                 (:none) true
                 (:target target)
                   not $ empty? target
+                (:disabled) true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -16755,15 +16771,22 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
             :args $ [] 'quamolit.scene-pointer/PointerState 'Number
         'reconcile-pointer-state $ %{} 'CodeEntry
-          :doc "|在 Scene 提交后校验捕获的 source 与 target；节点卸载或目标链变化时清空捕获并仅报告一次释放。"
+          :doc "|在Scene提交后清理已卸载或被disabled子树屏蔽的hover和capture；无效捕获仅报告一次释放，不等待下一次输入。"
           :code $ quote $ defn reconcile-pointer-state (plan state)
-            match (:capture state)
-              (:none) (PointerReconcile :state state :capture-released false)
-              (:captured pointer-id target node-id)
-                if (capture-valid? plan target node-id) (PointerReconcile :state state :capture-released false)
-                  PointerReconcile :state
-                    struct-with state $ :capture $ PointerCapture :none
-                    , :capture-released true
+            let
+                next-state $ if
+                  and
+                    not $ empty? $ :hover-node state
+                    not $ capture-valid? plan (:hover-target state) (:hover-node state)
+                  state-with-hover state $ PointerDispatch :none
+                  , state
+              match (:capture next-state)
+                (:none) (PointerReconcile :state next-state :capture-released false)
+                (:captured pointer-id target node-id)
+                  if (capture-valid? plan target node-id) (PointerReconcile :state next-state :capture-released false)
+                    PointerReconcile :state
+                      struct-with next-state $ :capture $ PointerCapture :none
+                      , :capture-released true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
             :args $ [] 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState
@@ -16847,15 +16870,18 @@
             :args $ [] 'quamolit.scene-pointer/PointerState 'quamolit.scene-pointer/PointerDispatch
         'target-chain $ %{} 'CodeEntry (:doc "|从命中叶节点向根收集显式事件 target，保持由内向外的逻辑冒泡顺序。")
           :code $ quote $ defn target-chain (nodes node)
-            let
-                parent-targets $ if
-                  empty? $ :parent node
-                  empty-targets
-                  target-chain nodes $ scene/node-for-id nodes $ :parent node
-              match (:interaction node)
-                (:none) parent-targets
-                (:target target)
-                  prepend parent-targets $ EventTarget :target target :node-id $ :id node
+            if (hit/interaction-enabled? nodes node)
+              let
+                  parent-targets $ if
+                    empty? $ :parent node
+                    empty-targets
+                    target-chain nodes $ scene/node-for-id nodes $ :parent node
+                match (:interaction node)
+                  (:none) parent-targets
+                  (:target target)
+                    prepend parent-targets $ EventTarget :target target :node-id $ :id node
+                  (:disabled) (empty-targets)
+              empty-targets
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-ir/SceneNode
@@ -16985,6 +17011,17 @@
             :args $ [] 'T
             :features $ #{} :js-ffi
             :generics $ [] 'T
+        'reconcile-pointer-surface! $ %{} 'CodeEntry
+          :doc "|提交新HitPlan后立即协调逻辑hover/capture并恰好一次释放DOM捕获；不等待PointerEvent，不绘制或修改Scene。"
+          :code $ quote $ defn reconcile-pointer-surface! (surface plan state)
+            let
+                reconciled $ pointer/reconcile-pointer-state plan state
+              when (:capture-released reconciled) (release-state-native-capture! surface state)
+              , reconciled
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState
+            :features $ #{} :js-ffi
         'release-native-capture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-native-capture! (surface input routed)
             let
@@ -18452,6 +18489,29 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ []
+        'routing-scene-subtree $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn routing-scene-subtree (disabled?)
+            let
+                nodes $ :nodes $ routing-scene
+                root $ &list:nth nodes 0
+                outer $ struct-with root (:id |outer) (:key |outer)
+                  :interaction $ scene/SceneInteraction :target |outer-action
+                panel $ struct-with root (:id |panel) (:key |panel) (:parent |outer)
+                  :interaction $ if disabled? (scene/SceneInteraction :disabled) (scene/SceneInteraction :none)
+                inner $ struct-with root (:id |inner) (:key |inner) (:parent |panel)
+                  :interaction $ scene/SceneInteraction :none
+                a $ struct-with (&list:nth nodes 1) (:parent |inner)
+                b $ struct-with (&list:nth nodes 2) (:parent |inner)
+                outside $ struct-with b (:id |outside) (:key |outside) (:parent |outer)
+                  :interaction $ scene/SceneInteraction :target |outside-action
+                  :content $ match (:content b)
+                    (:rect r)
+                      scene/SceneContent :rect $ struct-with r $ :x 200
+                    _ $ raise |expected-routing-rectangle
+              scene/SceneDocument :nodes $ [] outer panel inner a b outside
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Bool
         'routing-scene-without-a $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn routing-scene-without-a ()
             let
@@ -18526,6 +18586,22 @@
                     do
                       is= |tap $ :target result
                       is= 1 $ :visited result
+              :tags $ #{} :scene-hit
+            %{} 'TestEntry (:name |disabled-subtree-does-not-occlude-hit-behind)
+              :code $ quote $ let
+                  disabled $ routing-scene-subtree true
+                  nodes $ :nodes disabled
+                  behind $ struct-with (&list:nth nodes 3) (:id |behind) (:key |behind) (:parent |)
+                    :interaction $ scene/SceneInteraction :target |behind-action
+                  doc $ struct-with disabled $ :nodes (prepend nodes behind)
+                  plan $ hit/compile-hit-plan doc
+                is= 2 $ hit/candidate-count plan
+                match (hit/hit-test-plan plan 20 20)
+                  (:hit result)
+                    do
+                      is= |behind $ :node-id result
+                      is= |behind-action $ :target result
+                  (:miss _) (is= |hit |miss)
               :tags $ #{} :scene-hit
         'verify-pointer-routing $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn verify-pointer-routing () true
@@ -18643,6 +18719,96 @@
                 is= (pointer/PointerCapture :none)
                   :capture $ :state lost
               :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |nested-disabled-subtree-release-and-reenter)
+              :code $ quote $ let
+                  active $ routing-scene-subtree false
+                  disabled $ routing-scene-subtree true
+                  plan $ hit/compile-hit-plan active
+                  blocked $ hit/compile-hit-plan disabled
+                  down $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 7 (pointer/PointerPhase :down) 20 20
+                  captured $ pointer/capture-dispatch (:state down) (:dispatch down)
+                  released $ pointer/reconcile-pointer-state blocked captured
+                  again $ pointer/reconcile-pointer-state blocked $ :state released
+                  moved $ pointer/route-pointer blocked (:state released)
+                    pointer-input 7 (pointer/PointerPhase :move) 20 20
+                  reentered $ pointer/route-pointer plan (:state released)
+                    pointer-input 7 (pointer/PointerPhase :down) 20 20
+                is= 3 $ hit/candidate-count plan
+                is= 1 $ hit/candidate-count blocked
+                is= 6 $ count $ :nodes disabled
+                is=
+                  :content $ &list:nth (:nodes active) 3
+                  :content $ &list:nth (:nodes disabled) 3
+                is= | $ hit/effective-target (:nodes disabled)
+                  &list:nth (:nodes disabled) 3
+                is= ([])
+                  pointer/target-chain (:nodes disabled)
+                    &list:nth (:nodes disabled) 3
+                is= true $ :capture-released released
+                is= false $ :capture-released again
+                is= (pointer/PointerCapture :none)
+                  :capture $ :state released
+                is= (pointer/PointerDispatch :none) (:dispatch moved)
+                is= | $ :hover-target $ :state moved
+                match (:dispatch reentered)
+                  (:routed route)
+                    is= |a $ :source-node route
+                  (:none) (is= |routed |none)
+              :tags $ #{} :scene-pointer
+            %{} 'TestEntry
+              :name |disabled-source-releases-ancestor-capture-but-not-sibling
+              :code $ quote $ let
+                  plan $ hit/compile-hit-plan $ routing-scene-subtree false
+                  blocked $ hit/compile-hit-plan $ routing-scene-subtree true
+                  down $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 7 (pointer/PointerPhase :down) 20 20
+                  outside-down $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 7 (pointer/PointerPhase :down) 220 20
+                  outside $ pointer/capture-dispatch (:state outside-down) (:dispatch outside-down)
+                  outside-stays $ pointer/reconcile-pointer-state blocked outside
+                match (:dispatch down)
+                  (:routed route)
+                    let
+                        parent-capture $ pointer/capture-target (:state down) route |outer-action
+                        released $ pointer/reconcile-pointer-state blocked parent-capture
+                      is= true $ :capture-released released
+                  (:none) (is= |routed |none)
+                is= false $ :capture-released outside-stays
+                is= (:capture outside)
+                  :capture $ :state outside-stays
+              :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |disabled-subtree-clears-hover-without-input)
+              :code $ quote $ let
+                  plan $ hit/compile-hit-plan $ routing-scene-subtree false
+                  blocked $ hit/compile-hit-plan $ routing-scene-subtree true
+                  hover $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 3 (pointer/PointerPhase :move) 20 20
+                  cleared $ pointer/reconcile-pointer-state blocked $ :state hover
+                  sibling $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 3 (pointer/PointerPhase :move) 220 20
+                  preserved $ pointer/reconcile-pointer-state blocked $ :state sibling
+                is= |a-action $ :hover-target $ :state hover
+                is= | $ :hover-target $ :state cleared
+                is= | $ :hover-node $ :state cleared
+                is= false $ :capture-released cleared
+                is= (:state sibling) (:state preserved)
+              :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |disabled-leaf-never-inherits-ancestor-target)
+              :code $ quote $ let
+                  doc $ routing-scene-subtree false
+                  nodes $ :nodes doc
+                  leaf $ &list:nth nodes 3
+                  disabled $ struct-with doc $ :nodes
+                    assoc nodes 3 $ struct-with leaf $ :interaction (scene/SceneInteraction :disabled)
+                  plan $ hit/compile-hit-plan disabled
+                  routed $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 1 (pointer/PointerPhase :down) 20 20
+                is= 2 $ hit/candidate-count plan
+                is= (pointer/PointerDispatch :none) (:dispatch routed)
+                is= | $ hit/effective-target (:nodes disabled)
+                  &list:nth (:nodes disabled) 3
+              :tags $ #{} :scene-pointer
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.scene-hit-fixture
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.scene-hit :as hit)
@@ -18718,17 +18884,34 @@
             :return 'quamolit.test.scene-pointer-browser-fixture/BrowserDisposeTrace
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer-browser/PointerEventHost
             :features $ #{} :js-ffi
+        'exercise-browser-subtree-exit! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn exercise-browser-subtree-exit! (surface down-event)
+            let
+                plan $ hit/compile-hit-plan $ fixture/routing-scene-subtree false
+                blocked $ hit/compile-hit-plan $ fixture/routing-scene-subtree true
+                input $ browser/pointer-input-from-event surface (pointer/PointerPhase :down) down-event
+                down $ browser/route-event! surface plan (pointer/initial-pointer-state) (pointer/PointerPhase :down) down-event
+                captured $ browser/capture-dispatch! surface input down
+                released $ browser/reconcile-pointer-surface! surface blocked captured
+                again $ browser/reconcile-pointer-surface! surface blocked $ :state released
+              assert |subtree-release-must-be-once $ not $ :capture-released again
+              BrowserDisposeTrace :capture-released (:capture-released released) :capture-cleared $ capture-cleared? $ :state released
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.test.scene-pointer-browser-fixture/BrowserDisposeTrace
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer-browser/PointerEventHost
+            :features $ #{} :js-ffi
         'install-browser-capture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-browser-capture! (element)
             let
                 surface $ browser/pointer-surface-host element
-                plan $ hit/compile-hit-plan $ fixture/routing-scene
+                plan* $ atom $ hit/compile-hit-plan (fixture/routing-scene-subtree false)
                 state* $ atom $ pointer/initial-pointer-state
                 count* $ atom 0
                 handle! $ fn (phase event)
                   let
                       input $ browser/pointer-input-from-event surface phase event
-                      routed $ browser/route-event! surface plan @state* phase event
+                      routed $ browser/route-event! surface @plan* @state* phase event
                       next-state $ if
                         = phase $ pointer/PointerPhase :down
                         browser/capture-dispatch! surface input routed
@@ -18756,6 +18939,18 @@
                     dom/element-set-attribute! element |data-blurred |true
                     dom/element-set-attribute! element |data-blur-released $ str $ :capture-released reconciled
                     dom/element-set-attribute! element |data-capture-cleared $ str $ capture-cleared? (:state reconciled)
+                set-disabled! $ fn (disabled?)
+                  let
+                      next-plan $ hit/compile-hit-plan $ fixture/routing-scene-subtree disabled?
+                      reconciled $ browser/reconcile-pointer-surface! surface next-plan @state*
+                    reset! plan* next-plan
+                    reset! state* $ :state reconciled
+                    dom/element-set-attribute! element |data-subtree-disabled $ str disabled?
+                    dom/element-set-attribute! element |data-exit-released $ str $ :capture-released reconciled
+                    dom/element-set-attribute! element |data-capture-cleared $ str $ capture-cleared? (:state reconciled)
+                    dom/element-set-attribute! element |data-target |
+                    dom/element-set-attribute! element |data-candidates $ str $ hit/candidate-count next-plan
+                    , &unit
               surface .add-pointer-listener! |pointerdown $ fn (event)
                 handle! (pointer/PointerPhase :down) event
                 , &unit
@@ -18770,6 +18965,8 @@
                 , &unit
               surface .add-pointer-listener! |lostpointercapture $ fn (event) (handle-lost! event) &unit
               dom/add-event-listener! |blur handle-blur!
+              dom/add-event-listener! |quamolit-subtree-exit $ fn (_event) (set-disabled! true)
+              dom/add-event-listener! |quamolit-subtree-enter $ fn (_event) (set-disabled! false)
               dom/element-set-attribute! element |data-ready |true
               , &unit
           :examples $ []
