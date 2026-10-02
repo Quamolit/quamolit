@@ -22,7 +22,7 @@
 
 后续调用 `hit-test-plan` 得到原有逻辑节点/target；调用 `instance-hit-index(plan, node-id, x, y)` 得到 `Option<Number>`，重叠处选择最高源索引。两者均应用祖先逆变换和全部矩形 clip，坐标为 CSS px，不乘 DPR；不存在的节点或裁剪外返回 none。一个实例层仍是一个逻辑节点，索引不是独立 Scene ID，也不自动成为 PointerDispatch 字段。零透明度不自动禁交互，继续由 interaction 控制。
 
-位置变化须提供新版本并重新构建计划；新计划不修改旧快照，热查询不再次调用 lookup。当前按倒序线性扫描位置，不声称空间索引或性能优化已经完成。纯 Calcit 原生用例检查重叠索引、旋转/缩放/clip与旧版本拒绝；沿用 `test:curve-demo` 的 Node 门禁检查1000次查询不重读源、错误身份/数量/非有限位置，Chromium在DPR1/2对两个版本各154点与独立原生Path2D比较，并对公共 `draw-instances!` 完整RGBA比较。测试宿主显式安装父级transform/clip；这不表示 `canvas-scene/draw-document!` 已支持嵌套实例。真实独立消费者的实例命中接线、实例级捕获/退出与GPU picking仍未验收。
+位置变化须提供新版本并重新构建计划；新计划不修改旧快照，热查询不再次调用 lookup。当前按倒序线性扫描位置，不声称空间索引或性能优化已经完成。纯 Calcit 原生用例检查重叠索引、旋转/缩放/clip与旧版本拒绝；沿用 `test:curve-demo` 的 Node 门禁检查1000次查询不重读源、错误身份/数量/非有限位置，Chromium在DPR1/2对两个版本各154点与独立原生Path2D比较，并对公共 `draw-instances!` 完整RGBA比较。测试宿主显式安装父级transform/clip；这不表示 `canvas-scene/draw-document!` 已支持嵌套实例。已有独立消费者的 `instances-hit-plan` 在Calcit中解析公共资源表、一次复制位置并转换成类型化Vec2；`test:consumer` 检查10k重叠最高索引、三个版本、移动索引5050和源释放后的旧计划，并检出始终返回none的负例。安装/搬移是否通过以当前candidate/harness报告为准；实例级捕获/退出与GPU picking仍未验收。
 
 编译后的 [场景夹具](../test/scene-core.html) 在 `t=[1,0,0.5,0.25,1]` 逐次构造并校验相同结构的 Scene IR。`quamolit.canvas-reference/draw-reference-rects!` 在 Calcit 中按原顺序读取 `SceneDocument` 的矩形节点，使用 `js-ffi.canvas-batches/fill-solid-rect!` 绘制；测试 JS 只准备白色画布、核对 JSON/像素和状态，不再解释矩形绘制。该窄参考路径暂不执行 group 变换、裁剪、隔离透明度或实例图层，不能算完整 Canvas2D 后端。独立的 [实例数据夹具](../test/instance-sources.html) 用 [版本化宿主边界](instance-sources.md) 登记并绘制 10k 个位置，检查同一时间的版本切换。`yarn test:scene-core` 验证严格公共类型、Calcit 原生反例以及编译后 JS 的 JSON 往返；`yarn test:motion-browser` 验证 Chromium 中间帧、像素、背景、样式恢复和刷新重放。架构 scaffold 见 [scene-ir-core.cirru](architectures/scene-ir-core.cirru)，Snapshot `calcit.cirru` 由 Calcit CLI 维护。
 
