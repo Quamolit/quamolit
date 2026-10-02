@@ -239,6 +239,16 @@ export function verifyLayeredConsumer(app, core) {
   assert.equal(core.to_js_data(get(plan, "scene")).nodes[3].content[1].width, 72, "同时间 Model 变化必须更新图表");
   const document = get(plan, "scene");
   assert.deepEqual(core.to_js_data(app.canvas_diagnostics(document)), []);
+  assert.deepEqual(
+    core.to_js_data(app.gpu_diagnostics(plan)),
+    core.to_js_data(document).nodes.map((node) => ({
+      id: node.id,
+      key: node.key,
+      kind: node.content[0],
+      reason: node.parent ? "nested-scene-requires-layer-fallback" : "unsupported-node:group",
+    })),
+    "同一 Calcit 组件向 GPU 返回全部节点诊断，不能只报首个节点或静默漏绘",
+  );
   const prototype = nodes(plan).get(0).get(tags.content).enumPrototype;
   const kinds = Object.keys(core.to_js_data(prototype.prototype)).sort();
   assert.deepEqual(
@@ -261,6 +271,13 @@ export function verifyLayeredConsumer(app, core) {
   assert.deepEqual(core.to_js_data(app.canvas_diagnostics(unsupported)), [
     { id: "external-particles", key: "particles-key", kind: "instances", reason: "unsupported-canvas-scene-instances" },
   ]);
+  const gpuDiagnostics = core.to_js_data(app.gpu_diagnostics(plan.assoc(tags.scene, unsupported)));
+  assert.deepEqual(gpuDiagnostics.at(-1), {
+    id: "external-particles",
+    key: "particles-key",
+    kind: "instances",
+    reason: "unsupported-node:instances",
+  });
   let calls = 0;
   const context = new Proxy(
     {},

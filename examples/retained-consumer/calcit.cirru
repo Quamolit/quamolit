@@ -35,7 +35,7 @@
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.scene-ir/SceneDocument
-            :return $ :: 'List 'quamolit.canvas-scene/CanvasDiagnostic
+            :return $ :: 'List 'quamolit.scene-ir/SceneDiagnostic
         'create-batch-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-batch-gpu! (canvas device format capacity) (batch/create-renderer! canvas device format capacity)
           :examples $ []
@@ -403,6 +403,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/FontSpec)
             :args $ [] 'String 'Number
+        'gpu-diagnostics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-diagnostics (plan) (batch/diagnose-plan plan)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.retained-component/ComponentPlan
+            :return $ :: 'List 'quamolit.scene-ir/SceneDiagnostic
         'gpu-recovery-close $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-close (state) (recovery/close-recovery state)
           :examples $ []
