@@ -142,6 +142,12 @@ try {
   const recoveryCounts = verifyRecoveryConsumer(app, core);
   const gpuCounts = verifyGpuConsumer(app, core);
   const gpuDualCounts = verifyDualGpuConsumer(app, core);
+  gpuDualCounts.mirror = verifyGpuConsumer(app, core, "mirror");
+  assert.throws(
+    () => verifyGpuConsumer({ ...app, update_mirror: (plan) => plan }, core, "mirror"),
+    /AssertionError/,
+    "反例：停止镜像 CPU 参考更新必须失败",
+  );
   const independentGpuCounts = verifyIndependentGpuConsumer(app, core);
   assert.throws(
     () => verifyDualGpuConsumer({ ...app, update_dual: (plan) => plan }, core),
@@ -277,6 +283,19 @@ try {
     assert.equal(pixelAlpha, Math.round(255 * time * time * (3 - 2 * time)));
     if (time === 0.5) await page.screenshot({ path: join(artifacts, "alpha-frame-0.5.png"), fullPage: true });
   }
+  await page.click('[data-mode="mirror"]');
+  for (const [time, x] of [
+    [1, 120],
+    [1.5, 100],
+    [2, 80],
+    [0.5, 100],
+  ]) {
+    await page.click(`[data-time="${time}"]`);
+    const mirror = await page.evaluate(() => window.consumer.snapshot());
+    assert.equal(mirror.mode, "mirror");
+    assert.equal(mirror.scene.nodes[1].content[1].x, x);
+  }
+  await page.screenshot({ path: join(artifacts, "mirror-return-0.5.png"), fullPage: true });
   await page.click('[data-mode="mixed"]');
   assert.equal(await page.evaluate(() => window.consumer.snapshot().scene.nodes[2].content[0]), "polyline");
   await page.evaluate(async () => {

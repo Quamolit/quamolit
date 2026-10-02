@@ -94,7 +94,7 @@ test("能力表区分候选 lowering 与真实标量执行；绑定回退定位�
     ["time", en(motion.ScalarMotion, "time", 1, 0), "supported", "fallback"],
     ["keyframes-2-clamp", en(motion.ScalarMotion, "keyframes", track(2)), "supported", "ready"],
     ["keyframes-2-repeat", en(motion.ScalarMotion, "keyframes", track(2, "repeat")), "supported", "fallback"],
-    ["keyframes-2-mirror", en(motion.ScalarMotion, "keyframes", track(2, "mirror")), "supported", "fallback"],
+    ["keyframes-2-mirror", en(motion.ScalarMotion, "keyframes", track(2, "mirror")), "supported", "ready"],
     ["keyframes-3-clamp", en(motion.ScalarMotion, "keyframes", track(3)), "supported", "fallback"],
     ["keyframes-16", en(motion.ScalarMotion, "keyframes", track(16)), "supported", "fallback"],
     ["keyframes-17", en(motion.ScalarMotion, "keyframes", track(17)), "unsupported", "fallback"],
@@ -179,7 +179,7 @@ test("两点 clamp 轨道复用 tween 编码，保留首帧 easing、绝对时�
   }
 });
 
-test("重复时间保留右侧胜出与跳变回退；多段/循环仍回退且非法轨道仍拒绝", () => {
+test("重复时间保留右侧胜出与跳变回退；多段/repeat 回退且非法轨道仍拒绝", () => {
   const ready = (track) => program.prepare_slot(withMotion(en(motion.ScalarMotion, "keyframes", track)));
   const duplicate = keyframeTrack([
     [2, 80],
@@ -203,7 +203,7 @@ test("重复时间保留右侧胜出与跳变回退；多段/循环仍回退且�
     ["fallback", "scalar-precision-budget"],
     "非恒定零时长跳变仍由原 program 精度门禁拒绝",
   );
-  for (const loop of ["repeat", "mirror"]) {
+  for (const loop of ["repeat"]) {
     assert.deepEqual(
       js(
         ready(
@@ -598,16 +598,82 @@ function reference(p, t, f32) {
     start = f(p.start),
     duration = f(p.duration),
     time = f(t);
-  if (time < start) return from;
-  if (duration === 0 || time >= f(start + duration)) return to;
-  let ratio = Math.max(0, Math.min(1, f(f(time - start) / duration)));
-  if (p.easing === 1) ratio = f(f(ratio * ratio) * f(3 - f(2 * ratio)));
+  const mirror = p.easing >= 2;
+  if (duration === 0) return !mirror && time < start ? from : to;
+  let ratio;
+  if (mirror) {
+    const elapsed = f(f(time - start) / duration),
+      phase = f(elapsed - f(2 * Math.floor(f(elapsed / 2))));
+    ratio = Math.max(0, Math.min(1, f(1 - Math.abs(f(phase - 1)))));
+  } else {
+    if (time < start) return from;
+    if (time >= f(start + duration)) return to;
+    ratio = Math.max(0, Math.min(1, f(f(time - start) / duration)));
+  }
+  if (p.easing === 1 || p.easing === 3) ratio = f(f(ratio * ratio) * f(3 - f(2 * ratio)));
   return f(f(from * f(1 - ratio)) + f(to * ratio));
 }
+
+test("镜像轨道保留负时间、奇偶端点、首帧 easing 与零段长右侧胜出", () => {
+  for (const easing of ["linear", "smoothstep"]) {
+    const track = keyframeTrack(
+      [
+        [1, 80, easing],
+        [3, 96, easing === "linear" ? "smoothstep" : "linear"],
+      ],
+      "mirror",
+    );
+    const bound = withMotion(en(motion.ScalarMotion, "keyframes", track));
+    const encoded = program.prepare_slot(bound).extra[0];
+    assert.equal(js(encoded).easing, easing === "linear" ? 2 : 3);
+    for (const time of [-3, -1, 0, 1, 2, 3, 4, 5, 6, 1.000001, 3.000001]) {
+      const phase = time - 1 - 4 * Math.floor((time - 1) / 4);
+      const position = phase <= 2 ? phase / 2 : (4 - phase) / 2;
+      const expected = 80 + 16 * (easing === "linear" ? position : position * position * (3 - 2 * position));
+      assert.ok(Math.abs(motion.sample_track(track, time) - expected) < 1e-10);
+      assert.ok(Math.abs(reference(js(encoded), time, true) - expected) <= 1e-5 + 1e-5 * Math.abs(expected));
+    }
+  }
+  const instant = keyframeTrack(
+    [
+      [2, 80],
+      [2, 96],
+    ],
+    "mirror",
+  );
+  const bound = withMotion(en(motion.ScalarMotion, "keyframes", instant));
+  const prepared = program.prepare_program(set(base(), "slots", new core.CalcitSliceList([bound])));
+  assert.equal(prepared.tag.value, "ready");
+  const encoded = js(program.prepare_slot(bound).extra[0]);
+  assert.equal(encoded.from, 96);
+  for (const time of [-3, 2, 4]) {
+    assert.equal(motion.sample_track(instant, time), 96);
+    assert.equal(reference(encoded, time, true), 96);
+  }
+  const badSize = set(
+    withMotion(
+      en(
+        motion.ScalarMotion,
+        "keyframes",
+        keyframeTrack(
+          [
+            [0, -1],
+            [0, 4],
+          ],
+          "mirror",
+        ),
+      ),
+    ),
+    "target",
+    en(scene.ScalarTarget, "width"),
+  );
+  assert.deepEqual(js(program.prepare_slot(badSize)), ["fallback", "scalar-size-negative"]);
+});
 
 test("固定 seed 的独立 f32 模型：被预算接受的非整数样本满足既定误差", (context) => {
   let seed = 9481,
     accepted = 0,
+    acceptedMirror = 0,
     rejected = 0;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -627,14 +693,15 @@ test("固定 seed 的独立 f32 模型：被预算接受的非整数样本满足
     }))
       t = set(t, key, value);
     t = set(t, "easing", en(motion.Easing, i % 2 ? "smoothstep" : "linear"));
-    const parameter = prepare(t).extra[0],
+    const candidate = prepare(t).extra[0];
+    const parameter = i % 4 >= 2 ? set(candidate, "easing", get(candidate, "easing") + 2) : candidate,
       p = js(parameter),
       cost = js(program.parameter_precision(parameter));
     const guarded = original
       .assoc(precisionTags["precision-base"], cost.x)
       .assoc(precisionTags["precision-slope"], cost.y);
     for (let j = 0; j < 20; j++) {
-      const time = startTime + duration * (random() * 1.4 - 0.2);
+      const time = startTime + duration * (p.easing >= 2 ? random() * 8 - 4 : random() * 1.4 - 0.2);
       if (!program.time_supported_$q_(guarded, time)) {
         rejected++;
         continue;
@@ -646,9 +713,13 @@ test("固定 seed 的独立 f32 模型：被预算接受的非整数样本满足
         JSON.stringify({ p, time, actual, expected, cost }),
       );
       accepted++;
+      if (p.easing >= 2) acceptedMirror++;
     }
   }
   assert.ok(accepted > 500, `accepted=${accepted}`);
   assert.ok(rejected > 500, `rejected=${rejected}`);
-  context.diagnostic(`seed=9481，接受 ${accepted}，明确回退 ${rejected}；这不是实际 GPU 读回测试`);
+  assert.ok(acceptedMirror > 100, `acceptedMirror=${acceptedMirror}`);
+  context.diagnostic(
+    `seed=9481，接受 ${accepted}（镜像 ${acceptedMirror}），明确回退 ${rejected}；这不是实际 GPU 读回测试`,
+  );
 });
