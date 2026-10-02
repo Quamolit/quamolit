@@ -12,6 +12,8 @@
 
 三次路径与多边形描边明确使用 Canvas 默认的 butt 端点、miter 接头、miterLimit=10，不再继承调用方 context 的 square/round/bevel 设置；调用完成后恢复调用方样式。开放折线仍按已有 IR 合同使用 round 端点/接头。生产路径保持原生贝塞尔，不改变控制点或用折线替代；此约定只收紧端点/接头语义，不是任意 Canvas 状态（如外部 dash/filter）的完整隔离承诺，也不代表 cubic-path 命中已实现。
 
+多边形命中在 `quamolit.scene-hit` 使用纯 Calcit 的闭合描边几何，而不是开放圆头折线：包括末点到首点的边、miter 外角以及超过 miterLimit=10 后的 bevel 回退。相邻重复点与重复闭合端点先归并，零宽或全重合不产生描边区域。原有填充区域命中、显式 target 与透明度策略不变；没有新增 Canvas/JS 命中器。cubic-path 仍须另行实现曲线几何与端点切线处理，本切片不是用折线冒充曲线支持。
+
 ## 页面与全屏约定
 
 `examples/curve/` 为全屏 Canvas + 可收起浮层：播放/暂停、0–120 秒滑块、`0/30/60/120` 固定时间、复制当前时间链接。`?t=` 直达并默认暂停，便于截图；视口/DPR 变化只重绘不推进时间。
@@ -27,6 +29,7 @@ yarn test:curve-demo
 - Node `test/curve-smoke.mjs`：顶点数与确定性、Scene 的 32 个原生 cubic segment、实际发出 32 次 `bezierCurveTo`、描边时的显式端点/接头与调用后状态恢复，以及旧 16 步折线的边界误差；
 - Playwright `test/curve.spec.mjs`：初始/中间/结束三阶段分别保留“浮层 + Canvas”和纯 Canvas 截图，重复采样一致，DPR=2 窄屏 resize 不推进时间、浮层收起不误触。截图为 `test-results/curve/` 的 artifact。
 - 同一 Playwright 门禁还在 DPR 1/2 下对照独立原生 Canvas 的三次折角与闭合多边形：正常路径全 RGBA 零差异；继承 square/bevel/miterLimit=1 的旧行为必须被像素负例检出。夹具留在主 Snapshot 的测试 namespace，不新增公开 JS、renderer、测试命令或 CI job。
+- 同一门禁新增闭合描边命中对照：8类方向/锐角/重复/退化/零宽夹具，每类3321个确定性点，DPR1/2分别与原生 `isPointInPath`/`isPointInStroke` 完全一致；原开放圆头算法负例必须失败。原生 Calcit 测试覆盖闭合边、外角、退化、旋转/缩放后的逆投影及祖先裁剪。点采样报告写入忽略的 `test-results/curve/`，沿用现有 artifact；这不证明任意自交填充规则、所有数值边界或 cubic 命中完成。
 
 ## 边界误差与未完成
 

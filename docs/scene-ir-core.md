@@ -12,6 +12,8 @@
 
 序列化边界只包含标量、封闭 Enum/Struct、逻辑事件目标、Motion ID/version 和实例源 `{id, version, count}`；原始 typed array、回调和宿主句柄不入 Scene。外部实例数据按 `(id, version)` 定位，同一版本必须视为不可变；任何原地修改都必须递增版本或通过将来显式的脏范围协议通知，否则框架可合法复用旧上传。后端可在逻辑路径、图元类型和几何签名不变时复用几何，在资源 `(id, version)` 不变时复用上传；属性或时间变化只失效相应参数。实际 buffer 槽位可迁移，不能反过来决定逻辑身份。
 
+多边形的描边命中包含闭合边与 miter 接头（miterLimit=10，超限 bevel），不再复用开放圆头折线。纯 Calcit 几何去除相邻重复点及重复闭合端点；零宽、全重合不增加描边区域。填充命中与透明度不自动禁交互的规则保持不变。`test:scene-hit` 覆盖闭合边、外角、退化及旋转/缩放/clip 的公共 HitPlan；`test:curve-demo` 在DPR1/2对8类夹具各3321点进行原生路径对照并检出旧算法。完整边界见[路径合同](curve-restoration.md)；cubic/instances、自交填充规则及完整指针链路计数仍不能据此视为完成。
+
 编译后的 [场景夹具](../test/scene-core.html) 在 `t=[1,0,0.5,0.25,1]` 逐次构造并校验相同结构的 Scene IR。`quamolit.canvas-reference/draw-reference-rects!` 在 Calcit 中按原顺序读取 `SceneDocument` 的矩形节点，使用 `js-ffi.canvas-batches/fill-solid-rect!` 绘制；测试 JS 只准备白色画布、核对 JSON/像素和状态，不再解释矩形绘制。该窄参考路径暂不执行 group 变换、裁剪、隔离透明度或实例图层，不能算完整 Canvas2D 后端。独立的 [实例数据夹具](../test/instance-sources.html) 用 [版本化宿主边界](instance-sources.md) 登记并绘制 10k 个位置，检查同一时间的版本切换。`yarn test:scene-core` 验证严格公共类型、Calcit 原生反例以及编译后 JS 的 JSON 往返；`yarn test:motion-browser` 验证 Chromium 中间帧、像素、背景、样式恢复和刷新重放。架构 scaffold 见 [scene-ir-core.cirru](architectures/scene-ir-core.cirru)，Snapshot `calcit.cirru` 由 Calcit CLI 维护。
 
 Scene 标量绑定已有 [CPU 参考解析器](scene-binding.md)。实例 typed-array 的版本化引用和宿主快照边界已有实现；资源表、批量绑定执行与上传优化仍待后续里程碑。执行计划与增量调度属于 #50；`canvas-scene` 目前是正确性路径，每组分配全尺寸 surface，不代表最终性能方案。固定时间截图及像素验证见 [Layered Signals](layered-dashboard.md)。

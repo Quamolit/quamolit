@@ -105,6 +105,81 @@ for (const dpr of [1, 2])
     }
   });
 
+for (const dpr of [1, 2])
+  test(`闭合多边形命中：DPR ${dpr} 原生描边、miterLimit 与退化点`, async ({ page }, testInfo) => {
+    await ready(page);
+    const results = await page.evaluate(async (scale) => {
+      const { local_hit_$q_: localHit } = await import("/target/js/curve/quamolit.scene-hit.mjs");
+      const { to_js_data: toJsData } = await import("/target/js/curve/calcit.core.mjs");
+      const { polygon_stroke_profile: profileContent } =
+        await import("/target/js/curve/quamolit.test.scene-hit-fixture.mjs");
+      const results = [];
+      for (const profile of [
+        "square",
+        "clockwise",
+        "acute-miter",
+        "acute-bevel",
+        "duplicates",
+        "collapsed",
+        "collinear",
+        "zero-width",
+      ]) {
+        const content = profileContent(profile);
+        const { points, width } = toJsData(content)[1];
+        const context = document.createElement("canvas").getContext("2d");
+        context.scale(scale, scale);
+        context.lineWidth = width || 20;
+        context.lineCap = "butt";
+        context.lineJoin = "miter";
+        context.miterLimit = 10;
+        context.beginPath();
+        context.moveTo(points[0].x, points[0].y);
+        for (const point of points.slice(1)) context.lineTo(point.x, point.y);
+        context.closePath();
+        let differing = 0,
+          oldDiffering = 0,
+          samples = 0;
+        const mismatches = [];
+        // 采用离轴的确定性采样；不靠抗锯齿像素或宽松阈值掩盖轮廓错误。
+        for (let y = -20.29; y < 100; y += 3)
+          for (let x = -20.37; x < 220; x += 3) {
+            const filled = context.isPointInPath(x * scale, y * scale);
+            const expected = filled || (width > 0 && context.isPointInStroke(x * scale, y * scale));
+            const actual = localHit(content, x, y);
+            if (actual !== expected) {
+              differing++;
+              if (mismatches.length < 5) mismatches.push({ x, y, actual, expected });
+            }
+            // 原开放圆头算法的负例：缺闭合边与 miter 外角，且会扩张圆头。
+            const oldStroke =
+              width > 0 &&
+              points.slice(1).some((end, index) => {
+                const start = points[index],
+                  dx = end.x - start.x,
+                  dy = end.y - start.y;
+                const length = dx * dx + dy * dy;
+                const t = length ? Math.max(0, Math.min(1, ((x - start.x) * dx + (y - start.y) * dy) / length)) : 0;
+                return (x - start.x - t * dx) ** 2 + (y - start.y - t * dy) ** 2 <= (width / 2) ** 2;
+              });
+            if ((filled || oldStroke) !== expected) oldDiffering++;
+            samples++;
+          }
+        results.push({ profile, samples, differing, oldDiffering, mismatches });
+      }
+      return results;
+    }, dpr);
+    const path = testInfo.outputPath(`polygon-hit-dpr-${dpr}.json`);
+    await writeFile(path, JSON.stringify({ dpr, results }, null, 2));
+    await testInfo.attach("polygon-hit-native-comparison", { path, contentType: "application/json" });
+    for (const result of results) {
+      expect(result.samples).toBe(3321);
+      expect(result.differing, JSON.stringify(result)).toBe(0);
+    }
+    expect(results.find((result) => result.profile === "square").oldDiffering).toBeGreaterThan(20);
+    expect(results.find((result) => result.profile === "acute-bevel").oldDiffering).toBeGreaterThan(0);
+    expect(results.find((result) => result.profile === "collapsed").oldDiffering).toBeGreaterThan(0);
+  });
+
 test("动态闭合曲线：固定时间顶点与截图，重复采样一致", async ({ page }, testInfo) => {
   await ready(page);
   const at = (t) => page.evaluate((x) => window.curveDemo.seek(x), t);
