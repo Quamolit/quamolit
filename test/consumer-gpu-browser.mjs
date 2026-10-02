@@ -350,7 +350,7 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
           const expected = alpha ? [eased, eased] : [80 + 64 * eased, 22 + model + 32 * eased];
           if (!alpha) {
             actual.push(...(await globalThis.__quamolitScalarProbe(host, 1, time, 3)));
-            expected.push(viewport / 10 + 64 * eased, 20 + 32 * eased);
+            expected.push(30 + viewport / 10 + 64 * eased, 20 + 32 * eased);
           }
           numericSamples.push({ time, actual, expected });
         }

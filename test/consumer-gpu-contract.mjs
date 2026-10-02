@@ -272,7 +272,7 @@ export function verifyDualGpuConsumer(app, core) {
   assert.deepEqual(core.to_js_data(program.get(fields.parameters)), [
     { index: 1, axis: 0, start: 0, duration: 1, from: 80, to: 144, easing: 1 },
     { index: 1, axis: 1, start: 0, duration: 1, from: 62, to: 94, easing: 1 },
-    { index: 1, axis: 3, start: 0, duration: 1, from: 10, to: 74, easing: 1 },
+    { index: 1, axis: 3, start: 0, duration: 1, from: 40, to: 104, easing: 1 },
     { index: 1, axis: 4, start: 0, duration: 1, from: 20, to: 52, easing: 1 },
   ]);
   const m = nativeDevice(),
@@ -285,7 +285,7 @@ export function verifyDualGpuConsumer(app, core) {
       [
         [160, [80, 144, 0, 1, 1, 1, 0, 0]],
         [192, [62, 94, 0, 1, 1, 1, 0, 0]],
-        [256, [10, 74, 0, 1, 1, 1, 0, 0]],
+        [256, [40, 104, 0, 1, 1, 1, 0, 0]],
         [288, [20, 52, 0, 1, 1, 1, 0, 0]],
       ],
       "x/y/width/height 使用独立参数槽，不覆盖 alpha 槽",
@@ -304,7 +304,7 @@ export function verifyDualGpuConsumer(app, core) {
       for (const [axis, expected] of [
         ["x", 80 + 64 * eased],
         ["y", 62 + 32 * eased],
-        ["width", 10 + 64 * eased],
+        ["width", 40 + 64 * eased],
         ["height", 20 + 32 * eased],
       ]) {
         assert.ok(Math.abs(rect[axis] - expected) <= 8 * Number.EPSILON * Math.abs(expected), `${axis} at ${time}`);
