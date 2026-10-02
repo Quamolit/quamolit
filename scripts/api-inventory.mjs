@@ -61,6 +61,24 @@ export function consumerViolations(rows, declaration) {
 export function verifyStableContract(expected, actual) {
   assert.deepEqual(expected, actual, "稳定 API 签名/类型变更需单独审查、迁移说明及版本计划，不能自动接受");
 }
+export function readmeExamples(rows, contract, markdown) {
+  const examples = [...markdown.matchAll(/^```cirru\s*\n([\s\S]*?)^```\s*$/gm)].map((match) => match[1]);
+  assert.ok(examples.length, "README 缺少可执行的 Calcit 示例");
+  const stable = new Set(rows.filter((row) => row.status === "stable").map((row) => row.namespace));
+  for (const example of examples) {
+    // 首页用全限定名，避免隐式 import/别名上下文；实际语法和调用交给 Calcit 验证。
+    const references = [...example.matchAll(/\b(quamolit\.[\w.$-]+)(?:\/([\w!?$-]+))?/g)];
+    assert.ok(references.length, "README 示例未引用任何公开 Calcit 定义");
+    for (const [, namespace, name] of references) {
+      assert.ok(stable.has(namespace), `README 示例引用非稳定入口: ${namespace}`);
+      assert.ok(
+        name && Object.hasOwn(contract.namespaces[namespace] ?? {}, name),
+        `README 示例引用未冻结定义: ${namespace}/${name ?? ""}`,
+      );
+    }
+  }
+  return examples;
+}
 export function verifyTypeCoverage(contract) {
   const definitions = new Map(Object.entries(contract.types));
   for (const [namespace, entries] of Object.entries(contract.namespaces)) {
@@ -167,6 +185,17 @@ export async function main(args = process.argv.slice(2)) {
   const contractPath = resolve(root, "docs/api-stable-contract.json");
   if (args.includes("--write-contract")) await writeFile(contractPath, JSON.stringify(contract, null, 2) + "\n");
   else verifyStableContract(JSON.parse(await readFile(contractPath, "utf8")), contract);
+  const examples = readmeExamples(rows, contract, await readFile(resolve(root, "README.md"), "utf8"));
+  for (const input of examples) {
+    execFileSync(process.env.CALCIT_BIN ?? "calcit", ["eval", "--dep", "./calcit.cirru", "--stdin"], {
+      cwd: root,
+      input,
+      encoding: "utf8",
+      timeout: 30000,
+      maxBuffer: 1024 * 1024,
+    });
+  }
+  console.log(`README 稳定示例: ${examples.length} 个已执行`);
   console.log(`API 覆盖: ${rows.length}/${rows.length}; 稳定 namespace: ${Object.keys(contract.namespaces).length}`);
   if (args.includes("--audit-consumer")) {
     const violations = consumerViolations(rows, query(["ns", "app.main"], resolve(root, "examples/retained-consumer")));

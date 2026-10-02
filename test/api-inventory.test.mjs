@@ -9,6 +9,7 @@ import {
   verifyStableContract,
   signatureEntry,
   verifyTypeCoverage,
+  readmeExamples,
 } from "../scripts/api-inventory.mjs";
 
 const manifest = () => ({
@@ -31,6 +32,24 @@ const manifest = () => ({
       replacement: null,
     },
   ],
+});
+
+test("README 全部 Cirru 示例只允许稳定合同内的全限定定义", () => {
+  const rows = expandManifest(manifest());
+  const contract = { namespaces: { "quamolit.ui-motion": { "tween-at": {} } } };
+  const fence = (code) => `\`\`\`cirru\n${code}\n\`\`\`\n`;
+  const good = "quamolit.ui-motion/tween-at 0 1 40 104 0.5";
+  assert.deepEqual(readmeExamples(rows, contract, fence(good)), [good + "\n"]);
+  for (const bad of [
+    "quamolit.test.demo/helper",
+    "quamolit.unknown/sample",
+    "quamolit.ui-motion/new",
+    "quamolit.ui-motion :as ui",
+    "println 72",
+  ]) {
+    assert.throws(() => readmeExamples(rows, contract, fence(good) + fence(bad)));
+  }
+  assert.throws(() => readmeExamples(rows, contract, "没有代码"));
 });
 
 test("稳定签名引用的项目类型必须冻结完整声明，包含嵌套依赖", () => {
