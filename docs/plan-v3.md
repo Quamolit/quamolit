@@ -32,7 +32,7 @@
 | Canvas UI + GPU 层 | 显式 RenderLayer，统一时间/视口、声明顺序与整层回退 | 单根实例层可与 UI 同屏，不自动拆任意 Scene | [分层契约与门禁](layer-composition.md)；#177 的默认后端/成本决策未完成，跨层 capture 与 GPU 文字不在现有合同 |
 | 模块与真实入口 | 单个 Calcit 模块，inline/file 随安装内嵌；主 Snapshot 与独立消费者分工明确 | 同一模块可消费受支持 GPU 入口，无手工宿主 JS 导入 | [FFI](calcit-first-ffi.md)、[消费者](isolated-consumer.md)；[已合并 #201](https://github.com/Quamolit/quamolit/pull/201)贯通普通 compile/release 并隔离演示调度器；语言 named entry 创建仍待 [Calcit #1665](https://github.com/calcit-lang/calcit/issues/1665)，不把 entry 当分发隔离机制 |
 
-当前优先补齐 #34/#53 的图形与交互功能，而不是继续扩展性能优化。#202 分支继续实现纯 Calcit cubic 描边命中：计划构建时准备自适应几何，查询复用；原生绘制不降级。复用已有主 Snapshot、Curve 测试与 artifact，默认Canvas命中近似反例及高精度几何参考按[路径合同](curve-restoration.md#三次曲线命中候选34尚未合并)分别报告，不扩大容差。候选合并前不得当作已发布前置；instances、病态曲线全域、字体、路径缓存、栅格化与阶段性能仍有各自验收责任。后续功能 PR 在这里更新能力边界，不另建 status.md、归档副本、同步器、renderer 或门禁链路。
+当前优先补齐 #34/#53 的图形与交互功能，而不是继续扩展性能优化。#202 分支实现纯 Calcit cubic 描边命中，并继续补[矩形实例命中](scene-ir-core.md#实例命中候选34尚未合并)：显式解析版本化位置，计划保存不可变快照，逻辑target与源索引分开查询；祖先变换/clip和重叠倒序由Calcit处理。复用已有主 Snapshot、Curve 测试与 artifact，不增加生产JS、命令、job或renderer。默认Canvas曲线命中近似反例及高精度几何参考按[路径合同](curve-restoration.md#三次曲线命中候选34尚未合并)分别报告，不扩大容差。候选合并前不得当作已发布前置；实例命中的独立消费者/捕获接线、病态曲线全域、字体、路径缓存、栅格化与阶段性能仍有各自验收责任。后续功能 PR 在这里更新能力边界，不另建 status.md、归档副本、同步器、renderer 或门禁链路。
 
 公共 API 的稳定性仍以[合同](api-contract.md)为准；矩阵中的可运行实验 API 不自动成为稳定接口。#144 的 MSAA/解析覆盖率只有临时硬件实验，不是默认 renderer 或正式 DPR/性能验收，不能用整数参考的零差异掩盖小数/重叠中间帧差异。
 

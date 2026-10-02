@@ -17,3 +17,5 @@
 验证命令为 `yarn test:scene-hit`、`yarn test:scene-pointer`、`yarn test:scene-pointer-browser` 与 `yarn test:drag-demo`。覆盖冒泡、画布外捕获、pointer id 隔离、快速目标切换、`up/cancel`、删除/重挂载、嵌套禁用、hover 清理、边界外祖先捕获释放、兄弟不受影响、重入、背后命中和重复协调；1000 个装饰节点的命中仍 `visited=1`。Node 与 Chromium 验证上述宿主捕获/resize 协议。自动 Presence group 退出接线、实际应用的 resize/退出动画组合、cubic-path、instances 和 GPU picking 尚未覆盖，不以本切片关闭 #34。
 
 这些入口均由公共 Calcit namespace 暴露，新增桥接没有 JS 实现文件或测试依赖。`SceneInteraction` 仍是实验协议；下游若穷举匹配原来的 `:none/:target`，需要增加 `:disabled` 分支。稳定 UI-motion 合同不因此扩大。
+
+#202 的[实例命中候选](scene-ir-core.md#实例命中候选34尚未合并)提供带源解析器的 HitPlan 和独立实例索引查询，供既有逻辑节点路由消费；PointerDispatch 与 capture 仍保存逻辑 Scene 节点，不自动捕获单个源索引。位置快照的原生/Node/Canvas 验证不代替实例级输入、捕获、版本切换与退出卸载的完整消费验收。

@@ -15916,6 +15916,7 @@
         'HitCandidate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct HitCandidate (:node 'quamolit.scene-ir/SceneNode)
             :curve-parts $ :: 'List 'quamolit.scene-hit/CubicStrokePart
+            :instance-points $ :: 'List 'quamolit.motion/Vec2
           :examples $ []
           :schema $ :: 'StructDef
         'HitOutcome $ %{} 'CodeEntry (:doc |)
@@ -15931,6 +15932,11 @@
           :schema $ :: 'StructDef
         'HitResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct HitResult (:target 'String) (:node-id 'String) (:visited 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'InstanceHitSource $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct InstanceHitSource (:source 'quamolit.scene-ir/InstanceSource)
+            :points $ :: 'List 'quamolit.motion/Vec2
           :examples $ []
           :schema $ :: 'StructDef
         'PointProjection $ %{} 'CodeEntry (:doc |)
@@ -15987,12 +15993,50 @@
                   (:singular) false
                   (:point local-x local-y)
                     match (:content node)
+                      (:instances instances)
+                        match
+                          instance-index-local (:instance-points candidate)
+                            -
+                              count $ :instance-points candidate
+                              , 1
+                            :width instances
+                            :height instances
+                            , local-x local-y
+                          (:some _) true
+                          (:none) false
                       (:cubic-path _)
                         compiled-cubic-hit? (:curve-parts candidate) local-x local-y
                       _ $ local-hit? (:content node) local-x local-y
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-hit/HitCandidate 'Number 'Number
+        'candidate-instance-index $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn candidate-instance-index (nodes candidate x y)
+            let
+                node $ :node candidate
+              if
+                inside-ancestor-clips? nodes (:parent node) x y
+                match
+                  inverse-point
+                    world-for-parent nodes $ :parent node
+                    , x y
+                  (:singular) (Option :none)
+                  (:point local-x local-y)
+                    match (:content node)
+                      (:instances instances)
+                        instance-index-local (:instance-points candidate)
+                          -
+                            count $ :instance-points candidate
+                            , 1
+                          :width instances
+                          :height instances
+                          , local-x local-y
+                      _ $ Option :none
+                Option :none
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-hit/HitCandidate 'Number 'Number
+            :return $ :: 'Option 'Number
         'closed-stroke-hit? $ %{} 'CodeEntry
           :doc "|闭合多边形描边几何：butt线段、miter接头和miterLimit=10，超过限制退为bevel；去除相邻重复点及重复闭合端点，零宽/全重合不命中。保持原填充命中策略，不处理dash或cubic细分。"
           :code $ quote $ defn closed-stroke-hit? (points width x y)
@@ -16127,10 +16171,12 @@
             :return $ :: 'List 'quamolit.scene-hit/CubicStrokePart
         'compile-hit-candidate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn compile-hit-candidate (node)
-            HitCandidate :node node :curve-parts $ match (:content node)
-              (:cubic-path path)
-                compile-cubic-parts (:segments path) (:start path) (:start path) (:width path) (empty-cubic-parts)
-              _ $ empty-cubic-parts
+            HitCandidate :node node :curve-parts
+              match (:content node)
+                (:cubic-path path)
+                  compile-cubic-parts (:segments path) (:start path) (:start path) (:width path) (empty-cubic-parts)
+                _ $ empty-cubic-parts
+              , :instance-points $ empty-hit-points
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitCandidate)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -16166,6 +16212,40 @@
                   is= 1 $ :visited result
                 (:miss _) (is= |hit |miss)
             :tags $ #{} :scene-hit
+        'compile-hit-plan-with-positions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compile-hit-plan-with-positions (document lookup)
+            do
+              assert |invalid-scene-hit-document $ scene/validate-scene document
+              let
+                  nodes $ :nodes document
+                  candidates $ map
+                    filter (reverse nodes)
+                      fn (node)
+                        and
+                          or
+                            supported-leaf? $ :content node
+                            match (:content node)
+                              (:instances _) true
+                              _ false
+                          not $ empty? $ effective-target nodes node
+                    fn (node) (compile-resolved-hit-candidate node lookup)
+                HitPlan :nodes nodes :candidates candidates
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'quamolit.scene-ir/SceneDocument $ :: 'Fn
+              {} (:return 'quamolit.scene-hit/InstanceHitSource)
+                :args $ [] 'quamolit.scene-ir/InstanceSource
+        'compile-resolved-hit-candidate $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compile-resolved-hit-candidate (node lookup)
+            match (:content node)
+              (:instances instances)
+                HitCandidate :node node :curve-parts (empty-cubic-parts) :instance-points $ resolve-instance-hit-points (:source instances) lookup
+              _ $ compile-hit-candidate node
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitCandidate)
+            :args $ [] 'quamolit.scene-ir/SceneNode $ :: 'Fn
+              {} (:return 'quamolit.scene-hit/InstanceHitSource)
+                :args $ [] 'quamolit.scene-ir/InstanceSource
         'compiled-cubic-hit? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn compiled-cubic-hit? (parts x y)
             if (empty? parts) false $ let
@@ -16245,6 +16325,12 @@
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'quamolit.scene-hit/CubicStrokePart
+        'empty-hit-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-hit-points () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.motion/Vec2
         'first-point $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn first-point (points)
             -> (first points) (.unwrap)
@@ -16393,6 +16479,37 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'String 'Number 'Number
+        'instance-hit-index $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-hit-index (plan node-id x y)
+            do
+              assert |invalid-hit-coordinate $ and (motion/finite-number? x) (motion/finite-number? y)
+              foldl (:candidates plan) (Option :none)
+                fn (result candidate)
+                  if
+                    = node-id $ :id $ :node candidate
+                    candidate-instance-index (:nodes plan) candidate x y
+                    , result
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-hit/HitPlan 'String 'Number 'Number
+            :return $ :: 'Option 'Number
+        'instance-index-local $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-index-local (points index width height x y)
+            if (empty? points) (Option :none)
+              let
+                  point $ first-point points
+                if
+                  and
+                    >= x $ :x point
+                    >= y $ :y point
+                    <= x $ + (:x point) width
+                    <= y $ + (:y point) height
+                  Option :some index
+                  recur (rest points) (- index 1) width height x y
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.motion/Vec2) 'Number 'Number 'Number 'Number 'Number
+            :return $ :: 'Option 'Number
         'interaction-enabled? $ %{} 'CodeEntry
           :doc "|查询已验证Scene的节点及整条父链；任意祖先标为disabled时返回false，不按视觉opacity隐式禁用。"
           :code $ quote $ defn interaction-enabled? (nodes node)
@@ -16655,6 +16772,25 @@
               is= true $ polyline-hit? points 4 5 1
               is= false $ polyline-hit? points 4 5 3
             :tags $ #{} :scene-hit
+        'resolve-instance-hit-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resolve-instance-hit-points (source lookup)
+            let
+                resolved $ lookup source
+                points $ :points resolved
+              assert |invalid-instance-hit-source $ and
+                = source $ :source resolved
+                = (:count source) (count points)
+                foldl points true $ fn (valid? point)
+                  and valid?
+                    motion/finite-number? $ :x point
+                    motion/finite-number? $ :y point
+              reverse points
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-ir/InstanceSource $ :: 'Fn
+              {} (:return 'quamolit.scene-hit/InstanceHitSource)
+                :args $ [] 'quamolit.scene-ir/InstanceSource
+            :return $ :: 'List 'quamolit.motion/Vec2
         'scan-candidates $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scan-candidates (nodes candidates visited x y)
             if (empty? candidates) (HitOutcome :miss visited)
@@ -16664,7 +16800,11 @@
                   target $ effective-target nodes node
                 if
                   or (empty? target)
-                    not $ supported-leaf? $ :content node
+                    not $ or
+                      supported-leaf? $ :content node
+                      match (:content node)
+                        (:instances _) true
+                        _ false
                   recur nodes (rest candidates) visited x y
                   let
                       next-visited $ inc visited
@@ -19213,6 +19353,28 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'instance-hit-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-hit-document (version)
+            scene/SceneDocument :nodes $ []
+              scene/SceneNode :id |instance-root :parent | :key |instance-root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group $ scene/GroupNode :transform (hit/matrix 0 2 -2 0 100 100) :clip
+                scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 20 :height 20
+                , :opacity 1
+              scene/SceneNode :id |dots :parent |instance-root :key |dots :bindings ([]) :interaction (scene/SceneInteraction :target |dots-action) :content $ scene/SceneContent :instances $ scene/InstanceNode :source (scene/InstanceSource :id |dots :version version :count 2) :width 20 :height 20 :fill
+                motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+        'instance-hit-source $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-hit-source (source)
+            let
+                offset $ if
+                  = (:version source) 1
+                  , 0 40
+              hit/InstanceHitSource :source source :points $ [] (motion/Vec2 :x offset :y 0)
+                motion/Vec2 :x (+ offset 8) :y 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/InstanceHitSource)
+            :args $ [] 'quamolit.scene-ir/InstanceSource
         'large-decoration-scene $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn large-decoration-scene (amount)
             let

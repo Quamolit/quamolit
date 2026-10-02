@@ -22,6 +22,88 @@ async function captureStage(page, testInfo, name) {
 }
 
 for (const dpr of [1, 2])
+  test(`实例绘制与 Calcit 命中使用相同位置：DPR ${dpr} 的旋转、clip、版本与索引`, async ({ page }, testInfo) => {
+    await ready(page);
+    const result = await page.evaluate(async (scale) => {
+      const core = await import("/target/js/curve/calcit.core.mjs");
+      const hit = await import("/target/js/curve/quamolit.scene-hit.mjs");
+      const fixture = await import("/target/js/curve/quamolit.test.scene-hit-fixture.mjs");
+      const { draw_instances_$x_: drawInstances } = await import("/target/js/curve/quamolit.canvas-reference.mjs");
+      const tags = core.init_tags(["nodes", "content", "points", "source", "x", "y"]);
+      const results = [];
+      for (const version of [1, 2]) {
+        const sceneDocument = fixture.instance_hit_document(version);
+        const instances = sceneDocument.getRequired(tags.nodes).toArray()[1].getRequired(tags.content).extra[0];
+        const source = fixture.instance_hit_source(instances.getRequired(tags.source));
+        const positions = new Float32Array(
+          source
+            .getRequired(tags.points)
+            .toArray()
+            .flatMap((p) => [p.getRequired(tags.x), p.getRequired(tags.y)]),
+        );
+        const plan = hit.compile_hit_plan_with_positions(sceneDocument, fixture.instance_hit_source);
+        const surface = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 160 * scale;
+          canvas.height = 180 * scale;
+          const context = canvas.getContext("2d", { willReadFrequently: true });
+          context.scale(scale, scale);
+          context.transform(0, 2, -2, 0, 100, 100);
+          return context;
+        };
+        const actual = surface(),
+          reference = surface();
+        const clip = new Path2D();
+        clip.rect(0, 0, 20, 20);
+        actual.clip(clip);
+        reference.clip(clip);
+        const metrics = core.to_js_data(drawInstances(actual, instances, positions));
+        // 原生参考独立使用明确坐标，不以被测实例源生成期望位置。
+        const starts = version === 1 ? [0, 8] : [40, 48];
+        const paths = starts.map((x) => {
+          const path = new Path2D();
+          path.rect(x, 0, 20, 20);
+          return path;
+        });
+        reference.fillStyle = "red";
+        for (const x of starts) reference.fillRect(x, 0, 20, 20);
+        let mismatches = 0,
+          queries = 0;
+        for (let x = 55; x <= 105; x += 5)
+          for (let y = 90; y <= 155; y += 5) {
+            let index = -1;
+            if (reference.isPointInPath(clip, x * scale, y * scale))
+              for (let i = paths.length - 1; i >= 0; i--)
+                if (reference.isPointInPath(paths[i], x * scale, y * scale)) {
+                  index = i;
+                  break;
+                }
+            const got = core.to_js_data(hit.instance_hit_index(plan, "dots", x, y));
+            if ((got[0] === "some" ? got[1] : -1) !== index) mismatches++;
+            if ((core.to_js_data(hit.hit_test_plan(plan, x, y))[0] === "hit") !== index >= 0) mismatches++;
+            queries++;
+          }
+        const pixels = (ctx) => ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height).data;
+        const got = pixels(actual),
+          expected = pixels(reference);
+        let differingChannels = 0;
+        for (let i = 0; i < got.length; i++) if (got[i] !== expected[i]) differingChannels++;
+        results.push({ version, queries, mismatches, differingChannels, metrics, png: actual.canvas.toDataURL() });
+      }
+      return results;
+    }, dpr);
+    for (const row of result) {
+      const path = testInfo.outputPath(`instances-v${row.version}-dpr${dpr}.png`);
+      await writeFile(path, Buffer.from(row.png.split(",")[1], "base64"));
+      await testInfo.attach(`instances-v${row.version}`, { path, contentType: "image/png" });
+      expect(row.queries).toBe(154);
+      expect(row.mismatches).toBe(0);
+      expect(row.differingChannels).toBe(0);
+      expect(row.metrics["canvas-calls"]).toBe(2);
+    }
+  });
+
+for (const dpr of [1, 2])
   test(`原生路径样式不继承宿主：DPR ${dpr} 的端点、接头和状态恢复`, async ({ page }, testInfo) => {
     await ready(page);
     const results = await page.evaluate(async (scale) => {

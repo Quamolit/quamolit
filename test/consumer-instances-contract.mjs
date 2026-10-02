@@ -37,6 +37,14 @@ export function verifyInstancesConsumer(app, core) {
   app.register_instances_$x_(table, positions);
   let version = 1;
   assert.equal(app.instances_live_count(table), 1);
+  const hitPlan = app.instances_hit_plan(table, 1);
+  assert.deepEqual(
+    core.to_js_data(app.instances_hit_index(hitPlan, 1, 1)),
+    ["some", 9999],
+    "重叠实例选择最后绘制的源索引",
+  );
+  assert.deepEqual(core.to_js_data(app.instances_hit_index(hitPlan, 109, 91)), ["none"]);
+  let hitBuilds = 1;
   for (let step = 0; step < 100; step++) {
     const time = step % 2;
     const frame = core.to_js_data(app.instance_frame_at(time));
@@ -46,6 +54,19 @@ export function verifyInstancesConsumer(app, core) {
       app.patch_instances_$x_(table, version, next, app.instance_frame_at(time), new Float32Array([frame.x, frame.y])),
       8,
     );
+    if (step < 2) {
+      const nextHitPlan = app.instances_hit_plan(table, next);
+      hitBuilds++;
+      assert.deepEqual(
+        core.to_js_data(app.instances_hit_index(nextHitPlan, 109, 91)),
+        step === 0 ? ["some", 5050] : ["none"],
+      );
+      assert.deepEqual(
+        core.to_js_data(app.instances_hit_index(hitPlan, 109, 91)),
+        ["none"],
+        "新版本位置不得改写旧命中计划",
+      );
+    }
     assert.equal(app.release_instances_$x_(table, version), true);
     version = next;
     assert.equal(app.instances_live_count(table), 1, "连续更新只保留一个公开版本");
@@ -56,6 +77,12 @@ export function verifyInstancesConsumer(app, core) {
   assert.deepEqual(context.dynamicPosition, [0, 0], "Canvas 必须消费 Calcit 帧函数产生的最后一版坐标");
   assert.equal(app.release_instances_$x_(table, version), true);
   assert.equal(app.instances_live_count(table), 0, "卸载后公开版本计数回到基线");
+  assert.deepEqual(
+    core.to_js_data(app.instances_hit_index(hitPlan, 1, 1)),
+    ["some", 9999],
+    "源释放后旧计划仍持有不可变位置，不再次解析宿主表",
+  );
+  assert.throws(() => app.instances_hit_plan(table, version), "新计划不能解析已释放的源版本");
   const motions = app.independent_instance_motions();
   const declarations = core.to_js_data(motions);
   assert.equal(declarations.length, 10000);
@@ -86,6 +113,12 @@ export function verifyInstancesConsumer(app, core) {
     dynamicPatchBytes: 8,
     dynamicUpdates: 100,
     liveAfterDispose: 0,
+    hitPlan: {
+      builds: hitBuilds,
+      instances: 10000,
+      versions: [1, 2, 3],
+      scope: "Calcit解析资源表与命中；不包含实例级capture或性能验收",
+    },
     independent: { instances: 10000, sampledTimes: [1, 0, 0.5, 0.25, 1], changedInstances: 10000 },
   };
 }

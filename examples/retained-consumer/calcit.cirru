@@ -432,6 +432,31 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/InstanceNode)
             :args $ [] 'Number
+        'instances-hit-index $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instances-hit-index (plan x y) (hit/instance-hit-index plan |consumer-instances x y)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-hit/HitPlan 'Number 'Number
+            :return $ :: 'Option 'Number
+        'instances-hit-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instances-hit-plan (table version)
+            let
+                node $ scene/SceneNode :id |consumer-instances :key |consumer-instances :parent | :bindings ([]) :interaction (scene/SceneInteraction :target |particles-action) :content $ scene/SceneContent :instances (instances-for-version version)
+              hit/compile-hit-plan-with-positions
+                scene/SceneDocument :nodes $ [] node
+                fn (source)
+                  let
+                      positions $ instance-data/snapshot $ resource/resolve table source
+                    hit/InstanceHitSource :source source :points $ map
+                      range $ :count source
+                      fn (index)
+                        motion/Vec2 :x
+                          instance-data/at positions $ * index 2
+                          , :y $ instance-data/at positions $ inc (* index 2)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'Number
+            :features $ #{} :js-ffi
         'instances-live-count $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn instances-live-count (table) (resource/live-count table)
           :examples $ []
@@ -719,4 +744,4 @@
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.main
-          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as lifecycle) (quamolit.resource-load-queue :as load-queue) (quamolit.scene-hit :as hit) (quamolit.canvas-scene :as canvas-scene)
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as lifecycle) (quamolit.resource-load-queue :as load-queue) (quamolit.scene-hit :as hit) (quamolit.canvas-scene :as canvas-scene) (quamolit.instance-ffi :as instance-data)
