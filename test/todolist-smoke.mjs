@@ -4,7 +4,12 @@ import * as todo from "../target/js/todolist/quamolit.examples.todolist.mjs";
 import { sample_plan_at as sample } from "../target/js/todolist/quamolit.retained-component.mjs";
 import { sample_transition as transitionAt } from "../target/js/todolist/quamolit.transition.mjs";
 import { init_tags, to_js_data as js, _$n_enum_$o_nth as enumNth } from "../target/js/todolist/calcit.core.mjs";
-import { draw_text_$x_ as drawText } from "../target/js/todolist/quamolit.canvas-reference.mjs";
+import {
+  draw_text_$x_ as drawText,
+  font_family_css as fontFamilyCss,
+} from "../target/js/todolist/quamolit.canvas-reference.mjs";
+import { default_font as defaultFont } from "../target/js/todolist/quamolit.scene-ir.mjs";
+import * as fonts from "../target/js/todolist/quamolit.font-resource.mjs";
 import {
   geometry_signature as geometry,
   property_signature as properties,
@@ -24,6 +29,10 @@ const tags = init_tags([
   "size",
   "fill",
   "text",
+  "font",
+  "family",
+  "version",
+  "face",
 ]);
 const field = (x, k) => x.get(tags[k]);
 const rows = (m) => js(m).rows;
@@ -176,7 +185,7 @@ test("文字 diff 分类与宿主状态恢复；非法字号在绘制前拒绝",
   assert.deepEqual(js(geometry(before)), js(geometry(recolor)));
   assert.notDeepEqual(js(properties(before)), js(properties(recolor)));
   assert.notDeepEqual(js(geometry(before)), js(geometry(edited)));
-  assert.deepEqual(js(resources(before)), ["none"]);
+  assert.deepEqual(js(resources(before)), ["font", { family: "", fallback: ["monospace"], version: 0 }]);
   const calls = [];
   const context = {
     save() {
@@ -196,4 +205,92 @@ test("文字 diff 分类与宿主状态恢复；非法字号在绘制前拒绝",
   for (const size of [0, -1, NaN, Infinity])
     assert.throws(() => drawText(context, text.assoc(tags.size, size)), /invalid-scene-text/);
   assert.deepEqual(calls, ["save", "fillText", "restore"]);
+});
+
+test("字体版本独立失效，命名字体安全引用且绘制不启动加载", () => {
+  const font = defaultFont();
+  const named = font.assoc(tags.family, '图表"UI\\字体').assoc(tags.version, 1);
+  assert.equal(fontFamilyCss(font), "monospace");
+  assert.equal(fontFamilyCss(named), '"图表\\"UI\\\\字体", monospace');
+  const content = todo.text(0, "中文图表", 18, todo.color(1, 0, 0, 1));
+  const text = enumNth(content, 1);
+  const changedFont = text.assoc(tags.font, font.assoc(tags.version, 1));
+  assert.deepEqual(js(geometry(content)), js(geometry(content.assoc(1, changedFont))));
+  assert.notDeepEqual(js(resources(content)), js(resources(content.assoc(1, changedFont))));
+  const calls = [];
+  const context = {
+    save() {
+      calls.push("save");
+    },
+    restore() {
+      calls.push("restore");
+    },
+    fillText(value, x, y) {
+      calls.push([value, x, y, this.font]);
+    },
+  };
+  drawText(context, text.assoc(tags.font, named));
+  assert.deepEqual(calls, ["save", ["中文图表", 0, 0, `18px ${fontFamilyCss(named)}`], "restore"]);
+  for (const family of [" bad ", "bad\nfont", "bad\tfont", "bad\0font"]) {
+    assert.throws(
+      () => drawText(context, text.assoc(tags.font, font.assoc(tags.family, family))),
+      /invalid-scene-text/,
+    );
+  }
+  assert.equal(calls.length, 3, "非法字体在save/fillText之前拒绝");
+});
+
+test("Calcit 字体加载归一化失败，旧版本不安装，释放按确切宿主身份", async () => {
+  const previousFace = globalThis.FontFace;
+  const previousDocument = globalThis.document;
+  let creates = 0,
+    reads = 0;
+  const installed = new Set();
+  const spec = defaultFont().assoc(tags.family, "ChartFont").assoc(tags.version, 1);
+  globalThis.FontFace = class {
+    constructor(family, source) {
+      creates++;
+      if (source === "throw") throw Error("constructor-failed");
+      this.family = family;
+      this.source = source;
+      this.status = "unloaded";
+    }
+    async load() {
+      if (this.source === "reject") throw Error("load-failed");
+      if (this.source === "invalid") return null;
+      this.status = "loaded";
+      return this;
+    }
+  };
+  globalThis.document = {
+    get fonts() {
+      reads++;
+      return installed;
+    },
+  };
+  try {
+    assert.deepEqual(js(await fonts.load_font_$x_(defaultFont(), "ok")), ["failed", "invalid-font-load-request"]);
+    assert.equal(creates, 0, "无效请求不调用宿主");
+    for (const source of ["throw", "reject", "invalid"]) {
+      const failed = js(await fonts.load_font_$x_(spec, source));
+      assert.equal(failed[0], "failed");
+      assert.ok(failed[1].length > 0);
+    }
+    const result = await fonts.load_font_$x_(spec, "ok");
+    const loaded = enumNth(result, 1);
+    assert.equal(installed.size, 0, "加载不自动安装或修改可见字体集合");
+    assert.equal(fonts.install_font_$x_(loaded, spec.assoc(tags.version, 2)), false);
+    assert.equal(reads, 0, "过期结果不访问document.fonts");
+    assert.equal(fonts.install_font_$x_(loaded, spec), true);
+    assert.equal(installed.size, 1);
+    assert.equal(installed.has(loaded.getRequired(tags.face)), true);
+    assert.equal(fonts.release_font_$x_(loaded), true);
+    assert.equal(fonts.release_font_$x_(loaded), false);
+    assert.equal(installed.size, 0);
+  } finally {
+    if (previousFace === undefined) delete globalThis.FontFace;
+    else globalThis.FontFace = previousFace;
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+  }
 });

@@ -1,5 +1,95 @@
 import { test, expect } from "@playwright/test";
 
+test("公共 Calcit 字体薄桥：真实加载、失败、过期拒绝与原生回退像素", async ({ page }) => {
+  await page.goto("/demos/index.html?demo=todolist&t=0");
+  const evidence = await page.evaluate(async () => {
+    const [font, scene, core, todo, canvas] = await Promise.all([
+      import("/target/js/todolist/quamolit.font-resource.mjs"),
+      import("/target/js/todolist/quamolit.scene-ir.mjs"),
+      import("/target/js/todolist/calcit.core.mjs"),
+      import("/target/js/todolist/quamolit.examples.todolist.mjs"),
+      import("/target/js/todolist/quamolit.canvas-reference.mjs"),
+    ]);
+    const tags = core.init_tags(["font", "family", "version", "face"]);
+    const spec = scene.default_font().assoc(tags.family, "QuamolitFontFixture").assoc(tags.version, 1);
+    const result = await font.load_font_$x_(spec, "local('Arial'), local('Liberation Sans')");
+    const kind = core.to_js_data(result.get(0));
+    if (kind !== "ready") return { kind, error: result.get(1) };
+    const loaded = result.get(1),
+      face = loaded.getRequired(tags.face);
+    const autoInstalled = document.fonts.has(face);
+    const stale = font.install_font_$x_(loaded, spec.assoc(tags.version, 2));
+    const afterStale = document.fonts.has(face);
+    font.install_font_$x_(loaded, spec);
+    let failure,
+      differences = 0,
+      fallbackDifferences = 0,
+      blankDifferences = 0;
+    try {
+      failure = await font.load_font_$x_(spec, "url(data:font/woff2;base64,AA==)");
+      const actual = document.createElement("canvas"),
+        reference = document.createElement("canvas");
+      actual.width = reference.width = 320;
+      actual.height = reference.height = 100;
+      const a = actual.getContext("2d"),
+        b = reference.getContext("2d");
+      a.translate(0, 50);
+      b.translate(0, 50);
+      const content = todo.text(20, "Chart UI / 2026", 24, todo.color(1, 0, 0, 1));
+      canvas.draw_text_$x_(a, content.get(1).assoc(tags.font, spec));
+      b.font = '24px "QuamolitFontFixture", monospace';
+      b.textBaseline = "middle";
+      b.fillStyle = "rgb(255,0,0)";
+      b.fillText("Chart UI / 2026", 20, 0);
+      const av = a.getImageData(0, 0, 320, 100).data,
+        bv = b.getImageData(0, 0, 320, 100).data;
+      for (let i = 0; i < av.length; i++) {
+        if (av[i] !== bv[i]) differences++;
+        if (bv[i] !== 0) blankDifferences++;
+      }
+      a.clearRect(0, -50, 320, 100);
+      b.clearRect(0, -50, 320, 100);
+      const missing = spec.assoc(tags.family, "QuamolitMissingFontFixtureNeverInstalled");
+      canvas.draw_text_$x_(a, content.get(1).assoc(tags.font, missing));
+      b.font = "24px monospace";
+      b.fillText("Chart UI / 2026", 20, 0);
+      const fallbackActual = a.getImageData(0, 0, 320, 100).data;
+      const fallbackReference = b.getImageData(0, 0, 320, 100).data;
+      for (let i = 0; i < fallbackActual.length; i++)
+        if (fallbackActual[i] !== fallbackReference[i]) fallbackDifferences++;
+    } finally {
+      font.release_font_$x_(loaded);
+    }
+    return {
+      kind,
+      autoInstalled,
+      stale,
+      afterStale,
+      status: face.status,
+      failure: core.to_js_data(failure),
+      differences,
+      fallbackDifferences,
+      blankDifferences,
+      retained: document.fonts.has(face),
+      repeatedRelease: font.release_font_$x_(loaded),
+    };
+  });
+  expect(evidence).toMatchObject({
+    kind: "ready",
+    status: "loaded",
+    autoInstalled: false,
+    stale: false,
+    afterStale: false,
+    differences: 0,
+    fallbackDifferences: 0,
+    retained: false,
+    repeatedRelease: false,
+  });
+  expect(evidence.failure[0]).toBe("failed");
+  expect(evidence.failure[1].length).toBeGreaterThan(0);
+  expect(evidence.blankDifferences).toBeGreaterThan(0);
+});
+
 test("未来日志按 deadline 唤醒，暂停/卸载取消，resize 不推迟事件", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

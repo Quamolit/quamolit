@@ -20,7 +20,11 @@ Scene 标量绑定已有 [CPU 参考解析器](scene-binding.md)。实例 typed-
 
 以下扩展修订上方初始切片的支持集：当前还包括开放折线、闭合多边形、原生三次贝塞尔路径、原生圆体、基础单行文字和图片；矩形、折线、文字均允许叶节点 `:alpha` 标量绑定（乘原颜色 alpha），不是组隔离透明度。`canvas-reference` 参考入口绘制顶层 rect/polyline/polygon/cubic-path/circle/text；图片须调用单独的 `canvas-images/draw-document!`，group、instances、子节点仍明确拒绝。
 
-`SceneContent :text` 保存 `TextNode { x, y, size, text, fill }`，字号必须有限且大于零。位置、字号、内容是几何签名，颜色是属性签名；没有字体资源引用。支持 monospace、左对齐、中线绘制，尚无 shaping、字体加载或 GPU 字形缓存。实现与验证见 [TodoList 恢复](todolist-restoration.md)。
+`SceneContent :text` 保存 `TextNode { x, y, size, text, fill, font }`，字号必须有限且大于零。位置、字号、内容是几何签名，颜色是属性签名；`FontSpec { family, fallback, version }` 进入资源签名。family 是单个命名字体，不是完整 CSS font shorthand；空串只使用 `FontFallback :monospace/:sans-serif/:serif`。非空名称由 Calcit 引用并转义，拒绝首尾空白/控制字符；version 是有限非负整数。同时间字体可用性变化须更新字体/组件资源修订，不能仅靠 time 相等复用旧布局。TextNode 仍是实验接口：已有10个示例构造点迁移到 `scene/default-font`，下游新增构造也需显式传 `:font`。默认画面保持 monospace、左对齐、中线绘制；尚无 shaping、布局缓存或 GPU 字形缓存。实现与验证见 [TodoList 恢复](todolist-restoration.md)。
+
+`quamolit.font-resource` 提供显式 `load-font!(spec, source)`，返回 `FontLoadOutcome :ready LoadedFont / :failed String`。它只加载，不自动安装、绘制或修改Model；构造异常及Promise拒绝统一在Calcit处理。`install-font!(loaded, expected-spec)` 只安装与当前请求描述完全一致的结果，过期版本返回false且不访问document.fonts；`release-font!` 删除确切FontFace，重复删除返回false，不按family误删新版本。调用方先核对当前请求再安装，随后更新供Scene采样的可用性修订并触发重绘；资源队列/generation、Model和释放仍由调用方显式管理，不声称已接通一般字体资源缓存。
+
+新增namespace用于隔离异步字体宿主与纯Scene/绘制模块，不能放入image runner或绘制循环。两个原生:inline仅创建/加载FontFace和读取document.fonts；临时类型化Trait关联[js-ffi #158](https://github.com/calcit-lang/js-ffi/issues/158)，上游交付后替换并删除局部平台声明。下游只引用Calcit模块，不手工导入JS。既有TodoList门禁增加纯FontSpec校验、Node失败/过期/释放合同，以及真实Chromium本地Arial/Liberation Sans加载、损坏字体失败、缺失首选字体回退和全RGBA原生参考。Node替身不算浏览器字体证据；当前中文缺字、独立安装搬移、精确文字命中与仅移动时不重排的完整验收尚未完成，旧monospace近似命中不能外推命名字体。
 
 ## #53 路径前置：正式开放折线
 
