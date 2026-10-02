@@ -12189,10 +12189,24 @@
                   , false $ match (:interaction node)
                     (:none) false
                     (:target target) true
+                    (:disabled) false
               PresenceSample :entry (:entry item) :alpha (alpha-at item time) :interactive interactive
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceSample)
             :args $ [] 'quamolit.presence/PresenceItem 'Number
+          :tests $ [] $ %{} 'TestEntry
+            :name |disabled-node-remains-visible-but-not-interactive
+            :code $ quote $ let
+                color $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+                rect-content $ scene-ir/SceneContent :rect $ scene-ir/RectNode :x 10 :y 20 :width 16 :height 16 :fill color
+                a $ scene-ir/SceneNode :id |a :parent | :key |a :content rect-content :bindings ([]) :interaction $ scene-ir/SceneInteraction :disabled
+                doc $ scene-ir/SceneDocument :nodes $ [] a
+                model $ start-presence doc
+                sample $ &list:nth (sample-presence model 0) 0
+              is= false $ :interactive sample
+              is= 1 $ :alpha sample
+              is= a $ :node $ :entry sample
+            :tags $ #{} :presence
         'sample-prefix $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sample-prefix (items samples time)
             if (empty? items) samples $ recur (rest items)
