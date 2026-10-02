@@ -294,7 +294,143 @@ export function verifyLayeredConsumer(app, core) {
   );
   assert.equal(calls, 0, "完整预检必须发生在任何 Canvas 操作之前");
   assert.equal(app.prepare_gpu(plan).tag.value, "fallback", "组语义不能静默变为矩形子集");
+  const primitive = app.primitive_document(0.5);
+  const primitiveBefore = core.to_js_data(primitive);
+  assert.deepEqual(
+    primitiveBefore.nodes.map((node) => node.content[0]).sort(),
+    kinds.filter((kind) => kind !== "instances"),
+    "所有声明支持的 document 图元必须具有合法的真实 payload",
+  );
+  assert.deepEqual(core.to_js_data(app.canvas_diagnostics(primitive)), []);
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    assert.equal(
+      core.to_js_data(app.primitive_document(time)).nodes[0].content[1].opacity,
+      time * time * (3 - 2 * time),
+    );
+  }
+  assert.throws(() => app.primitive_document(NaN), /invalid-motion-time/);
+  assert.throws(() => app.draw_primitives_$x_(context, primitive, null, 320, 180), /missing-image-resource/);
+  assert.throws(
+    () => app.draw_primitives_$x_(context, primitive, { naturalWidth: 7, naturalHeight: 8 }, 320, 180),
+    /image-size-mismatch/,
+  );
+  assert.equal(calls, 0, "晚于其他图元的图片失败仍必须在任何绘制前检出");
+  assert.deepEqual(core.to_js_data(primitive), primitiveBefore, "资源预检和布局不能修改声明");
   return counts;
+}
+
+// 同一个搬移后的消费者、同一个 Canvas；参考只用独立原生绘制，不解释 Scene 数据。
+async function verifyPrimitiveCanvasConsumer(page, artifacts) {
+  const frames = [];
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    const result = await page.evaluate(async (time) => {
+      const app = await import(new URL("./target/js/app/app.main.mjs", location.href).href);
+      const core = await import(new URL("./target/js/app/calcit.core.mjs", location.href).href);
+      const canvas = document.querySelector("canvas"),
+        actual = canvas.getContext("2d"),
+        width = canvas.width,
+        height = canvas.height,
+        scale = Math.min(width / 320, height / 180),
+        x = width / 2 - 144 * scale,
+        y = height / 2 - 74 * scale;
+      const bitmap = document.createElement("canvas");
+      bitmap.width = bitmap.height = 8;
+      const pixels = bitmap.getContext("2d");
+      pixels.fillStyle = "#ffff00";
+      pixels.fillRect(0, 0, 4, 8);
+      pixels.fillStyle = "#00ffff";
+      pixels.fillRect(4, 0, 4, 8);
+      const image = new Image();
+      image.src = bitmap.toDataURL();
+      await image.decode();
+      actual.setTransform(1, 0, 0, 1, 0, 0);
+      actual.clearRect(0, 0, width, height);
+      const declaration = app.primitive_document(time),
+        before = JSON.stringify(core.to_js_data(declaration));
+      app.draw_primitives_$x_(actual, declaration, image, width, height);
+      const layer =
+        typeof OffscreenCanvas === "function" ? new OffscreenCanvas(width, height) : document.createElement("canvas");
+      layer.width = width;
+      layer.height = height;
+      const c = layer.getContext("2d");
+      c.setTransform(scale, 0, 0, scale, x, y);
+      c.beginPath();
+      c.rect(0, 0, 288, 148);
+      c.clip();
+      c.fillStyle = "#ff0000";
+      c.fillRect(8, 8, 48, 24);
+      c.save();
+      c.strokeStyle = "#0000ff";
+      c.lineWidth = 4;
+      c.lineCap = c.lineJoin = "round";
+      c.beginPath();
+      c.moveTo(72, 12);
+      c.lineTo(96, 40);
+      c.lineTo(120, 12);
+      c.stroke();
+      c.restore();
+      c.font = "12px monospace";
+      c.textAlign = "left";
+      c.textBaseline = "middle";
+      c.direction = "ltr";
+      c.fillStyle = "#000000";
+      c.fillText("Metrics", 8, 60);
+      c.drawImage(image, 0, 0, 8, 8, 144, 8, 32, 32);
+      c.fillStyle = "#00ff00";
+      c.strokeStyle = "#000000";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(192, 12);
+      c.lineTo(224, 12);
+      c.lineTo(216, 40);
+      c.closePath();
+      c.fill();
+      c.stroke();
+      c.strokeStyle = "#ff00ff";
+      c.lineWidth = 4;
+      c.beginPath();
+      c.moveTo(248, 12);
+      c.bezierCurveTo(248, 40, 280, 40, 280, 12);
+      c.stroke();
+      c.fillStyle = "#00ffff";
+      c.strokeStyle = "#000000";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(36, 112, 20, 0, Math.PI * 2, false);
+      c.closePath();
+      c.fill();
+      c.stroke();
+      const expected = document.createElement("canvas");
+      expected.width = width;
+      expected.height = height;
+      const e = expected.getContext("2d");
+      e.globalAlpha = time * time * (3 - 2 * time);
+      e.drawImage(layer, 0, 0);
+      const a = actual.getImageData(0, 0, width, height).data,
+        b = e.getImageData(0, 0, width, height).data;
+      let differences = 0,
+        covered = 0;
+      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) differences++;
+      for (let i = 3; i < a.length; i += 4) if (a[i]) covered++;
+      return {
+        time,
+        width,
+        height,
+        differences,
+        covered,
+        unchanged: before === JSON.stringify(core.to_js_data(declaration)),
+        gpuAvailable: navigator.gpu !== undefined,
+      };
+    }, time);
+    assert.equal(result.gpuAvailable, false);
+    assert.equal(result.unchanged, true, "布局与绘制不修改 Calcit 声明");
+    assert.equal(result.differences, 0, "八种合法 Canvas document 图元须实际绘制，不能缺失或简化");
+    assert.equal(result.covered === 0, time === 0);
+    frames.push(result);
+    if ([0, 0.5, 1].includes(time))
+      await page.screenshot({ path: `${artifacts}/primitives-frame-${time}.png`, fullPage: true });
+  }
+  return { result: "PASS", frames, scope: "八种 document 图元，无 GPU，独立原生 Canvas 全图参考" };
 }
 
 export async function verifyLayeredCanvasConsumer(page, artifacts) {
@@ -385,10 +521,12 @@ export async function verifyLayeredCanvasConsumer(page, artifacts) {
       if ([0, 0.5, 1].includes(time))
         await page.screenshot({ path: `${artifacts}/layered-frame-${time}.png`, fullPage: true });
     }
+    const primitives = await verifyPrimitiveCanvasConsumer(page, artifacts);
     await page.click('[data-mode="mixed"]');
     return {
       result: "PASS",
       frames,
+      primitives,
       scope: "强制无 WebGPU 的嵌套组/裁剪/隔离透明度 Calcit 下游 Canvas 路径；非 GPU 性能证据",
     };
   } finally {

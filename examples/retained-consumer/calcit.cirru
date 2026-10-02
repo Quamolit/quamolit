@@ -330,30 +330,23 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.instance-gpu/SourceDraw)
             :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'quamolit.instance-resource/InstanceTableHost 'Number
         'draw-layered! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn draw-layered! (context plan width height)
-            let
-                scale $ if
-                  < (/ width 320) (/ height 180)
-                  / width 320
-                  / height 180
-                document $ :scene plan
-                nodes $ :nodes document
-                root $ &list:nth nodes 0
-                root-content $ match (:content root)
-                  (:group g)
-                    scene/SceneContent :group $ struct-with g $ :transform
-                      scene/Matrix2D :a scale :b 0 :c 0 :d scale :e
-                        + (/ width 2) (* -144 scale)
-                        , :f $ + (/ height 2) (* -74 scale)
-                  _ $ raise |invalid-layered-root
-              platform/clear-canvas! context width height
-              canvas-scene/draw-document! context
-                struct-with document $ :nodes $ assoc nodes 0
-                  struct-with root $ :content root-content
-                , width height $ fn (id version) (raise |layered-consumer-has-no-images)
+          :code $ quote $ defn draw-layered! (context plan width height) (platform/clear-canvas! context width height)
+            canvas-scene/draw-document! context
+              fit-layered-document (:scene plan) width height
+              , width height $ fn (id version) (raise |layered-consumer-has-no-images)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.retained-component/ComponentPlan 'Number 'Number
+            :features $ #{} :js-ffi
+        'draw-primitives! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-primitives! (context document image width height)
+            canvas-scene/draw-document! context (fit-layered-document document width height) width height $ fn (id version)
+              assert |unexpected-primitive-image-id $ = id |primitive-bitmap
+              assert |unexpected-primitive-image-version $ = version 1
+              , image
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument 'js-ffi.browser/ImageHost 'Number 'Number
             :features $ #{} :js-ffi
         'draw-resolved-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-resolved-instances! (context table version)
@@ -388,6 +381,27 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
             :args $ [] 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer-browser/PointerEventHost
             :features $ #{} :js-ffi
+        'fit-layered-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn fit-layered-document (document width height)
+            let
+                scale $ if
+                  < (/ width 320) (/ height 180)
+                  / width 320
+                  / height 180
+                nodes $ :nodes document
+                root $ &list:nth nodes 0
+                root-content $ match (:content root)
+                  (:group g)
+                    scene/SceneContent :group $ struct-with g $ :transform
+                      scene/Matrix2D :a scale :b 0 :c 0 :d scale :e
+                        + (/ width 2) (* -144 scale)
+                        , :f $ + (/ height 2) (* -74 scale)
+                  _ $ raise |invalid-layered-root
+              struct-with document $ :nodes $ assoc nodes 0
+                struct-with root $ :content root-content
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'Number 'Number
         'font-request $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn font-request (time spec)
             component/ComponentRequest :id |consumer-font :time time :versions
@@ -684,6 +698,58 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'quamolit.presence/PresenceModel 'Number 'Number
+        'primitive-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn primitive-document (time)
+            scene/SceneDocument :nodes $ []
+              scene/SceneNode :id |primitives :key |primitives :parent | :content
+                scene/SceneContent :group $ scene/GroupNode :transform
+                  scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                  , :clip
+                    scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 288 :height 148
+                    , :opacity $ motion/sample-scalar
+                      motion/ScalarDescriptor :id |primitive-opacity :version 1 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from 0 :to 1 :easing (motion/Easing :smoothstep)
+                      , time
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-rect :key |primitive-rect :parent |primitives :content
+                scene/SceneContent :rect $ scene/RectNode :x 8 :y 8 :width 48 :height 24 :fill $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-polyline :key |primitive-polyline :parent |primitives :content
+                scene/SceneContent :polyline $ scene/PolylineNode :points
+                  [] (motion/Vec2 :x 72 :y 12) (motion/Vec2 :x 96 :y 40) (motion/Vec2 :x 120 :y 12)
+                  , :width 4 :stroke $ motion/ColorRgba :r 0 :g 0 :b 1 :a 1
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-text :key |primitive-text :parent |primitives :content
+                scene/SceneContent :text $ scene/TextNode :x 8 :y 60 :size 12 :text |Metrics :fill
+                  motion/ColorRgba :r 0 :g 0 :b 0 :a 1
+                  , :font $ scene/default-font
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-image :key |primitive-image :parent |primitives :content
+                scene/SceneContent :image $ scene/ImageNode :source
+                  scene/ImageSource :id |primitive-bitmap :version 1 :width 8 :height 8
+                  , :matrix
+                    scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                    , :sx 0 :sy 0 :sw 8 :sh 8 :dx 144 :dy 8 :dw 32 :dh 32
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-polygon :key |primitive-polygon :parent |primitives :content
+                scene/SceneContent :polygon $ scene/PolygonNode :points
+                  [] (motion/Vec2 :x 192 :y 12) (motion/Vec2 :x 224 :y 12) (motion/Vec2 :x 216 :y 40)
+                  , :width 2 :fill
+                    motion/ColorRgba :r 0 :g 1 :b 0 :a 1
+                    , :stroke $ motion/ColorRgba :r 0 :g 0 :b 0 :a 1
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-cubic :key |primitive-cubic :parent |primitives :content
+                scene/SceneContent :cubic-path $ scene/CubicPathNode :start (motion/Vec2 :x 248 :y 12) :segments
+                  [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 248 :y 40) :control-2 (motion/Vec2 :x 280 :y 40) :end $ motion/Vec2 :x 280 :y 12
+                  , :width 4 :stroke $ motion/ColorRgba :r 1 :g 0 :b 1 :a 1
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-circle :key |primitive-circle :parent |primitives :content
+                scene/SceneContent :circle $ scene/CircleNode :cx 36 :cy 112 :radius 20 :width 2 :fill
+                  motion/ColorRgba :r 0 :g 1 :b 1 :a 1
+                  , :stroke $ motion/ColorRgba :r 0 :g 0 :b 0 :a 1
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
         'register-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn register-instances! (table positions)
             resource/register! table
