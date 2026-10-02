@@ -199,6 +199,11 @@ try {
     "反例：实例命中始终返回none必须失败",
   );
   assert.throws(
+    () => verifyInstancesConsumer({ ...app, exercise_instance_capture_$x_: () => {} }, core),
+    /AssertionError/,
+    "反例：跳过下游Calcit捕获/提交协调必须失败",
+  );
+  assert.throws(
     () => verifyPresenceConsumer({ ...app, presence_resource_plan: (_model, previous) => previous }, core),
     /AssertionError/,
     "反例：停掉 Presence 资源同步必须失败",
@@ -642,6 +647,8 @@ try {
       "停止双轴 CPU 参考更新被断言检出",
       "停止 alpha CPU 参考更新被断言检出",
       "伪造实例计数被断言检出",
+      "实例命中始终返回none被断言检出",
+      "跳过下游Calcit实例逻辑捕获/提交协调被断言检出",
       "停止 Presence 资源同步被断言检出",
       "停止 device loss 转移被断言检出",
     ],

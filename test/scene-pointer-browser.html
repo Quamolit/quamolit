@@ -26,9 +26,29 @@
     <nav aria-label="演示导航" style="position:fixed;top:10px;right:12px;z-index:1000;background:#fff;border:1px solid #b8cbd5;border-radius:7px;padding:6px 12px;font:14px system-ui"><a href="../demos/index.html?group=lifecycle" style="color:#175b73">← 所有演示</a></nav>
     <output id="status" data-result="pass" hidden>pass</output>
     <canvas id="pointer-surface" width="200" height="100"></canvas>
+    <div id="instance-controls" hidden>
+      <button id="instance-version">更新位置版本</button>
+      <button id="instance-exit">退出：停止交互</button>
+      <button id="instance-unload">卸载节点</button>
+      <button id="instance-restore">重新进入</button>
+    </div>
     <script type="module">
-      import { main_$x_ as main } from "/target/js/scene-pointer-browser/quamolit.test.scene-pointer-browser-fixture.mjs";
-      main();
+      import {
+        main_$x_ as main,
+        install_browser_plan_$x_ as installPlan,
+        instance_pointer_plan as instancePlan,
+      } from "/target/js/scene-pointer-browser/quamolit.test.scene-pointer-browser-fixture.mjs";
+      if (new URLSearchParams(location.search).get("instances") === "1") {
+        const canvas = document.querySelector("#pointer-surface");
+        canvas.height = 180;
+        canvas.style.height = "180px";
+        document.querySelector("#instance-controls").hidden = false;
+        const commit = installPlan(canvas, instancePlan(1, true, true));
+        document.querySelector("#instance-version").onclick = () => commit(instancePlan(2, true, true));
+        document.querySelector("#instance-exit").onclick = () => commit(instancePlan(2, false, true));
+        document.querySelector("#instance-unload").onclick = () => commit(instancePlan(2, false, false));
+        document.querySelector("#instance-restore").onclick = () => commit(instancePlan(1, true, true));
+      } else main();
     </script>
   </body>
 </html>

@@ -45,6 +45,7 @@ export function verifyInstancesConsumer(app, core) {
   );
   assert.deepEqual(core.to_js_data(app.instances_hit_index(hitPlan, 109, 91)), ["none"]);
   let hitBuilds = 1;
+  let captureProof;
   for (let step = 0; step < 100; step++) {
     const time = step % 2;
     const frame = core.to_js_data(app.instance_frame_at(time));
@@ -66,6 +67,43 @@ export function verifyInstancesConsumer(app, core) {
         ["none"],
         "新版本位置不得改写旧命中计划",
       );
+    }
+    if (step === 0) {
+      let owner = null;
+      const calls = [];
+      const surface = {
+        getBoundingClientRect: () => ({ left: 100, top: 50 }),
+        hasPointerCapture: (id) => owner === id,
+        setPointerCapture(id) {
+          assert.equal(owner, null);
+          owner = id;
+          calls.push(["set", id]);
+        },
+        releasePointerCapture(id) {
+          assert.equal(owner, id);
+          owner = null;
+          calls.push(["release", id]);
+        },
+      };
+      const ended = app.exercise_instance_capture_$x_(table, surface, { pointerId: 7, clientX: 101, clientY: 51 });
+      assert.equal(owner, null);
+      assert.deepEqual(
+        calls,
+        [
+          ["set", 7],
+          ["release", 7],
+        ],
+        "换版本期间保留逻辑捕获，卸载提交恰好释放一次",
+      );
+      const result = core.to_js_data(ended);
+      assert.equal(result["capture-released"], true);
+      assert.deepEqual(result.state.capture, ["none"]);
+      captureProof = {
+        planBuilds: 2,
+        setCalls: 1,
+        releaseCalls: 1,
+        scope: "下游Calcit调用公共薄桥；原生宿主mock，不算真实PointerEvent",
+      };
     }
     assert.equal(app.release_instances_$x_(table, version), true);
     version = next;
@@ -118,6 +156,7 @@ export function verifyInstancesConsumer(app, core) {
       instances: 10000,
       versions: [1, 2, 3],
       scope: "Calcit解析资源表与命中；不包含实例级capture或性能验收",
+      logicalCapture: captureProof,
     },
     independent: { instances: 10000, sampledTimes: [1, 0, 0.5, 0.25, 1], changedInstances: 10000 },
   };

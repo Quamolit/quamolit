@@ -19961,9 +19961,18 @@
             :features $ #{} :js-ffi
         'install-browser-capture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-browser-capture! (element)
+            do
+              install-browser-plan! element $ hit/compile-hit-plan $ fixture/routing-scene-subtree false
+              , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.browser/DomElementHost
+            :features $ #{} :js-ffi
+        'install-browser-plan! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn install-browser-plan! (element initial-plan)
             let
                 surface $ browser/pointer-surface-host element
-                plan* $ atom $ hit/compile-hit-plan (fixture/routing-scene-subtree false)
+                plan* $ atom initial-plan
                 state* $ atom $ pointer/initial-pointer-state
                 count* $ atom 0
                 handle! $ fn (phase event)
@@ -19981,6 +19990,13 @@
                     dom/element-set-attribute! element |data-captured $ str $ dispatch-captured? (:dispatch routed)
                     dom/element-set-attribute! element |data-released $ str $ :capture-released routed
                     dom/element-set-attribute! element |data-count $ str @count*
+                    dom/element-set-attribute! element |data-hit-index $ match (:dispatch routed)
+                      (:routed route)
+                        match
+                          hit/instance-hit-index @plan* (:source-node route) (:x input) (:y input)
+                          (:some index) (str index)
+                          (:none) |
+                      _ |
                 handle-lost! $ fn (event)
                   let
                       reconciled $ pointer/lose-pointer-capture @state* $ browser/pointer-id-from-event event
@@ -20026,11 +20042,44 @@
               dom/add-event-listener! |quamolit-subtree-exit $ fn (_event) (set-disabled! true)
               dom/add-event-listener! |quamolit-subtree-enter $ fn (_event) (set-disabled! false)
               dom/element-set-attribute! element |data-ready |true
-              , &unit
+              fn (next-plan)
+                hint-fn $ {}
+                  :args $ [] 'quamolit.scene-hit/HitPlan
+                  :return 'Unit
+                  :features $ #{} :js-ffi
+                let
+                    before @state*
+                    reconciled $ browser/reconcile-pointer-surface! surface next-plan before
+                  reset! plan* next-plan
+                  reset! state* $ :state reconciled
+                  dom/element-set-attribute! element |data-commit-released $ str $ :capture-released reconciled
+                  dom/element-set-attribute! element |data-capture-cleared $ str $ capture-cleared? (:state reconciled)
+                  dom/element-set-attribute! element |data-candidates $ str $ hit/candidate-count next-plan
+                  , &unit
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.browser/DomElementHost
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'js-ffi.browser/DomElementHost 'quamolit.scene-hit/HitPlan
             :features $ #{} :js-ffi
+            :return $ :: 'Fn $ {} (:return 'Unit)
+              :args $ [] 'quamolit.scene-hit/HitPlan
+              :features $ #{} :js-ffi
+        'instance-pointer-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-pointer-plan (version interactive? mounted?)
+            if mounted?
+              let
+                  document $ fixture/instance-hit-document version
+                  next-document $ scene/SceneDocument :nodes $ map (:nodes document)
+                    fn (node)
+                      if
+                        and (not interactive?)
+                          = (:id node) |dots
+                        struct-with node $ :interaction $ scene/SceneInteraction :none
+                        , node
+                hit/compile-hit-plan-with-positions next-document fixture/instance-hit-source
+              hit/compile-hit-plan $ scene/SceneDocument :nodes $ []
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'Number 'Bool 'Bool
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
             match (dom/query-selector |#pointer-surface)
@@ -20041,7 +20090,7 @@
             :args $ []
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.scene-pointer-browser-fixture
-          :require (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as browser) (quamolit.test.scene-hit-fixture :as fixture) (js-ffi.browser :as dom)
+          :require (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as browser) (quamolit.test.scene-hit-fixture :as fixture) (js-ffi.browser :as dom) (quamolit.scene-ir :as scene)
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")
