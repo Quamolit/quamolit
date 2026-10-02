@@ -2,19 +2,41 @@
 
 2026-09-26。本文是 v2 的执行顺序与验收修订，冲突处以本文为准；未冲突的数值、视觉、性能和功能约束保留。GitHub issue 状态是实时进度来源。本轮没有关闭功能 issue。
 
-2026-09-27 的 #38/#40/#51/#104 候选切片：公共 Calcit `register-patch!` 将 10k 实例中的单实例变化登记为 8 B 补丁，`upload-source!` 对连续基版选择 8 B GPU 写入，跳版本则恢复 80 kB 全量快照。独立消费者现可从同一 Calcit 帧声明切换 Canvas/WebGPU，逐帧修改一个实例；本机有窗口 Chromium 的非软件 Apple Metal-3 路径完成 4 帧全图 RGBA 零差异验证。新增动态 10k 同源阶段基准，不与原两矩形数据混合；正式三轮测量结果记录在[消费者帧测量](consumer-performance.md)。自动合批、设备恢复、跨硬件精度与生产后端选择仍无验收证据，不关闭 #38/#40/#51/M2。原非整数交叠负载的 Canvas/GPU 栅格差异见 #144，不能以像素对齐夹具的零差异冒充通用精度证明。
-
 ## 当前事实与下一项交付
 
-当前候选同步采用已发布的 Calcit 0.28.0 / runtime 0.28.0 / js-ffi 0.2.1-alpha.11，版本合同见[工具链升级](calcit-027-upgrade.md)。实时完成状态以 GitHub 为准；以下只描述已经验证的链路，不再逐 PR 追加历史段落。
+2026-10-03 核对：已合并基线为 #197（`2b024ff`），采用 Calcit/runtime 0.28.0、js-ffi 0.2.1-alpha.11，版本合同见[工具链升级](calcit-027-upgrade.md)。以下矩阵区分已合并实现、尚未合并候选与未验收范围；实时合并状态以链接中的 GitHub 记录为准。功能通过不等于稳定 API、全画质或性能达标，不再用逐 PR 的“本分支下一项”覆盖计划。
 
-- 声明式组件、Presence 生命周期和保留计划已接通 Canvas；TodoList 与图表作品覆盖出入、打断、重排和乱序时间。具体语义见[公共 API 合同](api-contract.md)，不等于所有实验入口均已稳定。
-- [独立消费者](isolated-consumer.md)覆盖干净安装、公共 Calcit 调用、产物搬移、1000 帧结构复用、版本失效、资源释放、设备恢复及 `:file` / `:inline` 显式重编译。正式宿主拒绝测试/本地编译路径，历史 JS 参考夹具集中在 test/host。命名 entry 创建能力待 Calcit #1665；发布 tag 重跑仍待验收。
-- #187 已合并：同一 Calcit 声明的 10k 独立 Vec2 动画接通 Canvas 与 CPU→GPU。PR [#188](https://github.com/Quamolit/quamolit/pull/188)接通 GPU 时间采样，复用参数编码和 shader；本机 Apple/Metal-3 的五个乱序时间整帧 GPU/GPU 对照零差异，时间帧只上传 16 B uniform。#188 已合并；这些计数不证明 60 FPS。
-- Folding Fan 的图片、轴对齐嵌套窗口和整层回退已接通；[分层组合](layer-composition.md)使用显式实验契约，不自动拆分任意 Scene。旋转 clip、隔离组透明度与复杂绘制仍须按支持矩阵处理，不能只绘制可用子集。
-- #144 仍是双后端栅格化合同的开放决策：整数参考可零差异，小数/重叠中间帧仍有显著 Canvas/GPU 差异。MSAA 与解析覆盖率的临时硬件实验记录在 issue，不作为默认 renderer 或正式 DPR/性能验收。
+### 阶段矩阵
 
-PR #188 已在同一干净提交完成两档尺寸的三路径正式时长测量，见[现有消费者报告](consumer-performance.md#2026-10-0210k-独立动画正式时长报告)。CPU 全量采样明显不达 60 FPS；GPU 时间采样保持零位置上传，但栅格化、供电/刷新率和基线比较仍未完整验收。#198 的往返轨道已合并，#199 的嵌套图表消费者仍为候选；不把候选接口作为其他切片前置。本次独立推进 #34：以 Calcit 显式禁用嵌套交互子树并即时释放捕获，复用现有原生/Node/浏览器门禁，不新增生产 JS 或性能优化。#144 / #175 的画质和阶段证据、#176 的公共入口收敛仍待完成。发布 tag、完整组透明度/裁剪语义及阶段展示仍未完成；M2 保持开放。其他设备一律标为未验证，次要问题登记 issue，不反复扩大当前切片。
+| Milestone | 状态与已验证产物 | 未完成出口 / 后续工作 |
+| --- | --- | --- |
+| [M0](https://github.com/Quamolit/quamolit/milestone/4) | 开放；[Canvas 参考与测量协议](performance-m0.md)已有基线，新路径另见消费者报告 | #39 的同环境 baseline 比较、供电记录、协议负例及阶段展示；旧 Canvas 数字不能替代新架构 |
+| [M1](https://github.com/Quamolit/quamolit/milestone/1) | 已关闭；[下方阶段验收](#m1-阶段验收与展示)列出直接时间、固定 tick、声明、逻辑身份/释放及 TodoList 展示；材料随[已合并 #188](https://github.com/Quamolit/quamolit/pull/188)交付 | 不外推真实资源、一般指针捕获、GPU 全画质或稳定 tag 完成 |
+| [M2](https://github.com/Quamolit/quamolit/milestone/2) | 开放；公共 Calcit 组件/保留计划、干净消费者、资源/恢复、受限 GPU 三路径已运行；[正式报告](consumer-performance.md#2026-10-0210k-独立动画正式时长报告)记录真实负载 | #144 栅格化合同、#175 完整性能判定、#104 发布 tag 重跑、#176 全公共边界、#177 分层决策、#178 阶段展示、#179 门禁成本；不能只按上传量关闭 |
+| [M3](https://github.com/Quamolit/quamolit/milestone/3) | 开放；[11 个原有示例](demo-restoration.md)、图表作品、统一全屏画布、基础绘制与 Drag 路由已有可运行切片 | #36 真实发布入口已随 #201 接通、#34 完整交互、#53 文字/路径合同与缓存计数、#37 视觉矩阵及窄屏限制；原有入口齐全不等于全部出口验收 |
+| [M4](https://github.com/Quamolit/quamolit/milestone/5) | 开放；可消费 M2 的受限硬件证据，但没有一般 GPU 历史模拟或跨设备发布验收 | #54 的 tick/seed/checkpoint/device recovery、#41 的后端/Use.GPU ADR 与发布材料；其余设备未验证，不以结论替代实现依赖 |
+
+### 能力与后端矩阵
+
+“已实现”仅指所列 API/门禁覆盖的子集。Canvas 证据来自固定 Chromium 的 Node/浏览器与 macOS；GPU 硬件限非软件 Apple/Metal-3，CI 无硬件时必须单列 SKIP。任意分数边缘、字体与全部变换组合不由少量实色样本证明。
+
+| 能力 | Canvas / CPU 已合并基线 | WebGPU 已合并基线 | 证据、候选与限制 |
+| --- | --- | --- | --- |
+| 声明、Motion、显式时间 | ComponentPlan 与 Presence、标量/Vec2/关键帧及自定义 CPU 函数可采样 | 标准标量/Vec2 的有限子集；任意闭包不能转 WGSL | [保留组件](retained-component.md)、[GPU 标量](gpu-scalar-program.md)、`test:consumer`；mirror 扩展已随[合并 #198](https://github.com/Quamolit/quamolit/pull/198) |
+| 保留执行与增量失效 | 同源消费者 1000 时间帧声明/构建各1，绑定/变换采样各1001；版本变化显式失效 | 矩形 BatchPlan、实例参数/位置常驻、局部记录/时间 uniform | [消费者](isolated-consumer.md)、[组件批次](gpu-component-plan.md)；计数不证明完整事件索引、每帧分配或帧率 |
+| 基础路径、圆与文字 | rect/circle/polyline/polygon/cubic/text 使用原生 Canvas；图片走资源感知入口 | 组件矩形子集；文字/复杂路径不支持，应整层回退或明确拒绝 | [Curve](curve-restoration.md)、[图表组](layered-dashboard.md)、`test:curve-demo`/`test:icons-demo`/`test:solar-demo`；端点/接头固定为[候选 #202](https://github.com/Quamolit/quamolit/pull/202)，中文字体加载、失败及版本隔离随 #203 合并，排版/缓存计数仍归 #53 |
+| 祖先变换、clip、组 opacity | [已合并 #159](https://github.com/Quamolit/quamolit/pull/159)：嵌套矩形裁剪与隔离 surface，只合成一次组透明度 | 图片图层仅支持规定的轴对齐窗口、组 opacity=1；一般组/旋转 clip 不支持 | [图片支持边界](webgpu-scene-images.md)、`test:webgpu-images`/`test:layered-dashboard`；[候选 #199](https://github.com/Quamolit/quamolit/pull/199)补独立嵌套消费者与节点诊断，不补一般 GPU 组语义 |
+| 10k 同类实例 | `draw-instances!` 原生批次参考；10k 实际 Canvas 调用 | 静态/单脏记录/独立时间动画路径；不物化 10k 组件 | [实例入口](canvas-instances-reference.md)、[GPU 实例](webgpu-instances.md)、[同源报告](consumer-performance.md)；非整数中间帧差异仍归 #144，不宣称已达60 FPS |
+| 资源与设备恢复 | 逻辑 identity/generation、共享租约、图片加载与迟到清理 | 实例 buffer、texture runner 与受限 device loss/rebuild 已验证 | [资源注册表](resource-registry.md)、`test:consumer`/`test:webgpu-instances`；font 已接加载队列与迟到隔离；共享 font/glyph/geometry/pipeline 回收仍未完整接线 |
+| 命中与指针捕获 | 纯 Calcit HitPlan/PointerState；支持基础叶图元、逆变换/clip、Drag 捕获/释放 | 复用逻辑 CPU 路由；没有 GPU picking | [路由合同](scene-pointer.md)、`test:scene-hit`/`test:scene-pointer-browser`；嵌套禁用随[已合并 #200](https://github.com/Quamolit/quamolit/pull/200)，cubic/instances 命中及完整 ID 访问计数仍未完成 |
+| Canvas UI + GPU 层 | 显式 RenderLayer，统一时间/视口、声明顺序与整层回退 | 单根实例层可与 UI 同屏，不自动拆任意 Scene | [分层契约与门禁](layer-composition.md)；#177 的默认后端/成本决策未完成，跨层 capture 与 GPU 文字不在现有合同 |
+| 模块与真实入口 | 单个 Calcit 模块，inline/file 随安装内嵌；主 Snapshot 与独立消费者分工明确 | 同一模块可消费受支持 GPU 入口，无手工宿主 JS 导入 | [FFI](calcit-first-ffi.md)、[消费者](isolated-consumer.md)；[已合并 #201](https://github.com/Quamolit/quamolit/pull/201)贯通普通 compile/release 并隔离演示调度器；语言 named entry 创建仍待 [Calcit #1665](https://github.com/calcit-lang/calcit/issues/1665)，不把 entry 当分发隔离机制 |
+
+当前优先补齐 #34/#53 的图形与交互功能，而不是继续扩展性能优化。先按明确的路径端点/接头合同实现可见曲线命中，复用现有主 Snapshot、类型化 js-ffi 与浏览器参考；候选合并前不得当作已发布前置。字体、路径缓存、栅格化与阶段性能仍有各自验收责任。后续功能 PR 在这里更新能力边界，不另建 status.md、归档副本、同步器、renderer 或门禁链路。
+
+公共 API 的稳定性仍以[合同](api-contract.md)为准；矩阵中的可运行实验 API 不自动成为稳定接口。#144 的 MSAA/解析覆盖率只有临时硬件实验，不是默认 renderer 或正式 DPR/性能验收，不能用整数参考的零差异掩盖小数/重叠中间帧差异。
+
+三路径正式报告的原始环境为 Calcit/runtime 0.27.0、Apple M1 Pro/Metal-3，并非当前0.28.0新测结果。CPU 全量采样明确不达60 FPS；GPU 时间采样的零位置上传不等于全面帧率达标，供电/刷新率、baseline 与 #144 画质合同仍未完整验收。次要问题登记 issue；不为追求阶段关闭扩展优化或放宽画质。
 
 ## 实现顺序与跨阶段边界
 
@@ -42,7 +64,7 @@ PR #188 已在同一干净提交完成两档尺寸的三路径正式时长测量
 
 有状态、批量和 WGSL 本身并不排除表达式实现；应核对 ABI、异步、句柄生命周期和同一定义/不同定义的求值实例。完整 Fn schema、feature、target 与实际宿主测试不可省略。不得把大量业务 JS 塞进一个 file 来冒充 Calcit 迁移，也不能为追求内嵌而复制共享状态。
 
-当前 0.22 原始 ABI 的限制和 source 路径要求见 [FFI 规范](calcit-first-ffi.md)。#1359/#1360/#1361/#1363 已在上游关闭，是已交付功能参考，不是等待中的阻塞项。每次实现按实际使用版本核对能力。
+当前使用 0.28.0，原始 ABI 的限制和 source 路径要求见 [FFI 规范](calcit-first-ffi.md)。#1359/#1360/#1361/#1363 已在上游关闭，是已交付功能参考，不是等待中的阻塞项。每次实现按实际使用版本核对能力。
 
 遇到 Calcit bug 或缺失能力：先搜重复 issue，记录 CLI/runtime/module 版本、最小复现、预期/实际、受影响 API 和建议契约；可直接向 calcit-lang/calcit 上报。先采用有界的局部适配继续交付，在消费 issue 和源码/文档关联问题、绕过范围、回归测试和撤销条件。下一次升级重新运行复现，再决定移除；不假定新版本必定解决。不为了类型通过放宽整个公共 API 为 Dynamic。
 
@@ -52,7 +74,7 @@ PR #188 已在同一干净提交完成两档尺寸的三路径正式时长测量
 
 ### #50：第一优先：贯通 Calcit 组件与保留计划
 
-已有 #89 的保留计划及 #102 的部分纯决策迁移；#103 仅加固宿主回调。下一切片将组件声明、Motion 注册和依赖槽位接入公共 Calcit 入口。
+公共 `ComponentPlan` 已接通声明、Motion 槽位、时间采样与独立消费者；下一步依据上方矩阵补齐真实应用的完整失效/生命周期链路，不再把首个公共入口列为尚未实现。
 
 - 由 Calcit 定义计划构造、绑定选择、版本失效与生命周期；宿主只处理必要可变句柄/批量操作。
 - 生产路径不得导入 target/js/motion 或 test/host；#104 的消费者无需 JS sampler Map 手工拼接。
@@ -61,7 +83,7 @@ PR #188 已在同一干净提交完成两档尺寸的三路径正式时长测量
 
 ### #35：随主线实现 FFI，而非独立扩大清理范围
 
-已有 #95–#102 的归属纠偏与 Calcit 0.22/js-ffi 0.2.0；接下来服务 #50/#104 的实际宿主需求。
+当前版本为 Calcit/runtime0.28.0、js-ffi0.2.1-alpha.11；inline/file 分发、重编译与产物搬移已进入 #104，全部片段/公共边界审计与语言 named entry 创建仍未完成。
 
 - 优先使用 js-ffi Calcit API，必要适配采用定义级 :ffi :js :inline/:file；file 是单个函数表达式源码，不是 import 整个 ESM。
 - 状态、批量或 shader 不是自动保留整文件模块的理由；逐项核对 ABI、异步和共享状态，避免重复嵌入导致状态分裂。
@@ -96,41 +118,41 @@ M1仅验收上述逻辑合同和可编译展示，不要求一般隔离组透明
 
 ### #33：优先提供同源 Canvas 端到端参考
 
-已有 #97 的 Calcit 矩形绘制；下一切片消费 #50 的真实组件计划与 #104 的同源声明。
+基础叶图元与资源感知 Canvas document 已接通；嵌套消费者/统一节点诊断仍是 #199 候选。完整字体、路径和回退矩阵继续按 #53/#104 验收，不把首个矩形夹具当作全部能力。
 
 - 基础范围和不支持节点明确诊断；Scene 遍历与动画绑定优先 Calcit，原生 Canvas 能力来自 js-ffi。
 - 同一输入/时间与全量参考画面一致，覆盖中间帧、打断与同时间失效；不再为每个页面单写 renderer。
-- 已落地公共 [Canvas 实例绘制入口](canvas-instances-reference.md)（`draw-instances!`，10k 单层一次边界调用）；消费者/bench 接入与资源表随后。
+- 公共 [Canvas 实例绘制入口](canvas-instances-reference.md)已进入消费者与[帧报告](consumer-performance.md)，10k 单层一次边界调用仍执行10000次原生绘制；资源表已接通，这不是性能达标证据。
 
 ### #51：先接真实消费者需要的资源生命周期
 
-已有图层租约与 Presence 释放通知；先为 #50/#104 接通 ID/version 与实际宿主资源。
+ID/version、Presence 共享租约、实际 buffer/texture 宿主与受限设备恢复已接通；下一步补未实现 loader、跨资源恢复组合和 queue-safe 回收。
 
 - 承接 #49 移交的真实资源清理验收：退出终点、共享最后引用、重入、百次装卸后 live 基线。
 - device loss/rebuild 复用 Model 与资源版本；记录旧异步结果迟到的处理。
 - 已落地公共 [版本化实例源资源表](instance-resource-table.md)（`quamolit.instance-resource`，定义级 `:file` 宿主 + 类型化 Calcit 入口，100 次装卸回到 live 基线）。
 - 已落地纯 Calcit [通用资源生命周期](resource-lifecycle.md)及[多资源注册表](resource-registry.md)：图片、纹理、几何、字体、字形、buffer、pipeline 共用 logical identity、loading/ready/error、generation 隔离与动作协议；相同资源共享引用，零引用资源进入有界 LRU 缓存，迟到结果按完整身份安全释放。Folding Fan 与 100 次多资源装卸已进入自动测试。
 - 已落地纯 Calcit [Presence 资源连接](presence-resources.md)：唯一实例源按 buffer identity 获取一次 lease，退出转 idle、重入复用、容量换版本驱逐，100 次真实 Presence 出入后 close 回零。
-- 已落地 Calcit [Presence WebGPU 资源宿主](presence-webgpu-resources.md)、[device/registry 组合状态机](presence-device-coordinator.md)、[异步任务 runner](presence-resource-runner.md)与[多资源加载任务队列](resource-load-queue.md)：动作直接驱动实际 batch 创建、80 kB 上传、绘制和销毁；队列对所有资源种类提供优先级、去重、有界背压和取消判定，Presence buffer、Folding Fan [Canvas 图片宿主](image-resource-runner.md)与[真实 WebGPU texture](webgpu-texture-runner.md)已实际接通。下一步让 texture 进入 Scene 采样绘制，扩展 font/glyph、geometry、pipeline loader 及 queue-safe 回收。
+- Calcit [Presence WebGPU 宿主](presence-webgpu-resources.md)、[device/registry 状态机](presence-device-coordinator.md)、[异步 runner](presence-resource-runner.md)与[加载任务队列](resource-load-queue.md)已驱动 batch 创建、上传、绘制和销毁；队列支持优先级、去重、背压与取消。Presence buffer、[Canvas 图片](image-resource-runner.md)、[texture runner](webgpu-texture-runner.md)及[Scene 图片图层](webgpu-scene-images.md)已有实际消费；font/glyph、geometry、pipeline loader 及 queue-safe 回收仍待接线。
 
 ### #38：普通组件合批与显式 instances 共享入口
 
-先消费 #50 最小公共执行计划与 #39 已有测量协议；不要求上游整项关闭。
+显式 instances 与矩形批次已消费公共计划和测量协议；普通混合组件的一般自动合批仍不能由单根实例层推断为完成。
 
 - #104 同一组件输入对照 Canvas/实例路径，保持透明层序；10k instances 不物化 10k 组件。
 - 报告批次、调用、分配、复制/上传及阶段耗时；新 FFI 按 #35 的 inline/file 优先规则。
-- 已落地公共 [版本化实例源 GPU 上传绑定](instance-gpu-upload.md)（`upload-source!` 按 `(id,version)` 只上传一次）；10k 实例的顶点/参数常驻与整链路随后。
+- [版本化实例源 GPU 上传](instance-gpu-upload.md)与10k常驻参数已有消费者；连续基版单脏记录写入8 B，跳版本恢复80 kB快照。独立动画另有三路径负载，不能混算加速比。
 
 ### #40：让同源消费者实际运行 WebGPU
 
-已有 #87/#88/#90 的矩形、Presence 和 Vec2 GPU 夹具，缺公共执行集成与硬件证据。
+公共组件与独立消费者已有 CPU→GPU / GPU 时间采样、整层回退及受限 Metal 画面/恢复证据；一般组/复杂绘制、完整画质与发布验收仍未完成。
 
 - 复用 #104 的组件声明、Model、时间、输入与尺寸；支持基础节点、完整图层回退及设备恢复。
 - 在命名非软件 adapter 实际比较画面与上传/提交；skip 不计完成。按 #39 协议提供端到端测量。
 
 ### #52：标准动画 GPU 采样用同一 Calcit 声明验收
 
-已有 Vec2 tween 切片；将受支持子集接到 #50/#40/#104，不只增设孤立 shader 页面。
+标准标量、Vec2、位置/尺寸基础子集已进入同源消费者；mirror 轨道是 #198 候选。扩展应消费实际图表需求，不另增孤立 shader 页面。
 
 - 独立 CPU 数值参考、乱序时间与既定误差阈值；真实 GPU 时间变化只更新必要参数，记录位置上传量。
 - 其他算子明确 CPU 回退；扩展 GPU 子集由实际动画或瓶颈决定。
@@ -155,7 +177,7 @@ M1仅验收上述逻辑合同和可编译展示，不要求一般隔离组透明
 
 ### #53：在已贯通主路径上补齐绘制语义
 
-复用 #104 的声明与执行入口，补文字/路径/图片、嵌套 clip、隔离组 opacity。
+复用已有声明与执行入口；Canvas文字/路径/图片、嵌套clip与隔离组opacity已有切片。当前补齐确定描边、中文字体/失败、缓存失效计数及GPU文字/路径决策，不能把已交付基础重新列成待建后端。
 
 - 同源双后端视觉误差和不支持行为逐项声明；不得以重排透明节点换性能。
 
@@ -175,9 +197,9 @@ M1仅验收上述逻辑合同和可编译展示，不要求一般隔离组透明
 
 每个 milestone 关闭前必须交付可直观看到的成果：阶段验收矩阵和证据链接、可打开的演示入口、固定时间初始/中间/终点截图（交互功能附操作步骤）、实际计数/性能报告及环境、剩余限制和下一阶段入口。截图与报告进入 CI artifact 或稳定文档；用户能独立复现。阶段未达标时只展示已完成切片，不提前关闭 milestone。
 
-首个 #50 Calcit 公共集成见 [保留组件 API 与演示](retained-component.md)。该切片接通声明→槽位→时间采样→Canvas 对照，完整生命周期与 GPU/外部消费者验收仍按本计划推进。
+公共 Calcit 集成见[保留组件](retained-component.md)与上方矩阵；声明→槽位→采样→Canvas/受限GPU、生命周期与外部消费已有证据，剩余能力按各自出口验收。
 
-#104 的首个[独立消费检验](isolated-consumer.md)验证候选提交安装、公共 Calcit 调用、输出搬移与 `:file` 分发。后续把生命周期与阶段测量接入这条公共路径，不回到测试宿主拼装；完整 #104 和 M2 尚未结束。
+#104 的[同一消费者](isolated-consumer.md)已覆盖安装、公共调用、inline/file重编译、搬移、生命周期、资源/设备与阶段测量；继续扩展其实际缺口，不回到测试宿主拼装。发布tag和完整画质/阶段验收尚未完成。
 
 阶段成果统一从[演示导航](../demos/README.md)发现，新增页面须登记并通过静态产物导航门禁。公共路径、旧参考和 GPU 实验分别标注，导航连通不等于生命周期/GPU 集成验收；下一主线仍是 #49/#50/#104 的生命周期与 #39 的同源测量。
 
