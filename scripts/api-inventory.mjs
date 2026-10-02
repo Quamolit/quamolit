@@ -1,7 +1,7 @@
 // 只通过 Calcit 查询读取 Snapshot；生成清单/合同不修改 calcit.cirru。
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFile, writeFile, access } from "node:fs/promises";
+import { readFile, writeFile, access, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -60,6 +60,11 @@ export function consumerViolations(rows, declaration) {
 }
 export function verifyStableContract(expected, actual) {
   assert.deepEqual(expected, actual, "稳定 API 签名/类型变更需单独审查、迁移说明及版本计划，不能自动接受");
+}
+export function verifyHostBoundary(source, name) {
+  // 保守源码门禁：正式宿主不能依赖测试路径或任何本地编译产物。
+  // 下游实际依赖闭包仍由 test:consumer 编译/搬移验证，不以文本扫描替代。
+  assert.doesNotMatch(source, /\b(?:test\/|target\/js\/|quamolit\.test\.)/, `宿主混入测试/编译路径: ${name}`);
 }
 export function readmeExamples(rows, contract, markdown) {
   const examples = [...markdown.matchAll(/^```cirru\s*\n([\s\S]*?)^```\s*$/gm)].map((match) => match[1]);
@@ -164,6 +169,9 @@ export async function main(args = process.argv.slice(2)) {
     "未知参数",
   );
   const root = fileURLToPath(new URL("../", import.meta.url));
+  for (const name of await readdir(resolve(root, "src/host"), { recursive: true })) {
+    if (/\.(?:[cm]?js)$/.test(name)) verifyHostBoundary(await readFile(resolve(root, "src/host", name), "utf8"), name);
+  }
   const manifest = JSON.parse(await readFile(resolve(root, "docs/api-namespaces.json"), "utf8"));
   const version = execFileSync(process.env.CALCIT_BIN ?? "calcit", ["--version"], { encoding: "utf8" }).trim();
   assert.equal(version, manifest.calcitVersion, "先对齐 Calcit 工具链，再更新查询门禁");

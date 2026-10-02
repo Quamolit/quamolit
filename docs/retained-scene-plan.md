@@ -1,5 +1,7 @@
 # 保留式 Scene 计划与按需帧：M2 #50 切片
 
+本文的 `RetainedScenePlan` 是历史参考夹具，现位于 `test/host/retained-scene-plan.mjs`，仅由测试页面/Node 合同调用；它依赖测试编译产物，不是下游要导入的 JS 运行时。正式消费使用 Calcit [保留组件入口](retained-component.md)，并由[独立消费者](isolated-consumer.md)验证安装与产物搬移。以下保留参考算法和计数的解释，不把它升级为第二套公共 API。
+
 `RetainedScenePlan` 在宿主侧消费一次已经由 Calcit `validate-scene` 检查、序列化后的 `SceneDocument`。它复制文档一次，编译受支持的 group opacity、rect x/y/width/height 绑定槽位；Motion ID/version 只在宿主 sampler 表中查找。失效原因分类、重采样判定与采样值校验规则由 Calcit `quamolit.retained-scene` 提供（`revision-reasons`、`supported-target-field?`、`sampled-value-valid?`）；宿主只保留可变保留帧、sampler 闭包与静态副本。Scene IR 仍是无 DOM/GPU 句柄的纯数据，任意 CPU 采样函数不声称可降低为 WGSL。该层是 Quamolit 专属执行缓存，不属于通用 js-ffi。
 
 调用者把 Model、输入、资源、视图、画质和 Motion 的非负整数版本显式传给 `update(time, revisions, values)`；每个 sampler 同时声明它实际依赖的版本字段。时间变化采样所有绑定，版本变化只采样有关绑定；画质变化可以重绘而不重新采样与画质无关的 Motion。同样的时间与版本跳过。未知闭包捕获无法自动发现，调用者必须给变更的依赖递增版本；场景拓扑、几何或绑定描述变动使用更高的 `sceneRevision` 调用 `replace`，一次性重编译。更新先验证全部采样值，再提交到私有帧；失败不污染旧帧。绘制者用 `forEachNode` 同步借用保留节点，长期保留画面必须显式 `snapshot()`。静态 geometry/pipeline 的独立资源缓存、通用增量 Scene diff 应用与自动绑定依赖分析尚未实现。

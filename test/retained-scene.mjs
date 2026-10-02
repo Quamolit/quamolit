@@ -3,7 +3,7 @@ import {
   bound_scene_document_at as boundSceneDocumentAt,
   sample_direct_x as sampleDirectX,
 } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
-import { RetainedScenePlan } from "../src/host/retained-scene-plan.mjs";
+import { RetainedScenePlan } from "./host/retained-scene-plan.mjs";
 import { DemandFrameScheduler } from "../src/host/demand-frame-scheduler.mjs";
 import { InstanceSourceRegistry } from "./host/instance-sources.mjs";
 import { CanvasInstanceBatches } from "./host/canvas-instance-batches.mjs";
