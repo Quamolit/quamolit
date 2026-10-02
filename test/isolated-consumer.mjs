@@ -18,7 +18,7 @@ import {
   verifyIndependentGpuConsumerBrowser,
 } from "./consumer-gpu-browser.mjs";
 import { runConsumerBench } from "./consumer-bench.mjs";
-import { verifyFileRecompile } from "./consumer-ffi-recompile.mjs";
+import { verifyFfiRecompile } from "./consumer-ffi-recompile.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const fixture = join(root, "examples/retained-consumer");
@@ -89,7 +89,7 @@ try {
   run("yarn", ["install", "--immutable"], source);
   run("calcit", ["analyze", "check-public", "--ns", "app.main"], source);
   run("calcit", ["--emit-path", "target/js/app/", "js"], source);
-  const fileRecompile = await verifyFileRecompile({ source, resolvedModule, temporary, run });
+  const ffiRecompile = await verifyFfiRecompile({ source, resolvedModule, temporary, run });
   const output = join(source, "target/js/app");
   const modules = new Set();
   // Current Calcit ESM static imports are single-line. Copy only the entry-reachable closure;
@@ -485,7 +485,7 @@ try {
     gpuDualBrowser,
     gpuInstancesBrowser,
     benchmark,
-    fileRecompile,
+    ffiRecompile,
     negativeControl: [
       "停止 CPU 时间采样被断言检出",
       "停止 GPU uniform 写入被断言检出",
@@ -505,7 +505,7 @@ try {
       "GPU 硬件结果独立见 gpuBrowser/gpuInstancesBrowser；设备 mock 不是硬件证据",
       "已验证逻辑生命周期、真实实例表释放和 device loss 后同版本重建；尚未验证动态实例端到端性能",
       "模块缓存可复用；消费者目录和运行产物目录独立",
-      "JS-only 显式重编译已验证 :file 单函数片段；watch 与 inline 更新未验证",
+      "JS-only 显式重编译已验证 :file 与 :inline；watch/热更新未验证",
     ],
   };
   await writeFile(join(artifacts, "report.json"), JSON.stringify(report, null, 2));

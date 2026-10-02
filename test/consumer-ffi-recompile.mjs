@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 
 // 修改仅发生在本次消费测试拥有的副本，不写作者 checkout 或 caps 的共享缓存。
-export async function verifyFileRecompile({ source, resolvedModule, temporary, run }) {
+export async function verifyFfiRecompile({ source, resolvedModule, temporary, run }) {
   const project = join(temporary, "ffi-recompile");
   const modules = join(project, ".calcit/modules");
   const library = join(modules, "quamolit");
@@ -32,7 +32,7 @@ export async function verifyFileRecompile({ source, resolvedModule, temporary, r
   const generated = join(project, "target/js/app/quamolit.canvas-reference.mjs");
 
   // 每次在新 Node 进程加载产物，排除 ESM 缓存导致的假阴性。
-  const execute = (expectChanged) => {
+  const execute = (expectChanged, expectInlineChanged = false) => {
     const appUrl = pathToFileURL(join(project, "target/js/app/app.main.mjs")).href;
     const coreUrl = pathToFileURL(join(project, "target/js/app/calcit.core.mjs")).href;
     const code = `
@@ -47,6 +47,24 @@ export async function verifyFileRecompile({ source, resolvedModule, temporary, r
       } else {
         assert.equal(plain(draw())["canvas-calls"], 10000);
         assert.equal(context.calls, 10000);
+      }
+      const released = [];
+      const host = {
+        disposed: false,
+        context: {unconfigure(){released.push("context")}},
+        vertices: {destroy(){released.push("vertices")}},
+        params: {destroy(){released.push("params")}},
+        motions: {destroy(){released.push("motions")}},
+      };
+      if (${JSON.stringify(expectInlineChanged)}) {
+        assert.throws(() => app.dispose_gpu_$x_(host), /quamolit-inline-recompile-control/);
+        assert.equal(host.disposed, false);
+        assert.deepEqual(released, []);
+      } else {
+        app.dispose_gpu_$x_(host);
+        app.dispose_gpu_$x_(host);
+        assert.equal(host.disposed, true);
+        assert.deepEqual(released, ["context", "vertices", "params", "motions"]);
       }
     `;
     run(process.execPath, ["--input-type=module", "--eval", code], project);
@@ -72,18 +90,76 @@ export async function verifyFileRecompile({ source, resolvedModule, temporary, r
   assert.equal(digest(await readFile(join(project, "calcit.cirru"))), snapshotBefore);
   assert.equal(digest(await readFile(join(library, "calcit.cirru"))), libraryBefore);
   assert.equal(await readFile(join(resolvedModule, fragment), "utf8"), originalHost, "共享候选缓存必须未被修改");
+
+  // 同一副本继续验证 inline。只通过 Calcit CLI 修改定义级 FFI 元数据，不文本改写 Snapshot。
+  const target = "quamolit.gpu-component/raw-dispose!";
+  const snapshot = join(library, "calcit.cirru");
+  const json = (output) => {
+    const offset = output.search(/^\{/m);
+    assert.ok(offset >= 0, "Calcit CLI 缺少 JSON envelope");
+    return JSON.parse(output.slice(offset));
+  };
+  const query = () => json(run("calcit", [snapshot, "query", "def", target, "--format", "json"], project)).data;
+  const definition = query();
+  assert.equal(definition.js_ffi.source_kind, "inline");
+  const inline = definition.ffi[":js"][":inline"];
+  assert.equal(inline.split("h=>{").length, 2, "inline 故障注入必须命中真实释放函数");
+  const changedInline = inline.replace("h=>{", 'h=>{throw Error("quamolit-inline-recompile-control");');
+  const metadata = `{} (:backend :js) (:target :browser)\n  :js $ {} $ :inline ${JSON.stringify("|" + changedInline)}`;
+  const transaction = [
+    snapshot,
+    "edit",
+    "transaction",
+    "--code",
+    JSON.stringify([["edit", "ffi", target, "--code", metadata]]),
+    "--format",
+    "json",
+  ];
+  const inlineGenerated = join(project, "target/js/app/quamolit.gpu-component.mjs");
+  const inlineBefore = digest(await readFile(inlineGenerated));
+  const preview = json(run("calcit", [...transaction, "--dry-run"], project));
+  assert.equal(digest(await readFile(snapshot)), libraryBefore, "dry-run 不得修改库副本");
+  run("calcit", [...transaction, "--expect-revision", preview.original_revision], project);
+  const changed = query();
+  assert.equal(changed.ffi[":js"][":inline"], changedInline);
+  assert.deepEqual(changed.code, definition.code, "不能靠修改 Calcit 函数体触发新行为");
+  assert.deepEqual(changed.schema, definition.schema);
+  assert.notEqual(digest(await readFile(snapshot)), libraryBefore);
+  assert.equal(digest(await readFile(inlineGenerated)), inlineBefore);
+  execute(true, false); // inline 仅改元数据，已生成的旧释放函数仍执行且幂等。
+  compile();
+  const inlineAfter = digest(await readFile(inlineGenerated));
+  assert.notEqual(inlineAfter, inlineBefore);
+  execute(true, true); // 公共消费者调用观察到新 inline，释放前故障可见。
+  assert.equal(digest(await readFile(join(project, "calcit.cirru"))), snapshotBefore);
+  assert.equal(digest(await readFile(join(resolvedModule, "calcit.cirru"))), libraryBefore, "共享 Snapshot 不得改变");
+  assert.equal(await readFile(join(resolvedModule, fragment), "utf8"), originalHost);
   return {
     result: "PASS",
-    scope: ":file 单函数片段；不声称 watch 或 inline 更新已验证",
-    baselineCanvasCalls: 10000,
-    unchangedWithoutCompile: true,
-    changedAfterCompile: true,
+    scope: ":file 与 :inline 显式重编译；不声称 watch/热更新已验证",
     consumerSnapshotUnchanged: true,
-    librarySnapshotUnchanged: true,
     sharedCacheUnchanged: true,
-    generatedBefore: before,
-    generatedAfter: after,
-    fragmentBefore: digest(originalHost),
-    fragmentAfter: changedHost,
+    file: {
+      result: "PASS",
+      baselineCanvasCalls: 10000,
+      unchangedWithoutCompile: true,
+      changedAfterCompile: true,
+      librarySnapshotUnchanged: true,
+      generatedBefore: before,
+      generatedAfter: after,
+      fragmentBefore: digest(originalHost),
+      fragmentAfter: changedHost,
+    },
+    inline: {
+      result: "PASS",
+      target,
+      baselineReleases: 4,
+      unchangedWithoutCompile: true,
+      changedAfterCompile: true,
+      definitionBodyUnchanged: true,
+      schemaUnchanged: true,
+      generatedBefore: inlineBefore,
+      generatedAfter: inlineAfter,
+    },
   };
 }
