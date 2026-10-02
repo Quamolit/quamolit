@@ -107,14 +107,22 @@
                     []
                       scene/ScalarBinding :target (scene/ScalarTarget :x) :motion-id |x :version 1
                       scene/ScalarBinding :target (scene/ScalarTarget :y) :motion-id |y :version 1
+                      scene/ScalarBinding :target (scene/ScalarTarget :width) :motion-id |width :version 1
+                      scene/ScalarBinding :target (scene/ScalarTarget :height) :motion-id |height :version 1
                     , :interaction $ scene/SceneInteraction :none
                 descriptor $ motion/ScalarDescriptor :id |x :version 1 :motion $ motion/ScalarMotion :tween
                   motion/ScalarTween :start 0 :duration 1 :from 80 :to 144 :easing $ motion/Easing :smoothstep
                 vertical $ motion/ScalarDescriptor :id |y :version 1 :motion $ motion/ScalarMotion :tween
                   motion/ScalarTween :start 0 :duration 1 :from (+ props model input) :to (+ props model input 32) :easing $ motion/Easing :smoothstep
+                width $ motion/ScalarDescriptor :id |width :version 1 :motion $ motion/ScalarMotion :tween
+                  motion/ScalarTween :start 0 :duration 1 :from (/ viewport 10) :to
+                    + (/ viewport 10) 64
+                    , :easing $ motion/Easing :smoothstep
+                height $ motion/ScalarDescriptor :id |height :version 1 :motion $ motion/ScalarMotion :tween
+                  motion/ScalarTween :start 0 :duration 1 :from 20 :to 52 :easing $ motion/Easing :smoothstep
               component/ComponentDeclaration :scene
                 scene/SceneDocument :nodes $ [] fixed moving
-                , :motions $ [] descriptor vertical
+                , :motions $ [] descriptor vertical width height
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'Number 'Number 'Number 'Bool 'Number

@@ -157,7 +157,7 @@ export async function verifyIndependentGpuConsumerBrowser(page, artifacts) {
   assert.deepEqual(report.errors, []);
   assert.equal(report.samples.length, 15);
   assert.equal(report.coldRecordBytes, 640000);
-  assert.equal(report.coldParameterBytes, 1600000);
+  assert.equal(report.coldParameterBytes, 2240000);
   assert.equal(report.hotRecordBytes, 0);
   assert.equal(report.hotParameterBytes, 0);
   assert.equal(report.frames.length, 5);
@@ -348,6 +348,10 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
           const t = Math.max(0, Math.min(1, time)),
             eased = t * t * (3 - 2 * t);
           const expected = alpha ? [eased, eased] : [80 + 64 * eased, 22 + model + 32 * eased];
+          if (!alpha) {
+            actual.push(...(await globalThis.__quamolitScalarProbe(host, 1, time, 3)));
+            expected.push(viewport / 10 + 64 * eased, 20 + 32 * eased);
+          }
           numericSamples.push({ time, actual, expected });
         }
       }
@@ -360,11 +364,11 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
     }
     return {
       result: "PASS",
-      mode: alpha ? "smoothstep-alpha" : dual ? "smoothstep-xy" : "linear-x",
+      mode: alpha ? "smoothstep-alpha" : dual ? "smoothstep-xy-size" : "linear-x",
       adapter: identity,
       frames,
       numericSamples,
-      diagnosticReadbackBytes: numericSamples.length * 8,
+      diagnosticReadbackBytes: numericSamples.reduce((bytes, sample) => bytes + sample.actual.length * 4, 0),
       errors,
       channelsPerFrame: 230400,
     };
@@ -397,11 +401,11 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
     const reused = index < 5 || index > 8;
     assert.equal(frame.reused, reused);
     assert.equal(frame.uploadedBytes, reused ? 0 : 128);
-    assert.equal(frame.parameterBytes, reused ? 0 : dual && !alpha ? 256 : 224);
+    assert.equal(frame.parameterBytes, reused ? 0 : dual && !alpha ? 448 : 352);
   }
   assert.equal(report.numericSamples.length, dual ? 7 : 0);
   for (const sample of report.numericSamples) {
-    for (let axis = 0; axis < 2; axis++) {
+    for (let axis = 0; axis < sample.expected.length; axis++) {
       assert.ok(
         Math.abs(sample.actual[axis] - sample.expected[axis]) <= 1e-5 + 1e-5 * Math.abs(sample.expected[axis]),
         JSON.stringify(sample),

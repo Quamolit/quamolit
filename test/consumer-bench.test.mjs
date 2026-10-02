@@ -83,7 +83,7 @@ test("同源独立实例测量拒绝热位置上传、重复帧上传与伪装�
     coveredPixels: 40000,
     beforeDispose: { liveVersions: 0 },
     afterDispose: { liveBuffers: 0, liveVersions: 0 },
-    coldCounters: { recordBytes: 640000, parameterBytes: 1600000 },
+    coldCounters: { recordBytes: 640000, parameterBytes: 2240000 },
     byteProbes: [1, 1, 0].map((time) => ({
       time,
       recordBytes: 0,

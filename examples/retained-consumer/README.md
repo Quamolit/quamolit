@@ -16,7 +16,7 @@ calcit query def app.main/update-plan --raw
 
 从 Quamolit 根目录可运行 `yarn vite examples/retained-consumer --host 127.0.0.1 --port 5183` 查看页面。Vite 只是开发服务器，不是 Calcit 消费者的运行时依赖。点击时间按钮可乱序查看中间帧，在相同时间修改 Model、资源 ready 与宽度版本，观察声明次数及画面更新。
 
-原页面的“矩形透明度渐入”或 `?motion=alpha` 使用 Calcit `declare-alpha` 复用原两矩形 Scene，以两点 clamp 关键帧声明0→1的smoothstep alpha；GPU冷准备归一化到已有tween内核，不新增JS动画或轨道shader。界面显示Canvas参考，GPU采样/上传/数值和画面对照复用已有双轴硬件专项，多段/循环与group opacity仍不支持。三槽布局的冷安装内存/字节变化见[GPU合同](../../docs/gpu-scalar-program.md)，旧性能样本仍属于旧源码。
+原页面的“矩形透明度渐入”或 `?motion=alpha` 使用 Calcit `declare-alpha` 复用原两矩形 Scene，以两点 clamp 关键帧声明0→1的smoothstep alpha；GPU冷准备归一化到已有tween内核，不新增JS动画或轨道shader。界面显示Canvas参考，GPU采样/上传/数值和画面对照复用已有双轴硬件专项，多段/循环与group opacity仍不支持。五槽布局的冷安装内存/字节变化见[GPU合同](../../docs/gpu-scalar-program.md)，旧性能样本仍属于旧源码。
 
 ## API 调用顺序
 
@@ -28,7 +28,7 @@ calcit query def app.main/update-plan --raw
 
 ## 隔离门禁
 
-页面可在“线性矩形 + 折线”、“双轴 smoothstep”与“Presence 生命周期”之间切换，后两者也可通过 `?motion=dual` / `?motion=presence` 直接进入。双轴声明仍由 Calcit 的 `declare-dual` 创建，同一参数供 `start-dual` / `update-dual` 的 Canvas 参考和 GPU 程序使用。切换声明时重建计划，保留当前显式时间/Model，不在旧声明的相同版本上错误复用结构。
+页面可在“线性矩形 + 折线”、“位置与尺寸渐变”与“Presence 生命周期”之间切换，后两者也可通过 `?motion=dual` / `?motion=presence` 直接进入。位置与尺寸声明仍由 Calcit 的 `declare-dual` 创建，同一参数供 `start-dual` / `update-dual` 的 Canvas 参考和 GPU 程序使用。切换声明时重建计划，保留当前显式时间/Model，不在旧声明的相同版本上错误复用结构。
 
 Presence 模式的 Scene、稳定 key、协调、任意时间采样、是否继续请求帧、显式结算和 ComponentPlan 都在消费方 Calcit 中。页面 JS 只提交“重排 / 移除 / 重入 / 结算”事件并绘制返回计划。移除后橙色卡片继续淡出但立即停止交互；动画中途重入从当前 alpha 继续；退出终点只有显式结算才返回一次释放通知。隔离 Node 合同另用两个实例节点共享同一 `(id,version)`，让 Calcit 计算引用和释放决定，再由公共实例资源表实际释放：连续 100 次单调版本装卸均回到 live=0。
 

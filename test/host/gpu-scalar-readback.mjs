@@ -7,7 +7,7 @@ export async function readScalarSample(host, index, time, axis = 0) {
     index < 0 ||
     index >= host.scalarCount ||
     !Number.isFinite(time) ||
-    (axis !== 0 && axis !== 2)
+    (axis !== 0 && axis !== 2 && axis !== 3)
   )
     throw Error("invalid-scalar-probe");
   const device = host.device;
@@ -17,8 +17,8 @@ export async function readScalarSample(host, index, time, axis = 0) {
       code: `${host.scalarSource}
 @group(0) @binding(2) var<storage,read_write> result: array<f32>;
 @compute @workgroup_size(1) fn probe(){
- result[0]=sampleMotion(motions[${index * 3 + axis}u],0.0);
- result[1]=sampleMotion(motions[${index * 3 + (axis === 2 ? 2 : 1)}u],0.0);
+ result[0]=sampleMotion(motions[${index * 5 + axis}u],0.0);
+ result[1]=sampleMotion(motions[${index * 5 + (axis === 2 ? 2 : axis + 1)}u],0.0);
 }`,
     });
     const pipeline = await device.createComputePipelineAsync({
