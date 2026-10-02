@@ -32,6 +32,68 @@ const samplers = new Map([
   ],
 ]);
 const makePlan = () => new RetainedScenePlan(toJsData(boundSceneDocumentAt(0)), samplers);
+
+test("延迟唤醒只保留一个 deadline，失效/暂停/卸载使迟到计时回调无效", () => {
+  const timers = new Map(),
+    frames = new Map(),
+    paints = [];
+  let id = 0;
+  const scheduler = new DemandFrameScheduler({
+    requestFrame: (callback) => {
+      frames.set(++id, callback);
+      return id;
+    },
+    cancelFrame: (handle) => frames.delete(handle),
+    setTimer: (callback, delay) => {
+      timers.set(++id, { callback, delay });
+      return id;
+    },
+    clearTimer: () => {}, // 故意保留取消后的回调，验证代次隔离。
+    paint: (time, reasons) => paints.push({ time, reasons }),
+  });
+  scheduler.requestAfter("event", 5000);
+  const first = timers.get(1);
+  assert.equal(first.delay, 5000);
+  assert.equal(scheduler.waiting, true);
+  assert.equal(scheduler.pending, false);
+  assert.throws(() => scheduler.requestAfter("event", NaN), /delay/);
+  assert.throws(() => scheduler.requestAfter("", 0), /reason/);
+  scheduler.requestAfter("replacement", 1000);
+  first.callback();
+  assert.equal(scheduler.waiting, true);
+  assert.equal(frames.size, 0);
+  const replacement = timers.get(2).callback;
+  scheduler.request("viewport");
+  replacement();
+  assert.equal(scheduler.waiting, false);
+  frames.get(3)(16);
+  assert.deepEqual(paints, [{ time: 16, reasons: ["viewport"] }]);
+  scheduler.requestAfter("event", 100);
+  const paused = timers.get(4).callback;
+  scheduler.pause();
+  scheduler.requestAfter("event", 100);
+  assert.equal(scheduler.waiting, false, "暂停期间不保留延迟请求，恢复时由调用者重算");
+  scheduler.resume();
+  paused();
+  assert.equal(scheduler.pending, false);
+  assert.equal(scheduler.waiting, false);
+  scheduler.requestAfter("event", 100);
+  const current = timers.get(5).callback;
+  current();
+  current();
+  assert.equal(scheduler.pending, true);
+  assert.equal(scheduler.waiting, false);
+  frames.get(6)(120);
+  assert.deepEqual(paints[1], { time: 120, reasons: ["event"] });
+  scheduler.requestAfter("event", Number.MAX_SAFE_INTEGER);
+  assert.equal(timers.get(7).delay, 2147483647, "长日志不能溢出成 1ms 忙循环");
+  scheduler.dispose();
+  timers.get(7).callback();
+  assert.equal(scheduler.pending, false);
+  assert.equal(scheduler.waiting, false);
+  assert.equal(paints.length, 2);
+  assert.throws(() => scheduler.requestAfter("event", 0), /disposed/);
+});
 const nodeAt = (plan, index) => {
   let found;
   plan.forEachNode((node, position) => {
