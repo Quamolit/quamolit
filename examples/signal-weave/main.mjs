@@ -10,7 +10,7 @@ import {
 } from "../../target/js/signal-weave/quamolit.examples.signal-weave.mjs";
 import { to_js_data } from "../../target/js/signal-weave/calcit.core.mjs";
 
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 
 export function mountDemo() {
   const canvas = document.querySelector("canvas");

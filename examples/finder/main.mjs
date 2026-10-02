@@ -1,7 +1,7 @@
 // 宿主只负责时钟、URL、DOM 与坐标逆变换；场景、命中、过渡和日志重放均在 Calcit。
 import * as finder from "../../target/js/finder/quamolit.examples.finder.mjs";
 import { to_js_data } from "../../target/js/finder/calcit.core.mjs";
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const canvas = document.querySelector("#scene"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), message = document.querySelector("#message"), slider = document.querySelector("#time");

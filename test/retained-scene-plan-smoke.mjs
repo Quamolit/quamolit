@@ -6,7 +6,7 @@ import {
   sample_direct_x as sampleDirectX,
 } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 import { RetainedScenePlan } from "./host/retained-scene-plan.mjs";
-import { DemandFrameScheduler } from "../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../demos/demand-frame-scheduler.mjs";
 
 const revisions = () => ({ model: 0, input: 0, resources: 0, viewport: 0, quality: 0, motion: 0 });
 const values = () => ({ model: 0, input: 0, ready: false, viewport: 100 });

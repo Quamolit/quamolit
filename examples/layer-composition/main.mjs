@@ -4,7 +4,7 @@ import * as layers from "../../target/js/layer-composition/quamolit.layers.mjs";
 import * as resource from "../../target/js/layer-composition/quamolit.instance-resource.mjs";
 import * as gpu from "../../target/js/layer-composition/quamolit.webgpu-batches.mjs";
 import { to_js_data as plain } from "../../target/js/layer-composition/calcit.core.mjs";
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 
 export function mountDemo() {
   const canvas = document.querySelector("canvas");

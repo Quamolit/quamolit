@@ -10,7 +10,7 @@ import {
 } from "../../target/js/cohort-pulse/quamolit.examples.cohort-pulse.mjs";
 import { to_js_data } from "../../target/js/cohort-pulse/calcit.core.mjs";
 
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 
 export function mountDemo() {
   const canvas = document.querySelector("canvas");

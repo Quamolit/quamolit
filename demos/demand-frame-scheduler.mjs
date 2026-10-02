@@ -1,4 +1,4 @@
-/** One pending frame at most; explicit invalidations and input events wake an idle scene. */
+/** 演示页面共用的宿主调度器，不是公共 Calcit 模块入口。至多保留一个待执行帧。 */
 export class DemandFrameScheduler {
   #requestFrame;
   #cancelFrame;

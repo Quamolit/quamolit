@@ -40,7 +40,7 @@ import {
   take_load,
 } from "../../target/js/folding-fan/quamolit.resource-load-queue.mjs";
 import { init_tags, option_$o_unwrap, to_js_data } from "../../target/js/folding-fan/calcit.core.mjs";
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
   const canvas = document.querySelector("canvas"),
     context = canvas.getContext("2d");

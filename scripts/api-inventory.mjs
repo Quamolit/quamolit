@@ -63,8 +63,12 @@ export function verifyStableContract(expected, actual) {
 }
 export function verifyHostBoundary(source, name) {
   // 保守源码门禁：正式宿主不能依赖测试路径或任何本地编译产物。
-  // 下游实际依赖闭包仍由 test:consumer 编译/搬移验证，不以文本扫描替代。
-  assert.doesNotMatch(source, /\b(?:test\/|target\/js\/|quamolit\.test\.)/, `宿主混入测试/编译路径: ${name}`);
+  // 演示 glue 也不是生产依赖；实际闭包仍由 test:consumer 编译/搬移验证，不以文本扫描替代。
+  assert.doesNotMatch(
+    source,
+    /\b(?:test\/|target\/js\/|examples\/|demos\/|quamolit\.(?:test|examples)\.)/,
+    `宿主混入测试/演示/编译路径: ${name}`,
+  );
 }
 export function readmeExamples(rows, contract, markdown) {
   const examples = [...markdown.matchAll(/^```cirru\s*\n([\s\S]*?)^```\s*$/gm)].map((match) => match[1]);

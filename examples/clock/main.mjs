@@ -1,7 +1,7 @@
 // 页面只管理时钟/视口/DOM；数字进位、七段几何与渐变都在 Calcit。
 import { draw_$x_, digits_at, scene_at } from "../../target/js/clock/quamolit.examples.clock.mjs";
 import { to_js_data } from "../../target/js/clock/calcit.core.mjs";
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), slider = document.querySelector("#time");

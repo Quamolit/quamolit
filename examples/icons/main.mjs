@@ -10,7 +10,7 @@ import {
   hit_target,
 } from "../../target/js/icons/quamolit.examples.icons.mjs";
 import { to_js_data } from "../../target/js/icons/calcit.core.mjs";
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
   const canvas = document.querySelector("canvas"),
     context = canvas.getContext("2d");

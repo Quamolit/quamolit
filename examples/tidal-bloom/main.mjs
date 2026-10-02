@@ -16,7 +16,7 @@ import {
 } from "../../target/js/tidal-bloom/quamolit.examples.tidal-bloom.mjs";
 import { to_js_data } from "../../target/js/tidal-bloom/calcit.core.mjs";
 
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 
 export function mountDemo() {
   const canvas = document.querySelector("canvas");

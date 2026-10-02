@@ -1,7 +1,7 @@
 // 页面仅管理宿主时钟、视口、URL 和控件；雨滴状态与几何由 Calcit 生成。
 import { draw_$x_, scene_at } from "../../target/js/raining/quamolit.examples.raining.mjs";
 import { to_js_data } from "../../target/js/raining/calcit.core.mjs";
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), slider = document.querySelector("#tick"), seedInput = document.querySelector("#seed");

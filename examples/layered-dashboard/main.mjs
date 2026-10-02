@@ -1,6 +1,6 @@
 import { draw_$x_, scene_at } from "../../target/js/layered-dashboard/quamolit.examples.layered-dashboard.mjs";
 import { to_js_data } from "../../target/js/layered-dashboard/calcit.core.mjs";
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 
 export function mountDemo() {
   const canvas = document.querySelector("canvas");
