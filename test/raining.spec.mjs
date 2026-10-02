@@ -46,6 +46,19 @@ test("全屏 DPR 2：暂停 resize 不推进 tick，浮层可收起", async ({ b
       "CANVAS",
     );
     await page.screenshot({ path: testInfo.outputPath("raining-390-dpr2.png") });
+    // 播放中尚未跨过30Hz tick时，视口失效也必须重绘；不能仅依赖 tick 变化。
+    await page.evaluate(() => {
+      const request = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = (callback) => request(() => callback(0));
+      window.rainingDemo.play();
+    });
+    await page.setViewportSize({ width: 392, height: 844 });
+    await expect.poll(() => page.evaluate(() => window.rainingDemo.snapshot().width)).toBe(784);
+    const sameTick = await page.evaluate(() => window.rainingDemo.snapshot());
+    expect(sameTick.tick).toBe(before.tick);
+    expect(sameTick.scene).toEqual(before.scene);
+    expect(sameTick.playing).toBe(true);
+    await page.evaluate(() => window.rainingDemo.pause());
   } finally {
     await context.close();
   }

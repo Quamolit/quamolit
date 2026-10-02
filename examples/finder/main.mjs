@@ -1,14 +1,21 @@
 // 宿主只负责时钟、URL、DOM 与坐标逆变换；场景、命中、过渡和日志重放均在 Calcit。
 import * as finder from "../../target/js/finder/quamolit.examples.finder.mjs";
 import { to_js_data } from "../../target/js/finder/calcit.core.mjs";
+import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const canvas = document.querySelector("#scene"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), message = document.querySelector("#message"), slider = document.querySelector("#time");
 const play = document.querySelector("#play"), panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
 const params = new URLSearchParams(location.search);
 let log = finder.empty_events(), time = 0, model = finder.initial(), paints = 0;
-let playing = false, raf = null, anchor = 0, started = 0, until = 10;
+let playing = false, anchor = 0, started = 0, until = 10;
 let view = { scale: 1, x: 0, y: 0 };
+const scheduler = new DemandFrameScheduler({
+  requestFrame: callback => requestAnimationFrame(callback),
+  cancelFrame: handle => cancelAnimationFrame(handle),
+  paint: (now, reasons) => playing ? frame(now) : draw(),
+});
+function wake(reason) { scheduler.request(reason); scheduler.resume(); }
 function draw() {
   const bounds = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   const width = Math.max(1, Math.round(bounds.width * dpr)), height = Math.max(1, Math.round(bounds.height * dpr));
@@ -26,21 +33,21 @@ function sample(next) {
   if (!Number.isFinite(next) || next < 0 || next > 10) throw new RangeError("演示时间必须在 0–10 秒内");
   model = finder.replay(log, next); time = next; draw();
 }
-function stop() { playing = false; if (raf !== null) cancelAnimationFrame(raf); raf = null; play.textContent = "播放时间"; }
+function stop() { playing = false; scheduler.pause(); play.textContent = "播放时间"; }
 function frame(now) {
   if (!playing) return;
   const next = Math.min(until, anchor + Math.max(0, now - started) / 1000);
   sample(next);
-  if (next >= until) stop(); else raf = requestAnimationFrame(frame);
+  if (next >= until) stop(); else scheduler.request("animation");
 }
 function start(limit = 10) {
   if (playing) return;
   if (time >= 10) sample(0);
   anchor = time; started = performance.now(); until = Math.min(10, limit);
-  playing = true; play.textContent = "暂停时间"; raf = requestAnimationFrame(frame);
+  playing = true; play.textContent = "暂停时间"; wake("animation");
 }
 function snapshot() {
-  return {
+  return { pending: scheduler.pending,
     time,
     model: to_js_data(model),
     events: to_js_data(log),
@@ -86,9 +93,9 @@ document.querySelector("#share").onclick = async () => {
 };
 toggle.onclick = () => { panel.hidden = !panel.hidden; toggle.setAttribute("aria-expanded", String(!panel.hidden)); toggle.textContent = panel.hidden ? "展开面板" : "收起面板"; draw(); };
 if (innerWidth < 600) { panel.hidden = true; toggle.setAttribute("aria-expanded", "false"); toggle.textContent = "展开面板"; }
-const observer = new ResizeObserver(draw); observer.observe(canvas);
+const observer = new ResizeObserver(() => wake("resize")); observer.observe(canvas);
 let resolution;
-function watchDpr() { resolution?.removeEventListener("change", watchDpr); resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`); resolution.addEventListener("change", watchDpr); draw(); }
+function watchDpr() { resolution?.removeEventListener("change", watchDpr); resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`); resolution.addEventListener("change", watchDpr); wake("dpr"); }
 watchDpr();
 const listeners = new AbortController();
 document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); }, { signal: listeners.signal });
@@ -108,6 +115,6 @@ if (params.has("log")) safely(() => {
 });
 const requested = Number(params.get("t") || 0);
 safely(() => sample(Number.isFinite(requested) && requested >= 0 && requested <= 10 ? requested : 0));
-return () => { stop(); canvas.onclick = null; listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.finderDemo === api) delete window.finderDemo; };
+return () => { stop(); scheduler.dispose(); canvas.onclick = null; listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.finderDemo === api) delete window.finderDemo; };
 }
 if (location.pathname.endsWith("/examples/finder/index.html")) mountDemo();

@@ -17,6 +17,8 @@
 
 这不是完整脚本分层盘点，也不替代既有 CI 回归。新增功能尽量沿同一消费者验证成功、回退和释放，底层纯语义保留独立单测；新增命令/job/主题文档须说明现有链路无法承接的原因。计数、画质和帧耗时分开报告，次要边界登记 issue。现有 visual workflow 从消费者报告生成四项硬件专项摘要，分别统计 PASS、SKIP 和未执行，并显示 adapter/原因；报告缺失不记为通过，要求硬件时的失败报告保留已得到的 SKIP。摘要只覆盖这条关键链路，不冒充全部 Playwright 用例的 SKIP 总数。[PR 模板](../.github/PULL_REQUEST_TEMPLATE.md)要求声明硬件、容差及新增复杂度的理由，不替代实际验证。
 
+`test:demo-nav` 的既有共享调度矩阵覆盖三个图表页面及 Binary Tree、Curve、Solar、Clock、Raining、Finder、Icons：自动到终点（原有示例）、空闲至少2秒、输入唤醒、暂停 resize、伴随尺寸通知的 DPR 1→2、导航卸载后无待执行帧。它们复用同一个 `DemandFrameScheduler`，不改变 Calcit 动画/模型；Raining 保留固定 tick，尺寸通知即使未跨 tick 也重绘。同步 seek/截图接口保持同步。TodoList 的未来日志定时器、Folding Fan 的异步资源唤醒、其他诊断页及无通知 DPR-only 场景仍待 #50 收口；此矩阵不证明全部示例、GPU或性能已验收。
+
 #179 的耗时按实际 Actions job/step 比较，不用测试条数推算。5fd4a69 的 visual 为7m8s，其中完整导航/构建75s、Chromium安装48s、Motion浏览器30s、干净消费者21s；原始步骤可从 [Actions](https://github.com/Quamolit/quamolit/actions/runs/36921147534)复核。新必跑job/重型测试不得隐式增加；若持续超过这次预算，先比较安装/网络波动与重复准备，附前后数据解释，不靠删除作品覆盖或失败断言降时长。单次观测不是长期缩短证明，全部workflow的稳定成本对比仍待#179验收。
 
 `test:motion-browser`在同一快照下只编译一次motion入口（原来四次），保留原14个namespace、4个原生过滤器、12个Node文件及31个浏览器用例；其他5个编译入口不变，独立测试命令仍自行编译。聚合命令复用第一次产物，不引入缓存、环境跳过开关或新调度器；修改相关独立命令时需同步聚合的检查/用例范围。Node分组可以合并，同一失败仍须使整条命令失败。实际本机单次91.16→58.12s只说明本切片观测，正式Actions成本以干净CI结果和稳定多轮比较为准。
