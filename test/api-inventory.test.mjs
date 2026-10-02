@@ -10,7 +10,19 @@ import {
   signatureEntry,
   verifyTypeCoverage,
   readmeExamples,
+  verifyHostBoundary,
 } from "../scripts/api-inventory.mjs";
+
+test("正式宿主拒绝测试目录和本地编译产物，不以正常平台调用冒充失败", () => {
+  assert.doesNotThrow(() => verifyHostBoundary("(ctx,x,y)=>ctx.fillRect(x,y,1,1)", "canvas.mjs"));
+  for (const source of [
+    'import {x} from "../../target/js/motion/calcit.core.mjs"',
+    'export {x} from "../../test/host/reference.mjs"',
+    'import("/test/host/reference.mjs")',
+    'const x = "./quamolit.test.motion-fixture.mjs"',
+  ])
+    assert.throws(() => verifyHostBoundary(source, "invalid.mjs"), /宿主混入/);
+});
 
 const manifest = () => ({
   schemaVersion: 1,

@@ -23,6 +23,7 @@
 - 写入 Snapshot 前运行 `calcit docs agents --contract`，按其要求核对 CLI、`deps.cirru` 和 `calcit query config`；首次使用或契约变化时读取完整指南。
 - `calcit.cirru` 只能通过 `calcit edit/tree/cursor/config` 修改，禁止文本 patch 或正则改写。目标与替换内容来自查询结果；多步写入使用 transaction、dry-run 和 revision 检查。
 - `calcit.cirru` 是项目主要源码，不得重新加上 `linguist-generated` 或 `-diff` 属性。
+- 最终对外提供 Calcit 模块；inline/file 片段由模块安装与编译自动处理，不要求下游手工引入 JS。demo/测试优先用主 Snapshot 的命名 entry，独立安装消费者保留独立 Snapshot。当前 CLI 创建 entry 缺口见 Calcit #1665，升级后复测迁移；此前保留原覆盖命令，不绕过结构化编辑规则。
 - 自动测量的 JSON/GZ、截图、编译产物放被忽略的 `test-results/`/`target/`，不作为日常源码提交；结论与复现说明人工整理入文档，阶段验收另提供 artifact。确需入库的生成合同/审查基线须逐项说明用途并在 `.gitattributes` 精确标记 `linguist-generated`，不把所有 JSON 或混合人工文档一概标为 generated。
 - 手写 JS 宿主适配只放 `src/host/`（入口/构建配置除外），测试夹具桥接放 `test/host/`；同步、无状态、原始 ABI 的小适配器优先用定义级 `:ffi :js :inline/:file` 嵌入 Calcit 定义，不新增独立 `.mjs`；归属细则见 [Calcit 优先的 FFI 边界](docs/calcit-first-ffi.md)。多入口 Calcit 编译产物放被忽略的 `target/js/<entry>/`，不得在根目录新建 `js-out-*`。
 - 优先采用当前已发布且适用的新方案；升级时同步 Calcit CLI、runtime、依赖、lockfile 与 CI。不要未经核对机械升级所有依赖；若回退，给出可复现回归和上游 issue。
