@@ -10108,6 +10108,21 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.instance-resource/InstanceTableHost)
             :args $ []
             :features $ #{} :js-ffi
+        'hit-source $ %{} 'CodeEntry
+          :doc "|从版本化资源表构造纯 Calcit 实例命中快照；原生数组读取暂用局部 inline，js-ffi #112 评论5962743181 发布类型化内嵌接口后替换。只在命中计划构建时调用，热查询不读取宿主。"
+          :code $ quote $ defn hit-source (table source)
+            let
+                positions $ unsafe-coerce (resolve table source) JsObject
+              hit/InstanceHitSource :source source :points $ map
+                range $ :count source
+                fn (index)
+                  motion/Vec2 :x
+                    raw-hit-coordinate positions $ * index 2
+                    , :y $ raw-hit-coordinate positions $ inc (* index 2)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/InstanceHitSource)
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource
+            :features $ #{} :js-ffi
         'live-count $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn live-count (table) (.live-count table)
           :examples $ []
@@ -10135,6 +10150,14 @@
             :js $ {} $ :file |src/host/instance-resource-table.mjs
           :schema $ :: 'Fn $ {} (:return 'JsObject)
             :args $ []
+            :features $ #{} :js-ffi
+        'raw-hit-coordinate $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-hit-coordinate (positions index) (raise |js-only-hit-coordinate)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(positions, index) => { if (!(positions instanceof Float32Array) || !Number.isSafeInteger(index) || index < 0 || index >= positions.length || !Number.isFinite(positions[index])) throw new TypeError('invalid-instance-hit-coordinate'); return positions[index]; }"
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'JsObject 'Number
             :features $ #{} :js-ffi
         'register! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn register! (table source positions)
@@ -10166,7 +10189,7 @@
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.instance-resource
-          :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
+          :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract) (quamolit.scene-hit :as hit) (quamolit.motion :as motion)
     'quamolit.layers $ %{} 'FileEntry
       :defs $ {}
         'LayerBackend $ %{} 'CodeEntry (:doc |)

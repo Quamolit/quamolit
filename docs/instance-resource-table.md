@@ -27,6 +27,8 @@ let
 
 `table` 统一为本项目的 `InstanceTableHost`，`source` 是 `quamolit.scene-ir/InstanceSource`；全量及补丁 `positions` 都是 `js-ffi.typed-arrays/Float32ArrayHost`，交错 `[x0, y0, x1, y1, ...]`，全量长度必须为 `count * 2`，补丁长度必须为偶数。公共 API 不接受裸 JsObject 作为表或位置数组。
 
+命中候选 #202 增加 `hit-source(table, source) -> InstanceHitSource`：先通过完整身份解析资源表，再由Calcit读取交错坐标并构造不可变 `List<Vec2>`；可作为 `compile-hit-plan-with-positions` 的源解析函数。只在计划构建时读取，不能逐指针输入重建。原生单元素读取暂为本命名空间定义级inline，带Float32Array/整数/范围/有限值校验；不新增JS文件或npm依赖。原因、实际失败及撤销条件见 [js-ffi #112 评论](https://github.com/calcit-lang/js-ffi/issues/112#issuecomment-5962743181)：当前上游快照接口仍引用整包宿主。上游发布可自动内嵌的类型化入口后替换局部原语，并重跑相同消费者门禁。
+
 此句柄用 `deftrait` + `:ffi (:kind :external-object)` 声明实际宿主方法，不新增 JS 包装对象或序列化表。`create-table!` 仅在可信的本项目 `raw-create-table!` 返回位置收窄；GPU/Presence 及独立消费者同步使用专属表类型。`patch-info` 的原生 DTO 仍是一个局部 JsObject 边界，进入 Calcit 后通过已有字段校验转换为 `PatchInfo`；不宣称整个 Trait/框架已消除 JsObject。表仍属实验接口，不提升稳定性标签。
 
 ## 归属与实现
