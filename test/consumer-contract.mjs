@@ -301,13 +301,18 @@ export async function verifyLayeredCanvasConsumer(page, artifacts) {
           y = height / 2 - 74 * scale;
         const progress = Math.max(0, Math.min(1, time));
         const fade = progress * progress * (3 - 2 * progress);
-        const surface = () => {
-          const c = document.createElement("canvas");
+        // 对照独立原生绘制，不调用库；隔离 surface 类型必须与声明的后端一致。
+        // Chromium 的 DOM/Offscreen 分数 clip 边缘并非像素等价。
+        const surface = (isolated = true) => {
+          const c =
+            isolated && typeof OffscreenCanvas === "function"
+              ? new OffscreenCanvas(width, height)
+              : document.createElement("canvas");
           c.width = width;
           c.height = height;
           return c;
         };
-        const expected = surface(),
+        const expected = surface(false),
           panel = surface(),
           plot = surface();
         const p = panel.getContext("2d"),
@@ -341,6 +346,8 @@ export async function verifyLayeredCanvasConsumer(page, artifacts) {
         const pixel = (px, py) => Array.from(actual.getImageData(x + px * scale, y + py * scale, 1, 1).data);
         return {
           time,
+          width,
+          height,
           differences,
           gpuAvailable: navigator.gpu !== undefined,
           mode: state.mode,

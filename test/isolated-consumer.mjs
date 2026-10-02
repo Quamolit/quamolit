@@ -614,6 +614,25 @@ try {
       `要求 10k 实例真实 GPU，但专项未运行：${JSON.stringify(gpuInstancesBrowser)}`,
     );
   }
+  layeredCanvas.fullscreen = [];
+  for (const dpr of [1, 2]) {
+    const stage = await browser.newPage({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: dpr });
+    const output = join(artifacts, `layered-fullscreen-dpr${dpr}`);
+    await mkdir(output, { recursive: true });
+    stage.on("pageerror", (error) => errors.push(error.message));
+    stage.on("requestfailed", (request) => errors.push(`${request.url()} ${request.failure()?.errorText}`));
+    stage.on("request", (request) => requests.push(request.url()));
+    try {
+      await stage.goto(`${url}?motion=layered`);
+      await stage.waitForFunction(() => window.consumer);
+      const result = await verifyLayeredCanvasConsumer(stage, output);
+      assert.equal(result.frames[0].width, 1000 * dpr);
+      assert.equal(result.frames[0].height, 900 * dpr);
+      layeredCanvas.fullscreen.push({ dpr, ...result });
+    } finally {
+      await stage.close();
+    }
+  }
   assert.deepEqual(errors, []);
   assert.ok(requests.every((url) => !/test\/host|quamolit\.test|js-ffi-assets|source-retired/.test(url)));
   const benchmark =
