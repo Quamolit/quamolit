@@ -2,6 +2,75 @@ import { expect, test } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import { compareFanDisplay } from "./host/folding-fan-reference.mjs";
 
+test("共享调度：暂停加载唤醒、终点停帧与卸载后的迟到图片隔离", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.addInitScript(() => {
+    const decode = HTMLImageElement.prototype.decode;
+    window.holdFanDecode = true;
+    window.fanDecodes = 0;
+    HTMLImageElement.prototype.decode = async function () {
+      await decode.call(this);
+      if (window.holdFanDecode && this.src.endsWith("/assets/lotus.jpg")) {
+        window.fanDecodes++;
+        await new Promise((resolve) => {
+          window.releaseFanDecode = resolve;
+        });
+      }
+    };
+  });
+  await page.goto("/demos/index.html?demo=folding-fan&t=0.18&events=0", { waitUntil: "domcontentloaded" });
+  await expect.poll(() => page.evaluate(() => window.fanDecodes)).toBe(1);
+  const snapshot = () => page.evaluate(() => window.foldingFanDemo.snapshot());
+  await expect.poll(async () => (await snapshot()).pending).toBe(false);
+  const loading = await snapshot();
+  expect(loading.resource).toBe("loading");
+  expect(loading.playing).toBe(false);
+  await page.evaluate(() => window.foldingFanDemo.pause());
+  await page.evaluate(() => {
+    window.holdFanDecode = false;
+    window.releaseFanDecode();
+  });
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  await expect.poll(async () => (await snapshot()).pending).toBe(false);
+  const ready = await snapshot();
+  expect(ready.time).toBe(loading.time);
+  expect(ready.model).toEqual(loading.model);
+  expect(ready.paints).toBeGreaterThan(loading.paints);
+  expect(await compareHistoricalRenderer(page)).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  await page.waitForTimeout(2100);
+  expect((await snapshot()).paints).toBe(ready.paints);
+  await page.click("#toggle-fold");
+  await expect.poll(async () => (await snapshot()).playing).toBe(false);
+  expect((await snapshot()).pending).toBe(false);
+  expect((await snapshot()).foldValue).toBe(0);
+  // 再请求一个版本并离开共享 canvas；迟到完成只能清理资源，不能重新提交帧。
+  await page.evaluate(() => {
+    window.holdFanDecode = true;
+    window.closedFan = window.foldingFanDemo;
+    void window.closedFan.loadResource(2);
+  });
+  await expect.poll(() => page.evaluate(() => window.fanDecodes)).toBe(2);
+  await page.click("#back-to-gallery");
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+  expect(await page.evaluate(() => typeof window.foldingFanDemo)).toBe("undefined");
+  const closed = await page.evaluate(() => window.closedFan.snapshot());
+  expect(closed).toMatchObject({ disposed: true, pending: false, playing: false });
+  const pixels = await page.locator("canvas").evaluate((canvas) => canvas.toDataURL());
+  await page.evaluate(() => {
+    window.holdFanDecode = false;
+    window.releaseFanDecode();
+  });
+  await expect.poll(() => page.evaluate(() => window.closedFan.snapshot().loadQueue.running)).toBe(0);
+  await page.waitForTimeout(100);
+  const settled = await page.evaluate(() => window.closedFan.snapshot());
+  expect(settled.paints).toBe(closed.paints);
+  expect(settled.pending).toBe(false);
+  expect(settled.imageMetrics.live).toBe(0);
+  expect(await page.locator("canvas").evaluate((canvas) => canvas.toDataURL())).toBe(pixels);
+  expect(errors).toEqual([]);
+});
+
 test("文字与折线使用完整 Canvas Scene，DPR 2 中间帧与独立原生参考全像素一致", async ({ browser }, testInfo) => {
   const context = await browser.newContext({ deviceScaleFactor: 2, viewport: { width: 900, height: 650 } });
   const page = await context.newPage();
