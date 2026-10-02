@@ -60,7 +60,7 @@ export function summarizeConsumerRun(run) {
       }
     if (run.backend === "gpu-scalar") {
       assert.equal(run.coldCounters.recordBytes, 640000);
-      assert.equal(run.coldCounters.parameterBytes, 1600000);
+      assert.equal(run.coldCounters.parameterBytes, 2240000);
     }
   } else {
     assert.equal(run.planCounts.declarations, 1);

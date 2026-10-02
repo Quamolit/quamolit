@@ -2,11 +2,13 @@
 
 推进 #52，消费 #118 的 ComponentPlan/矩形批次候选，不另造组件或 Scene。已接入参数常驻和 vertex shader 采样；已有真实 GPU 像素、线性及双轴 smoothstep 非整数读回，以及独立消费者分发验证。完整精度域与性能验收仍在开发，不以这些诊断帧代表完整数值等价。
 
-`quamolit.gpu-scalar-program/prepare-program(plan)` 返回 `ProgramResult :ready ScalarProgram` 或 `:fallback reason`。ready 保存同一来源计划、矩形帧和 ScalarParameter 列表。通过既有 `motion-gpu/lower-scalar` 检查描述符，再将明确支持的矩形 x/y/alpha constant、linear/smoothstep tween 或两点 clamp 轨道转成参数。轨道复用 tween 编码与 shader，段 easing 取首帧；重复时间保留“时间点前取首值，到点后右侧胜出”，非恒定零时长跳变仍被原精度预算拒绝。多段及 repeat/mirror 未实现，仍明确回退。alpha 是填充透明度替换，端点须在 `[0,1]`，不是 group opacity；隔离组、CPU 自定义变换、其他目标/算子及不支持的节点仍整层回退，不返回部分有效绑定。
+`quamolit.gpu-scalar-program/prepare-program(plan)` 返回 `ProgramResult :ready ScalarProgram` 或 `:fallback reason`。ready 保存同一来源计划、矩形帧和 ScalarParameter 列表。通过既有 `motion-gpu/lower-scalar` 检查描述符，再将明确支持的矩形 x/y/alpha/width/height constant、linear/smoothstep tween 或两点 clamp 轨道转成参数。轨道复用 tween 编码与 shader，段 easing 取首帧；重复时间保留“时间点前取首值，到点后右侧胜出”，非恒定零时长跳变仍被原精度预算拒绝。多段及 repeat/mirror 未实现，仍明确回退。alpha 是填充透明度替换，端点须在 `[0,1]`，不是 group opacity；隔离组、CPU 自定义变换、其他目标/算子及不支持的节点仍整层回退，不返回部分有效绑定。
 
-参数逻辑布局为 `index, axis, start, duration, from, to, easing, padding`，共8个Number。axis 0/1/2 对应 x/y/alpha，easing 0/1 对应 linear/smoothstep。constant归一化为相同from/to、duration=0；零时长在 time<start 时取from，否则取to，shader在除法前处理分支。storage buffer按节点保留三个32B槽，每槽为from/to/start/duration、enabled/easing/0/0；位置为index×96+axis×32，不在shader中搜索绑定。alpha同样由 vertex sampler 求值，再交给原预乘混合，不改变绘制顺序。
+参数逻辑布局为 `index, axis, start, duration, from, to, easing, padding`，共8个Number。axis 0/1/2/3/4 对应 x/y/alpha/width/height，easing 0/1 对应 linear/smoothstep。constant归一化为相同from/to、duration=0；零时长在 time<start 时取from，否则取to，shader在除法前处理分支。storage buffer按节点保留五个32B槽，每槽为from/to/start/duration、enabled/easing/0/0；位置为index×160+axis×32，不在shader中搜索绑定。alpha交给原预乘混合；宽高在既有顶点路径中生成矩形，不改变绘制顺序。
 
-三槽共用原buffer与pipeline，不增加资源数量，但参数容量从每节点64B增为96B。10k现有双轴负载的参数冷安装为960000B清零+640000B写入=1600000B，热帧仍仅16B uniform。历史两槽硬件/正式基准的数据按当时源码保留，不冒充三槽布局的新性能报告；本轮是功能扩展，不声称加速。
+五槽共用原buffer与pipeline，不增加资源数量，但参数容量从每节点96B增为160B。10k现有双轴负载的参数冷安装为1600000B清零+640000B写入=2240000B，热帧仍仅16B uniform。历史硬件/正式基准按当时源码保留，不冒充五槽布局的新性能报告；本轮是功能扩展，不声称加速。
+
+宽高复用已有 `ScalarTarget :width/:height` 与标量描述，不新增公开 API。端点须非负（零合法），否则以 `scalar-size-negative` 整层回退；已支持的 linear/smoothstep 单段不会在非负端点间超调。颜色、旋转/缩放与 group opacity 仍不在此子集中。现有 `?motion=dual` 消费者同时声明 x/y/width/height，测试复用原合同、参数槽清理、8个整数画面及7个非整数/边界样本；数值读回额外检查宽高，容差不变。
 
 参数预检要求 f32 有限、绝对值及 start+duration 不超过 1e30；正 duration 至少 1e-30，排除 f32 下溢与过大中间值。除此之外，Calcit 冷准备计算保守精度预算，不能只凭有限性接受大绝对时间/短时长。
 
@@ -32,6 +34,8 @@ Apple/Metal-3（software=false）实际验证 t=1→0→0.5→0.25→1，每帧 
 
 `yarn test:gpu-component` 纳入新命名空间严格检查及 `test/gpu-scalar-program-smoke.mjs`：公共计划参数、乱序时间不变、constant/smoothstep/零时长、CPU/算子/目标回退、重复目标、起点有效终点越界。测试调用编译后的 Calcit，而不是 JS 重写 lowering。
 
-独立消费者另以公共 Calcit 声明双轴 smoothstep，Apple/Metal-3 上 8 帧各 230400 通道零差异；非整数 .37/.81/.4999999 与区间外/端点共 7 次 xy 读回满足既定数值阈值。两个绑定常驻同一节点的两个参数槽，1000 时间帧 mock 仍只有每帧 16 B uniform；测试含切回单轴后的旧槽清理。详见 [独立消费检验](isolated-consumer.md)。页面可切换线性混合/双轴 Canvas 参考，GPU 对照由硬件门禁执行。
+位置与尺寸消费者以公共 Calcit 声明四轴 smoothstep。2026-10-02 候选 bb8ed0d 的干净安装在 Apple/Metal-3 上通过：8帧各230400通道零差异，7个非整数/边界时间的 x/y/width/height 读回满足原数值阈值。两节点四绑定冷参数448B，1000时间帧仍每帧仅16B uniform、1 pipeline/3 buffers；切回单轴会清除旧 y/width/height 槽。现有 `yarn test:consumer` 的报告和截图位于忽略目录 `test-results/consumer/`，复现硬件检查加 `QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1`。页面 `?motion=dual` 展示同源 Canvas 参考，GPU 对照由该门禁执行；不宣称完整图表已迁到 GPU。
+
+现有保守精度域仍可能拒绝合法的小尺寸大增幅，例如 width=10→74 的1秒smoothstep；这不是负尺寸错误，仍按 `scalar-precision-budget` 回退。当前展示采用40→104，不修改精度阈值；扩大支持域留给 #52 的后续精度合同，不另造特殊尺寸采样器。
 
 10k 独立实例的实验入口 `prepare-instance-program` / `install-instance-program!` / `draw-instance-at!` 复用本模块的参数编码、精度预算及 renderer，并接通同一消费者的三路径，见[消费者说明](../examples/retained-consumer/README.md)。真实 Metal 五个乱序时间的 GPU 采样 / CPU→GPU 全图零差异，Canvas 整数端点零差异；小数中间帧仍按 #144 的开放栅格化合同处理，不声称画质验收通过。两档尺寸三路径正式时长报告见[既有消费者测量](consumer-performance.md)，不是所有设备/精度域的证明。任意 Calcit 函数仍走 CPU；发布 tag、目标环境与完整 #52/M2 验收尚未完成。

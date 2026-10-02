@@ -57,7 +57,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 同一个独立消费者已接 [帧测量](consumer-performance.md)：`bench:consumer` 对两矩形使用 Canvas、CPU 采样后 GPU 绘制、GPU 标准采样；另报静态 10k Canvas，以及同源单脏记录动态 10k Canvas/GPU 的逐帧样本。GPU 动态模式只更新一个实例，不能作为 10k 独立运动或完整性能验收。
 
-线性/双轴专项各比较 8 帧完整画面；双轴另在 .37/.81/.4999999/-.1/1.1/0/1 读回 WGSL xy，遵循 `1e-5+1e-5*abs(expected)`，不外推整个精度域。GPU 合同使用白底，Canvas 参考合成相同白底，不修改几何或像素阈值。历史审查基线：[线性](evidence/isolated-consumer-gpu.json)、[双轴](evidence/isolated-consumer-dual-gpu.json)；当前结果以 `test-results/consumer/report.json` 的 candidate/harness、adapter 与各专项状态为准，候选库和测试源码版本不得混淆。读回 probe 仅在测试中，消费者运行时无新增文件依赖。Actions 摘要分别列出四项 GPU 专项的 PASS、SKIP 原因与未执行；mock、缺失报告和 Canvas 中间帧诊断都不记为硬件画质通过。
+线性/双轴专项各比较 8 帧完整画面；位置与尺寸专项另在 .37/.81/.4999999/-.1/1.1/0/1 读回 WGSL x/y/width/height，遵循 `1e-5+1e-5*abs(expected)`，不外推整个精度域。GPU 合同使用白底，Canvas 参考合成相同白底，不修改几何或像素阈值。历史审查基线：[线性](evidence/isolated-consumer-gpu.json)、[双轴](evidence/isolated-consumer-dual-gpu.json)；当前结果以 `test-results/consumer/report.json` 的 candidate/harness、adapter 与各专项状态为准，候选库和测试源码版本不得混淆。读回 probe 仅在测试中，消费者运行时无新增文件依赖。Actions 摘要分别列出四项 GPU 专项的 PASS、SKIP 原因与未执行；mock、缺失报告和 Canvas 中间帧诊断都不记为硬件画质通过。
 
 - #104 已接入生命周期、实际资源释放、device loss 重建、`:file` JS-only 显式重编译和独立运动三路径；两档尺寸正式时长报告见[同源帧测量](consumer-performance.md)。发布 tag 重跑、跨后端中间帧合同、基线比较和完整目标判定仍未验收。
 - 重编译门禁只覆盖单函数 `:file` 片段，不声称 watch、inline 热更新或任意构建缓存行为已经验证。没有修改 caps 的共享不可变缓存。

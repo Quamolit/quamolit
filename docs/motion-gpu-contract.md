@@ -27,7 +27,7 @@
 
 恰好两点的 clamp 轨道由 Calcit 冷准备归一化为现有 tween 参数，使用首关键帧的 easing；末帧 easing 不参与该段插值。相同时间的两点保留“时间点前取首值，到点后右侧胜出”，非恒定零时长跳变仍被原 program 精度预算拒绝，不能改成全时间常量。仍使用原参数域、alpha 端点域和 f32 精度预算，来源轨道及候选 lowering 不变；多段和 repeat/mirror 仍整层回退。此实现没有新增轨道 shader、buffer 或时间帧 CPU 采样。
 
-当前矩形目标为x/y/填充alpha；width/height/group opacity整层回退，alpha不能代替隔离组透明度。颜色、旋转、缩放和任意Calcit闭包不由这个标量执行器处理。已有Vec2 tween实例路径使用同一参数编码，但不自动继承全部候选算子。GPU数值按既定`1e-5+1e-5*abs(expected)`验证；实际硬件证据、乱序时间与支持域见标量合同，不将其他设备或整个数值域视为已验证。
+当前矩形目标为x/y/填充alpha/width/height；宽高端点须非负，group opacity仍整层回退，alpha不能代替隔离组透明度。颜色、旋转、缩放和任意Calcit闭包不由这个标量执行器处理。已有Vec2 tween实例路径使用同一参数编码，但不自动继承全部候选算子。GPU数值按既定`1e-5+1e-5*abs(expected)`验证；实际硬件证据、乱序时间与支持域见标量合同，不将其他设备或整个数值域视为已验证。
 
 `prepare-program`的逐绑定回退沿用`ProgramResult :fallback String`，在原原因后附加`;key=<逻辑key>;target=<目标>;motion=<算子>`，例如`scalar-kernel-not-supported;key=badge;target=:x;motion=:time`。该文本用于显示诊断，不是分号可解析协议（key可含任意字符）；低层`prepare-slot`仍返回原原因。重复绑定也定位该节点；整层结构、自定义变换或整体精度预算的拒绝仍是计划级原因。调用方必须回退整个计划，不得丢掉失败绑定后绘制其余部分。
 
