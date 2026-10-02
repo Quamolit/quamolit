@@ -93,11 +93,11 @@ try {
   const output = join(source, "target/js/app");
   const modules = new Set();
   // Current Calcit ESM static imports are single-line. Copy only the entry-reachable closure;
-  // reject dynamic imports, raw host paths, test modules, and extra npm packages.
+  // reject dynamic imports, raw host paths, test/demo modules, and extra npm packages.
   async function collect(name) {
     if (modules.has(name)) return;
     assert.match(name, /^[a-zA-Z0-9.$_-]+\.mjs$/);
-    assert.doesNotMatch(name, /(?:^|\.)test(?:\.|-)|-fixture/);
+    assert.doesNotMatch(name, /(?:^|\.)(?:test|examples)(?:\.|-)|-fixture/, "消费产物不可包含测试/演示命名空间");
     modules.add(name);
     const code = await readFile(join(output, name), "utf8");
     assert.doesNotMatch(code, /\bimport\s*\(/, "当前门禁不接受动态导入");
@@ -113,6 +113,10 @@ try {
     await mkdir(dirname(target), { recursive: true });
     await cp(join(output, name), target);
   }
+  // 反例先于实际闭包：拒绝不能依赖目录刚好缺少文件，也不能污染已收集集合。
+  for (const name of ["quamolit.test.motion-fixture.mjs", "quamolit.examples.todolist.mjs"])
+    await assert.rejects(() => collect(name), /消费产物不可包含测试\/演示命名空间/);
+  assert.equal(modules.size, 0);
   await collect("app.main.mjs");
   const asset = join(source, ".calcit/modules/js-ffi/js-ffi-assets/document-available.js");
   assert.match(await readFile(asset, "utf8"), /typeof document/);
