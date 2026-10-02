@@ -234,48 +234,83 @@ try {
       const a = actual.getContext("2d", { willReadFrequently: true });
       const e = expected.getContext("2d", { willReadFrequently: true });
       app.draw_curve_$x_(a, app.curve_document(time));
-      // 独立原生参考，不读取消费者/框架生成的Scene或控制点。
+      // 独立原生隔离group参考，不读取消费者/框架生成的Scene或控制点。
+      // GPU-backed Offscreen与直接CPU Canvas的边缘另报，不放宽阈值。
       const offset = 10 * time;
-      e.transform(0, 2, -2, 0, 240, 0);
-      e.beginPath();
-      e.rect(0, 0, 100, 80);
-      e.clip();
-      e.beginPath();
-      e.moveTo(20 + offset, 70);
-      e.bezierCurveTo(20 + offset, 10, 80 + offset, 10, 80 + offset, 70);
-      e.lineWidth = 20;
-      e.lineCap = "butt";
-      e.lineJoin = "miter";
-      e.miterLimit = 10;
-      e.strokeStyle = "#ff0000";
-      e.stroke();
+      const drawReference = (context) => {
+        context.transform(0, 2, -2, 0, 240, 0);
+        context.beginPath();
+        context.rect(0, 0, 100, 80);
+        context.clip();
+        context.beginPath();
+        context.moveTo(20 + offset, 70);
+        context.bezierCurveTo(20 + offset, 10, 80 + offset, 10, 80 + offset, 70);
+        context.lineWidth = 20;
+        context.lineCap = "butt";
+        context.lineJoin = "miter";
+        context.miterLimit = 10;
+        context.strokeStyle = "#ff0000";
+        context.stroke();
+      };
+      const isolated =
+        typeof OffscreenCanvas === "function" ? new OffscreenCanvas(320, 180) : document.createElement("canvas");
+      isolated.width = 320;
+      isolated.height = 180;
+      drawReference(isolated.getContext("2d"));
+      e.drawImage(isolated, 0, 0);
+      const direct = document.createElement("canvas");
+      direct.width = 320;
+      direct.height = 180;
+      const d = direct.getContext("2d", { willReadFrequently: true });
+      drawReference(d);
       const left = a.getImageData(0, 0, 320, 180).data;
       const right = e.getImageData(0, 0, 320, 180).data;
+      const directPixels = d.getImageData(0, 0, 320, 180).data;
       let differingChannels = 0,
-        blankDifferingChannels = 0;
+        blankDifferingChannels = 0,
+        directDifferingChannels = 0;
       for (let index = 0; index < left.length; index++) {
         if (left[index] !== right[index]) differingChannels++;
         if (right[index] !== 0) blankDifferingChannels++;
+        if (left[index] !== directPixels[index]) directDifferingChannels++;
       }
+      const diff = document.createElement("canvas");
+      diff.width = 320;
+      diff.height = 180;
+      const diffContext = diff.getContext("2d"),
+        diffImage = diffContext.createImageData(320, 180);
+      for (let index = 0; index < left.length; index += 4) {
+        const maximum = Math.max(
+          ...[0, 1, 2, 3].map((channel) => Math.abs(left[index + channel] - directPixels[index + channel])),
+        );
+        diffImage.data[index] = diffImage.data[index + 2] = maximum;
+        diffImage.data[index + 3] = maximum ? 255 : 0;
+      }
+      diffContext.putImageData(diffImage, 0, 0);
       const plan = app.curve_hit_plan(time);
       frames.push({
         time,
         differingChannels,
         blankDifferingChannels,
+        directDifferingChannels,
         hit: core.to_js_data(app.curve_hit(plan, 180, 100 + 20 * time)),
         clipped: core.to_js_data(app.curve_hit(plan, 120, 220)),
         actualPng: actual.toDataURL(),
         expectedPng: expected.toDataURL(),
+        directPng: direct.toDataURL(),
+        directDiffPng: diff.toDataURL(),
       });
     }
     return {
       frames,
       channelsPerFrame: 320 * 180 * 4,
-      scope: "搬移后的Calcit曲线声明/Canvas绘制/命中；独立原生RGBA参考，非GPU/性能验收",
+      directReferenceStatus: "DIAGNOSTIC_ONLY_CONTRACT_144",
+      scope:
+        "搬移后的Calcit曲线声明/Canvas绘制/命中；独立原生隔离group全RGBA参考，直接CPU Canvas差异单列，非GPU曲线/性能验收",
     };
   });
   for (const frame of curveBrowser.frames) {
-    for (const kind of ["actual", "expected"]) {
+    for (const kind of ["actual", "expected", "direct", "directDiff"]) {
       const key = `${kind}Png`,
         name = `consumer-curve-${frame.time}-${kind}.png`;
       await writeFile(join(artifacts, name), Buffer.from(frame[key].split(",")[1], "base64"));
