@@ -25,7 +25,7 @@
 <section id="panel" aria-label="动画控制面板">
 <h1>组件写在 Calcit，时间由你控制</h1>
 <p>独立安装 Quamolit · Calcit 组件计划、Canvas 参考与 WebGPU 实例图层</p>
-<div><button data-mode="mixed">线性矩形 + 折线</button><button data-mode="dual">位置与尺寸渐变</button><button data-mode="alpha">矩形透明度渐入</button><button data-mode="mirror">往返轨道</button><button data-mode="presence">Presence 生命周期</button><button data-mode="instances">10k Canvas 实例</button><button data-mode="instances-gpu">10k CPU → GPU</button><button data-mode="instances-scalar">10k GPU 时间采样</button><button id="gpu-loss" disabled>模拟 device loss</button></div>
+<div><button data-mode="mixed">线性矩形 + 折线</button><button data-mode="dual">位置与尺寸渐变</button><button data-mode="alpha">矩形透明度渐入</button><button data-mode="mirror">往返轨道</button><button data-mode="layered">嵌套图表与隔离透明度</button><button data-mode="presence">Presence 生命周期</button><button data-mode="instances">10k Canvas 实例</button><button data-mode="instances-gpu">10k CPU → GPU</button><button data-mode="instances-scalar">10k GPU 时间采样</button><button id="gpu-loss" disabled>模拟 device loss</button></div>
 <div><label><input type="checkbox" id="independent">全部 10k 实例独立动画</label></div>
 <div><button data-time="0">起点 0</button><button data-time="0.25">¼ 帧</button><button data-time="0.5">中间帧</button><button data-time="1">终点 1</button><button data-time="1.5">返回中间帧 1.5</button><button data-time="2">周期起点 2</button><button id="model">Model + 1</button><button id="ready">资源 ready</button><button id="viewport">宽度版本 + 100</button></div>
 <div><button data-presence="reordered">稳定 key 重排</button><button data-presence="without-a">移除橙色卡片</button><button data-presence="full">重入橙色卡片</button><button data-presence="settle">显式结算</button></div>

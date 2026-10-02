@@ -204,7 +204,7 @@
       "path": "examples/retained-consumer/index.html",
       "title": "独立 Calcit 消费者",
       "group": "public",
-      "summary": "独立安装统一组件入口；位置/尺寸、alpha 与镜像往返轨道可切换，1000 帧复用、产物搬移和同源 GPU 门禁，无内部 JS 导入。",
+      "summary": "独立安装统一组件入口；位置/尺寸、alpha、镜像往返轨道与嵌套图表、裁剪和隔离透明度同页切换，1000 帧复用、产物搬移和受限 GPU 门禁，无内部 JS 导入。",
       "status": "独立消费",
       "docs": "docs/isolated-consumer.md",
       "compile": "consumer"

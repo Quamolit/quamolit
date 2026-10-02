@@ -2168,6 +2168,10 @@
           :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
     'quamolit.canvas-scene $ %{} 'FileEntry
       :defs $ {}
+        'CanvasDiagnostic $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct CanvasDiagnostic (:id 'String) (:key 'String) (:kind 'String) (:reason 'String)
+          :examples $ []
+          :schema $ :: 'StructDef
         'clip-group! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn clip-group! (context clip)
             match clip
@@ -2188,6 +2192,21 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject 'Number
             :features $ #{} :js-ffi
+        'content-supported? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn content-supported? (content)
+            match content
+              (:group value) true
+              (:rect value) true
+              (:polyline value) true
+              (:text value) true
+              (:image value) true
+              (:polygon value) true
+              (:cubic-path value) true
+              (:circle value) true
+              (:instances value) false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneContent
         'draw-children! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-children! (context nodes parent-id transform width height lookup)
             each nodes $ fn (node)
@@ -2311,13 +2330,19 @@
           :code $ quote $ defn preflight! (document width height lookup)
             assert |invalid-canvas-scene-size $ and (motion/finite-number? width) (motion/finite-number? height) (> width 0) (> height 0)
             assert |invalid-canvas-scene $ scene/validate-scene document
-            each (:nodes document)
-              fn (node)
-                match (:content node)
-                  (:instances instances) (raise |unsupported-canvas-scene-instances)
-                  (:image image)
-                    do (lookup-image! image lookup) &unit
-                  _ &unit
+            let
+                diagnostics $ unsupported-nodes document
+              when
+                not $ empty? diagnostics
+                let
+                    diagnostic $ &list:nth diagnostics 0
+                  raise $ str (:reason diagnostic) "| id=" (:id diagnostic) "| key=" $ :key diagnostic
+              each (:nodes document)
+                fn (node)
+                  match (:content node)
+                    (:image image)
+                      do (lookup-image! image lookup) &unit
+                    _ &unit
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -2360,6 +2385,20 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/Matrix2D
             :features $ #{} :js-ffi
+        'unsupported-nodes $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn unsupported-nodes (document)
+            map
+              filter (:nodes document)
+                fn (node)
+                  not $ content-supported? $ :content node
+              fn (node)
+                CanvasDiagnostic :id (:id node) :key (:key node) :kind
+                  scene/content-kind $ :content node
+                  , :reason |unsupported-canvas-scene-instances
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-ir/SceneDocument
+            :return $ :: 'List 'CanvasDiagnostic
       :ns $ %{} 'NsEntry
         :doc "|Calcit Scene 树的完整 Canvas2D 正确性参考：执行嵌套 transform/rect clip 与真正隔离的组 opacity；浏览器临时 surface 仅由三个最小 inline 原语提供。"
         :code $ quote $ ns quamolit.canvas-scene
