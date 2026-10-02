@@ -44,7 +44,7 @@
 - 每个 milestone 关闭前提交阶段验收与直观演示：已完成/未完成矩阵、可复现命令、固定时间初始/中间/终点画面或交互页面、实际计数与性能报告、限制及下一阶段入口。用户能打开查看成果；不能仅以 Actions 绿灯或 issue 数量说明完成。
 
 - 按 `verification.md` 选择实际存在的命令。未来命令明确标为“待实现”，不能写成已经通过。
-- `yarn compile` 当前可能仍指向 bootstrap。真实入口切换前，编译成功不能作为原应用运行成功的证据。
+- `yarn compile` 按现有清单编译真实演示，`yarn release` 发布统一应用到 `dist/`；根 URL 只是保留参数的兼容跳转。bootstrap 保留在 `compile:bootstrap`，供 runtime smoke 使用，不代表应用；主 Snapshot default 仍为该诊断入口，named entry 创建待 Calcit #1665。入口构建成功仍须通过现有发布产物交互/导航门禁，不等于全部恢复或性能验收。
 - PR 写清实际实现、未完成范围、运行命令、环境和结果。性能结论必须附数据；截图变化附差异图，不能静默放宽阈值。
 - 部分实现使用“推进 #N”；仅在全部验收项有证据时写 `Closes #N`。不因预算或会话结束把 issue/milestone 标成完成。
 - 编码 PR 需确认 Actions 结果。无法访问真实 GPU 时如实标为未验证，不用 skip 代替通过。

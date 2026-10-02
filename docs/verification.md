@@ -114,7 +114,7 @@ yarn test:bench
 yarn bench
 ```
 
-不同 Calcit 入口编译到被忽略的 `target/js/<entry>/`；`compile:visual` 与 `compile:motion` 共用 `target/js/motion/`，普通应用入口独立在 `target/js/app/`。当前普通入口仍是 bootstrap，以上成功不证明旧主应用可用。新增公共命名空间还需运行实际范围的 `calcit analyze check-public --ns <namespace>`；所有新代码严格检查通过，不通过兼容模式掩盖错误。
+不同 Calcit 入口编译到被忽略的 `target/js/<entry>/`；`compile:visual` 使用 `target/js/visual/`，`compile:motion` 使用 `target/js/motion/`。`compile:bootstrap` 在 `target/js/app/` 只生成诊断入口/core，供既有 runtime smoke 使用。普通 `compile` 安装模块并按清单编译所有真实入口，`release` 用同一站点配置生成 `dist/`。现有 `test:demo-nav` 从普通发布产物运行根 URL 分享参数、DPR 1/2 的 TodoList 实际新增/卸载及全部导航回归，服务器不读取作者源码。Snapshot default 仍为 bootstrap，named entry 创建仍待 Calcit #1665；不把构建入口归并当语言 entry 迁移或整个 M3 验收。新公共 namespace 仍须严格检查，不用兼容模式掩盖错误。
 
 测试目录中的手写 JS/MJS/CJS 使用 Prettier：提交前运行 `yarn format:test-js`，CI 以 `yarn check:test-js-format` 检查。范围限于 `test/**/*.{js,mjs,cjs}`；`js-out*`、`target/` 等生成产物不格式化。主代码、Calcit snapshot 和 demo 页面暂不纳入这条格式门禁。
 

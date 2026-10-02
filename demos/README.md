@@ -14,7 +14,7 @@ yarn install --immutable
 yarn demo
 ```
 
-这会安装 Calcit 模块并编译各演示真正使用的入口（包括独立消费者），启动 Vite 并打开导航。已有服务器时可运行 `yarn compile:demos`，然后访问 `/demos/index.html`。原有动画通过统一页顶部按钮返回画廊；兼容独立 URL 和根 bootstrap 仍链接到画廊。独立消费者单独复制或搬移后没有本地导航站点，会显示仓库的导航说明链接；不会因此依赖框架内部 JS。
+这会安装 Calcit 模块并编译各演示真正使用的入口（包括独立消费者），启动 Vite 并打开导航。已有服务器时可运行 `yarn compile`（`compile:demos` 为兼容别名），然后访问 `/` 或 `/demos/index.html`。旧根 URL 保留 demo/time/seed 等参数转入统一页面，不再运行空 bootstrap；后续 demo 切换不整页重载。独立消费者单独搬移后仍不依赖框架内部 JS。
 
 ## 先看什么
 
@@ -23,22 +23,22 @@ yarn demo
 3. **TodoList**：实际 Canvas 列表操作已消费公共执行入口；目标打断、重排、退出/重入均可用日志重放。通用资源与指针清理仍未完成；独立下游 #104 的生命周期迁移尚待跟进。
 4. **万实例 / GPU Vec2**：查看实际后端及回退诊断。参考夹具、候选 GPU 合同、真实 GPU 运行与性能验收是不同证据。
 
-基准驱动宿主页只给 `yarn bench` 使用；根入口仍是编译占位。两者明确标为工具/占位，不伪装成已恢复的动画应用。导航卡片链接到对应说明和检验规则。
+基准驱动宿主页只给 `yarn bench` 使用，仍明确标为工具。根 URL 是统一应用的兼容入口，不再标为编译占位。Calcit Snapshot default 的 bootstrap 仅通过 `compile:bootstrap` 为 runtime smoke 生成 core；命名 entry 创建仍待上游 #1665，不声称已迁移语言入口。
 
 ## 可发布产物与门禁
 
 ```sh
-yarn release:demos
+yarn compile && yarn release
 yarn test:demo-nav
 ```
 
-`release:demos` 在独立、被忽略的 `dist-demos/` 构建所有页面，使用相对资源和导航链接，可部署在网站子路径。它不更改原 `release` 的 bootstrap 语义，也不自动部署。
+普通 `release` 在被忽略的 `dist/` 构建所有页面，使用相对资源与导航，可部署到网站子路径，不自动部署。`release:demos` 保留为同一配置的 `dist-demos/` 兼容输出；只有输出目录不同，不再维护另一套 bootstrap 发布语义。
 
-`test:demo-nav` 首先运行 3 项 Node 清单检查，再编译/打包；扫描排除编译目录及 Playwright 自动生成的 HTML 报告。浏览器只能访问 `dist-demos`，在 `/preview/` 子路径下依次从导航打开所有清单入口、检查状态/网络/运行错误并返回。原有动画还验证不整页重载、同一 Canvas、前后 Demo 切换、历史记录和旧入口卸载。另有搜索、分类、刷新、全屏布局与 Binary Tree 动画门禁；TodoList 深度交互另由 `test:todolist` 验证。导航往返强制 GPU 不可用，不替代真实 GPU 验收。根占位/基准宿主页只有加载检查，其余有相应初始化状态断言。
+`test:demo-nav` 首先运行 4 项 Node 清单/构建图检查，再执行普通 `compile/release`；扫描排除产物与 Playwright HTML 报告。浏览器只能访问 `dist`，在 `/preview/` 子路径下从根 URL 与目录打开清单入口、检查状态/网络/运行错误并返回。根 `/` 与 `index.html` 的 DPR 1/2 用例保留分享参数、实际新增 TodoList 行、返回同一画布并验证卸载；原有导航、历史、全屏与 Binary Tree 门禁保留。TodoList 深度交互另由 `test:todolist` 验证。导航往返强制 GPU 不可用，不替代真实 GPU 验收；基准宿主页仅做加载检查。
 
 若本地 Vite 长驻 5190，测试可用 `QUAMOLIT_DEMO_TEST_PORT=5192 yarn test:demo-nav` 将发布产物服务器移至独立端口；CI 默认仍用 5190，不会复用开发服务器冒充发布产物。
 
-截图、每页信息与失败 trace 位于 `test-results/demo-nav/`。CI artifact `quamolit-demos-<run>` 包含 `dist-demos` 站点和导航测试证据；下载后可用任何静态 HTTP 服务器打开，不能直接用 file:// 运行 ESM。
+截图、每页信息与失败 trace 位于 `test-results/demo-nav/`。CI artifact `quamolit-demos-<run>` 包含普通 `dist` 站点和导航证据（含根入口 TodoList DPR 截图）；下载后可用静态 HTTP 服务器打开，不能用 file:// 运行 ESM。
 
 全屏检查覆盖 DPR 1/2 的桌面/窄屏、暂停 resize、实际像素、浮层收起和键盘恢复。不同 DPR 分别创建浏览器上下文；跨物理显示器切换和真实 GPU 本轮未验证。Binary Tree 另验证独立几何/画面 oracle、播放暂停、分享时间和早到 rAF 边界。
 

@@ -486,7 +486,7 @@ jobs:
           name: quamolit-demos-${{ github.run_id }}
           path: |
             demos/catalog.json
-            dist-demos/
+            dist/
             test-results/demo-nav/
           if-no-files-found: error
           retention-days: 14

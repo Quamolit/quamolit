@@ -10,10 +10,13 @@ function run(args, cwd = root) {
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
-// 默认 compile 先由 caps 安装根模块；清单中的编译入口去重执行。
-run(["compile"]);
+// 调用方 compile 已安装根模块；bootstrap 仅为旧 runtime smoke 提供生成 core。
+// 真正应用按同一清单编译，不能递归调用 compile/compile:demos。
+run(["compile:bootstrap"]);
 for (const command of new Set(catalog.entries.map(entry => entry.compile))) {
-  if (!command || command === "compile" || command === "consumer") continue;
+  if (command === "compile" || command === "compile:demos")
+    throw new Error("清单入口不能递归调用完整 compile；请填写具体 Calcit 编译命令");
+  if (!command || command === "compile:bootstrap" || command === "consumer") continue;
   run([command]);
 }
 const consumer = join(root, "examples/retained-consumer");

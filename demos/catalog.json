@@ -427,12 +427,12 @@
     },
     {
       "path": "index.html",
-      "title": "原编译占位入口",
+      "title": "根 URL · 统一应用入口",
       "group": "reference",
-      "summary": "当前仍是 bootstrap，不代表原应用已恢复。",
-      "status": "编译占位",
+      "summary": "兼容旧根 URL，保留参数进入同一个全屏画廊与动画页面。",
+      "status": "兼容入口",
       "docs": "docs/roadmap.md",
-      "compile": "compile"
+      "compile": null
     }
   ]
 }

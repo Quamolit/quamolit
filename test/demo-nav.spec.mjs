@@ -3,6 +3,46 @@ import { readFile } from "node:fs/promises";
 const catalog = JSON.parse(await readFile(new URL("../demos/catalog.json", import.meta.url), "utf8"));
 const artifactURL = `http://127.0.0.1:${process.env.QUAMOLIT_DEMO_TEST_PORT || 5190}/preview/`;
 
+for (const [entry, dpr] of [
+  ["index.html", 1],
+  ["", 2],
+])
+  test(`普通发布根入口 ${entry || "/"}：DPR ${dpr} 保留分享参数并实际编辑 TodoList`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({ viewport: { width: 1000, height: 800 }, deviceScaleFactor: dpr });
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("response", (response) => {
+      if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
+    });
+    try {
+      const query = "?demo=todolist&t=0.8&seed=17#shared";
+      await page.goto(`${artifactURL}${entry}${query}`);
+      await expect(page).toHaveURL(`${artifactURL}demos/index.html${query}`);
+      await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+      await expect(page.locator("canvas")).toHaveCount(1);
+      expect((await page.evaluate(() => window.todoDemo.snapshot())).time).toBe(0.8);
+      await page.evaluate(() => {
+        window.rootSharedCanvas = document.querySelector("#scene");
+        window.rootTodoApi = window.todoDemo;
+      });
+      await page.locator("#draft").fill("从普通发布入口新增");
+      await page.locator("#submit").click();
+      await page.evaluate(() => window.todoDemo.pause());
+      expect((await page.evaluate(() => window.todoDemo.snapshot())).model.rows[0].text).toBe("从普通发布入口新增");
+      await page.evaluate(() => window.todoDemo.seek(2));
+      await page.screenshot({ path: testInfo.outputPath(`root-todolist-dpr${dpr}.png`) });
+      await page.getByRole("button", { name: /所有演示/ }).click();
+      await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+      expect(await page.evaluate(() => document.querySelector("#scene") === window.rootSharedCanvas)).toBe(true);
+      expect(await page.evaluate(() => window.rootTodoApi.snapshot().disposed)).toBe(true);
+      expect(await page.evaluate(() => "todoDemo" in window)).toBe(false);
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+
 for (const [demo, api, input, time, end] of [
   ["tidal-bloom", "metricFlowDemo", "#view-analytics", 1.4],
   ["signal-weave", "signalWeaveDemo", "#mode-campaign", 1.2],
@@ -243,6 +283,9 @@ for (const entry of catalog.entries) {
       await expect(page.locator("#app")).toHaveAttribute("data-view", "demo");
       expect(await page.evaluate(() => window.__shellIdentity)).toBeTruthy();
       await expect(page.locator("#scene")).toHaveCount(1);
+    } else if (entry.path === "index.html") {
+      await expect(page).toHaveURL(/\/preview\/demos\/index\.html$/);
+      await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
     } else {
       await expect(page).toHaveURL(new RegExp(`/preview/${entry.path.replaceAll(".", "\\.")}$`));
     }
@@ -276,7 +319,7 @@ for (const entry of catalog.entries) {
         .click();
       await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
       expect(await page.evaluate(() => window.__shellIdentity)).toBeTruthy();
-    } else {
+    } else if (entry.path !== "index.html") {
       await page.getByRole("navigation", { name: "演示导航" }).getByRole("link").click();
     }
     await page.getByLabel("分类", { exact: true }).selectOption("");

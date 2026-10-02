@@ -4,7 +4,7 @@
 
 ## 历史依据与逐项验收
 
-一个月前日期边界之前的最后版本为 `9b5bcdd7f7157404fb96f96a042de91085e52652`（2024-04-01，此后直到本轮重构前没有更近的提交）。以该提交 `compact.cirru` 的 portal/container 路由和组件实现为行为依据；当前 `calcit.cirru` 仍保留这些组件，但默认 bootstrap 不运行它们。
+一个月前日期边界之前的最后版本为 `9b5bcdd7f7157404fb96f96a042de91085e52652`（2024-04-01，此后直到本轮重构前没有更近的提交）。以该提交 `compact.cirru` 的 portal/container 路由和组件实现为行为依据；当前 `calcit.cirru` 保留历史组件，真实入口采用已恢复的独立 Calcit 示例并在统一画布挂载，不恢复旧门户。普通 `compile/release` 构建同一应用，bootstrap 仅作 runtime smoke，不承担恢复验收。
 
 | 导航 ID | 必须保留的内容 | 恢复后的检验 |
 | --- | --- | --- |

@@ -1,8 +1,8 @@
-// 只服务 dist-demos，在非根路径检验发布链接；不允许退回作者源码。
+// 只服务普通 release 的 dist，在非根路径检验发布链接；不退回作者源码。
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, sep, extname } from "node:path";
-const root = resolve("dist-demos");
+const root = resolve("dist");
 const port = Number(process.env.QUAMOLIT_DEMO_TEST_PORT || 5190);
 const mime = {
   ".html": "text/html",
@@ -27,7 +27,7 @@ createServer(async (request, response) => {
       return;
     }
     const relative = pathname.slice("/preview/".length);
-    const file = resolve(root, relative + (relative.endsWith("/") ? "index.html" : ""));
+    const file = resolve(root, relative + (relative === "" || relative.endsWith("/") ? "index.html" : ""));
     if (!file.startsWith(root + sep)) {
       response.writeHead(403).end();
       return;
