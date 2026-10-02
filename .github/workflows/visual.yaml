@@ -204,6 +204,24 @@ jobs:
           QUAMOLIT_BENCH_DURATION: "0.6"
           QUAMOLIT_BENCH_RUNS: "1"
 
+      - name: Summarize isolated consumer hardware scope
+        if: always() && inputs.mutation != 'color'
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, appendFile } from 'node:fs/promises';
+          import { formatConsumerSummary } from './test/consumer-contract.mjs';
+          let report;
+          try {
+            report = JSON.parse(await readFile('test-results/consumer/report.json', 'utf8'));
+          } catch (error) {
+            if (error.code !== 'ENOENT') throw error;
+            report = { result: 'NOT_RUN' };
+          }
+          const summary = formatConsumerSummary(report);
+          console.log(summary);
+          await appendFile(process.env.GITHUB_STEP_SUMMARY, summary);
+          NODE
+
       - name: Upload public GPU component evidence
         if: always() && inputs.mutation != 'color'
         uses: actions/upload-artifact@v4

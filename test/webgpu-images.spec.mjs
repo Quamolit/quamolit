@@ -314,8 +314,21 @@ test("Folding Fan 保持原动画，状态切换 GPU/Canvas 与暂停 resize", a
   const clipped = await page.evaluate(() => window.foldingFanDemo.snapshot());
   expect(clipped.clipped).toBe(true);
   expect(clipped.model).toEqual(repeated.model);
-  expect(clipped.gpuMetrics["draw-calls"]).toBe(24);
-  await page.screenshot({ path: testInfo.outputPath("fan-gpu-window.png") });
+  expect(clipped.backend).toBe("canvas");
+  expect(clipped.fallbackReason).toBe("fractional-image-clip");
+  expect(clipped.gpuMetrics).toBeNull();
+  expect(clipped.slices).toHaveLength(24);
+  await expect(page.locator("canvas")).toHaveCount(1);
+  expect(await compareFanDisplay(page)).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
+  await page.screenshot({ path: testInfo.outputPath("fan-fractional-clip-fallback.png") });
+  // A physically aligned window can reuse the warm runtime without rounding the Scene.
+  await page.setViewportSize({ width: 900, height: 1000 });
+  await expect.poll(() => page.evaluate(() => window.foldingFanDemo.snapshot().backend)).toBe("webgpu");
+  const aligned = await page.evaluate(() => window.foldingFanDemo.snapshot());
+  expect(aligned.model).toEqual(repeated.model);
+  expect(aligned.time).toBe(0.18);
+  expect(aligned.gpuMetrics["draw-calls"]).toBe(24);
+  expect(aligned.gpuMetrics["pipelines-created"]).toBe(1);
   await page.check("#annotations");
   const fallback = await page.evaluate(() => window.foldingFanDemo.snapshot());
   expect(fallback.backend).toBe("canvas");
@@ -336,6 +349,8 @@ test("Folding Fan 保持原动画，状态切换 GPU/Canvas 与暂停 resize", a
   expect(resized.model).toEqual(repeated.model);
   expect(await compareFanDisplay(page)).toMatchObject({ differentPixels: 0, maxChannelDelta: 0 });
   await page.uncheck("#annotations");
+  expect(await page.evaluate(() => window.foldingFanDemo.snapshot().fallbackReason)).toBe("fractional-image-clip");
+  await page.uncheck("#clip-window");
   const restored = await page.evaluate(() => window.foldingFanDemo.snapshot());
   expect(restored.backend).toBe("webgpu");
   expect(restored.model).toEqual(repeated.model);

@@ -42,10 +42,12 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | GPU 浏览器专项 | 搬移后的同一矩形声明在非软件 adapter 比较 8 帧 × 230400 通道，默认精确像素；覆盖乱序/重复及同时间三类失效和上传量。无 GPU/软件 adapter 明确 SKIP，单独写入报告 |
 | 画面 | 实际画布 320×180、DPR=1；矩形内部粉色/绿色、静态横条灰色、变换折线蓝色与外部透明像素精确比较；另保存 Presence 退出中间帧与结算后画面 |
 | 公共 10k 动态实例 | 消费者 Calcit `instance-frame-at` 在绝对时间生成一个实例位置；`register-patch!` 仅复制 8 B。Node 连续 100 次更新、释放旧公开版本后 live 恒为 1，最终卸载为 0。页面 Canvas/GPU 模式保留同一 `(id,version)` 源、单 Canvas 舞台和可见的 GPU 不可用回退 |
-| 独立 10k CPU 数据源 | 同一消费方 Calcit 声明 10000 个不同 ID 的 Vec2Descriptor，from/to/start/duration/easing 由各实例参数决定。Node 在 `[1,0,0.5,0.25,1]` 对全部坐标核对独立公式并验证全部实例移动、声明不变；页面开关接现有 Canvas/CPU→GPU，全量变化 80 kB、重复 0 B。此项不证明 GPU 标准采样、独立负载全图精度或正式性能 |
+| 独立 10k 三路径 | 同一 Calcit 源驱动 Canvas / CPU→GPU / GPU 时间采样。Node 核对全部 CPU 坐标与 20000 个 GPU 参数；参数常驻的 1000 帧只写 uniform 16000 B，records/parameters 不上传，1 pipeline/3 buffers；非法数量、重复身份、精度域及伪造程序在上传前拒绝。页面复用已有 generation 恢复协议。硬件专项对 3 个索引 × 5 个乱序时间共读回 120 B，使用实际 WGSL、独立公式和既定 `1e-5+1e-5*abs(expected)`；两条 GPU 完整帧和 Canvas 整数端点零差异。Canvas 中间帧单列差异图/统计及 #144 待验收状态；无硬件单独 SKIP。未验收完整跨后端画质合同或正式性能 |
 | 真实 GPU 动态画面 | Apple/Metal-3 上独立消费者的像素对齐 10k 源，初始/补丁/同版本/跳版本位置上传为 80000/8/0/80000 B；四个时间点采样像素和终点整幅 320×180 RGBA 均与 Canvas 参考精确一致，差异图全零。headless 无 adapter 单独 SKIP |
 
 历史首次通过环境：Node 24.19.0、Calcit 0.22.0、Chromium 153.0.8010.12。当前恢复切片使用 Calcit 0.27.0，搬移后的入口可达编译闭包 29 个模块；唯一 npm 直接依赖是 Calcit runtime。不声称这是最小体积，namespace 级依赖仍可能引入未使用的函数。
+
+当前 10k 独立源在 Apple/Metal-3、320×180/DPR 1：两条 GPU 路径 `[1,0,0.5,0.25,1]` 的整帧均为零差异；Canvas 的整数端点也是零差异。读回参考显式使用 `willReadFrequently: true`，避免不同读回顺序影响参考统计。t=0.5/0.25 相对该 Canvas 参考分别有 32299/31249 个差异像素，最大通道差 210/205、平均通道差 12.8672/14.2957（0–255），非白覆盖像素差 -9772/-7599。这不是 sampler 数值失败，也不是可忽略的 1 LSB；中间帧仍按 #144 等待合同决策，不设新容差。`independent-frame-<序号>-{scalarPng,cpuGpuPng,canvasPng,diffPng}.png` 与全部统计复用同一忽略报告/CI artifact。
 
 连续时间数值对比采用独立 `80 + 40*t`，而运行时 lerp 使用不同计算顺序。首次精确比较出现 `80.16000000000001` 对 `80.16` 的 IEEE754 舍入差异，因此连续数值采用 `8 * Number.EPSILON * abs(expected)` 的舍入预算；整数时间点与实色像素仍严格相等，不放宽截图阈值。
 
@@ -55,17 +57,9 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 同一个独立消费者已接 [帧测量](consumer-performance.md)：`bench:consumer` 对两矩形使用 Canvas、CPU 采样后 GPU 绘制、GPU 标准采样；另报静态 10k Canvas，以及同源单脏记录动态 10k Canvas/GPU 的逐帧样本。GPU 动态模式只更新一个实例，不能作为 10k 独立运动或完整性能验收。
 
-双轴硬件原始结果见 [smoothstep xy 报告](evidence/isolated-consumer-dual-gpu.json)。候选库版本与测试源码版本分别记录；后者包含 revision、dirty 标记与 SHA256，不能误认为候选库提交已包含当时未提交的消费者扩展。
+线性/双轴专项各比较 8 帧完整画面；双轴另在 .37/.81/.4999999/-.1/1.1/0/1 读回 WGSL xy，遵循 `1e-5+1e-5*abs(expected)`，不外推整个精度域。GPU 合同使用白底，Canvas 参考合成相同白底，不修改几何或像素阈值。历史审查基线：[线性](evidence/isolated-consumer-gpu.json)、[双轴](evidence/isolated-consumer-dual-gpu.json)；当前结果以 `test-results/consumer/report.json` 的 candidate/harness、adapter 与各专项状态为准，候选库和测试源码版本不得混淆。读回 probe 仅在测试中，消费者运行时无新增文件依赖。Actions 摘要分别列出四项 GPU 专项的 PASS、SKIP 原因与未执行；mock、缺失报告和 Canvas 中间帧诊断都不记为硬件画质通过。
 
-双轴扩展：`declare-dual` 以 Calcit 声明 x=80→144、y=(22+Model)→(54+Model)，两轴均为 smoothstep；页面新增模式按钮及 `?motion=dual` 入口，仍显示 Canvas 参考，不伪装为 GPU 展示。独立 Node 参考用 `t*t*(3-2*t)` 核对两轴；mock 检查 64/96 B 参数偏移、192 B 冷参数、1000 时间帧仅 uniform，以及双轴切回单轴清除旧 y 槽。
-
-非软件 GPU 专项同时运行线性/双轴两套 8 帧，各帧零容差；双轴在 .37/.81/.4999999/-.1/1.1/0/1 另外读回实际 WGSL 的 xy，对照独立公式与既定 `1e-5+1e-5*abs(expected)`，共 56 B。测试驱动注入自包含的现有 probe 函数，只在测试中访问真实 shader/参数；消费者 runtime 不安装测试文件、不增加其文件请求，常规绘制不读回。该证据覆盖此 smoothstep 参数范围，不外推整个精度域。
-
-固定提交 `533b50b` 的[硬件运行报告](evidence/isolated-consumer-gpu.json)保存实际 adapter、8 帧差异/上传量与 mock 计数，二者分别标注。报告中的 PNG 文件名相对于该次 `test-results/consumer`；重跑会更新本地 artifact，不将这些文件名视为永久图片链接。
-
-新增硬件专项在桌面 Chromium 153 / Apple `metal-3` 通过：8 帧各 230400 通道零差异，前 5 个时间帧 records/parameters 上传都是 0 B，后 3 个版本失效帧各重新上传 128/160 B。GPU 现有合同是白色清屏，测试将透明 Canvas 参考以 destination-over 合成相同白底，不改变任何几何或像素容差；首次背景未对齐被断言检出。`gpu-frame-<序号>-gpu.png` / `-canvas.png` 保存实际/参考画面。headless 在本机无 adapter，报告仍明确 SKIP。
-
-- #104 已在独立消费者接入进入/退出、目标打断、稳定 key 重排、一次性逻辑释放、真实实例资源表释放、单图层 device loss 后重建及 `:file` JS-only 显式重编译；尚未满足发布 tag 重跑及 10k 独立运动。
+- #104 已接入生命周期、实际资源释放、device loss 重建、`:file` JS-only 显式重编译和独立运动三路径；两档尺寸正式时长报告见[同源帧测量](consumer-performance.md)。发布 tag 重跑、跨后端中间帧合同、基线比较和完整目标判定仍未验收。
 - 重编译门禁只覆盖单函数 `:file` 片段，不声称 watch、inline 热更新或任意构建缓存行为已经验证。没有修改 caps 的共享不可变缓存。
 - 本例仍需页面提供原生 Canvas context；统一的挂载/调度/卸载入口仍属于后续公共 API 工作。它不需要框架内部 JS，却不等于完整应用迁移已经完成。
 - 后续应把通用纹理/字体/图片和多图层共享资源接到 device loss/rebuild 协议，并补发布 tag；当前保留模型/拓扑变化时整体重声明的合同。

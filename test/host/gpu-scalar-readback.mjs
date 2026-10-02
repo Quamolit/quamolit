@@ -1,12 +1,13 @@
 // 测试专用有界读回。复用实际 renderer 的 WGSL 与已安装参数，不进入正常帧路径。
-export async function readScalarSample(host, index, time) {
+export async function readScalarSample(host, index, time, axis = 0) {
   if (
     host.disposed ||
     !host.scalarReady ||
     !Number.isSafeInteger(index) ||
     index < 0 ||
     index >= host.scalarCount ||
-    !Number.isFinite(time)
+    !Number.isFinite(time) ||
+    (axis !== 0 && axis !== 2)
   )
     throw Error("invalid-scalar-probe");
   const device = host.device;
@@ -16,8 +17,8 @@ export async function readScalarSample(host, index, time) {
       code: `${host.scalarSource}
 @group(0) @binding(2) var<storage,read_write> result: array<f32>;
 @compute @workgroup_size(1) fn probe(){
- result[0]=sampleMotion(motions[${index * 2}u],0.0);
- result[1]=sampleMotion(motions[${index * 2 + 1}u],0.0);
+ result[0]=sampleMotion(motions[${index * 3 + axis}u],0.0);
+ result[1]=sampleMotion(motions[${index * 3 + (axis === 2 ? 2 : 1)}u],0.0);
 }`,
     });
     const pipeline = await device.createComputePipelineAsync({

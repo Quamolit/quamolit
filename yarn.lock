@@ -5,23 +5,23 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
-"@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#tag=0.2.1-alpha.10":
-  version: 0.2.1-alpha.10
-  resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=0766ac33ff4c11c7776212d333b737be05e04de3"
+"@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#tag=0.2.1-alpha.11":
+  version: 0.2.1-alpha.11
+  resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=801e18c6161a25018ae25edf07b0be6c0f9250b1"
   dependencies:
-    "@calcit/procs": "npm:0.24.3"
-  checksum: 10c0/e951ac1e18136d68a35c16436dee615f9011bebcb12de53319483c6fd96ef1492720d1427c143db70b5438f99b693e5bd7be5be49fa4fe74af7cb0d893e2d928
+    "@calcit/procs": "npm:0.28.0-alpha.3"
+  checksum: 10c0/1d1723b0a260063a1899b7802da967361c2ea88a80500bfac715a1b61c1129dd3f28ebd0147ff60da02959c3878c065b51f196778548da13b65421e230fbab65
   languageName: node
   linkType: hard
 
-"@calcit/procs@npm:0.27.0":
-  version: 0.27.0
-  resolution: "@calcit/procs@npm:0.27.0"
+"@calcit/procs@npm:0.28.0-alpha.3":
+  version: 0.28.0-alpha.3
+  resolution: "@calcit/procs@npm:0.28.0-alpha.3"
   dependencies:
     "@calcit/ternary-tree": "npm:0.0.26"
     "@cirru/parser.ts": "npm:^0.0.9"
     "@cirru/writer.ts": "npm:^0.1.9"
-  checksum: 10c0/85edf1724beaf5e3b895f456b9d81ae93100316802b19bc20ab7cbcc61e295892e787c2f9cca0c9c231ba1cc3c3d320ae158d3f8c9fd39eda24500c56ebe99b1
+  checksum: 10c0/12ecf0d4c9472574c7904f048e0349b63089630042ebcc2d6f3aa0f11675c9816b2c8a9732b7321a894f06f391154e36bcf145da1edf451ef151f2146041a202
   languageName: node
   linkType: hard
 
@@ -678,8 +678,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
-    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.1-alpha.10"
-    "@calcit/procs": "npm:0.27.0"
+    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.1-alpha.11"
+    "@calcit/procs": "npm:0.28.0-alpha.3"
     "@playwright/test": "npm:1.63.0"
     "@quamolit/touch-control": "npm:^0.0.13"
     bottom-tip: "npm:^0.1.5"

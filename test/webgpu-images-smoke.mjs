@@ -117,6 +117,90 @@ test("嵌套父组变换与裁剪求交，镜像矩阵保留正确边界；不�
   assert.equal(begins, 0);
 });
 
+test("裁剪以累计物理像素边界判定：DPR、镜像和祖先平移不隐式取整，拒绝发生在资源查询前", () => {
+  const original = fan.scene_at(fan.initial(), 0.18);
+  const leaf = original.get(tags.nodes).get(0);
+  const identity = R(scene.Matrix2D, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+  const rectangle = R(scene.ClipRect, { x: 0.5, y: 0.5, width: 20, height: 20 });
+  const group = leaf.assoc(tags.id, "window").assoc(
+    tags.content,
+    core._PCT__$o__$o_(
+      scene.SceneContent,
+      tags.group,
+      R(scene.GroupNode, {
+        transform: identity,
+        clip: core._PCT__$o__$o_(scene.ClipSpec, tags.rect, rectangle),
+        opacity: 1,
+      }),
+    ),
+  );
+  const document = original.assoc(
+    tags.nodes,
+    new core.CalcitSliceList([
+      group,
+      ...original
+        .get(tags.nodes)
+        .toArray()
+        .map((node) => node.assoc(tags.parent, "window")),
+    ]),
+  );
+  assert.equal(core.to_js_data(document).nodes.length, 25);
+  for (const [matrix, expected] of [
+    [identity, ["canvas", "fractional-image-clip"]],
+    [R(scene.Matrix2D, { a: 2, b: 0, c: 0, d: 2, e: 0, f: 0 }), ["webgpu"]],
+    [R(scene.Matrix2D, { a: -2, b: 0, c: 0, d: -2, e: 100, f: 100 }), ["webgpu"]],
+    [R(scene.Matrix2D, { a: 2, b: 0, c: 0, d: 2, e: 0.25, f: 0 }), ["canvas", "fractional-image-clip"]],
+  ]) {
+    assert.deepEqual(core.to_js_data(images.render_decision(document, matrix, true)), expected);
+  }
+  let lookups = 0,
+    begins = 0;
+  assert.throws(
+    () =>
+      images.draw_document_$x_(
+        {
+          begin() {
+            begins++;
+          },
+        },
+        document,
+        () => {
+          lookups++;
+          return { width: 650, height: 432 };
+        },
+        identity,
+        100,
+        100,
+        clear,
+      ),
+    /unsupported-fractional-image-clip/,
+  );
+  assert.equal(lookups, 0);
+  assert.equal(begins, 0);
+  // An integer child cannot erase an unverified fractional ancestor clip.
+  const outer = group.assoc(tags.id, "outer");
+  const inner = group.assoc(tags.parent, "outer").assoc(
+    tags.content,
+    core._PCT__$o__$o_(
+      scene.SceneContent,
+      tags.group,
+      R(scene.GroupNode, {
+        transform: identity,
+        clip: core._PCT__$o__$o_(scene.ClipSpec, tags.rect, R(scene.ClipRect, { x: 2, y: 2, width: 10, height: 10 })),
+        opacity: 1,
+      }),
+    ),
+  );
+  const nested = document.assoc(
+    tags.nodes,
+    new core.CalcitSliceList([outer, inner, leaf.assoc(tags.parent, "window")]),
+  );
+  assert.deepEqual(core.to_js_data(images.render_decision(nested, identity, true)), [
+    "canvas",
+    "fractional-image-clip",
+  ]);
+});
+
 test("混合文字/折线 Scene 保留全部 24 图片和层序，Calcit 判定完整图层回退而不是 GPU 子集", () => {
   const document = fan.display_scene(fan.initial(), 0.18, view, true, true);
   const nodes = core.to_js_data(document).nodes;

@@ -257,6 +257,8 @@ test("编译后的 file/inline 真实调用：冷上传、稀疏热上传、稳�
   const { device, canvas, calls } = mockDevice();
   const host = gpu.create_renderer_$x_(canvas, device, "bgra8unorm", 128),
     initial = frame(base());
+  assert.equal(host.capacity, 128);
+  assert.equal(host.disposed, false);
   gpu.submit_frame_$x_(host, gpu.empty_frame(), initial);
   assert.equal(calls.writes.length, 66);
   assert.deepEqual(calls.draws, [[6, 65]]);
@@ -276,6 +278,7 @@ test("编译后的 file/inline 真实调用：冷上传、稀疏热上传、稳�
   assert.equal(calls.submits, 103);
   gpu.dispose_renderer_$x_(host);
   gpu.dispose_renderer_$x_(host);
+  assert.equal(host.disposed, true);
   assert.equal(calls.unconfigured, 1);
   assert.deepEqual(
     calls.buffers.map((b) => b.destroyed),

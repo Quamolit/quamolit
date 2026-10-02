@@ -7,7 +7,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 
 const root = resolve(import.meta.dirname, "..");
 const bin = process.env.CALCIT_BIN ?? "calcit";
-test("真实 Calcit 预处理拒绝非实例表句柄和普通 List 位置数据", async () => {
+test("真实 Calcit 预处理拒绝实例表/renderer 句柄混用和普通 List 位置数据", async () => {
   const scratch = await mkdtemp(join(tmpdir(), "quamolit-instance-types-"));
   try {
     await copyFile(join(root, "calcit.cirru"), join(scratch, "calcit.cirru"));
@@ -27,6 +27,15 @@ test("真实 Calcit 预处理拒绝非实例表句柄和普通 List 位置数据
         ["'quamolit.webgpu-batches/RectBatchHost"],
         "'Number",
         ["quamolit.instance-resource/live-count", "gpu"],
+        ["gpu"],
+      ],
+      ["numeric-renderer", [], "'Unit", ["quamolit.gpu-component/dispose-renderer!", "1"]],
+      [
+        "table-is-not-renderer",
+        ["'quamolit.instance-resource/InstanceTableHost"],
+        "'Unit",
+        ["quamolit.gpu-component/dispose-renderer!", "table"],
+        ["table"],
       ],
       [
         "list-is-not-floats",
@@ -43,7 +52,7 @@ test("真实 Calcit 预处理拒绝非实例表句柄和普通 List 位置数据
       ],
     ];
     const ops = [["edit", "add-ns", ns]];
-    for (const [name, args, ret, body] of cases) {
+    for (const [name, args, ret, body, params = []] of cases) {
       const id = `${ns}/${name}`;
       ops.push([
         "edit",
@@ -52,7 +61,7 @@ test("真实 Calcit 预处理拒绝非实例表句柄和普通 List 位置数据
         "--input-format",
         "json-ast",
         "--code",
-        JSON.stringify(["defn", name, name === "gpu-is-not-table" ? ["gpu"] : [], body]),
+        JSON.stringify(["defn", name, params, body]),
       ]);
       ops.push(["edit", "schema", id, "--input-format", "json-ast", "--code", JSON.stringify(fn(args, ret))]);
     }
@@ -70,13 +79,15 @@ test("真实 Calcit 预处理拒绝非实例表句柄和普通 List 位置数据
     assert.equal(result.error, undefined);
     assert.notEqual(result.status, 0, "非法类型不能编译通过");
     const output = result.stdout + result.stderr;
-    assert.match(output, /coverage: 3\/3 definitions checked/);
+    assert.match(output, /coverage: 5\/5 definitions checked/);
     assert.match(output, /source definitions passed: 0/);
     for (const [name] of cases) assert.match(output, new RegExp(`\\[warning\\].*${name}`), `必须逐定义拒绝 ${name}`);
     assert.match(output, /expects type.*InstanceTableHost/);
     assert.match(output, /expects type.*Float32ArrayHost/);
+    assert.match(output, /expects type.*RectRendererHost/);
     assert.match(output, /Function .*live-count.*arg 1/);
     assert.match(output, /Function .*register!.*arg 3/);
+    assert.match(output, /Function .*dispose-renderer!.*arg 1/);
   } finally {
     await rm(scratch, { recursive: true, force: true });
   }

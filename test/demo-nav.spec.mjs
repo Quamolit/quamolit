@@ -3,6 +3,57 @@ import { readFile } from "node:fs/promises";
 const catalog = JSON.parse(await readFile(new URL("../demos/catalog.json", import.meta.url), "utf8"));
 const artifactURL = `http://127.0.0.1:${process.env.QUAMOLIT_DEMO_TEST_PORT || 5190}/preview/`;
 
+for (const [demo, api, input, time] of [
+  ["tidal-bloom", "metricFlowDemo", "#view-analytics", 1.4],
+  ["signal-weave", "signalWeaveDemo", "#mode-campaign", 1.2],
+  ["cohort-pulse", "cohortPulseDemo", "#filter-risk", 0.9],
+]) {
+  test(`${demo}：共享调度的空闲、输入/尺寸与 DPR 通知唤醒、卸载取消`, async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(`demos/index.html?demo=${demo}&t=${time}`);
+    await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+    const snapshot = () => page.evaluate((name) => window[name].snapshot(), api);
+    await expect.poll(async () => (await snapshot()).pending).toBe(false);
+    const idle = await snapshot();
+    await page.waitForTimeout(2100);
+    expect((await snapshot()).paints).toBe(idle.paints);
+    await page.locator(input).click();
+    await expect.poll(async () => (await snapshot()).paints).toBeGreaterThan(idle.paints);
+    await page.evaluate((name) => window[name].pause(), api);
+    const paused = await snapshot();
+    expect(paused.pending).toBe(false);
+    await page.setViewportSize({ width: 1000, height: 760 });
+    await expect.poll(async () => (await snapshot()).width).toBe(1000);
+    expect((await snapshot()).time).toBe(paused.time);
+    const resized = await snapshot();
+    const session = await page.context().newCDPSession(page);
+    // 同时改变 CSS 尺寸，验证真实 ResizeObserver 通知；无通知的 DPR-only 更新另记 #50。
+    await session.send("Emulation.setDeviceMetricsOverride", {
+      width: 1001,
+      height: 760,
+      deviceScaleFactor: 2,
+      mobile: false,
+    });
+    await expect.poll(async () => (await snapshot()).width).toBe(2002);
+    expect((await snapshot()).time).toBe(paused.time);
+    expect((await snapshot()).paints).toBeGreaterThan(resized.paints);
+    await page.evaluate((name) => {
+      window.disposedChartApi = window[name];
+      window[name].play();
+    }, api);
+    await page.getByRole("button", { name: /所有演示/ }).click();
+    await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+    expect(await page.evaluate((name) => name in window, api)).toBe(false);
+    const disposed = await page.evaluate(() => window.disposedChartApi.snapshot());
+    expect(disposed.pending).toBe(false);
+    expect(disposed.playing).toBe(false);
+    await page.waitForTimeout(200);
+    expect((await page.evaluate(() => window.disposedChartApi.snapshot())).paints).toBe(disposed.paints);
+    expect(errors).toEqual([]);
+  });
+}
+
 test("分层 GPU 初始化等待期间离开，迟到 adapter 不再创建设备或复活画布", async ({ page }) => {
   await page.addInitScript(() => {
     window.layerCreatedDevices = 0;

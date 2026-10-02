@@ -4,7 +4,7 @@
   if (!['rgba8unorm', 'bgra8unorm'].includes(format)) throw Error('invalid-gpu-component-format');
   const context = canvas.getContext('webgpu');
   if (!context) throw Error('gpu-component-context-unavailable');
-  if (scalar && capacity * 64 > device.limits.maxStorageBufferBindingSize) throw Error('gpu-scalar-storage-capacity');
+  if (scalar && (capacity * 96 > device.limits.maxStorageBufferBindingSize || capacity * 96 > device.limits.maxBufferSize)) throw Error('gpu-scalar-storage-capacity');
   let vertices, params, motions;
   try {
     // 同一段采样代码同时供 vertex 和有界测试读回使用，不另写测试版公式。
@@ -31,12 +31,12 @@ struct VertexOut { @builtin(position) position: vec4f, @location(0) color: vec4f
   @location(0) rect: vec4f, @location(1) color: vec4f,
   @location(2) matrix: vec4f, @location(3) offset: vec4f) -> VertexOut {
   let corners = array<vec2f,6>(vec2f(0,0),vec2f(1,0),vec2f(0,1),vec2f(0,1),vec2f(1,0),vec2f(1,1));
-  let origin = ${scalar ? 'vec2f(sampleMotion(motions[instance*2u], rect.x), sampleMotion(motions[instance*2u+1u], rect.y))' : 'rect.xy'};
+  let origin = ${scalar ? 'vec2f(sampleMotion(motions[instance*3u], rect.x), sampleMotion(motions[instance*3u+1u], rect.y))' : 'rect.xy'};
   let p = origin + rect.zw * corners[i];
   let world = vec2f(matrix.x*p.x + matrix.z*p.y, matrix.y*p.x + matrix.w*p.y) + offset.xy;
   var result: VertexOut;
   result.position = vec4f(2.0*world.x/view.size.x-1.0, 1.0-2.0*world.y/view.size.y, 0, 1);
-  result.color = color;
+  result.color = ${scalar ? 'vec4f(color.rgb, sampleMotion(motions[instance*3u+2u], color.a))' : 'color'};
   return result;
 }
 @fragment fn fragment(in: VertexOut) -> @location(0) vec4f {
@@ -52,7 +52,7 @@ struct VertexOut { @builtin(position) position: vec4f, @location(0) color: vec4f
     params=device.createBuffer({size:16,usage:0x40|0x08,label:'Quamolit component viewport'});
     const entries=[{binding:0,resource:{buffer:params}}];
     if(scalar){
-      motions=device.createBuffer({size:capacity*64,usage:0x80|0x08,label:'Quamolit scalar parameters'});
+      motions=device.createBuffer({size:capacity*96,usage:0x80|0x08,label:'Quamolit scalar parameters'});
       entries.push({binding:1,resource:{buffer:motions}});
     }
     const bindGroup=device.createBindGroup({layout:pipeline.getBindGroupLayout(0),entries});

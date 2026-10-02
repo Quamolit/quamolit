@@ -2,7 +2,24 @@
 
 适用于计划 v3；[执行与验收修订](plan-v3.md)补充公共 Calcit 集成、独立消费者和真实路径测量门禁。本文保留的数值/视觉/性能规则继续适用；目标命令不等于已经存在的能力。
 
-新增 #104 消费者门禁须由实现 PR 提供实际命令并接 CI：候选模块干净安装、inline/file 源码分发、输出搬移、真实 Calcit 调用、乱序时间、同时间失效和 1000 帧结构复用计数。生产代码不得导入 test/host 或 target/js/motion。M2 的阶段测量必须跑同一个 Calcit 声明输入，M0 参考基准不能替代。
+#104 已有 `test:consumer` 负责候选模块干净安装、inline/file 源码分发、输出搬移、真实 Calcit 调用、乱序时间、同时间失效和 1000 帧结构复用计数。生产代码不得导入 test/host 或 target/js/motion。M2 的阶段测量必须跑同一个 Calcit 声明输入，M0 参考基准不能替代。
+
+## 关键链路与运行分层
+
+后续优先扩展下列现有门禁；详细合同仍由下文与主题文档维护，不另建脚本登记表或平行测试框架。
+
+| 层级 | 关键链路 / 现有入口 | 判定 |
+| --- | --- | --- |
+| T0：类型与纯语义 | `check:api-inventory`、`test:ui-motion`、`test:gpu-component` 的严格类型/Node 合同、`check:test-js-format` | 类型、采样、非法输入和接口边界必须通过；Node mock 不算真实 GPU |
+| T1：CI 浏览器 | `test:consumer`、`test:demo-nav` 及受改动影响的作品门禁 | 安装→编译→可控时间→Canvas→切换/卸载；保留失败截图与反例，GPU 缺失单列 SKIP |
+| T2：本机硬件 | `QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer` | macOS/Metal 实际画面、上传和恢复；无非软件 adapter 必须失败，不能将 SKIP 算通过 |
+| T3：阶段测量 | `yarn bench:consumer` | 正式预热 5 s / 采样 30 s / 3 轮；只验收报告实际包含的负载，不进日常 CI |
+
+这不是完整脚本分层盘点，也不替代既有 CI 回归。新增功能尽量沿同一消费者验证成功、回退和释放，底层纯语义保留独立单测；新增命令/job/主题文档须说明现有链路无法承接的原因。计数、画质和帧耗时分开报告，次要边界登记 issue。现有 visual workflow 从消费者报告生成四项硬件专项摘要，分别统计 PASS、SKIP 和未执行，并显示 adapter/原因；报告缺失不记为通过，要求硬件时的失败报告保留已得到的 SKIP。摘要只覆盖这条关键链路，不冒充全部 Playwright 用例的 SKIP 总数。[PR 模板](../.github/PULL_REQUEST_TEMPLATE.md)要求声明硬件、容差及新增复杂度的理由，不替代实际验证。
+
+#179 的耗时按实际 Actions job/step 比较，不用测试条数推算。5fd4a69 的 visual 为7m8s，其中完整导航/构建75s、Chromium安装48s、Motion浏览器30s、干净消费者21s；原始步骤可从 [Actions](https://github.com/Quamolit/quamolit/actions/runs/36921147534)复核。新必跑job/重型测试不得隐式增加；若持续超过这次预算，先比较安装/网络波动与重复准备，附前后数据解释，不靠删除作品覆盖或失败断言降时长。单次观测不是长期缩短证明，全部workflow的稳定成本对比仍待#179验收。
+
+`test:motion-browser`在同一快照下只编译一次motion入口（原来四次），保留原14个namespace、4个原生过滤器、12个Node文件及31个浏览器用例；其他5个编译入口不变，独立测试命令仍自行编译。聚合命令复用第一次产物，不引入缓存、环境跳过开关或新调度器；修改相关独立命令时需同步聚合的检查/用例范围。Node分组可以合并，同一失败仍须使整条命令失败。实际本机单次91.16→58.12s只说明本切片观测，正式Actions成本以干净CI结果和稳定多轮比较为准。
 
 ## 当前可执行门禁
 
@@ -50,13 +67,13 @@
 
 `yarn test:demo-nav` 验证[完整演示导航](../demos/README.md)：清单无遗漏、统一编译、全部页面静态构建后在子路径部署、所有已实现入口初始化与导航往返、搜索/分类/刷新/移动端。原有 11 项须在同一页面切换、Canvas 节点保持唯一，旧入口的计时器与 DOM 监听卸载；固定时间直链、历史记录和 reduced-motion 下过渡行为也需可回归。当前自动化已覆盖同页入口、前后切换和历史记录；全部入口的资源释放计数与过渡逐帧截图仍待补，不以本门禁冒充完成。GPU 不可用时的回退不替代真实 GPU 画面或吞吐；CI 保存站点、导航截图与失败 trace。
 
-`yarn test:consumer` 在独立临时项目安装候选提交，严格检查消费者，搬移入口可达产物后执行 Node/Chromium 合同；覆盖 1000 帧复用、乱序时间、同时间失效与 js-ffi/Quamolit GPU `:file` 分发。同一门禁在模块副本中验证 JS-only 修改：未编译的旧产物保持旧行为，显式编译后的公共调用使用新片段，Snapshot 与共享缓存不变。GPU 原生设备 mock 验证两个矩形的 1000 时间帧；非软件 adapter 的矩形专项与 10k 动态实例专项分别验证。后者检查 80 kB→8 B→0 B→跳版本 80 kB、单 Canvas 后端切换、100 次版本推进、device loss 重建与终点全图零差异；无设备时单独 SKIP，不能记为硬件通过。详见[独立消费检验](isolated-consumer.md)；尚不包含通用 Presence GPU 资源集成、10k 独立运动、watch 或 inline 热更新。
+`yarn test:consumer` 在独立临时项目安装候选提交，严格检查消费者，搬移入口可达产物后执行 Node/Chromium 合同；覆盖 1000 帧复用、乱序时间、同时间失效与 js-ffi/Quamolit GPU `:file` 分发。同一门禁在模块副本中验证 JS-only 修改：未编译的旧产物保持旧行为，显式编译后的公共调用使用新片段，Snapshot 与共享缓存不变。GPU 原生设备 mock 验证两个矩形的 1000 时间帧；非软件 adapter 的矩形专项与 10k 动态实例专项分别验证。后者检查 80 kB→8 B→0 B→跳版本 80 kB、单 Canvas 后端切换、100 次版本推进、device loss 重建与终点全图零差异；10k 独立运动再比较 CPU→GPU / GPU 时间采样的五个乱序整帧，并诊断 Canvas 中间帧栅格差异（#144 待定，不作为通过的跨后端像素合同）。无设备时单独 SKIP，不能记为硬件通过。详见[独立消费检验](isolated-consumer.md)；尚不包含通用 Presence GPU 资源集成、正式独立运动吞吐、watch 或 inline 热更新。
 
 实例脏区专项：`yarn test:instance-resource` 检查 10k 实例连续补丁、复制隔离、跳版本解析、千次版本推进与释放；`yarn test:instance-gpu` 检查 Calcit 的 80 kB→8 B→0 B 上传决策及跳版本全量回退；`yarn test:webgpu-instances` 检查原生 writeBuffer 偏移、WebGPU 回退和公共 Calcit→GPU 与 Canvas 的像素一致性。无头软件 adapter 的浏览器专项为 SKIP；本机可加 `--headed -g '公共 Calcit 10k 实例脏区'` 在非软件 adapter 上运行，日志输出实际 adapter 和字节数。该合同不等于完整动态 10k 帧性能基准。
 
 `yarn test:retained-component` 验证 [Calcit 组件保留计划](retained-component.md)：严格类型、原生乱序采样、Node 的 1000 帧静态对象身份/实际声明次数和六类版本失效、Chromium 同源画面对照及演示截图。另覆盖 [Presence 组件连接](presence-component.md)的叶节点 alpha、重入连续性、显式释放、100 次装卸及独立 Canvas 像素对照。它使用独立 `target/js/retained-component/`，不代表外部消费者安装、完整 TodoList 或 GPU/资源生命周期验收。
 
-使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前主项目与独立消费者夹具均声明 Calcit `0.27.0`，npm runtime 同步使用 `@calcit/procs@0.27.0`，主项目使用 js-ffi `0.2.1-alpha.10`；`yarn test:runtime` 会自动拒绝六处版本漂移，完整说明见 [Calcit 0.27 工具链升级](calcit-027-upgrade.md)。Folding Fan 已改用 js-ffi 类型化图片绘制 API，Canvas 当前路径填充改用 `.fill!`。独立消费者夹具仍固定历史 Quamolit 候选提交，用于复现该候选的行为，不代表主项目源码版本。
+使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前主项目与独立消费者夹具均声明 Calcit `0.28.0-alpha.3`，npm runtime 同步使用 `@calcit/procs@0.28.0-alpha.3`，主项目使用 js-ffi `0.2.1-alpha.11`；`yarn test:runtime` 会自动拒绝版本漂移，完整说明见 [工具链版本合同](calcit-027-upgrade.md)。Folding Fan 已改用 js-ffi 类型化图片绘制 API，Canvas 当前路径填充改用 `.fill!`。独立消费者夹具仍固定历史 Quamolit 候选提交，用于复现该候选的行为，不代表主项目源码版本。
 
 ```sh
 yarn install --immutable

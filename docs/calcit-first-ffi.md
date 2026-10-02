@@ -47,7 +47,7 @@ Calcit 0.22 起，定义级 `:ffi :js` 可以嵌入一个 JS 函数表达式：`
 
 本轮已核对实际消费：`typed-arrays.mjs` 的 Float32Array 快照与 `webgpu-capabilities.mjs` 的 adapter/device 探测仍封装平台能力，保留上游；`canvas-rect-batches.mjs` 的批次循环与 `webgpu-rect-batch-create.js` 的矩形 shader、Vec2 tween 和图层资源当前只有 Quamolit 的实际消费者，保留在本仓库 `src/host/`，由 `quamolit.instance-ffi` / `quamolit.webgpu-batches` Calcit 入口调用。旧 `canvas-scene-commands.mjs` 没有 Quamolit 运行消费者，不把它复制成死代码；上游 0.2.0-alpha.1 移除实验接口。原 `gpu-vec2-translation.mjs` 的 Motion 参数解释已迁至 Calcit。
 
-本仓库当前使用 Calcit `0.27.0`、`@calcit/procs@0.27.0` 与 js-ffi `0.2.1-alpha.10`，可直接使用定义级 JS 嵌入（`:ffi :js :inline/:file`）、类型化图片绘制与 Canvas 当前路径 `.fill!`；原有单用途 inline fill 适配已移除。版本合同与门禁矩阵见 [Calcit 0.27 工具链升级](calcit-027-upgrade.md)。当前源码在 0.27 下汇总为 501 个 FFI evidence、28 处 `unsafe-coerce`、45 处 `code-nil`、467 处 `schema-dynamic`；诊断计数必须在同一源码 revision 上比较，早期升级切片的数字只能作为历史基线，不能直接归因为编译器变化。新路径立即收紧，legacy 应用命名空间挂到 [#36](https://github.com/Quamolit/quamolit/issues/36) 的迁移期限；不得通过全局 `:allow` 或宽泛 `Dynamic` 掩盖新代码的类型错误。
+本仓库当前使用 Calcit `0.28.0-alpha.3`、匹配 runtime 与 js-ffi `0.2.1-alpha.11`，可直接使用定义级 JS 嵌入（`:ffi :js :inline/:file`）、类型化图片绘制与 Canvas 当前路径 `.fill!`；原有单用途 inline fill 适配已移除。版本合同与门禁见[工具链升级](calcit-027-upgrade.md)。诊断计数只在同一源码 revision 上比较，不把旧版本统计称为当前验收。新路径立即收紧，legacy 应用命名空间挂到 [#36](https://github.com/Quamolit/quamolit/issues/36) 的迁移期限；不得通过全局 `:allow` 或宽泛 `Dynamic` 掩盖新代码的类型错误。
 
 WebGPU texture 基础 API 缺口已上报 [js-ffi #151](https://github.com/calcit-lang/js-ffi/issues/151)。`quamolit.webgpu-texture-runner` 当前只用两个同步无状态 inline 原语构造 `createTexture` descriptor 和调用 `copyExternalImageToTexture`；identity、队列、registry、device/resource generation、安装和释放均为 Calcit。js-ffi 发布类型化 `TextureHost`/上传 API 后删除这两个 raw inline，公共 runner 合同保持不变。
 

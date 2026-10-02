@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import * as core from "../target/js/gpu-component/calcit.core.mjs";
 import * as motion from "../target/js/gpu-component/quamolit.motion.mjs";
 import * as scene from "../target/js/gpu-component/quamolit.scene-ir.mjs";
 import * as program from "../target/js/gpu-component/quamolit.gpu-scalar-program.mjs";
+import * as lowering from "../target/js/gpu-component/quamolit.motion-gpu.mjs";
 import { dispose_renderer_$x_ } from "../target/js/gpu-component/quamolit.gpu-component.mjs";
 import { start, start_mixed } from "../target/js/gpu-component/quamolit.test.retained-component-fixture.mjs";
 import { sample_plan_at } from "../target/js/gpu-component/quamolit.retained-component.mjs";
@@ -26,6 +28,23 @@ const tags = core.init_tags([
   "width",
   "linear",
   "smoothstep",
+  "alpha",
+  "opacity",
+  "height",
+  "x",
+  "y",
+  "scene",
+  "nodes",
+  "key",
+  "frames",
+  "loop",
+  "clamp",
+  "at",
+  "value",
+  "keyframes",
+  "content",
+  "repeat",
+  "mirror",
 ]);
 const js = core.to_js_data,
   get = (o, k) => o.get(tags[k]),
@@ -36,6 +55,218 @@ const slot = () => get(base(), "slots").get(0);
 const tween = () => core._$n_enum_$o_nth(get(get(slot(), "descriptor"), "motion"), 1);
 const withMotion = (m) => set(slot(), "descriptor", set(get(slot(), "descriptor"), "motion", m));
 const prepare = (t) => program.prepare_slot(withMotion(en(motion.ScalarMotion, "tween", t)));
+const keyframeTrack = (frames, loop = "clamp") =>
+  core._$n__PCT__$M_(
+    motion.ScalarTrack,
+    tags.frames,
+    new core.CalcitSliceList(
+      frames.map(([at, value, easing = "linear"]) =>
+        core._$n__PCT__$M_(
+          motion.ScalarKeyframe,
+          tags.at,
+          at,
+          tags.value,
+          value,
+          tags.easing,
+          en(motion.Easing, easing),
+        ),
+      ),
+    ),
+    tags.loop,
+    en(motion.TrackLoop, loop),
+  );
+
+test("能力表区分候选 lowering 与真实标量执行；绑定回退定位逻辑 key", () => {
+  const track = (count, loop) =>
+    keyframeTrack(
+      Array.from({ length: count }, (_, at) => [at, at]),
+      loop,
+    );
+  const cases = [
+    ["constant", en(motion.ScalarMotion, "constant", 0.5), "supported", "ready"],
+    ["tween-linear", en(motion.ScalarMotion, "tween", tween()), "supported", "ready"],
+    [
+      "tween-smoothstep",
+      en(motion.ScalarMotion, "tween", set(tween(), "easing", en(motion.Easing, "smoothstep"))),
+      "supported",
+      "ready",
+    ],
+    ["time", en(motion.ScalarMotion, "time", 1, 0), "supported", "fallback"],
+    ["keyframes-2-clamp", en(motion.ScalarMotion, "keyframes", track(2)), "supported", "ready"],
+    ["keyframes-2-repeat", en(motion.ScalarMotion, "keyframes", track(2, "repeat")), "supported", "fallback"],
+    ["keyframes-2-mirror", en(motion.ScalarMotion, "keyframes", track(2, "mirror")), "supported", "fallback"],
+    ["keyframes-3-clamp", en(motion.ScalarMotion, "keyframes", track(3)), "supported", "fallback"],
+    ["keyframes-16", en(motion.ScalarMotion, "keyframes", track(16)), "supported", "fallback"],
+    ["keyframes-17", en(motion.ScalarMotion, "keyframes", track(17)), "unsupported", "fallback"],
+  ];
+  const documented = Array.from(
+    readFileSync(new URL("../docs/motion-gpu-contract.md", import.meta.url), "utf8").matchAll(
+      /^\| ([a-z0-9-]+) \| yes \| (supported|unsupported) \| (ready|fallback) \|$/gm,
+    ),
+    ([, name, lower, execute]) => [name, lower, execute],
+  );
+  assert.deepEqual(
+    documented,
+    cases.map(([name, , lower, execute]) => [name, lower, execute]),
+  );
+  for (const [name, value, lower, execute] of cases) {
+    const changed = withMotion(value);
+    assert.equal(lowering.lower_scalar(get(changed, "descriptor")).tag.value, lower, name);
+    assert.equal(program.prepare_slot(changed).tag.value, execute, name);
+  }
+  for (const target of ["x", "y", "alpha", "width", "height", "opacity"]) {
+    const changed = set(withMotion(en(motion.ScalarMotion, "constant", 0.5)), "target", en(scene.ScalarTarget, target));
+    assert.equal(
+      program.prepare_slot(changed).tag.value,
+      ["x", "y", "alpha"].includes(target) ? "ready" : "fallback",
+      target,
+    );
+  }
+  const p = base(),
+    document = get(p, "scene"),
+    nodes = get(document, "nodes"),
+    changed = withMotion(en(motion.ScalarMotion, "time", 1, 0));
+  const contextual = set(
+    set(p, "scene", set(document, "nodes", nodes.assoc(64, set(nodes.get(64), "key", "stable-key")))),
+    "slots",
+    new core.CalcitSliceList([changed]),
+  );
+  assert.deepEqual(js(program.prepare_program(contextual)), [
+    "fallback",
+    "scalar-kernel-not-supported;key=stable-key;target=:x;motion=:time",
+  ]);
+  const sampled = sample_plan_at(contextual, 0.25);
+  assert.equal(get(core._$n_enum_$o_nth(get(get(get(sampled, "scene"), "nodes").get(64), "content"), 1), "x"), 0.25);
+  assert.equal(get(get(get(sampled, "scene"), "nodes").get(64), "key"), "stable-key");
+});
+
+test("两点 clamp 轨道复用 tween 编码，保留首帧 easing、绝对时间与精度合同", () => {
+  for (const easing of ["linear", "smoothstep"]) {
+    const track = keyframeTrack([
+      [-2, 120, easing],
+      [3, 80, easing === "linear" ? "smoothstep" : "linear"],
+    ]);
+    const changed = withMotion(en(motion.ScalarMotion, "keyframes", track));
+    const source = set(base(), "slots", new core.CalcitSliceList([changed]));
+    const snapshot = js(source);
+    const prepared = program.prepare_program(source);
+    assert.equal(prepared.tag.value, "ready");
+    const encoded = js(get(prepared.extra[0], "parameters"))[0];
+    assert.deepEqual(encoded, {
+      index: 64,
+      axis: 0,
+      start: -2,
+      duration: 5,
+      from: 120,
+      to: 80,
+      easing: easing === "linear" ? 0 : 1,
+    });
+    const times = [3, -2, 0.5, -1, 3, -3, 4];
+    let seed = 527;
+    for (let i = 0; i < 100; i++) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      times.push(-3 + (seed / 2 ** 32) * 7);
+    }
+    for (const time of times) {
+      const linear = Math.max(0, Math.min(1, (time + 2) / 5));
+      const ratio = easing === "linear" ? linear : linear * linear * (3 - 2 * linear);
+      const expected = 120 * (1 - ratio) + 80 * ratio;
+      assert.ok(Math.abs(motion.sample_track(track, time) - expected) <= 1e-12);
+      assert.ok(program.time_supported_$q_(prepared.extra[0], time));
+      assert.ok(Math.abs(reference(encoded, time, true) - expected) <= 1e-5 + 1e-5 * Math.abs(expected));
+    }
+    assert.deepEqual(js(source), snapshot, "冷归一化不能修改原轨道或 ComponentPlan");
+  }
+});
+
+test("重复时间保留右侧胜出与跳变回退；多段/循环仍回退且非法轨道仍拒绝", () => {
+  const ready = (track) => program.prepare_slot(withMotion(en(motion.ScalarMotion, "keyframes", track)));
+  const duplicate = keyframeTrack([
+    [2, 80],
+    [2, 20, "smoothstep"],
+  ]);
+  const prepared = ready(duplicate);
+  assert.equal(prepared.tag.value, "ready");
+  const encoded = js(prepared.extra[0]);
+  assert.deepEqual([encoded.start, encoded.duration, encoded.from, encoded.to], [2, 0, 80, 20]);
+  for (const time of [-3, 0, 2, 4, 2]) {
+    const expected = time < 2 ? 80 : 20;
+    assert.equal(motion.sample_track(duplicate, time), expected);
+    assert.equal(reference(encoded, time, true), expected);
+  }
+  assert.deepEqual(
+    js(
+      program.prepare_program(
+        set(base(), "slots", new core.CalcitSliceList([withMotion(en(motion.ScalarMotion, "keyframes", duplicate))])),
+      ),
+    ),
+    ["fallback", "scalar-precision-budget"],
+    "非恒定零时长跳变仍由原 program 精度门禁拒绝",
+  );
+  for (const loop of ["repeat", "mirror"]) {
+    assert.deepEqual(
+      js(
+        ready(
+          keyframeTrack(
+            [
+              [0, 0],
+              [1, 1],
+            ],
+            loop,
+          ),
+        ),
+      ),
+      ["fallback", "scalar-kernel-not-supported"],
+    );
+  }
+  assert.deepEqual(
+    js(
+      ready(
+        keyframeTrack([
+          [0, 0],
+          [0.5, 1],
+          [1, 0],
+        ]),
+      ),
+    ),
+    ["fallback", "scalar-kernel-not-supported"],
+  );
+  assert.throws(
+    () =>
+      ready(
+        keyframeTrack([
+          [1, 0],
+          [0, 1],
+        ]),
+      ),
+    /unordered-keyframes/,
+  );
+  assert.throws(
+    () =>
+      ready(
+        keyframeTrack([
+          [0, 0],
+          [Infinity, 1],
+        ]),
+      ),
+    /invalid-keyframe-time/,
+  );
+  const alpha = set(
+    withMotion(
+      en(
+        motion.ScalarMotion,
+        "keyframes",
+        keyframeTrack([
+          [0, 0],
+          [1, 1.1],
+        ]),
+      ),
+    ),
+    "target",
+    en(scene.ScalarTarget, "alpha"),
+  );
+  assert.equal(program.prepare_slot(alpha).tag.value, "fallback", "归一化后仍检查 alpha 端点域");
+});
 
 test("公共计划生成固定参数；乱序时间不改变描述符参数", () => {
   const p = base(),
@@ -68,6 +299,60 @@ test("constant、smoothstep 和零时长保留参数，不提前按某一时刻�
   assert.equal(js(instant.extra[0]).start, 0.5);
 });
 
+test("组件与实例共用参数编码：轴、索引和完整 f32 域保持同一规则", () => {
+  assert.deepEqual(js(program.make_axis_parameter(7, 1, tween()).extra[0]), {
+    ...js(prepare(tween()).extra[0]),
+    index: 7,
+    axis: 1,
+  });
+  for (const index of [-1, 0.5, NaN])
+    assert.throws(() => program.make_axis_parameter(index, 0, tween()), /invalid-scalar-instance-index/);
+  assert.throws(() => program.make_axis_parameter(0, 3, tween()), /invalid-scalar-instance-axis/);
+  assert.deepEqual(js(program.make_axis_parameter(0, 0, set(tween(), "to", 1e31))), [
+    "fallback",
+    "scalar-parameters-outside-f32-domain",
+  ]);
+});
+
+test("矩形 alpha 使用同一 sampler，端点限于单位区间；group opacity 仍回退", () => {
+  const alpha = set(set(tween(), "from", 0), "to", 1);
+  const alphaSlot = set(withMotion(en(motion.ScalarMotion, "tween", alpha)), "target", en(scene.ScalarTarget, "alpha"));
+  const parameter = program.prepare_slot(alphaSlot);
+  assert.equal(parameter.tag.value, "ready");
+  assert.equal(js(parameter.extra[0]).axis, 2);
+  assert.deepEqual(js(program.prepare_slot(set(alphaSlot, "target", en(scene.ScalarTarget, "opacity")))), [
+    "fallback",
+    "scalar-target-not-supported",
+  ]);
+  for (const [field, value] of [
+    ["from", -0.1],
+    ["to", 1.1],
+  ]) {
+    assert.deepEqual(js(program.make_axis_parameter(0, 2, set(alpha, field, value))), [
+      "fallback",
+      "scalar-alpha-outside-unit-interval",
+    ]);
+  }
+  const alphaPlan = set(base(), "slots", new core.CalcitSliceList([alphaSlot]));
+  const prepared = program.prepare_program(alphaPlan);
+  assert.equal(prepared.tag.value, "ready");
+  const m = mock(),
+    host = program.create_renderer_$x_(m.canvas, m.device, "bgra8unorm", 128);
+  try {
+    program.install_program_$x_(host, prepared.extra[0]);
+    const parameterWrite = m.writes.find((w) => w.label === "Quamolit scalar parameters" && w.bytes === 32);
+    assert.equal(parameterWrite.offset, 64 * 96 + 2 * 32);
+    assert.deepEqual(parameterWrite.values, [0, 1, 0, 1, 1, 0, 0, 0]);
+    assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*3u+2u], color.a)"));
+    const cold = m.writes.length;
+    for (const time of [1, 0, 0.5, 0.25, 1]) program.draw_at_$x_(host, prepared.extra[0], time);
+    assert.ok(m.writes.slice(cold).every((w) => w.bytes === 16));
+    assert.equal(m.buffers.length, 3);
+  } finally {
+    dispose_renderer_$x_(host);
+  }
+});
+
 test("不支持算子/目标/CPU 变换均明确回退；重复绑定不能只保留一项", () => {
   assert.deepEqual(js(program.prepare_slot(withMotion(en(motion.ScalarMotion, "time", 1, 0)))), [
     "fallback",
@@ -79,11 +364,17 @@ test("不支持算子/目标/CPU 变换均明确回退；重复绑定不能只�
   ]);
   assert.deepEqual(js(program.prepare_program(start_mixed(0, 40, false, 100))), ["fallback", "cpu-transform-required"]);
   const duplicate = set(base(), "slots", new core.CalcitSliceList([slot(), slot()]));
-  assert.deepEqual(js(program.prepare_program(duplicate)), ["fallback", "duplicate-gpu-scalar-target"]);
+  assert.deepEqual(js(program.prepare_program(duplicate)), [
+    "fallback",
+    "duplicate-gpu-scalar-target;key=badge;target=:x;motion=:tween",
+  ]);
 });
 
 test("检查完整参数域；起点有效但终点越界也不能交给 GPU", () => {
-  assert.deepEqual(js(program.prepare_program(extreme_plan(0))), ["fallback", "scalar-parameters-outside-f32-domain"]);
+  assert.deepEqual(js(program.prepare_program(extreme_plan(0))), [
+    "fallback",
+    "scalar-parameters-outside-f32-domain;key=badge;target=:x;motion=:tween",
+  ]);
   for (const [key, value] of [
     ["from", 1e31],
     ["to", 1e31],
@@ -167,23 +458,27 @@ function mock() {
 test("编译后 file/inline 调用：参数常驻，1000 时间帧只更新 uniform", () => {
   const m = mock(),
     h = program.create_renderer_$x_(m.canvas, m.device, "bgra8unorm", 128);
+  assert.equal(h.capacity, 128);
+  assert.equal(h.disposed, false);
   const prepared = program.prepare_program(base()).extra[0];
   assert.throws(() => program.draw_at_$x_(h, prepared, 0), /not-installed/);
   program.install_program_$x_(h, prepared);
   assert.equal(h.uploadedBytes, 4160);
-  assert.equal(h.parameterBytes, 4192);
+  assert.equal(h.parameterBytes, 6272);
   const hotStart = m.writes.length;
   for (let i = 0; i < 1000; i++) program.draw_at_$x_(h, prepared, (i % 101) / 100);
   const hot = m.writes.slice(hotStart);
   assert.equal(hot.length, 1000);
   assert.ok(hot.every((w) => w.bytes === 16 && w.label === "Quamolit component viewport"));
   assert.equal(h.uploadedBytes, 4160);
-  assert.equal(h.parameterBytes, 4192);
+  assert.equal(h.parameterBytes, 6272);
   assert.equal(m.buffers.length, 3);
-  assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*2u]"));
+  assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*3u]"));
   assert.equal(hot[25].values[2], 0.25);
   dispose_renderer_$x_(h);
   dispose_renderer_$x_(h);
+  assert.equal(h.disposed, true);
+  assert.equal(h.scalarProgram, null, "释放不得保留旧 Calcit program 引用");
   assert.ok(m.buffers.every((b) => b.dead === 1));
   assert.throws(() => program.draw_at_$x_(h, prepared, 0.5), /not-installed/);
 });
@@ -205,6 +500,25 @@ test("同时间版本变化不能复用；重新安装清除旧参数槽", () =>
     before = m.writes.length;
   program.install_program_$x_(h, reset);
   assert.ok(m.writes[before].values.every((v) => v === 0));
+  const installedWrites = m.writes.length;
+  const installedTime = h.viewScratch[2],
+    installedDraws = h.draws;
+  assert.throws(() => program.draw_at_$x_(h, prepared, 0.5), /gpu-scalar-program-not-installed/);
+  assert.equal(m.writes.length, installedWrites, "旧 program 不得更新时间或产生 GPU 上传");
+  assert.equal(h.viewScratch[2], installedTime);
+  assert.equal(h.draws, installedDraws);
+  program.draw_at_$x_(h, reset, 0.5);
+  assert.equal(m.writes.length, installedWrites + 1);
+  const writeBuffer = m.device.queue.writeBuffer;
+  m.device.queue.writeBuffer = () => {
+    throw Error("injected-install-write-failure");
+  };
+  assert.throws(() => program.install_program_$x_(h, prepared), /injected-install-write-failure/);
+  assert.equal(h.scalarProgram, null);
+  assert.throws(() => program.draw_at_$x_(h, reset, 0.5), /not-installed/);
+  m.device.queue.writeBuffer = writeBuffer;
+  program.install_program_$x_(h, reset);
+  program.draw_at_$x_(h, reset, 0.5);
   dispose_renderer_$x_(h);
 });
 

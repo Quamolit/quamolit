@@ -15,7 +15,9 @@
 
 `update-frame(previous,next)` 由 Calcit 比较物理绘制索引上的记录，给出 `RectWrite {index,record}` 和记录上传预算。重排不按颜色排序；删除末尾只降低绘制数，旧 buffer 尾部不再绘制。一个矩形记录为 64 字节：x/y/w/h、rgba、a/b/c/d、e/f/0/0。RGB 遵循现有 Canvas `color-css` 的 8 位取整，再转换为 f32；alpha 保留连续值，shader 用预乘 alpha 混合。
 
-`create-renderer!(canvas,device,format,capacity)` 创建一个固定容量 renderer；device 为 js-ffi 的类型化 `DeviceHost`，内部 raw ABI 使用 JsObject。`submit-frame!(host,previous,next)` 在 Calcit 中预检、决定变更并逐条写入，宿主只做 typed array/GPU 调用。首次与重建必须传 `empty-frame()`，后续 previous 必须是该 renderer 上一次成功提交的帧；一个 renderer 只允许一个调用方维护这条历史。异常/设备丢失后销毁并重建，不在未知 GPU 状态上继续复用旧历史。
+`create-renderer!(canvas,device,format,capacity)` 创建固定容量的 `RectRendererHost`；device 为 js-ffi 的类型化 `DeviceHost`。CPU 批次和标量/实例 GPU 采样共享这个专属句柄，公共提交/安装/绘制/释放不再接收裸 JsObject，消费者须同步参数/返回 schema；不兼容实例源表或另一种 `RectBatchHost`。句柄由 `defexternal` 声明实际只读 `capacity/disposed` 字段（Snapshot 归一化为 Trait），没有新增 JS 包装对象。内嵌 JS 的原始 ABI 仍为 JsObject，局部转换只在本模块边界；Calcit 0.27 不支持把此 Trait 直接写入内嵌 JS Fn ABI。`raw-dispose!` 保存原释放片段，不增加原生资源。类型证据不验证任意手工伪造 JS 对象，Canvas 参数与 raw 创建边界仍开放；接口仍为实验，不宣称整个 renderer ABI 已封闭。
+
+`submit-frame!(host,previous,next)` 在 Calcit 中预检、决定变更并逐条写入，宿主只做 typed array/GPU 调用。首次与重建必须传 `empty-frame()`，后续 previous 必须是该 renderer 上一次成功提交的帧；一个 renderer 只允许一个调用方维护这条历史。异常/设备丢失后销毁并重建，不在未知 GPU 状态上继续复用旧历史。
 
 `dispose-renderer!` 幂等释放两个 buffer 和 Canvas 配置；device 所有权属于调用方，不在此销毁。初始化错误清理已创建 buffer。容量不足在任何写入前报错，当前由调用者用更大容量重建；尚未实现自动增长或一般资源表。
 

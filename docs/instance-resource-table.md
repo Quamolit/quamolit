@@ -32,7 +32,7 @@ let
 ## 归属与实现
 
 - 版本递增、计数校验、复制隔离、释放与 live 计数都在 `src/host/instance-resource-table.mjs` 中；该文件是 Calcit `:ffi :js :file` 单函数表达式，返回一个带方法的句柄，不含 `import`/`export`/`require` 词元。
-- Calcit 侧：`raw-create-table!` 走 `:file`，公共操作通过 `InstanceTableHost` 的类型化方法调用同一个宿主；历史 `raw-*` inline 原始 ABI 保留为内部实现兼容，不作为新应用推荐入口。
+- Calcit 侧：`raw-create-table!` 走 `:file`，公共操作通过 `InstanceTableHost` 的类型化方法调用同一个宿主；六个无仓库引用的历史裸 `JsObject` 转发已移除，不再维护平行 ABI。迁移为 `raw-register! → register!`、`raw-register-patch! → register-patch!`、`raw-resolve → resolve`、`raw-patch-info → patch-info`、`raw-release! → release!`、`raw-live-count → live-count`；位置参数仍为 Float32Array，源的 `id/version/count` 改由 `InstanceSource` 一起传入。已发布 tag 不改写，未知外部消费者须按此迁移；现有七项类型化 API 签名和行为不变，仍为实验接口。
 - 类型引用 `quamolit.scene-ir` 与 `js-ffi.typed-arrays/Float32ArrayHost`，不新增裸宿主文件导入。独立消费者必须检查实际入口可达的编译模块和 npm 依赖，不能把类型化本身视为分发验证。
 
 ## 语义

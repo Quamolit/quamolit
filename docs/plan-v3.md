@@ -6,33 +6,15 @@
 
 ## 当前事实与下一项交付
 
-#177 的分层组合已接通纯 Calcit 层契约、10k 静态实例与渐入 Canvas 看板、逆层序命中、统一 DPR 和整层回退。macOS/Metal 验证透明合成及 device loss 后保留版本重建；统一导航保持原有共享 UI Canvas，只装卸下层 Canvas。它是显式实验入口，不自动拆分普通 Scene，不等于 10k 独立动画或正式合成成本验收。下一步完成原始阶段报告/成本证据及 #175 同源独立运动基线，不以该技术示例替代艺术作品与 M2 总体验收。
+截至 2026-10-02，候选 PR #188 同步采用已发布的 Calcit 0.28.0-alpha.3 / runtime 0.28.0-alpha.3 / js-ffi 0.2.1-alpha.11，版本合同见[工具链升级](calcit-027-upgrade.md)。实时完成状态以 GitHub 为准；以下只描述已经验证的链路，不再逐 PR 追加历史段落。
 
-2026-10-01 的 #40 整层回退切片：纯 Calcit `render-decision` 先校验 Scene/view，再根据设备可用性、整层图元和累计裁剪矩阵返回封闭后端选择；不返回 GPU 子集。Folding Fan 的可选文字/折线标注与 24 图片同属于一个 Scene，真实 Metal 验证 GPU→完整 Canvas→暂停 resize→复用 GPU，DPR 2 以独立原生隔离层做全像素参考与分享刷新。单层回退已贯通，不等于 #177 的 UI/10k 实例双层同屏；下一主线推进该分层契约与消费者，M2 保持开放。
+- 声明式组件、Presence 生命周期和保留计划已接通 Canvas；TodoList 与图表作品覆盖出入、打断、重排和乱序时间。具体语义见[公共 API 合同](api-contract.md)，不等于所有实验入口均已稳定。
+- [独立消费者](isolated-consumer.md)覆盖干净安装、公共 Calcit 调用、产物搬移、1000 帧结构复用、版本失效、资源释放、设备恢复及 `:file` JS-only 显式重编译。发布 tag 重跑仍待验收。
+- #187 已合并：同一 Calcit 声明的 10k 独立 Vec2 动画接通 Canvas 与 CPU→GPU。候选 PR [#188](https://github.com/Quamolit/quamolit/pull/188)接通 GPU 时间采样，复用参数编码和 shader；本机 Apple/Metal-3 的五个乱序时间整帧 GPU/GPU 对照零差异，时间帧只上传 16 B uniform。#188 尚未合并；这些计数不证明 60 FPS。
+- Folding Fan 的图片、轴对齐嵌套窗口和整层回退已接通；[分层组合](layer-composition.md)使用显式实验契约，不自动拆分任意 Scene。旋转 clip、隔离组透明度与复杂绘制仍须按支持矩阵处理，不能只绘制可用子集。
+- #144 仍是双后端栅格化合同的开放决策：整数参考可零差异，小数/重叠中间帧仍有显著 Canvas/GPU 差异。MSAA 与解析覆盖率的临时硬件实验记录在 issue，不作为默认 renderer 或正式 DPR/性能验收。
 
-2026-10-01 的 #40 图片作用域切片：父组累计矩阵与嵌套矩形 clip 求交由 Calcit 完成，GPU fragment 执行像素中心裁剪。Folding Fan 增加可选父组窗口，两后端用同一个 `windowed-scene`；默认历史效果不变。只支持 opacity=1 的 group 和累计轴对齐窗口，旋转 clip/半透明组在绘制开始前拒绝。macOS/Metal 的整数嵌套窗口内外像素与 Canvas 参考一致；亚像素抗锯齿边缘仍由 #144 跟踪，不能据此关闭 #40/M2。
-
-2026-09-30 的 #40/#51 [Scene 图片切片](webgpu-scene-images.md)：同一 Calcit Folding Fan Scene 已可切换 Canvas/WebGPU。Calcit 负责预检、矩阵合成、裁剪坐标和层序，宿主只编码数值与 texture；Apple Metal-3 的裁剪／旋转／透明实色样本通过，1000 个相同帧不创建 pipeline/buffer/bind group、不上传 uniform。Folding Fan 保留 24 片动画、打断、乱序采样与暂停 resize，提供实验后端入口。它不证明完整 Canvas/GPU 图片栅格一致或保留结构编译；#144 边缘差异、混合图元／整层回退、矩形 clip 和 fence-safe 释放继续推进，不关闭 M2。
-
-#51 的 Presence WebGPU 切片已让 Calcit 宿主实际消费多资源注册表动作：创建、上传、安装、绘制和释放真实 `RectBatchHost`，device rebuild 删除 idle、为 active lease 递增资源 generation 并重传同一源。新的[组合状态机](presence-device-coordinator.md)统一 device 安装与 registry rebuild；[异步任务 runner](presence-resource-runner.md)将 Promise 结果提交给最新 state，[多资源加载任务队列](resource-load-queue.md)增加优先级、FIFO、去重、有界 pending/并发背压及取消 token。[图片资源 runner](image-resource-runner.md)又将 Folding Fan 的真实 `ImageHost` 解码、尺寸验证、安装和释放从页面 JS 收回 Calcit，并复用同一队列。[WebGPU texture runner](webgpu-texture-runner.md)继续接入真实 texture 创建、上传、安装、两代 device 重建和像素读回。上传/解码失败、资源替换或 device/runtime generation 变化期间迟到的孤立结果都会清理。100 次图片装卸最终 `created=released=100`；100 次 GPU batch/texture 重建均最终 `created=released=101`。下一项把 texture 用于 Scene 采样绘制，扩展 font/glyph/geometry/pipeline loader，再补 queue-safe 延迟释放；不关闭 #51/M2。
-
-#118 已合并。#39/#104 三路径测量消费独立 Calcit 模块，记录实际计划采样、批次更新、绘制边界、queue 上传/提交、rAF 与资源计数，见[消费者帧测量](consumer-performance.md)。两个矩形只用于贯通测量链路；新增 10k 动态实例负载单列报告，不能用小负载 p95 代替画质/资源恢复门禁。
-
-#52/#104 双轴扩展沿用独立消费者：Calcit 声明 smoothstep x/y，页面可切换 Canvas 参考；Apple/Metal-3 的 8 帧像素及 7 个时间点实际 xy 读回通过，诊断共读回 56 B。独立 mock 的 1000 时间帧仍仅更新 uniform，不新增运行时 JS 依赖。下一步重点转入同源端到端阶段测量与 10k 公共实例，不以更多小样本代替性能交付；精度/资源恢复仍保留最终验收。
-
-#104 独立消费者已补 GPU 公共 Calcit 调用与 `:file` 分发/产物搬移门禁：两个矩形冷启动后 1000 时间帧只写 uniform，设备 mock 验证释放与版本失效；桌面 Chromium 在 Apple/Metal-3 实际验证搬移后的 8 帧同源像素，全部零差异。headless 无 adapter 仍单列 SKIP，不能替代硬件证据。后续继续 GPU 子集、生命周期和端到端测量，不关闭 M2。
-
-#118 后续切片已接入[标准标量 GPU 采样](gpu-scalar-program.md)：Calcit 准备参数、判断复用与精度预算，vertex shader 采样 x/y constant/tween；已有 Apple/Metal 固定时间像素与线性非整数读回。它仍不代表 #52 或 M2 完成，接下来扩展硬件覆盖、独立消费与同源端到端测量。
-
-后续 GPU 集成分支已经将公共 ComponentPlan 接到有序矩形批次，并补齐纯标量时间帧的静态批次缓存，见 [实现与边界](gpu-component-plan.md)。它是 #38/#40 的 CPU 采样→GPU 绘制切片，不等于 #52 标准动画已在 GPU 采样；接下来补标准 Motion 参数、独立消费者与同源阶段耗时。局部 CPU 微基准和 GPU 硬件像素成功不能替代资源恢复或端到端性能验收。
-
-2026-09-26 执行顺序对齐：#114 已合并，标量与几何变换已共用组件运行入口；#115 独立混合消费者仍是开放 PR。当前以 TodoList 联动 #49/#51/#36 的生命周期，再将同一声明接 #38/#40/#52 GPU 合批，不等待全部旧 demo。其余旧 demo 按共同能力成组恢复，不持续精修摆动树。#113 等次要栅格化差异延期，不阻塞主线；最终验收条件仍保留。
-
-本分支补充 [Presence 到组件声明的连接](presence-component.md)及 [TodoList 恢复](todolist-restoration.md)：文字、行级 Model、错峰进退、打断重排、输入日志、独立命中与全屏操作已接入统一计划。静态生命周期不再生成无意义 alpha 绑定；真实资源、通用指针捕获、独立下游生命周期与同源 GPU 仍待验收。窄屏可读性归 #117；M1/M2 均不因此自动关闭。
-
-历史背景（截至 #103，不代表当前能力）：当时 Calcit 0.22.0、js-ffi 0.2.0 已接入，但组件与保留计划尚未贯通。当前公共 Calcit 执行入口已经落地，主项目使用 Calcit 0.27.0 与 js-ffi 0.2.1-alpha.10；Folding Fan 使用类型化图片绘制入口，Canvas 实心路径使用类型化 `.fill!`，不再保留相应的本地 inline 适配；主应用仍是 bootstrap。M0 参考场景性能不能外推为新运行路径性能。
-
-下一笔主线实现用 TodoList 驱动 #49/#50：在已贯通的公共 Calcit 入口上完成进入/退出、目标打断和稳定 key 重排。复用 #33 的 Canvas 参考与 #35 的类型化平台能力，不再新增平行运行时。
+候选 PR #188 已在同一干净提交完成两档尺寸的三路径正式时长测量，见[现有消费者报告](consumer-performance.md#2026-10-0210k-独立动画正式时长报告)。CPU 全量采样明显不达 60 FPS；GPU 时间采样保持零位置上传，但栅格化、供电/刷新率和基线比较仍未完整验收。下一项围绕 #144 / #175 收口同源实例链路，再推进 #176 的公共入口收敛。复用已有消费者与主题文档，不为每个边界新增 renderer、demo、测试命令或文档。发布 tag、完整组透明度/裁剪语义及阶段展示仍未完成；M2 保持开放。其他设备一律标为未验证，次要问题登记 issue，不反复扩大当前切片。
 
 ## 实现顺序与跨阶段边界
 
@@ -85,13 +67,23 @@
 - 新增整文件宿主导入必须记录最小复现、替代方案、上游 issue（有缺口时）、局部范围及撤销条件；不以 Dynamic 掩盖公共类型。
 - 通过 #104 验证模块安装、片段分发、输出搬移与真正的 Calcit 调用；不只直接测 JS。
 
-### #49：收口 M1 逻辑生命周期
+### M1 阶段验收与展示
 
-已有 #73/#74/#80/#84 的打断、Presence、fade 与 Float32 引用验证。接 #50/#104 展示同一可重排列表示例。
+M1 内功能 issues 已关闭，milestone 仍开放；阶段整理在候选 PR #188，待合并后再核对关闭，不以 issue 数量代替验收。2026-10-02 在 c4eb358、Calcit/runtime0.28.0-alpha.3、js-ffi0.2.1-alpha.11、Node24 与锁定 Chromium 上复核如下；命令均为既有门禁，不新增文件或框架。
 
-- M1 验收逻辑 enter/exit、重入、身份、释放通知与终点停帧；对应纯 Calcit 和可编译示例。
-- 真实设备资源释放由 #51 验收，指针捕获释放由 #34 验收；相关集成要求移交给这两项，不反向阻塞 M1 逻辑合同关闭。
-- 明确逐项证据后才关闭本 issue；现有测试不自动证明下游集成完成。
+| 阶段要求 | 实现及可定位断言 | 展示/边界 |
+| --- | --- | --- |
+| 声明式组件、显式 Model、类型化输入与版本 | [公共合同](api-contract.md)、[组件采样](component-sample.md)，component/direct 测试覆盖同时间失效与乱序采样 | Scene/Motion 无 DOM/GPU 句柄；接口仍多数为实验性，不等于稳定发布 |
+| Motion 与直接时间 | `motion-smoke.mjs`、`direct.spec.mjs`：标量/Vec2/颜色/组合、循环端点、非法数值与独立参考 | 导航 Motion 分类中的关键帧/颜色/直接采样页面；CPU 任意函数不自动转 WGSL |
+| 固定步长与输入重放 | `simulation-smoke.mjs`、`replay-archive.spec.mjs`：不同显示节奏、检查点、倒退与预算拒绝 | 固定 tick 模拟页面；不是 GPU 历史模拟 #54 |
+| Scene 身份及逻辑生命周期 | `presence` 原生/Node、`todolist-smoke.mjs`：重排、父级卸载、25/50/75%打断、重入、重复结算、100次装卸回空 | TodoList 退出期间禁交互，终点逻辑释放；真实资源/指针另归 #51/#34 |
+| 可打开的应用与停帧 | `todolist.spec.mjs`：实际增删编辑、Canvas命中、两秒空闲、输入唤醒、DPR1/2、独立原生像素 | 原有动画分类 TodoList，固定日志 `t=0.25/1.65/1.7/2.6/4`；动画与绘制不修改 Model |
+
+复现：`yarn test:motion-browser`（原生38、Node44、浏览器31通过）、`yarn test:simulation`（原生2、Node2通过）、`yarn test:todolist`（原生1、Node7、浏览器6通过）。TodoList 的1000时间帧断言静态节点/绑定身份共享、计划构建1次；100次逻辑装卸回空、释放不重复。这些是正确性/计数证据，不是帧率测量；M1无新的GPU性能承诺，M2同源性能见[消费者报告](consumer-performance.md)。
+
+直观展示：[本地TodoList](http://127.0.0.1:5191/demos/index.html?demo=todolist&t=1.65)，先用固定时间按钮看初始进入/退出中间帧/终点，再用行上的完成、编辑、置顶、删除和“恢复”操作。阶段截图来自已成功的[CI run 36942494503](https://github.com/Quamolit/quamolit/actions/runs/36942494503)：`quamolit-todolist-36942494503` artifact 包含 `todo-0.25.png`、`todo-1.65.png`、`todo-1.7.png`、`todo-2.6.png`、`todo-4.png`；下载复核过中间帧，过期后按上述命令重现，不将PNG/JSON入库。
+
+M1仅验收上述逻辑合同和可编译展示，不要求一般隔离组透明度、通用指针捕获、宿主GPU释放或稳定tag。下一阶段继续 #50/#104 的保留组件消费与 #40/#52 的受限GPU路径，完整绘制归 #53，性能验收暂不以功能通过代替。
 
 ### #39：测量协议先行，新增后端持续接入
 

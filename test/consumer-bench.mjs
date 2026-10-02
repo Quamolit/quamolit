@@ -16,6 +16,13 @@ export function consumerBenchOptions(env = process.env) {
     durationSeconds: Number(env.QUAMOLIT_BENCH_DURATION ?? 30),
     runs: Number(env.QUAMOLIT_BENCH_RUNS ?? 3),
   };
+  if (env.QUAMOLIT_BENCH_LOAD !== undefined) {
+    if (env.QUAMOLIT_BENCH_LOAD !== "independent-10k") throw Error("invalid workload");
+    const size = env.QUAMOLIT_BENCH_SIZE || "320x180";
+    if (!["320x180", "1920x1080"].includes(size)) throw Error("invalid pixel size");
+    options.workload = "independent-10k";
+    options.pixelSize = size.split("x").map(Number);
+  } else if (env.QUAMOLIT_BENCH_SIZE !== undefined) throw Error("size requires independent workload");
   if (!Number.isFinite(options.warmupSeconds) || options.warmupSeconds < 0) throw Error("invalid warmup");
   if (!Number.isFinite(options.durationSeconds) || options.durationSeconds <= 0) throw Error("invalid duration");
   if (!Number.isSafeInteger(options.runs) || options.runs < 1) throw Error("invalid runs");
@@ -25,10 +32,40 @@ export function consumerBenchOptions(env = process.env) {
 export function summarizeConsumerRun(run) {
   assert.equal(run.result, "PASS");
   assert.deepEqual(run.errors, []);
-  assert.deepEqual(run.pixelSize, [320, 180]);
+  const independent = run.workload === "independent-10k";
+  assert.ok(!run.workload || ["dual", "independent-10k"].includes(run.workload));
+  assert.ok(["canvas", "gpu-cpu", "gpu-scalar"].includes(run.backend));
+  assert.ok(["320,180", ...(independent ? ["1920,1080"] : [])].includes(run.pixelSize.join(",")));
   assert.equal(run.devicePixelRatio, 1);
-  assert.equal(run.planCounts.declarations, 1);
-  assert.equal(run.planCounts["plan-builds"], 1);
+  if (independent) {
+    assert.equal(run.sourceCount, 10000);
+    assert.equal(run.beforeDispose.liveVersions, run.backend === "gpu-scalar" ? 0 : 1);
+    assert.equal(run.afterDispose.liveVersions, 0);
+    assert.equal(run.checksumTime, 1);
+    assert.ok(Number.isSafeInteger(run.coveredPixels) && run.coveredPixels > 0);
+    assert.equal(run.byteProbes.length, 3);
+    assert.equal(run.byteProbes[1].time, run.byteProbes[0].time);
+    assert.equal(run.byteProbes[1].positionSnapshotBytes, 0);
+    if (run.backend !== "canvas") assert.equal(run.byteProbes[1].recordBytes, 0, "重复帧不得上传位置");
+    if (run.backend === "gpu-cpu") {
+      assert.equal(run.coldCounters.recordBytes, 80000);
+      assert.equal(run.byteProbes[0].recordBytes, 80000);
+      assert.equal(run.byteProbes[2].recordBytes, 80000);
+    }
+    if (run.backend === "gpu-scalar")
+      for (const probe of run.byteProbes) {
+        assert.equal(probe.recordBytes, 0);
+        assert.equal(probe.parameterBytes, 0);
+        assert.equal(probe.uniformBytes, 16);
+      }
+    if (run.backend === "gpu-scalar") {
+      assert.equal(run.coldCounters.recordBytes, 640000);
+      assert.equal(run.coldCounters.parameterBytes, 1600000);
+    }
+  } else {
+    assert.equal(run.planCounts.declarations, 1);
+    assert.equal(run.planCounts["plan-builds"], 1);
+  }
   assert.equal(run.afterDispose.liveBuffers, 0);
   const samples = run.measure.samples;
   assert.ok(samples.length >= 2);
@@ -41,11 +78,17 @@ export function summarizeConsumerRun(run) {
     if (sample.rafIntervalMs !== null) assert.ok(Number.isFinite(sample.rafIntervalMs) && sample.rafIntervalMs > 0);
     if (gpu) {
       for (const key of ["queueWriteMs", "queueSubmitMs"]) assert.ok(Number.isFinite(sample[key]) && sample[key] >= 0);
-      assert.equal(sample.uniformBytes, 16);
+      assert.equal(sample.uniformBytes, independent && run.backend === "gpu-cpu" ? 64 : 16);
       assert.equal(sample.submits, 1);
       assert.equal(sample.parameterBytes, 0);
       if (run.backend === "gpu-scalar") assert.equal(sample.recordBytes, 0);
-      else assert.ok(sample.recordBytes === 0 || sample.recordBytes === 64);
+      else assert.ok(sample.recordBytes === 0 || sample.recordBytes === (independent ? 80000 : 64));
+    }
+    if (independent) {
+      assert.equal(sample.drawCalls, gpu ? 1 : 10000);
+      if (run.backend === "gpu-scalar") assert.equal(sample.positionSnapshotBytes, 0);
+      else assert.ok([0, 80000].includes(sample.positionSnapshotBytes));
+      if (run.backend === "gpu-cpu") assert.equal(sample.recordBytes, sample.positionSnapshotBytes);
     }
   }
   const keys = [
@@ -72,6 +115,10 @@ export function summarizeConsumerRun(run) {
   assert.ok(Number.isFinite(run.idleRafMedianMs) && run.idleRafMedianMs > 0);
   return {
     backend: run.backend,
+    workload: run.workload || "dual",
+    pixelSize: run.pixelSize,
+    coveredPixels: run.coveredPixels,
+    byteProbes: run.byteProbes,
     frames: samples.length,
     elapsedMs: run.measure.elapsedMs,
     declarationMs: run.declarationMs,
@@ -145,13 +192,18 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env, laun
     instanceSummaries = [],
     dynamicSummaries = [];
   const backends = ["canvas", "gpu-cpu", "gpu-scalar"];
+  const independent = options.workload === "independent-10k";
+  const prefix = independent ? `bench-independent-${options.pixelSize.join("x")}` : "bench";
   // 长测连续复用同一 Chromium 进程时，第二轮曾出现页面被浏览器提前关闭。
   // 每个独立运行使用新的浏览器进程，同时隔离 WebGPU device 与渲染器生命周期。
   async function openRun() {
     const isolatedBrowser = await launchBrowser({ headless: env.QUAMOLIT_CONSUMER_HEADED !== "1" });
     try {
       const context = await isolatedBrowser.newContext({
-        viewport: { width: 1000, height: 900 },
+        viewport: {
+          width: Math.max(1000, options.pixelSize?.[0] || 0),
+          height: Math.max(900, options.pixelSize?.[1] || 0),
+        },
         deviceScaleFactor: 1,
       });
       return { isolatedBrowser, context };
@@ -214,7 +266,7 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env, laun
           continue;
         }
         const summary = summarizeConsumerRun(run),
-          filename = `bench-${backend}-${index + 1}.json`;
+          filename = `${prefix}-${backend}-${index + 1}.json`;
         await writeFile(join(artifacts, filename), JSON.stringify({ identity, options, run }, null, 2));
         rawFiles.push(filename);
         summaries.push({ run: index + 1, ...summary });
@@ -225,6 +277,7 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env, laun
         await closeRun(isolated);
       }
     }
+    if (independent) continue;
     const staticRun = await openRun(),
       instanceContext = staticRun.context;
     try {
@@ -310,7 +363,8 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env, laun
   }
   assert.ok(summaries.length > 0);
   assert.equal(new Set(summaries.map((s) => s.checksum)).size, 1, "跨运行/跨后端的固定时间画面必须完全相同");
-  assert.equal(new Set(instanceSummaries.map((s) => s.checksum)).size, 1, "静态 10k 实例跨运行画面必须完全相同");
+  if (!independent)
+    assert.equal(new Set(instanceSummaries.map((s) => s.checksum)).size, 1, "静态 10k 实例跨运行画面必须完全相同");
   for (const backend of ["canvas-instances-dynamic", "gpu-instances-dynamic"]) {
     assert.equal(
       new Set(dynamicSummaries.filter((summary) => summary.backend === backend).map((summary) => summary.checksum))
@@ -351,45 +405,49 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env, laun
     summaries,
     skipped,
     aggregates,
-    instances: {
-      workload: "static-10k-canvas-reference",
-      sourceCount: 10000,
-      inputBytes: 80000,
-      summaries: instanceSummaries,
-      cpuP95MedianMs: median(instanceSummaries.map((s) => s.cpuFrameMs.p95)),
-      rafP95MedianMs: median(instanceSummaries.map((s) => s.rafIntervalMs.p95)),
-      limitations: [
-        "静态宿主网格输入，不代表 10k 独立动画",
-        "10k Canvas fillRect，不等同 GPU instances",
-        "只与自身同环境历史报告比较，不与两图元负载比较吞吐倍数",
-      ],
-    },
-    dynamicInstances: {
-      workload: "10k-instances-one-dirty-record-per-frame",
-      sourceCount: 10000,
-      inputBytes: 80000,
-      summaries: dynamicSummaries,
-      backends: Object.fromEntries(
-        ["canvas-instances-dynamic", "gpu-instances-dynamic"].map((backend) => {
-          const runs = dynamicSummaries.filter((summary) => summary.backend === backend);
-          return [
-            backend,
-            runs.length
-              ? {
-                  runs: runs.length,
-                  cpuP95MedianMs: median(runs.map((summary) => summary.metrics.cpuFrameMs.p95)),
-                  rafP95MedianMs: median(runs.map((summary) => summary.metrics.rafIntervalMs.p95)),
-                }
-              : null,
-          ];
-        }),
-      ),
-      limitations: [
-        "每帧只有一个实例运动，不代表 10k 独立动画",
-        "Canvas 每帧重绘 10k，GPU 每帧提交一层并上传 8 B 位置与 64 B uniform",
-        "跨设备/尺寸及小数重叠栅格化另验收 #144",
-      ],
-    },
+    instances: independent
+      ? null
+      : {
+          workload: "static-10k-canvas-reference",
+          sourceCount: 10000,
+          inputBytes: 80000,
+          summaries: instanceSummaries,
+          cpuP95MedianMs: median(instanceSummaries.map((s) => s.cpuFrameMs.p95)),
+          rafP95MedianMs: median(instanceSummaries.map((s) => s.rafIntervalMs.p95)),
+          limitations: [
+            "静态宿主网格输入，不代表 10k 独立动画",
+            "10k Canvas fillRect，不等同 GPU instances",
+            "只与自身同环境历史报告比较，不与两图元负载比较吞吐倍数",
+          ],
+        },
+    dynamicInstances: independent
+      ? null
+      : {
+          workload: "10k-instances-one-dirty-record-per-frame",
+          sourceCount: 10000,
+          inputBytes: 80000,
+          summaries: dynamicSummaries,
+          backends: Object.fromEntries(
+            ["canvas-instances-dynamic", "gpu-instances-dynamic"].map((backend) => {
+              const runs = dynamicSummaries.filter((summary) => summary.backend === backend);
+              return [
+                backend,
+                runs.length
+                  ? {
+                      runs: runs.length,
+                      cpuP95MedianMs: median(runs.map((summary) => summary.metrics.cpuFrameMs.p95)),
+                      rafP95MedianMs: median(runs.map((summary) => summary.metrics.rafIntervalMs.p95)),
+                    }
+                  : null,
+              ];
+            }),
+          ),
+          limitations: [
+            "每帧只有一个实例运动，不代表 10k 独立动画",
+            "Canvas 每帧重绘 10k，GPU 每帧提交一层并上传 8 B 位置与 64 B uniform",
+            "跨设备/尺寸及小数重叠栅格化另验收 #144",
+          ],
+        },
     formalDuration: options.warmupSeconds >= 5 && options.durationSeconds >= 30 && options.runs >= 3,
     environment: {
       browser: browser.version(),
@@ -398,14 +456,16 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env, laun
       cpu: os.cpus()[0]?.model,
       power: env.QUAMOLIT_BENCH_POWER || "unknown",
       dpr: 1,
-      pixelSize: [320, 180],
-      fixture: "Calcit consumer dual smoothstep",
-      nodes: 2,
-      animatedNodes: 1,
+      pixelSize: options.pixelSize || [320, 180],
+      fixture: independent ? "Calcit consumer independent Vec2 10k" : "Calcit consumer dual smoothstep",
+      nodes: independent ? 1 : 2,
+      animatedNodes: independent ? 10000 : 1,
       alpha: "premultiplied; white background",
       blend: "source-over",
       antialias: "browser-default; GPU sampleCount=1",
-      input: "t=abs((frameIndex%120)/60-1), model=40, ready=false, viewport=100",
+      input: independent
+        ? "t=abs((frameIndex%120)/60-1); 125x80 grid; 2x2 rect; independent linear/smoothstep Vec2"
+        : "t=abs((frameIndex%120)/60-1), model=40, ready=false, viewport=100",
       resourceState: "no textures/fonts",
     },
     unavailable: {
@@ -416,13 +476,21 @@ async function runConsumerBenchImpl(browser, url, artifacts, identity, env, laun
       canvasUploadBytes: "Canvas API 不暴露上传量",
     },
     limitations: [
-      "三路径对比仍只有 2 个图元，不能外推 1k/10k/100k 吞吐；10k 静态与单脏记录动态负载分别报告",
+      independent
+        ? "10k 独立动画固定原始像素几何；1920x1080 不扩大图元，coveredPixels 单独记录，不与其他分辨率计算加速比"
+        : "三路径对比仍只有 2 个图元，不能外推 1k/10k/100k 吞吐；10k 静态与单脏记录动态负载分别报告",
       "正式时长不等于硬件目标通过；需核对供电、设备、画质、显示刷新率",
-      "输入延迟、资源恢复与 10k 独立运动待验收",
+      independent
+        ? "checksumTime=1 只锁定整数终点；小数中间帧 Canvas/GPU 一致性仍待 #144 合同，不因报告 PASS 宣称画质通过"
+        : "输入延迟、资源恢复与 10k 独立运动待验收",
+      ...(independent
+        ? ["CPU 路径每个不同时间生成并登记全量 80kB 位置快照；不证明按实际变更实例数上传，重复时间复用快照"]
+        : []),
       "每帧测量本身有开销；GPU drawBoundary/queue.submit CPU 时间不是 GPU 执行时间",
     ],
   };
   await writeFile(join(artifacts, "bench-report.json"), JSON.stringify(report, null, 2));
+  if (independent) await writeFile(join(artifacts, `${prefix}-report.json`), JSON.stringify(report, null, 2));
   return {
     schema: report.schema,
     formalDuration: report.formalDuration,

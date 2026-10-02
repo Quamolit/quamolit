@@ -12,7 +12,7 @@ Quamolit 是用 Calcit 编写的声明式 Canvas 动画库。组件描述画面�
 
 后续开发以 [技术路线与 milestones](docs/roadmap.md)、[工作项规格](docs/work-items.md) 和 [检验规则](docs/verification.md) 为准。计划分为 M0 基线、M1 动画函数、M2 增量执行与 WebGPU、M3 完整应用、M4 性能发布；性能目标均需实测，不能把编译成功当作功能或性能验收。接手编码前请阅读 [AGENTS.md](AGENTS.md)。
 
-当前 vNext 迁移仍在进行中：[设计草案](docs/vnext-design.md) 说明目标 API 与渲染边界，[确定性帧测试](test/README.md) 说明固定时间截图的使用方式。要在本地编译和运行，需要 Calcit 0.27.0 与 Node.js 24：
+当前 vNext 迁移仍在进行中：[设计草案](docs/vnext-design.md) 说明目标 API 与渲染边界，[确定性帧测试](test/README.md) 说明固定时间截图的使用方式。要在本地编译和运行，需要 Calcit 0.28.0-alpha.3 与 Node.js 24：
 
 M0 的[三类可运行参考场景](test/m0/README.md)可独立打开，用于后续后端的相同输入与画面对照。
 M2 新增 [Calcit 保留组件演示](docs/retained-component.md)：同一声明的全量参考与保留计划并排显示，可拖动时间、改变输入并验证 1000 帧结构复用。运行 `yarn test:retained-component` 验证。
@@ -227,7 +227,7 @@ hug-log :data "|more data"
 
 ### Develop
 
-To run this project, install Calcit 0.27.0 and Node.js 24 first:
+To run this project, install Calcit 0.28.0-alpha.3 and Node.js 24 first:
 
 ```bash
 corepack enable

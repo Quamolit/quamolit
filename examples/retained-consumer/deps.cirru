@@ -1,4 +1,4 @@
 
-{} (:calcit-version |0.27.0)
+{} (:calcit-version |0.28.0-alpha.3)
   :version |0.0.1
-  :dependencies $ {} (|Quamolit/quamolit |c0bf4611d4eab2cce47316260566a675de22fa4c)
+  :dependencies $ {} (|Quamolit/quamolit |c27e49abec2ea8d678af5605a12d8b463d7832cf)
