@@ -4,6 +4,7 @@ import * as layers from "../../target/js/layer-composition/quamolit.layers.mjs";
 import * as resource from "../../target/js/layer-composition/quamolit.instance-resource.mjs";
 import * as gpu from "../../target/js/layer-composition/quamolit.webgpu-batches.mjs";
 import { to_js_data as plain } from "../../target/js/layer-composition/calcit.core.mjs";
+import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
 
 export function mountDemo() {
   const canvas = document.querySelector("canvas");
@@ -16,11 +17,20 @@ export function mountDemo() {
   const table = resource.create_table_$x_();
   let bottom = null, bottomContext = null, runtime = null, view = null, version = 0;
   let time = Math.max(0, Math.min(1, Number(params.get("t") ?? 0)));
-  let playing = false, raf = 0, started = 0, anchor = 0, epoch = 0, disposed = false;
+  let playing = false, paints = 0, started = 0, anchor = 0, epoch = 0, disposed = false;
   let preferred = params.get("backend") === "webgpu" ? "webgpu" : "canvas";
   let reason = "declared-canvas", metrics = null, plan = null;
   let hitPlans = null, lastHit = null, costs = null;
   let gpuCreated = 0, gpuReleased = 0;
+  const scheduler = new DemandFrameScheduler({
+    requestFrame: callback => requestAnimationFrame(callback),
+    cancelFrame: handle => cancelAnimationFrame(handle),
+    paint: now => playing ? tick(now) : draw(),
+  });
+  function wake(reason) {
+    if (disposed) return;
+    scheduler.request(reason); scheduler.resume();
+  }
 
   function installCanvas() {
     bottom?.remove();
@@ -99,8 +109,10 @@ export function mountDemo() {
     status.textContent = `${runtime ? "WebGPU + Canvas" : "Canvas + Canvas"} · ${dimensions.width}×${dimensions.height} · ${reason}`;
     status.dataset.result = "pass";
     costs = { viewportMs, planningMs, surfacesMs, instancesMs, uiMs, controlsMs: performance.now() - controlsStarted, cpuFrameMs: performance.now() - frameStarted, compositorMs: null, gpuMs: null };
+    paints++;
   }
   async function setBackend(value) {
+    if (disposed) return;
     preferred = value;
     const request = ++epoch;
     releaseRuntime();
@@ -147,22 +159,22 @@ export function mountDemo() {
       draw();
     }
   }
-  function stop() { playing = false; cancelAnimationFrame(raf); document.querySelector("#play").textContent = "播放"; }
+  function stop() { playing = false; scheduler.pause(); document.querySelector("#play").textContent = "播放"; }
   function seek(value) { stop(); time = Math.max(0, Math.min(1, value)); draw(); return snapshot(); }
   function tick(now) {
     if (!playing || disposed) return;
     time = Math.min(1, anchor + (now - started) / 1500);
     draw();
-    if (time < 1) raf = requestAnimationFrame(tick); else stop();
+    if (time < 1) wake("animation"); else stop();
   }
   function play() {
-    if (playing) return;
+    if (playing || disposed) return;
     if (time >= 1) time = 0;
     anchor = time; started = performance.now(); playing = true;
     document.querySelector("#play").textContent = "暂停";
-    raf = requestAnimationFrame(tick);
+    wake("play");
   }
-  function snapshot() { return { time, playing, version, viewport: plain(view), plan, metrics, preferred, backend: runtime ? "webgpu" : "canvas", adapter: runtime?.adapter ?? null, reason, costs, lastHit, sourceLive: resource.live_count(table), gpuCreated, gpuReleased }; }
+  function snapshot() { return { time, playing, paints, pending: scheduler.pending, width: canvas.width, height: canvas.height, version, viewport: plain(view), plan, metrics, preferred, backend: runtime ? "webgpu" : "canvas", adapter: runtime?.adapter ?? null, reason, costs, lastHit, sourceLive: resource.live_count(table), gpuCreated, gpuReleased }; }
   function onPointerUp(event) {
     const bounds = canvas.getBoundingClientRect();
     const outcome = plain(layers.hit_at(hitPlans, view, event.clientX - bounds.left, event.clientY - bounds.top));
@@ -181,7 +193,8 @@ export function mountDemo() {
     panel.hidden = !panel.hidden;
     event.currentTarget.ariaExpanded = String(!panel.hidden);
   };
-  const observer = new ResizeObserver(draw);
+  const resized = () => wake("viewport");
+  const observer = new ResizeObserver(resized);
   observer.observe(canvas);
   let dprQuery = null;
   function watchDpr() {
@@ -189,9 +202,12 @@ export function mountDemo() {
     dprQuery = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`);
     dprQuery.addEventListener("change", dprChanged);
   }
-  function dprChanged() { watchDpr(); draw(); }
+  function dprChanged() { watchDpr(); wake("dpr"); }
   watchDpr();
-  window.addEventListener("resize", draw);
+  window.addEventListener("resize", resized);
+  const listeners = new AbortController();
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); }, {signal:listeners.signal});
+  window.addEventListener("pagehide", stop, {signal:listeners.signal});
   // 部分浏览器/嵌入环境更新 DPR 而不发送 resolution 或 resize 事件；只在版本变化时重绘。
   const dprMonitor = setInterval(() => {
     if (!disposed && view && (devicePixelRatio || 1) !== plain(view).dpr) dprChanged();
@@ -201,7 +217,7 @@ export function mountDemo() {
   setBackend(preferred);
   if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();
   return () => {
-    disposed = true; epoch++; stop(); observer.disconnect(); clearInterval(dprMonitor); dprQuery?.removeEventListener("change", dprChanged); window.removeEventListener("resize", draw); canvas.removeEventListener("pointerup", onPointerUp); releaseRuntime(); bottom?.remove();
+    disposed = true; epoch++; stop(); scheduler.dispose(); listeners.abort(); observer.disconnect(); clearInterval(dprMonitor); dprQuery?.removeEventListener("change", dprChanged); window.removeEventListener("resize", resized); canvas.removeEventListener("pointerup", onPointerUp); releaseRuntime(); bottom?.remove();
     if (version) resource.release_$x_(table, demo.source_at(version));
     delete canvas.dataset.layer;
     if (window.layerCompositionDemo === api) delete window.layerCompositionDemo;

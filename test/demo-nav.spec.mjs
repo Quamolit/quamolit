@@ -14,6 +14,8 @@ for (const [demo, api, input, time, end] of [
   ["raining", "rainingDemo", "#play", 75, 900],
   ["finder", "finderDemo", "#tour", 1, 10],
   ["icons", "iconsDemo", "#increase", 1, 120],
+  ["layered-dashboard", "layeredDashboardDemo", "#play", 0.5, 1],
+  ["layer-composition", "layerCompositionDemo", "#play", 0.5, 1],
 ]) {
   test(`${demo}：共享调度的空闲、输入/尺寸与 DPR 通知唤醒、卸载取消`, async ({ page }) => {
     const errors = [];
