@@ -12,7 +12,7 @@ QUAMOLIT_CONSUMER_REF=12edc27020adf7f9ed55a4ad7adaa7d9e4c123fb yarn test:consume
 QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 ```
 
-前提：Calcit/runtime 0.28.0-alpha.3、js-ffi 0.2.1-alpha.11、caps、Node.js 24、仓库依赖及固定 Chromium 已安装，有 GitHub/npm 网络访问权限。CI 对 PR head SHA 安装，不把先发布 alpha 当作验证前提；发布后应显式传入新 tag 重跑。
+前提：Calcit/runtime 0.28.0、js-ffi 0.2.1-alpha.11、caps、Node.js 24、仓库依赖及固定 Chromium 已安装，有 GitHub/npm 网络访问权限。CI 对 PR head SHA 安装，不把先发布 alpha 当作验证前提；发布后应显式传入新 tag 重跑。
 
 门禁由 `test/isolated-consumer.mjs` 执行：
 
@@ -45,7 +45,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | 独立 10k 三路径 | 同一 Calcit 源驱动 Canvas / CPU→GPU / GPU 时间采样。Node 核对全部 CPU 坐标与 20000 个 GPU 参数；参数常驻的 1000 帧只写 uniform 16000 B，records/parameters 不上传，1 pipeline/3 buffers；非法数量、重复身份、精度域及伪造程序在上传前拒绝。页面复用已有 generation 恢复协议。硬件专项对 3 个索引 × 5 个乱序时间共读回 120 B，使用实际 WGSL、独立公式和既定 `1e-5+1e-5*abs(expected)`；两条 GPU 完整帧和 Canvas 整数端点零差异。Canvas 中间帧单列差异图/统计及 #144 待验收状态；无硬件单独 SKIP。未验收完整跨后端画质合同或正式性能 |
 | 真实 GPU 动态画面 | Apple/Metal-3 上独立消费者的像素对齐 10k 源，初始/补丁/同版本/跳版本位置上传为 80000/8/0/80000 B；四个时间点采样像素和终点整幅 320×180 RGBA 均与 Canvas 参考精确一致，差异图全零。headless 无 adapter 单独 SKIP |
 
-历史首次通过环境：Node 24.19.0、Calcit 0.22.0、Chromium 153.0.8010.12。当前切片使用 Calcit 0.28.0-alpha.3，搬移后的入口可达编译闭包29个模块；唯一npm直接依赖是Calcit runtime。不声称这是最小体积，namespace级依赖仍可能引入未使用的函数。
+历史首次通过环境：Node 24.19.0、Calcit 0.22.0、Chromium 153.0.8010.12。当前切片使用 Calcit 0.28.0，搬移后的入口可达编译闭包29个模块；唯一npm直接依赖是Calcit runtime。不声称这是最小体积，namespace级依赖仍可能引入未使用的函数。
 
 当前 10k 独立源在 Apple/Metal-3、320×180/DPR 1：两条 GPU 路径 `[1,0,0.5,0.25,1]` 的整帧均为零差异；Canvas 的整数端点也是零差异。读回参考显式使用 `willReadFrequently: true`，避免不同读回顺序影响参考统计。t=0.5/0.25 相对该 Canvas 参考分别有 32299/31249 个差异像素，最大通道差 210/205、平均通道差 12.8672/14.2957（0–255），非白覆盖像素差 -9772/-7599。这不是 sampler 数值失败，也不是可忽略的 1 LSB；中间帧仍按 #144 等待合同决策，不设新容差。`independent-frame-<序号>-{scalarPng,cpuGpuPng,canvasPng,diffPng}.png` 与全部统计复用同一忽略报告/CI artifact。
 

@@ -47,7 +47,7 @@ Calcit 0.22 起，定义级 `:ffi :js` 可以嵌入一个 JS 函数表达式：`
 
 本轮已核对实际消费：`typed-arrays.mjs` 的 Float32Array 快照与 `webgpu-capabilities.mjs` 的 adapter/device 探测仍封装平台能力，保留上游；`canvas-rect-batches.mjs` 的批次循环与 `webgpu-rect-batch-create.js` 的矩形 shader、Vec2 tween 和图层资源当前只有 Quamolit 的实际消费者，保留在本仓库 `src/host/`，由 `quamolit.instance-ffi` / `quamolit.webgpu-batches` Calcit 入口调用。旧 `canvas-scene-commands.mjs` 没有 Quamolit 运行消费者，不把它复制成死代码；上游 0.2.0-alpha.1 移除实验接口。原 `gpu-vec2-translation.mjs` 的 Motion 参数解释已迁至 Calcit。
 
-本仓库当前使用 Calcit `0.28.0-alpha.3`、匹配 runtime 与 js-ffi `0.2.1-alpha.11`，可直接使用定义级 JS 嵌入（`:ffi :js :inline/:file`）、类型化图片绘制与 Canvas 当前路径 `.fill!`；原有单用途 inline fill 适配已移除。版本合同与门禁见[工具链升级](calcit-027-upgrade.md)。诊断计数只在同一源码 revision 上比较，不把旧版本统计称为当前验收。新路径立即收紧，legacy 应用命名空间挂到 [#36](https://github.com/Quamolit/quamolit/issues/36) 的迁移期限；不得通过全局 `:allow` 或宽泛 `Dynamic` 掩盖新代码的类型错误。
+本仓库当前使用 Calcit `0.28.0`、匹配 runtime 与 js-ffi `0.2.1-alpha.11`，可直接使用定义级 JS 嵌入（`:ffi :js :inline/:file`）、类型化图片绘制与 Canvas 当前路径 `.fill!`；原有单用途 inline fill 适配已移除。版本合同与门禁见[工具链升级](calcit-027-upgrade.md)。诊断计数只在同一源码 revision 上比较，不把旧版本统计称为当前验收。新路径立即收紧，legacy 应用命名空间挂到 [#36](https://github.com/Quamolit/quamolit/issues/36) 的迁移期限；不得通过全局 `:allow` 或宽泛 `Dynamic` 掩盖新代码的类型错误。
 
 WebGPU texture 基础 API 缺口已上报 [js-ffi #151](https://github.com/calcit-lang/js-ffi/issues/151)。`quamolit.webgpu-texture-runner` 当前只用两个同步无状态 inline 原语构造 `createTexture` descriptor 和调用 `copyExternalImageToTexture`；identity、队列、registry、device/resource generation、安装和释放均为 Calcit。js-ffi 发布类型化 `TextureHost`/上传 API 后删除这两个 raw inline，公共 runner 合同保持不变。
 
@@ -57,7 +57,7 @@ WebGPU texture 基础 API 缺口已上报 [js-ffi #151](https://github.com/calci
 - 测试夹具桥接：`webgpu-capabilities.mjs`、`instance-sources.mjs`、`canvas-instance-batches.mjs`、`webgpu-instance-batches.mjs`、`webgpu-layer-lease.mjs` 已迁到 `test/host/`，仅供 `test/` 引用并反向读取 `target/js/motion/`。
 - 历史执行缓存夹具：`retained-scene-plan.mjs` 仅由测试调用，已迁入 `test/host/`；它反向读取 motion 测试产物，不是下游运行时。失效分类与采样校验仍由 Calcit `quamolit.retained-scene` 提供，参考算法见 [保留式 Scene 计划](retained-scene-plan.md)。正式生产宿主不得导入测试或本地编译路径，既有 `check:api-inventory` 对 `src/host` 递归进行保守源码检查并带负例；它不解析 JS 依赖图，实际编译后依赖闭包仍由 `test:consumer` 验证。`demand-frame-scheduler.mjs` 保留为 demo 的宿主帧/计时句柄工具，不是公共 Calcit 消费者必须额外导入的文件。`presence-resources.mjs` 同样仅在 `test/host/` 中作为参考适配器。
 
-模块交付以 Calcit API 为边界，inline/file 片段随模块源码分发并由编译器内嵌；不向调用者转嫁手工复制 JS、安装片段专用包或导入测试产物的步骤。主 Snapshot 内的 demo/测试优先改用完整的命名 entry（mode/target/init/reload/modules/用途集中配置），但 entry 本身不是发布隔离机制；独立消费者 Snapshot 保留，用于从真正下游验证可达产物。0.28.0-alpha.3 的 CLI 只能修改已有 entry，创建缺口已上报 [Calcit #1665](https://github.com/calcit-lang/calcit/issues/1665)。当前暂用已验证的 `--init-fn/--reload-fn` 覆盖，不新增 wrapper Snapshot、不手改主 Snapshot；上游发布创建能力后，按查询→事务预演→revision 应用迁移既有命令，再跑原编译/消费者门禁，届时才声明 named entry 迁移完成。
+模块交付以 Calcit API 为边界，inline/file 片段随模块源码分发并由编译器内嵌；不向调用者转嫁手工复制 JS、安装片段专用包或导入测试产物的步骤。主 Snapshot 内的 demo/测试优先改用完整的命名 entry（mode/target/init/reload/modules/用途集中配置），但 entry 本身不是发布隔离机制；独立消费者 Snapshot 保留，用于从真正下游验证可达产物。0.28.0 稳定版已复测，CLI 仍 只能修改已有 entry，创建缺口已上报 [Calcit #1665](https://github.com/calcit-lang/calcit/issues/1665)。当前暂用已验证的 `--init-fn/--reload-fn` 覆盖，不新增 wrapper Snapshot、不手改主 Snapshot；上游发布创建能力后，按查询→事务预演→revision 应用迁移既有命令，再跑原编译/消费者门禁，届时才声明 named entry 迁移完成。
 
 逐项审查实例源与画布批次：通用 typed array、WebGPU device/buffer/pipeline 及可复用批量调用归 `js-ffi`，Quamolit 的资源版本和图层策略归本仓库。新代码优先用 `:ffi :js :inline/:file`；每迁移一项删除对应的重复业务 JS，而不是保留 Calcit 空壳转发层；同一测试继续检验乱序时间、资源版本、DPR、失败与释放。
 

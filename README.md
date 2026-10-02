@@ -26,7 +26,7 @@ let
 
 ## 开发与验证
 
-需要 Calcit **0.28.0-alpha.3**、Node.js **24**、Yarn **4**；依赖以 `deps.cirru` 和 lockfile 为准，使用 node-modules linker。
+需要 Calcit **0.28.0**、Node.js **24**、Yarn **4**；依赖以 `deps.cirru` 和 lockfile 为准，使用 node-modules linker。
 
 ```sh
 corepack enable
@@ -49,7 +49,7 @@ Start with the [demo gallery](demos/README.md) (`yarn demo`) and the [API stabil
 
 The [standalone consumer](examples/retained-consumer/README.md) demonstrates component declarations, retained execution, Canvas and a supported WebGPU subset through Calcit imports. Those renderer/resource interfaces remain experimental. See the [verification rules](docs/verification.md) for actual coverage and hardware limits; passing compilation is not proof of application behavior or performance. The [migration contract](docs/api-contract.md#旧入口弃用计划) replaces the old homepage DSL tutorial; historical code remains in Git history and is not removed here.
 
-Use Calcit 0.28.0-alpha.3 and Node.js 24, then run the development commands above. `yarn release:demos` builds the demo site; `compile`/`release` still target the migration bootstrap. Follow [plan v3](docs/plan-v3.md) for milestone status. Reuse existing interfaces and tests before adding more layers.
+Use Calcit 0.28.0 and Node.js 24, then run the development commands above. `yarn release:demos` builds the demo site; `compile`/`release` still target the migration bootstrap. Follow [plan v3](docs/plan-v3.md) for milestone status. Reuse existing interfaces and tests before adding more layers.
 
 ## History and license
 
