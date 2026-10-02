@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 
 async function ready(page, time = 30) {
   await page.goto(`http://127.0.0.1:5180/examples/curve/index.html?t=${time}`);
@@ -19,6 +20,90 @@ async function captureStage(page, testInfo, name) {
   await page.locator("#panel-toggle").click();
   await expect(page.locator("#panel")).toBeVisible();
 }
+
+for (const dpr of [1, 2])
+  test(`原生路径样式不继承宿主：DPR ${dpr} 的端点、接头和状态恢复`, async ({ page }, testInfo) => {
+    await ready(page);
+    const results = await page.evaluate(async (scale) => {
+      const { draw_content_$x_: drawContent } = await import("/target/js/curve/quamolit.canvas-reference.mjs");
+      const fixture = await import("/target/js/curve/quamolit.test.scene-hit-fixture.mjs");
+      const results = [];
+      for (const polygon of [false, true]) {
+        const surface = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 120 * scale;
+          canvas.height = 100 * scale;
+          const context = canvas.getContext("2d", { willReadFrequently: true });
+          context.scale(scale, scale);
+          context.strokeStyle = "red";
+          context.lineWidth = 20;
+          return context;
+        };
+        const actual = surface(),
+          reference = surface(),
+          negative = surface();
+        for (const context of [actual, negative]) {
+          context.lineCap = "square";
+          context.lineJoin = "bevel";
+          context.miterLimit = 1;
+        }
+        const rawPath = (context) => {
+          context.beginPath();
+          context.moveTo(20, 70);
+          if (polygon) {
+            context.lineTo(80, 70);
+            context.lineTo(80, 10);
+            context.closePath();
+          } else {
+            context.bezierCurveTo(40, 70, 60, 70, 80, 70);
+            context.bezierCurveTo(80, 50, 80, 30, 80, 10);
+          }
+          context.stroke();
+        };
+        reference.lineCap = "butt";
+        reference.lineJoin = "miter";
+        reference.miterLimit = 10;
+        rawPath(reference);
+        rawPath(negative); // 旧行为：继承 square/bevel/1，必须产生差异。
+        const content = polygon ? fixture.polygon_stroke_content() : fixture.cubic_stroke_content();
+        drawContent(actual, content);
+        const pixels = (context) => context.getImageData(0, 0, context.canvas.width, context.canvas.height).data;
+        const expected = pixels(reference),
+          got = pixels(actual),
+          wrong = pixels(negative);
+        let differing = 0,
+          negativeDiffering = 0;
+        for (let index = 0; index < got.length; index += 4) {
+          if (got.slice(index, index + 4).some((channel, offset) => channel !== expected[index + offset])) differing++;
+          if (wrong.slice(index, index + 4).some((channel, offset) => channel !== expected[index + offset]))
+            negativeDiffering++;
+        }
+        results.push({
+          polygon,
+          differing,
+          negativeDiffering,
+          restored: [actual.lineCap, actual.lineJoin, actual.miterLimit, actual.lineWidth, actual.strokeStyle],
+          actualPng: actual.canvas.toDataURL(),
+          expectedPng: reference.canvas.toDataURL(),
+          negativePng: negative.canvas.toDataURL(),
+        });
+      }
+      return results;
+    }, dpr);
+    for (const result of results) {
+      for (const name of ["actualPng", "expectedPng", "negativePng"]) {
+        const path = testInfo.outputPath(`${result.polygon ? "polygon" : "cubic"}-${name}.png`);
+        await writeFile(path, Buffer.from(result[name].split(",")[1], "base64"));
+        await testInfo.attach(`${result.polygon ? "polygon" : "cubic"}-${name}`, {
+          path,
+          contentType: "image/png",
+        });
+      }
+      expect(result.differing).toBe(0);
+      expect(result.negativeDiffering).toBeGreaterThan(100 * dpr * dpr);
+      expect(result.restored).toEqual(["square", "bevel", 1, 20, "#ff0000"]);
+    }
+  });
 
 test("动态闭合曲线：固定时间顶点与截图，重复采样一致", async ({ page }, testInfo) => {
   await ready(page);

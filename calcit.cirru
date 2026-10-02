@@ -1942,12 +1942,16 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneContent
             :features $ #{} :js-ffi
-        'draw-cubic-path! $ %{} 'CodeEntry (:doc |)
+        'draw-cubic-path! $ %{} 'CodeEntry
+          :doc "|确定的原生路径端点/接头：butt、miter、miterLimit=10，不继承调用方端点/接头设置；调用完成后恢复这些状态。几何仍由 Canvas 原生绘制，不承诺完整宿主状态隔离。"
           :code $ quote $ defn draw-cubic-path! (context path)
             assert |invalid-scene-cubic-path $ scene/valid-cubic-path? path
             context .save!
             js-set context :stroke-style $ color-css $ :stroke path
             js-set context :line-width $ :width path
+            js-set context :line-cap |butt
+            js-set context :line-join |miter
+            js-set context :miter-limit 10
             context .begin-path!
             let
                 start $ :start path
@@ -1988,13 +1992,17 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/InstanceNode 'js-ffi.typed-arrays/Float32ArrayHost
             :features $ #{} :js-ffi
-        'draw-polygon! $ %{} 'CodeEntry (:doc |)
+        'draw-polygon! $ %{} 'CodeEntry
+          :doc "|确定的原生路径端点/接头：butt、miter、miterLimit=10，不继承调用方端点/接头设置；调用完成后恢复这些状态。几何仍由 Canvas 原生绘制，不承诺完整宿主状态隔离。"
           :code $ quote $ defn draw-polygon! (context polygon)
             assert |invalid-scene-polygon $ scene/valid-polygon? polygon
             context .save!
             js-set context :fill-style $ color-css $ :fill polygon
             js-set context :stroke-style $ color-css $ :stroke polygon
             js-set context :line-width $ :width polygon
+            js-set context :line-cap |butt
+            js-set context :line-join |miter
+            js-set context :miter-limit 10
             context .begin-path!
             let
                 start $ &list:nth (:points polygon) 0
@@ -18694,6 +18702,16 @@
             quamolit.scene-binding :as binding
     'quamolit.test.scene-hit-fixture $ %{} 'FileEntry
       :defs $ {}
+        'cubic-stroke-content $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cubic-stroke-content ()
+            scene/SceneContent :cubic-path $ scene/CubicPathNode :start (motion/Vec2 :x 20 :y 70) :segments
+              []
+                scene/CubicSegment :control-1 (motion/Vec2 :x 40 :y 70) :control-2 (motion/Vec2 :x 60 :y 70) :end $ motion/Vec2 :x 80 :y 70
+                scene/CubicSegment :control-1 (motion/Vec2 :x 80 :y 50) :control-2 (motion/Vec2 :x 80 :y 30) :end $ motion/Vec2 :x 80 :y 10
+              , :width 20 :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ []
         'decoration-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decoration-nodes (amount)
             loop
@@ -18725,6 +18743,16 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerInput)
             :args $ [] 'Number 'quamolit.scene-pointer/PointerPhase 'Number 'Number
+        'polygon-stroke-content $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn polygon-stroke-content ()
+            scene/SceneContent :polygon $ scene/PolygonNode :points
+              [] (motion/Vec2 :x 20 :y 70) (motion/Vec2 :x 80 :y 70) (motion/Vec2 :x 80 :y 10)
+              , :width 20 :fill
+                motion/ColorRgba :r 1 :g 0 :b 0 :a 0
+                , :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ []
         'rotated-scene $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn rotated-scene ()
             let

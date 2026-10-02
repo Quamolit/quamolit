@@ -75,11 +75,14 @@ test("旧 16 步折线在 4 倍放大与 DPR2 下超过 1px，生产路径调用
   const context = {
     strokeStyle: "initial",
     lineWidth: 7,
+    lineCap: "square",
+    lineJoin: "bevel",
+    miterLimit: 1,
     save() {
-      this.saved = [this.strokeStyle, this.lineWidth];
+      this.saved = [this.strokeStyle, this.lineWidth, this.lineCap, this.lineJoin, this.miterLimit];
     },
     restore() {
-      [this.strokeStyle, this.lineWidth] = this.saved;
+      [this.strokeStyle, this.lineWidth, this.lineCap, this.lineJoin, this.miterLimit] = this.saved;
     },
     beginPath() {
       calls.push("begin");
@@ -91,6 +94,7 @@ test("旧 16 步折线在 4 倍放大与 DPR2 下超过 1px，生产路径调用
       calls.push("bezier");
     },
     stroke() {
+      assert.deepEqual([this.lineCap, this.lineJoin, this.miterLimit], ["butt", "miter", 10]);
       calls.push("stroke");
     },
   };
@@ -98,5 +102,8 @@ test("旧 16 步折线在 4 倍放大与 DPR2 下超过 1px，生产路径调用
   assert.equal(calls.filter((call) => call === "bezier").length, 32);
   assert.deepEqual(calls.slice(0, 2), ["begin", "move"]);
   assert.equal(calls.at(-1), "stroke");
-  assert.deepEqual([context.strokeStyle, context.lineWidth], ["initial", 7]);
+  assert.deepEqual(
+    [context.strokeStyle, context.lineWidth, context.lineCap, context.lineJoin, context.miterLimit],
+    ["initial", 7, "square", "bevel", 1],
+  );
 });
