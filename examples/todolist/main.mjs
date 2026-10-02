@@ -2,6 +2,7 @@
 import * as todo from "../../target/js/todolist/quamolit.examples.todolist.mjs";
 import { draw_plan_$x_ } from "../../target/js/todolist/quamolit.retained-component.mjs";
 import { init_tags, to_js_data } from "../../target/js/todolist/calcit.core.mjs";
+import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const tags = init_tags(["model", "rows", "revision", "released", "plan-builds", "cursor", "time", "scene", "transforms"]);
 const canvas = document.querySelector("#scene"), ctx = canvas.getContext("2d");
@@ -9,12 +10,22 @@ const panel = document.querySelector("#panel"), toggle = document.querySelector(
 const status = document.querySelector("#status"), message = document.querySelector("#message"), slider = document.querySelector("#time");
 const play = document.querySelector("#play"), draft = document.querySelector("#draft");
 let log = todo.demo_log(), session = todo.initial_session(), plan, time = 0;
-let playing = false, raf = null, timer = null, anchor = 0, started = 0, paints = 0, editId = "";
+let playing = false, disposed = false, anchor = 0, started = 0, paints = 0, editId = "";
+const scheduler = new DemandFrameScheduler({
+  requestFrame: callback => requestAnimationFrame(callback),
+  cancelFrame: handle => cancelAnimationFrame(handle),
+  paint: now => playing ? tick(now) : draw(),
+});
+function wake(reason) {
+  if (disposed) return;
+  scheduler.request(reason); scheduler.resume();
+}
 let view = {scale:1, x:0, y:0};
 const model = () => session.get(tags.model);
 let cachedModel, cachedData;
 const data = () => { const value=model(); if(value!==cachedModel){cachedModel=value;cachedData=to_js_data(value);}return cachedData; };
 function draw() {
+  if (disposed || !plan) return;
   const bounds = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   const width = Math.max(1, Math.round(bounds.width*dpr)), height = Math.max(1, Math.round(bounds.height*dpr));
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
@@ -38,27 +49,24 @@ function sample(t, reset = false) {
 }
 function stop() {
   playing = false;
-  if (raf !== null) cancelAnimationFrame(raf);
-  if (timer !== null) clearTimeout(timer);
-  raf = timer = null; play.textContent = "播放";
+  scheduler.pause(); play.textContent = "播放";
 }
 function schedule() {
   if (!playing) return;
-  if (todo.needs_frame_$q_(model(),time)) raf = requestAnimationFrame(tick);
+  if (todo.needs_frame_$q_(model(),time)) wake("animation");
   else {
     const next = todo.next_event_at(session,log);
     if (next < 0) stop();
-    else timer = setTimeout(()=>tick(performance.now()),Math.max(1,(next-time)*1000));
+    else scheduler.requestAfter("event", Math.max(1,(next-anchor)*1000-(performance.now()-started)));
   }
 }
 function tick(now) {
-  raf = timer = null;
   if (!playing) return;
   safely(()=>{ sample(anchor+Math.max(0,now-started)/1000); schedule(); });
 }
 function start() {
-  if (playing) return;
-  anchor = time; started = performance.now(); playing = true; play.textContent = "暂停"; schedule();
+  if (playing || disposed) return;
+  anchor = time; started = performance.now(); playing = true; play.textContent = "暂停"; scheduler.resume(); schedule();
 }
 function seek(t) { stop(); sample(t,true); return snapshot(); }
 function cancelEdit() { editId = ""; document.querySelector("#submit").textContent = "新增"; document.querySelector("#cancel-edit").hidden = true; }
@@ -75,7 +83,7 @@ function send(kind,id="",label="") {
 }
 function safely(action) { try { message.textContent = ""; return action(); } catch(error) { stop(); message.textContent = error.message; } }
 function snapshot() {
-  return {time,playing,paints,model:data(),events:to_js_data(log),scene:to_js_data(plan.get(tags.scene)),transforms:to_js_data(plan.get(tags.transforms)),builds:plan.get(tags["plan-builds"]),width:canvas.width,height:canvas.height,view:{...view}};
+  return {time,playing,paints,pending:scheduler.pending,waiting:scheduler.waiting,disposed,model:data(),events:to_js_data(log),scene:to_js_data(plan.get(tags.scene)),transforms:to_js_data(plan.get(tags.transforms)),builds:plan.get(tags["plan-builds"]),width:canvas.width,height:canvas.height,view:{...view}};
 }
 document.querySelector("#entry-form").onsubmit = event => { event.preventDefault(); safely(()=>{send(editId?"edit":"add",editId,draft.value);cancelEdit();draft.value="";}); };
 document.querySelector("#cancel-edit").onclick = cancelEdit;
@@ -114,9 +122,9 @@ document.querySelector("#import").onchange=async event=>{
   const file=event.target.files[0];if(!file)return;
   try {if(file.size>1e6)throw Error("日志文件过大");const value=JSON.parse(await file.text());safely(()=>importEvents(value));}catch(error){message.textContent=error.message;}
 };
-const observer = new ResizeObserver(()=>{if(plan)draw();}); observer.observe(canvas);
+const observer = new ResizeObserver(()=>wake("viewport")); observer.observe(canvas);
 let resolution;
-function watchDpr(){resolution?.removeEventListener("change",watchDpr);resolution=matchMedia(`(resolution: ${devicePixelRatio||1}dppx)`);resolution.addEventListener("change",watchDpr);if(plan)draw();}
+function watchDpr(){resolution?.removeEventListener("change",watchDpr);resolution=matchMedia(`(resolution: ${devicePixelRatio||1}dppx)`);resolution.addEventListener("change",watchDpr);wake("dpr");}
 watchDpr();
 const listeners = new AbortController();
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stop();},{signal:listeners.signal});
@@ -126,6 +134,6 @@ window.todoDemo=api;
 const params=new URLSearchParams(location.search),requested=Number(params.get("t")||0);
 sample(Number.isFinite(requested)&&requested>=0?requested:0,true);
 if(!params.has("t")&&!matchMedia("(prefers-reduced-motion: reduce)").matches)start();
-return ()=>{stop();canvas.onclick=null;listeners.abort();observer.disconnect();resolution?.removeEventListener("change",watchDpr);if(window.todoDemo===api)delete window.todoDemo;};
+return ()=>{disposed=true;stop();scheduler.dispose();canvas.onclick=null;listeners.abort();observer.disconnect();resolution?.removeEventListener("change",watchDpr);if(window.todoDemo===api)delete window.todoDemo;};
 }
 if(location.pathname.endsWith("/examples/todolist/index.html"))mountDemo();

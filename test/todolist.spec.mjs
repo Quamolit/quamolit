@@ -1,5 +1,60 @@
 import { test, expect } from "@playwright/test";
 
+test("未来日志按 deadline 唤醒，暂停/卸载取消，resize 不推迟事件", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const origin = new Date("2026-10-02T00:00:00Z");
+  await page.clock.install({ time: origin });
+  await page.clock.pauseAt(origin);
+  await page.goto("/demos/index.html?demo=todolist&t=0");
+  // 统一导航的淡入定时器也由同一可控宿主时钟驱动。
+  await page.clock.runFor(400);
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  await page.clock.runFor(32);
+  const snapshot = () => page.evaluate(() => window.todoDemo.snapshot());
+  await page.evaluate(() => {
+    window.todoDemo.importEvents({ version: 1, events: [{ at: 5, kind: "add", id: "", text: "Deadline" }] });
+    window.todoDemo.play();
+  });
+  const idle = await snapshot();
+  expect(idle).toMatchObject({ playing: true, pending: false, waiting: true });
+  await page.clock.runFor(2100);
+  expect((await snapshot()).paints).toBe(idle.paints);
+  await page.setViewportSize({ width: 1000, height: 760 });
+  await expect.poll(async () => (await snapshot()).pending).toBe(true);
+  await page.clock.runFor(32);
+  const resized = await snapshot();
+  expect(resized.width).toBe(1000);
+  expect(resized.model.rows).toHaveLength(0);
+  expect(resized).toMatchObject({ pending: false, waiting: true });
+  await page.clock.runFor(3000);
+  expect((await snapshot()).model.rows[0].text).toBe("Deadline");
+  await page.clock.runFor(1000);
+  expect(await snapshot()).toMatchObject({ playing: false, pending: false, waiting: false });
+  await page.evaluate(() => {
+    window.todoDemo.seek(0);
+    window.todoDemo.play();
+    window.todoDemo.pause();
+  });
+  const paused = await snapshot();
+  await page.clock.runFor(6000);
+  expect(await snapshot()).toEqual(paused);
+  await page.evaluate(() => {
+    window.closedTodo = window.todoDemo;
+    window.todoDemo.play();
+  });
+  expect((await snapshot()).waiting).toBe(true);
+  // 不通过 Playwright click 自动等待动画帧，避免暂停的宿主时钟干扰导航。
+  await page.evaluate(() => document.querySelector("#back-to-gallery").click());
+  await page.clock.runFor(400);
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+  const closed = await page.evaluate(() => window.closedTodo.snapshot());
+  expect(closed).toMatchObject({ disposed: true, playing: false, pending: false, waiting: false });
+  await page.clock.runFor(6000);
+  expect(await page.evaluate(() => window.closedTodo.snapshot())).toEqual(closed);
+  expect(errors).toEqual([]);
+});
+
 async function ready(page, time = 0.8) {
   await page.goto(`http://127.0.0.1:5180/examples/todolist/index.html?t=${time}`);
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
