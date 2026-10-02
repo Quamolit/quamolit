@@ -13,7 +13,9 @@ alpha 阶段也不静默破坏稳定合同。稳定 API 的破坏性修改须在
 
 `yarn check:api-inventory` 比对 Calcit 查询、显式分类、文档表格、文档文件和稳定签名。任意新 namespace（包括 examples/test）未标注、旧条目残留、重复分类或签名漂移都会失败，不用通配符自动接受。更新分类后用 `yarn update:api-inventory` 机械更新下表；它不会自动更新稳定合同。`node scripts/api-inventory.mjs --write-contract` 仅供经审查的初始化/合同迁移，必须检查差异及上述发布规则。
 
-`yarn audit:consumer-api` 单独审计独立消费者的实际 import，非稳定入口会明确失败；本轮尚未把它加入必需 CI，因为现有消费者仍使用实验 API。Dynamic/JsObject 的全部显式声明由 [类型边界盘点](api-type-boundaries.md) 单独检查，开放宿主边界与语义迁移仍需逐项审查。#176 的“消费者和 README 只使用稳定入口”仍未完成，不以清单覆盖门禁代替。
+`yarn check:api-inventory` 同时检查 README 全部 Cirru 示例：采用稳定合同内的全限定定义，通过真实 `calcit eval --dep ./calcit.cirru --stdin` 执行，断言/类型/语法失败不能算通过。首页只保留一个错峰柱条数值示例，不创建第二套消费者或声明完整组件 API 已稳定。
+
+`yarn audit:consumer-api` 单独审计独立消费者的实际 import，非稳定入口会明确失败；尚未把它加入必需 CI，因为现有渲染消费者仍使用实验 API。Dynamic/JsObject 的全部显式声明由 [类型边界盘点](api-type-boundaries.md) 单独检查，开放宿主边界与语义迁移仍需逐项审查。#176 的 README 边界已接入门禁，完整消费者边界仍未完成，不能把后端统一改标稳定以消除诊断。
 
 产物归属：`docs/api-namespaces.json` 是人工维护的分类源，不标记 generated。`docs/api-stable-contract.json` 是只读 Calcit 查询生成的、刻意入库的兼容性审查基线，已精确标记 `linguist-generated`；否则 CI 没有可比较的已审查合同。本文只有清单标记之间的表格为生成内容，不把整篇人工契约文档或 `calcit.cirru` 标为 generated。测量报告与压缩样本另放被忽略的 `test-results/`，不混入 API 合同。
 
@@ -218,7 +220,7 @@ alpha 阶段也不静默破坏稳定合同。稳定 API 的破坏性修改须在
 
 旧 `quamolit.render.paint/paint`、`tick-tree`、`paint-tree-only-with` 不再作为新应用推荐入口，但本轮不删除，也没有凭空设定移除日期。迁移到 `quamolit.retained-component` 的显式 request/build/update/draw，并将时间/Model/资源版本纳入请求；它仍为实验入口，先验证同一画面与交互，再改依赖。绝对时间 UI 渐变优先使用稳定的 `quamolit.ui-motion`，有历史模拟则使用实验 `fixed-step`，不能把两者混用。
 
-移除旧入口的前置条件：#176 给出实际消费者清单与可编译迁移例；#36 完成真实应用/原始示例替代；相关 #34/#51 的事件与释放合同有证据；新的 alpha tag 附迁移说明并让下游先验证。满足条件后另提移除 PR，未满足前不得把旧库删除当作完成迁移。此前 README 的旧 DSL 代码块只作历史参考，不是新的稳定示例。
+移除旧入口的前置条件：#176 给出实际消费者清单与可编译迁移例；#36 完成真实应用/原始示例替代；相关 #34/#51 的事件与释放合同有证据；新的 alpha tag 附迁移说明并让下游先验证。满足条件后另提移除 PR，未满足前不得把旧库删除当作完成迁移。首页旧 DSL 教程已由稳定数值示例替代；旧代码块仍可从 Git 历史查阅，不复制到另一份新文档。
 
 | 旧写法 | 当前可执行桥梁 | 拟议新位置 |
 | --- | --- | --- |

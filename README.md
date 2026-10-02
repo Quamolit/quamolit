@@ -1,272 +1,58 @@
+# Quamolit / Calcit 声明式动画
 
-Quamolit in calcit-js / Calcit 版 Quamolit
-----
+用 Calcit 声明组件，以显式 Model 和时间生成动画帧。应用决定动画意图，框架负责执行与绘制；没有历史依赖的动画可以直接 seek、倒放和截图，有历史的模拟另走固定 tick。
 
-Quamolit 是用 Calcit 编写的声明式 Canvas 动画库。组件描述画面，应用模型保存动画状态；框架提供绘制与帧更新能力。
+## 从哪里开始
 
-新项目先看 [API 稳定性与迁移清单](docs/api-contract.md#公共边界与-alpha-变更规则)。当前稳定 alpha 合同仅覆盖纯 Calcit `quamolit.ui-motion`；渲染/资源/保留计划仍明确标为实验。下方历史 DSL 示例不是新 API 推荐写法，旧入口不会在迁移验收前突然删除。运行 `yarn check:api-inventory` 检查清单与稳定签名。
+- **看效果**：`yarn demo` 打开[统一导航](demos/README.md)。原有动画与图表 UI 作品使用全屏 Canvas、可收起 DOM 浮层；[恢复清单](docs/demo-restoration.md)说明原有11个示例的验收边界。
+- **写动画**：稳定 alpha 入口目前只有 [`quamolit.ui-motion`](docs/ui-motion-components.md)。下面的代码可直接执行，不是拟议 API。
+- **声明和绘制组件**：[独立 Calcit 消费者](examples/retained-consumer/README.md)贯通安装、组件、可控时间、Canvas 与受限 WebGPU。它仍使用实验 API，不代表完整渲染面已稳定。
+- **迁移旧项目**：[API 清单与迁移合同](docs/api-contract.md)区分稳定、实验、旧入口和内部实现。旧 `paint` / `tick-tree` 的迁移说明集中在那里；不再以旧 DSL 作为首页教程，历史示例仍可查 Git 历史，旧实现不在本轮删除。
 
-**查看演示：** 运行 `yarn demo` 打开[统一演示导航](demos/README.md)。所有入口按能力分类，支持搜索和返回导航；`yarn release:demos` 构建可部署的完整演示站点。
+## 最小动画 / Minimal animation
 
-原有 11 个示例的实际恢复与验收边界见[完整恢复清单](docs/demo-restoration.md)。[Binary Tree](docs/binary-tree-restoration.md) 使用统一计划共享静态几何；[TodoList](docs/todolist-restoration.md) 已提供 Canvas 文字、完整列表操作、错峰进退、打断重排和日志重放。完整同源 GPU 仍未验收。导航包含图表 UI 作品分类，动画页面采用全屏 Canvas 与可收起 DOM 浮层。
+第3个柱条延迟0.2秒进入，动画持续0.4秒；在绝对时间0.4秒采样，进度为0.5，宽度由40变到104的中点是72。下列代码仅调用稳定入口，返回动画数据，不创建 Canvas、GPU 或隐藏时钟。
 
-后续开发以 [技术路线与 milestones](docs/roadmap.md)、[工作项规格](docs/work-items.md) 和 [检验规则](docs/verification.md) 为准。计划分为 M0 基线、M1 动画函数、M2 增量执行与 WebGPU、M3 完整应用、M4 性能发布；性能目标均需实测，不能把编译成功当作功能或性能验收。接手编码前请阅读 [AGENTS.md](AGENTS.md)。
+```cirru
+let
+    stagger $ quamolit.ui-motion/smooth-stagger 0 0.1 0.4
+    progress $ quamolit.ui-motion/stagger-at stagger 2 0.4
+    width $ quamolit.ui-motion/morph-number 40 104 progress
+  assert |midpoint-width $ = width 72
+  println width
+```
 
-当前 vNext 迁移仍在进行中：[设计草案](docs/vnext-design.md) 说明目标 API 与渲染边界，[确定性帧测试](test/README.md) 说明固定时间截图的使用方式。要在本地编译和运行，需要 Calcit 0.28.0-alpha.3 与 Node.js 24：
+在仓库根目录执行 `calcit eval --dep ./calcit.cirru --stdin`，粘贴代码后结束输入。`yarn check:api-inventory` 会执行 README 的全部 Cirru 示例，并检查它们仅引用稳定合同内的定义；现有 `yarn test:ui-motion` 检查数值、非法输入和出入场语义。不把这段纯动画采样当作完整组件或 GPU 教程。
 
-M0 的[三类可运行参考场景](test/m0/README.md)可独立打开，用于后续后端的相同输入与画面对照。
-M2 新增 [Calcit 保留组件演示](docs/retained-component.md)：同一声明的全量参考与保留计划并排显示，可拖动时间、改变输入并验证 1000 帧结构复用。运行 `yarn test:retained-component` 验证。
-另有[独立 Calcit 消费者](examples/retained-consumer/README.md)，自己声明组件、安装 Quamolit 公共模块；`yarn test:consumer` 验证安装、产物搬移和固定时间截图，无需引入框架内部 JS。
-固定 Chromium 截图回归运行 `yarn test:visual`；浏览器安装、快照容差和基线更新方式见该场景文档。
-性能参考基准运行 `yarn bench --help` 查看参数；[M0 基线](docs/performance-m0.md)记录了实测环境、三次运行的离散程度及当前不可测的 GPU 指标。
+## 开发与验证
+
+需要 Calcit **0.28.0-alpha.3**、Node.js **24**、Yarn **4**；依赖以 `deps.cirru` 和 lockfile 为准，使用 node-modules linker。
 
 ```sh
 corepack enable
 yarn install --immutable
-yarn compile
-yarn test:clock
-yarn test:runtime
-yarn release
-```
-
-目前 `yarn compile` 仅验证 `quamolit.bootstrap`，还不能证明旧版应用入口的功能已恢复。旧代码可以用 `initial-frame` / `evaluate-at` 作顺序求值迁移桥梁，详见[显式帧求值](docs/frame-evaluation.md)；新 UI 绝对时间渐变优先看 `quamolit.ui-motion`，完整执行入口仍为实验。旧版 `paint` 会先执行独立的 `tick-tree` 阶段，再绘制；`paint-tree-only-with` 可在不推进动画状态的情况下重绘。下文保留英文说明及旧版 API 示例，作为迁移参考。
-
----
-
-English documentation and legacy API examples follow.
-
-See the [API stability and migration inventory](docs/api-contract.md) before using Quamolit. Only `quamolit.ui-motion` currently has a guarded alpha contract; renderer/resource/retained-plan APIs remain experimental. The historical DSL examples below are migration references, not stable new-project examples.
-
-Binary Tree retains typed Scene IR polylines and local geometry through the unified execution plan. [TodoList](docs/todolist-restoration.md) provides Canvas text, add/edit/toggle/delete/restore/reorder interactions, staggered transitions and replayable input. See the restoration checklist for all original demos; complete cross-backend validation remains pending.
-
-Run `yarn demo` for the [demo gallery](demos/README.md): all current entry pages, searchable by capability with return links. `yarn release:demos` builds a separate static demo site; experimental fixtures are clearly distinguished from the public Calcit integration.
-
-All 11 original demos remain tracked for restoration. An art category is reserved for future animations. Animation canvases fill the viewport; controls use collapsible DOM overlays, while fixed-size diagnostics remain available.
-
-> what if we describe UI transitions in React's way? Previously written in [ClojureScript](https://github.com/Quamolit/quamolit.cljs).
-
-Demo http://r.Quamolit.org/quamolit.calcit/
-
-Features:
-
-* declarative component markups for Canvas
-* React-like components, element DSLs, event handlers, global Store
-* animation abstractions
-
-### Design
-
-The current implementation plan is [roadmap v3](docs/roadmap.md), with
-[issue specifications](docs/work-items.md) and [verification rules](docs/verification.md)
-in Chinese. It separates direct time sampling from stateful simulation and
-brings batching, benchmarks, and WebGPU into the early architecture work.
-Performance figures are validation targets, not measured claims.
-The [M0 benchmark record](docs/performance-m0.md) documents a measured Canvas2D reference workload, its environment, and unavailable GPU metrics.
-The [retained component demo](docs/retained-component.md) compares full sampling with a Calcit execution plan at explicit times. Run `yarn test:retained-component` to verify static node reuse and matching Canvas pixels; this is not a GPU or frame-rate benchmark.
-The [standalone Calcit consumer](examples/retained-consumer/README.md) installs Quamolit as a Calcit dependency without internal framework JS imports. `yarn test:consumer` checks installation, relocated output, fixed-time pixels and static reuse; lifecycle and GPU integration remain unfinished.
-
-The staged vNext API and rendering contract is documented in
-[docs/vnext-design.md](docs/vnext-design.md). It is a draft; the API described
-there is not yet implemented.
-
-Quamolit is trying to combine two things:
-
-* declarative programming experience like React
-* canvas API drawing and animations
-
-Seeing from MVC, animations has Models too. Said by FRP(Functional Reactive Programming), the Model for animations is values changing over time, like a stream. It does have a Model, a Model for animations. But we want to program in a declarative way, which means we need that Model to be generated from our code. Meanwhile CSS animations is not we want because of the private animation states, we need global app state. So question, how to expression a time varying Model with declarative code?
-
-### Usage
-
-Define components:
-
-```cirru
-defcomp comp-demo ()
-  group ({})
-
-defcomp comp-demo-tick (states)
-  let
-      cursor $ :cursor states
-      state $ or (:data states) {} (:demo :demo)
-    []
-      fn (elapsed d!)
-        ; "this is there you handle animation states"
-        d! cursor (merge state state-changes)
-      group ({})
-        group ({})
-```
-
-It requires some boilerplate code to start a Quamolit project. I would suggest starting by forking my [workflow](https://github.com/Quamolit/quamolit-workflow).
-
-### Component Specs
-
-Shape records:
-
-* `name` keyword
-* `props` a hashmap of:
-* * `...` styles used in Canvas API
-* * `event` a hashmap of events, mainly `:click` events
-* `children` sorted hashmap with values of child nodes
-
-Component record:
-
-* `name` keyword
-* `on-tick` function to update animation state at every tick
-* `tree` cached from render tree
-
-### Paint Elements
-
-```cirru
-line $ {}
-  :x0 0
-  :y0 0
-  :x1 40
-  :y1 40
-  :line-width 4
-  :stroke-style (hsl 200 870 50)
-  :line-cap :round
-  :line-join :round
-  :milter-limit 8
-
-arc $ {}
-  :x 0 :y 0:r 40
-  :s-angle 0
-  :e-angle 60
-  :line-width 4
-  :counterclockwise true
-  :line-cap :round
-  :line-join :round
-  :miter-limit 8
-  :fill-style nil
-  :stroke-style nil
-
-rect $ {}
-  :w 100
-  :h 40
-  :x $ - (/ w 2)
-  :y $ - (/ h 2)
-  :line-width 2
-
-text $ {}
-  :x 0
-  :y 0
-  :fill-style (hsl 0 0 0)
-  :text-align :center
-  :base-linee :middle
-  :size 20
-  :font-family |Optima
-  :max-width 400
-  :text |todo
-
-image $ {}
-  :src "|lotus.jpg"
-  :sx 0
-  :sy 0
-  :sw 40
-  :sh 40
-  :dx 0
-  :dy 0
-  :dw 40
-  :dh 40
-```
-
-### Paint Components
-
-```cirru
-translate $ {}
-  :x 0
-  :y 0
-
-scale $ {}
-  :ratio 1.2
-
-alpha $ {}
-  :opacity 0.5
-
-rotate $ {}
-  :angle 30
-
-button $ {}
-  :x 0
-  :y 0
-  :w 100
-  :h 40
-  :text "|button"
-  :surface-color (hsl 0 80 80)
-  :text-color (hsl 0 0 10)
-  :font-family "|Optima"
-  :font-size 20
-
-input $ {}
-  :w 0
-  :h 0
-  :text "|TODO"
-
-comp-debug data $ {}
-
-
-comp-slider (>> states :v)
-  {}
-    :value $ :v state
-    :unit 0.2
-    :on-change $ fn (v d!)
-      d! cursor $ assoc state :v v
-    :position $ [] 100 40
-    :min -4
-    :max 40
-    :title "\"long long title"
-```
-
-### HUD logs
-
-```cirru
-:require
-  quamolit.hud-logs :refer $ hud-log
-
-hug-log :data "|more data"
-```
-
-### Develop
-
-To run this project, install Calcit 0.28.0-alpha.3 and Node.js 24 first:
-
-```bash
-corepack enable
-yarn install --immutable
 caps --ci
-calcit calcit.cirru js
-yarn vite
+yarn check:api-inventory
+yarn test:ui-motion
+yarn demo
 ```
 
-The current migration still uses `quamolit.bootstrap` as a compile-only
-entry. The original canvas application remains in `quamolit.app.main`, but is
-not wired into the Vite entry yet: its strict type check still reports legacy
-warnings. `yarn compile` and `yarn release` validate the migration baseline;
-they do not validate the original application's behavior. `yarn test:runtime`
-also checks the generated core against the installed `@calcit/procs` runtime.
+`yarn release:demos` 构建完整演示站点。`yarn compile` / `yarn release` 目前仍以 bootstrap 为迁移基线，不能代替应用验收。关键链路测试、截图与硬件范围集中在[检验规则](docs/verification.md)；不要把无 GPU 的 SKIP 算作通过，也不要把编译通过或上传计数当作性能达标。
 
-### Deterministic frame tests
+M1 动画与组件逻辑合同已验收；M2 的保留执行与 WebGPU、M3 的完整绘制/交互、M4 的性能发布仍在推进。当前状态与下一项只在[计划 v3](docs/plan-v3.md)维护；编码前读 [AGENTS.md](AGENTS.md)。暂不扩展性能优化，复用现有公共入口、消费者与门禁。
 
-The generic `initial-frame` and `evaluate-at` APIs return an explicit frame
-containing the time sample, model, and scene. With pure update/view functions,
-the same inputs replay deterministically. Repeated time skips both callbacks;
-rewinding requires a new initial frame. The browser fixture uses this API and
-redraws its saved scene. See [the frame evaluation guide](docs/frame-evaluation.md)
-for the contract and migration example (Chinese).
+## English
 
-Legacy code retains the absolute frame clock (`reset-frame-clock!`,
-`advance-frame-clock!`), a separate `tick-tree` pass for component `on-tick`
-callbacks, and `paint-tree-only-with` for drawing without advancing animation
-state. The compatibility `paint-tree-with` entry combines these passes.
-Advancing a frame calls component `on-tick` once with the elapsed seconds; a
-redraw can paint the same state without advancing time.
-The browser fixture paints a real Canvas rectangle at fixed timestamps,
-including intermediate frames. See [test/README.md](test/README.md)
-for the screenshot workflow and current coverage limits.
+Quamolit is a declarative animation library written in Calcit. Components describe the scene; explicit models and time determine animation values. Stateless motion supports direct seeking and deterministic frames; stateful simulation uses fixed ticks.
 
-### History
+Start with the [demo gallery](demos/README.md) (`yarn demo`) and the [API stability inventory](docs/api-contract.md). Only `quamolit.ui-motion` currently has a guarded alpha contract. The executable example above staggers the third bar, samples its midpoint at 0.4 seconds, and prints a width of 72. It is pure animation data—not a complete renderer—and uses only stable definitions. `yarn check:api-inventory` validates and executes every Cirru example in this README.
 
-By rethinking MVC and GUI during using React, I developed the need of writing animations with declarative code. It was late 2014. I created the first prototype with CoffeeScript but it's not viable. In early 2016, I rewrote it with ClojureScript, which is last version of Quamolit. Now it's being rewritten in calcit-js.
+The [standalone consumer](examples/retained-consumer/README.md) demonstrates component declarations, retained execution, Canvas and a supported WebGPU subset through Calcit imports. Those renderer/resource interfaces remain experimental. See the [verification rules](docs/verification.md) for actual coverage and hardware limits; passing compilation is not proof of application behavior or performance. The [migration contract](docs/api-contract.md#旧入口弃用计划) replaces the old homepage DSL tutorial; historical code remains in Git history and is not removed here.
 
-### License
+Use Calcit 0.28.0-alpha.3 and Node.js 24, then run the development commands above. `yarn release:demos` builds the demo site; `compile`/`release` still target the migration bootstrap. Follow [plan v3](docs/plan-v3.md) for milestone status. Reuse existing interfaces and tests before adding more layers.
+
+## History and license
+
+Quamolit began as a CoffeeScript experiment in 2014, was rewritten in [ClojureScript](https://github.com/Quamolit/quamolit.cljs) in 2016, and is now developed in Calcit. The goal remains declarative components with explicit, controllable animation state.
 
 MIT
