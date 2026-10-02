@@ -2168,10 +2168,6 @@
           :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
     'quamolit.canvas-scene $ %{} 'FileEntry
       :defs $ {}
-        'CanvasDiagnostic $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CanvasDiagnostic (:id 'String) (:key 'String) (:kind 'String) (:reason 'String)
-          :examples $ []
-          :schema $ :: 'StructDef
         'clip-group! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn clip-group! (context clip)
             match clip
@@ -2392,13 +2388,13 @@
                 fn (node)
                   not $ content-supported? $ :content node
               fn (node)
-                CanvasDiagnostic :id (:id node) :key (:key node) :kind
+                scene/SceneDiagnostic :id (:id node) :key (:key node) :kind
                   scene/content-kind $ :content node
                   , :reason |unsupported-canvas-scene-instances
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.scene-ir/SceneDocument
-            :return $ :: 'List 'CanvasDiagnostic
+            :return $ :: 'List 'quamolit.scene-ir/SceneDiagnostic
       :ns $ %{} 'NsEntry
         :doc "|Calcit Scene 树的完整 Canvas2D 正确性参考：执行嵌套 transform/rect clip 与真正隔离的组 opacity；浏览器临时 surface 仅由三个最小 inline 原语提供。"
         :code $ quote $ ns quamolit.canvas-scene
@@ -8591,6 +8587,25 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectRendererHost)
             :args $ [] 'JsObject 'js-ffi.webgpu/DeviceHost 'String 'Number
             :features $ #{} :js-ffi
+        'diagnose-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn diagnose-plan (plan) (validate-plan! plan)
+            map
+              filter
+                range $ count $ :nodes (:scene plan)
+                fn (index)
+                  not= (node-reason plan index) |
+              fn (index)
+                let
+                    node $ &list:nth
+                      :nodes $ :scene plan
+                      , index
+                  scene/SceneDiagnostic :id (:id node) :key (:key node) :kind
+                    scene/content-kind $ :content node
+                    , :reason $ node-reason plan index
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.retained-component/ComponentPlan
+            :return $ :: 'List 'quamolit.scene-ir/SceneDiagnostic
         'dispose-renderer! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn dispose-renderer! (host)
             raw-dispose! $ unsafe-coerce host 'JsObject
@@ -8683,15 +8698,7 @@
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
         'prepare-plan $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn prepare-plan (plan)
-            assert |invalid-gpu-component-scene $ scene/validate-scene $ :scene plan
-            when
-              retained/transform-active? $ :transform-sampler plan
-              assert |invalid-gpu-component-transforms $ and
-                =
-                  count $ :transforms plan
-                  count $ :nodes $ :scene plan
-                every? (:transforms plan) retained/valid-transform?
+          :code $ quote $ defn prepare-plan (plan) (validate-plan! plan)
             let
                 reason $ first-reason plan 0
               if (not= reason |) (PreparedFrame :fallback reason)
@@ -8925,6 +8932,20 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.gpu-component/RectRecord
+        'validate-plan! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn validate-plan! (plan)
+            assert |invalid-gpu-component-scene $ scene/validate-scene $ :scene plan
+            when
+              retained/transform-active? $ :transform-sampler plan
+              assert |invalid-gpu-component-transforms $ and
+                =
+                  count $ :transforms plan
+                  count $ :nodes $ :scene plan
+                every? (:transforms plan) retained/valid-transform?
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.retained-component/ComponentPlan
         'walk-indices $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn walk-indices (plan indices records writes checked)
             if (empty? indices)
@@ -17073,6 +17094,10 @@
           :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode) (:text 'quamolit.scene-ir/TextNode) (:image 'quamolit.scene-ir/ImageNode) (:polygon 'quamolit.scene-ir/PolygonNode) (:cubic-path 'quamolit.scene-ir/CubicPathNode) (:circle 'quamolit.scene-ir/CircleNode)
           :examples $ []
           :schema $ :: 'EnumDef
+        'SceneDiagnostic $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct SceneDiagnostic (:id 'String) (:key 'String) (:kind 'String) (:reason 'String)
+          :examples $ []
+          :schema $ :: 'StructDef
         'SceneDocument $ %{} 'CodeEntry
           :doc "|Preorder node list; order is paint order, parent appears before child."
           :code $ quote $ defstruct SceneDocument

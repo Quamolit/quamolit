@@ -22,7 +22,7 @@ Scene、动画时间、矩阵相乘、树遍历与绘制顺序全部由 Calcit �
 | circle | 圆形填充 | 矩形批次拒绝，整层 Canvas |
 | instances | 此 document 入口明确拒绝；另用版本化实例入口 | 独立实例图层另有支持合同，不自动插入任意嵌套 Scene |
 
-`content-supported?` 是纯 Calcit 种类查询，不验证图元数值或资源 ready。`unsupported-nodes(document)` 返回有序 `List<CanvasDiagnostic>`（id/key/kind/reason），目前 instances 的原因是 `unsupported-canvas-scene-instances`；调用者可展示诊断或选择完整实例层入口，不丢弃节点继续绘制。`preflight!` 先检查尺寸、完整 Scene 合法性和全部不支持种类，再解析图片资源，任何失败发生在第一次 Canvas 操作之前。图片丢失或尺寸不匹配仍使用已有资源错误，不把资源状态伪装为种类不支持。
+`content-supported?` 是纯 Calcit 种类查询，不验证图元数值或资源 ready。`unsupported-nodes(document)` 返回有序 `List<quamolit.scene-ir/SceneDiagnostic>`（id/key/kind/reason），目前 instances 的原因是 `unsupported-canvas-scene-instances`；GPU 的 `diagnose-plan(plan)` 使用同一个类型，保留自己的后端原因。调用者可展示诊断或选择完整实例层入口，不丢弃节点继续绘制。`preflight!` 先检查尺寸、完整 Scene 合法性和全部不支持种类，再解析图片资源，任何失败发生在第一次 Canvas 操作之前。图片丢失或尺寸不匹配仍使用已有资源错误，不把资源状态伪装为种类不支持。原候选的 CanvasDiagnostic 尚未发布，在同一 PR 收敛为共享类型，不保留重复别名。
 
 独立消费者在同一页面提供“嵌套图表与隔离透明度”，通过公共 Calcit 保留计划采样组透明度与柱条宽度，再调用 `draw-document!`。测试沿现有 `test:consumer` 检查全部9种 Scene 标签的能力表、id/key诊断、失败前零 Canvas 调用、1000帧结构共享、同时间Model失效，以及独立原生Canvas的整图像素；不是新增 renderer，也不证明这些组语义已在 GPU 实现。
 
