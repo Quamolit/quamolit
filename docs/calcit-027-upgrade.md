@@ -1,10 +1,10 @@
 # Calcit 工具链升级与版本合同
 
-当前候选使用已发布的 Calcit `0.28.0-alpha.3`、匹配的 `@calcit/procs@0.28.0-alpha.3` 和 js-ffi `0.2.1-alpha.11`。这是配套 prerelease，不冒称最新稳定版。根项目、独立消费者、`deps.cirru`、npm runtime、Yarn resolution、锁文件和中英文入口同步；不接受仅升级本机 CLI。沿用本页与现有门禁，不另建升级测试体系。
+当前候选使用已发布的 Calcit 稳定版 `0.28.0`、匹配的 `@calcit/procs@0.28.0` 和 js-ffi `0.2.1-alpha.11`。根项目、独立消费者、`deps.cirru`、npm runtime、Yarn resolution、锁文件和中英文入口同步；不接受仅升级本机 CLI。沿用本页与现有门禁，不另建升级测试体系。js-ffi 当前最新 tag 仍为 alpha.11，其 npm runtime 通过根 resolution 统一为 0.28.0。
 
 ## 版本合同
 
-`yarn test:runtime` 同时检查当前 `calcit --version`、根项目与消费者的 `:calcit-version`、两处 `@calcit/procs` 声明和实际安装版本，以及从 js-ffi 包位置解析到的 runtime。全部必须为 `0.28.0-alpha.3`；另用 `caps verify --toolchain` 检查模块与 runtime。
+`yarn test:runtime` 同时检查当前 `calcit --version`、根项目与消费者的 `:calcit-version`、两处 `@calcit/procs` 声明和实际安装版本，以及从 js-ffi 包位置解析到的 runtime。全部必须为 `0.28.0`；另用 `caps verify --toolchain` 检查模块与 runtime。
 
 js-ffi alpha.11 已同步 CLI/runtime，不再沿用 alpha.10 的旧版 runtime 说明。根 `resolutions` 继续约束消费者安装为同一 runtime 单例，不改变平台 API 与 Quamolit 业务代码的归属。
 
@@ -15,6 +15,7 @@ js-ffi alpha.11 已同步 CLI/runtime，不再沿用 alpha.10 的旧版 runtime 
 - `calcit.cirru` 仍是 canonical source snapshot，不标记为 generated，也不以文本替换修改业务定义。
 - 先以严格 public schema、编译、Node、浏览器和独立消费者门禁暴露问题；不增加全局 allow 或宽泛 `Dynamic` 绕过。
 - 新版本若暴露编译器缺口，向 Calcit 仓库提交最小复现，同时采用局部、可撤销的适配继续推进。
+- 0.28.0 的 motion 编译拒绝 `valid-bindings?` 把 `recur` 作为 `and` 操作数；该定义改为显式 `if`，通过当前 binding 与重复目标检查后再尾递归，失败分支返回 false。按结构化事务修改，继续复用 Scene 原生/JS 合同验证合法、重复与非法绑定。
 - Pointer 浏览器入口的两处旧 `assert-type` 改为显式宿主 `unsafe-coerce`，保留 `expect-object` 的拒绝与对象身份；它们信任真实浏览器提供的字段/方法，不是假装运行时 shape decoder。原有捕获/卸载合同与同文件的非法值断言覆盖此边界。[js-ffi #149](https://github.com/calcit-lang/js-ffi/issues/149) 发布通用入口后删除本地适配，不新增 JS wrapper。
 - alpha.11 的浏览器 adapter 在下游严格检查中仍有 12 项 assertion proof 错误，已上报 [js-ffi #155](https://github.com/calcit-lang/js-ffi/issues/155)。Drag listener 已提供 `EventHost`，因此 Calcit 路由 callback 声明精确参数/Unit/FFI capability 并直接调用 `.prevent-default!`，删除重复 `event-host` 转换。该局部绕过不证明整个上游 browser 模块通过；新 tag 发布后复测。
 - 全项目 preset 预览会在旧 `quamolit.render.element/textbox` 的原始 `keyCode/shiftKey` 访问处报告 `E_JS_FFI_FEATURE_REQUIRED`；这是 legacy 宿主边界迁移债，不是编译器缺陷，归入 #36。主路径编译成功不能冒充该预览通过，不给整个组件补宽泛 capability 来隐藏它。
@@ -33,6 +34,6 @@ yarn test:consumer
 yarn test:demo-nav
 ```
 
-CI 的 `setup-calcit@v1` 读取根 `deps.cirru`，日志必须显示 `calcit version: 0.28.0-alpha.3`，且 `test`、`bench-smoke`、`visual` 全部通过。无头环境没有非软件 WebGPU adapter 时仍明确 SKIP，不冒充硬件验收。
+CI 的 `setup-calcit@v1` 读取根 `deps.cirru`，日志必须显示 `calcit version: 0.28.0`，且 `test`、`bench-smoke`、`visual` 全部通过。无头环境没有非软件 WebGPU adapter 时仍明确 SKIP，不冒充硬件验收。
 
 Calcit 0.26 的迁移背景和当时诊断见 [历史升级记录](calcit-026-upgrade.md)。

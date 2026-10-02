@@ -6,10 +6,10 @@
 
 ## 当前事实与下一项交付
 
-截至 2026-10-02，已合并 PR #188 同步采用已发布的 Calcit 0.28.0-alpha.3 / runtime 0.28.0-alpha.3 / js-ffi 0.2.1-alpha.11，版本合同见[工具链升级](calcit-027-upgrade.md)。实时完成状态以 GitHub 为准；以下只描述已经验证的链路，不再逐 PR 追加历史段落。
+当前候选同步采用已发布的 Calcit 0.28.0 / runtime 0.28.0 / js-ffi 0.2.1-alpha.11，版本合同见[工具链升级](calcit-027-upgrade.md)。实时完成状态以 GitHub 为准；以下只描述已经验证的链路，不再逐 PR 追加历史段落。
 
 - 声明式组件、Presence 生命周期和保留计划已接通 Canvas；TodoList 与图表作品覆盖出入、打断、重排和乱序时间。具体语义见[公共 API 合同](api-contract.md)，不等于所有实验入口均已稳定。
-- [独立消费者](isolated-consumer.md)覆盖干净安装、公共 Calcit 调用、产物搬移、1000 帧结构复用、版本失效、资源释放、设备恢复及 `:file` JS-only 显式重编译。发布 tag 重跑仍待验收。
+- [独立消费者](isolated-consumer.md)覆盖干净安装、公共 Calcit 调用、产物搬移、1000 帧结构复用、版本失效、资源释放、设备恢复及 `:file` / `:inline` 显式重编译。正式宿主拒绝测试/本地编译路径，历史 JS 参考夹具集中在 test/host。命名 entry 创建能力待 Calcit #1665；发布 tag 重跑仍待验收。
 - #187 已合并：同一 Calcit 声明的 10k 独立 Vec2 动画接通 Canvas 与 CPU→GPU。PR [#188](https://github.com/Quamolit/quamolit/pull/188)接通 GPU 时间采样，复用参数编码和 shader；本机 Apple/Metal-3 的五个乱序时间整帧 GPU/GPU 对照零差异，时间帧只上传 16 B uniform。#188 已合并；这些计数不证明 60 FPS。
 - Folding Fan 的图片、轴对齐嵌套窗口和整层回退已接通；[分层组合](layer-composition.md)使用显式实验契约，不自动拆分任意 Scene。旋转 clip、隔离组透明度与复杂绘制仍须按支持矩阵处理，不能只绘制可用子集。
 - #144 仍是双后端栅格化合同的开放决策：整数参考可零差异，小数/重叠中间帧仍有显著 Canvas/GPU 差异。MSAA 与解析覆盖率的临时硬件实验记录在 issue，不作为默认 renderer 或正式 DPR/性能验收。

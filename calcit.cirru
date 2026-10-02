@@ -16311,9 +16311,11 @@
             if (empty? bindings) true $ let
                 binding $ first-binding bindings
                 later $ rest bindings
-              and (valid-binding? binding content)
-                not $ target-in? (:target binding) later
+              if
+                and (valid-binding? binding content)
+                  not $ target-in? (:target binding) later
                 recur later content
+                , false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] (:: 'List 'quamolit.scene-ir/ScalarBinding) 'quamolit.scene-ir/SceneContent
