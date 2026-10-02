@@ -10,6 +10,7 @@ import {
   hit_target,
 } from "../../target/js/icons/quamolit.examples.icons.mjs";
 import { to_js_data } from "../../target/js/icons/calcit.core.mjs";
+import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
 export function mountDemo() {
   const canvas = document.querySelector("canvas"),
     context = canvas.getContext("2d");
@@ -23,11 +24,16 @@ export function mountDemo() {
   let time = Number.isFinite(parsed) && parsed >= 0 && parsed <= 120 ? parsed : 0;
   let model = initial(),
     playing = false,
-    raf = null,
     anchor = 0,
     started = 0,
     until = 120,
     paints = 0;
+  const scheduler = new DemandFrameScheduler({
+    requestFrame: callback => requestAnimationFrame(callback),
+    cancelFrame: handle => cancelAnimationFrame(handle),
+    paint: (now, reasons) => playing ? tick(now) : draw(),
+  });
+  function wake(reason) { scheduler.request(reason); scheduler.resume(); }
   function draw() {
     const rect = canvas.getBoundingClientRect(),
       dpr = devicePixelRatio || 1;
@@ -54,8 +60,7 @@ export function mountDemo() {
   }
   function stop() {
     playing = false;
-    if (raf !== null) cancelAnimationFrame(raf);
-    raf = null;
+    scheduler.pause();
     play.textContent = "播放时间";
   }
   function tick(now) {
@@ -63,7 +68,7 @@ export function mountDemo() {
     const next = anchor + Math.max(0, now - started) / 1000;
     sample(Math.min(until, next));
     if (next >= until) stop();
-    else raf = requestAnimationFrame(tick);
+    else scheduler.request("animation");
   }
   function start(limit = 120) {
     if (playing) return;
@@ -76,10 +81,10 @@ export function mountDemo() {
     until = Math.min(120, limit);
     playing = true;
     play.textContent = "暂停时间";
-    raf = requestAnimationFrame(tick);
+    wake("animation");
   }
   function snapshot() {
-    return {
+    return { pending: scheduler.pending,
       time,
       model: to_js_data(model),
       countValue: count_value(model, time),
@@ -155,14 +160,14 @@ export function mountDemo() {
     toggle.setAttribute("aria-expanded", String(!panel.hidden));
     toggle.textContent = panel.hidden ? "展开面板" : "收起面板";
   };
-  const observer = new ResizeObserver(draw);
+  const observer = new ResizeObserver(() => wake("resize"));
   observer.observe(canvas);
   let resolution;
   function watchDpr() {
     resolution?.removeEventListener("change", watchDpr);
     resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`);
     resolution.addEventListener("change", watchDpr);
-    draw();
+    wake("dpr");
   }
   watchDpr();
   const listeners = new AbortController();
@@ -202,6 +207,7 @@ export function mountDemo() {
   if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) start();
   return () => {
     stop();
+    scheduler.dispose();
     listeners.abort();
     observer.disconnect();
     resolution?.removeEventListener("change", watchDpr);

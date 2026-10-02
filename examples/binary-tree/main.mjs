@@ -3,6 +3,7 @@ import { scene_at, start_component, update_component } from "../../target/js/bin
 import { sample_plan_at, draw_plan_$x_ } from "../../target/js/binary-tree/quamolit.retained-component.mjs";
 import { draw_reference_$x_ } from "../../target/js/binary-tree/quamolit.canvas-reference.mjs";
 import { to_js_data, init_tags } from "../../target/js/binary-tree/calcit.core.mjs";
+import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const tags = init_tags(["scene", "transforms", "transform-samples"]);
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
@@ -12,8 +13,14 @@ const params = new URLSearchParams(location.search);
 const parsed = Number(params.get("t") || 0);
 let time = Number.isFinite(parsed) && parsed >= 0 && parsed <= 60 ? parsed : 0;
 let depth = 5, plan = start_component(time, depth), builds = 1, referenceMode = false;
-let playing = false, raf = null, anchor = 0, started = 0;
+let playing = false, anchor = 0, started = 0;
 let paints = 0, samples = 1;
+const scheduler = new DemandFrameScheduler({
+  requestFrame: callback => requestAnimationFrame(callback),
+  cancelFrame: handle => cancelAnimationFrame(handle),
+  paint: (now, reasons) => playing ? tick(now) : draw(),
+});
+function wake(reason) { scheduler.request(reason); scheduler.resume(); }
 function draw() {
   const rect = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   const w = Math.max(1, Math.round(rect.width * dpr)), h = Math.max(1, Math.round(rect.height * dpr));
@@ -37,24 +44,23 @@ function sample(t) {
 }
 function stop() {
   playing = false;
-  if (raf !== null) cancelAnimationFrame(raf);
-  raf = null; play.textContent = "播放";
+  scheduler.pause(); play.textContent = "播放";
 }
 function tick(now) {
   if (!playing) return;
   // 首次 rAF 的帧时间戳可能早于注册回调时的 performance.now()。
   const next = anchor + Math.max(0, now - started) / 1000;
   sample(Math.min(60, next));
-  if (next >= 60) stop(); else raf = requestAnimationFrame(tick);
+  if (next >= 60) stop(); else scheduler.request("animation");
 }
 function start() {
   if (playing) return;
   if (time === 60) sample(0);
   anchor = time; started = performance.now(); playing = true; play.textContent = "暂停";
-  raf = requestAnimationFrame(tick);
+  wake("animation");
 }
 function seek(t) { stop(); sample(t); return snapshot(); }
-function snapshot() { return { time, playing, samples, paints, builds, depth, referenceMode, planSamples: plan.get(tags["transform-samples"]), scene: to_js_data(plan.get(tags.scene)), transforms: to_js_data(plan.get(tags.transforms)), width: canvas.width, height: canvas.height }; }
+function snapshot() { return { pending: scheduler.pending, time, playing, samples, paints, builds, depth, referenceMode, planSamples: plan.get(tags["transform-samples"]), scene: to_js_data(plan.get(tags.scene)), transforms: to_js_data(plan.get(tags.transforms)), width: canvas.width, height: canvas.height }; }
 document.querySelector("#depth").onchange = event => {
   const nextDepth = Number(event.target.value), next = update_component(plan, time, nextDepth);
   depth = nextDepth; plan = next; builds++; draw();
@@ -78,12 +84,12 @@ document.querySelector("#share").onclick = async () => {
   history.replaceState(null, "", url);
   try { await navigator.clipboard.writeText(url.href); } catch { /* URL 已更新，仍可手动复制。 */ }
 };
-const observer = new ResizeObserver(draw); observer.observe(canvas);
+const observer = new ResizeObserver(() => wake("resize")); observer.observe(canvas);
 let resolution;
 function watchDpr() {
   resolution?.removeEventListener("change", watchDpr);
   resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`);
-  resolution.addEventListener("change", watchDpr); draw();
+  resolution.addEventListener("change", watchDpr); wake("dpr");
 }
 watchDpr();
 const listeners = new AbortController();
@@ -93,6 +99,6 @@ const api = { seek, snapshot, pause: stop, play: start };
 window.treeDemo = api;
 // 显式链接时间和 reduced-motion 均默认暂停，便于分享/截图。
 if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) start();
-return () => { stop(); listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.treeDemo === api) delete window.treeDemo; };
+return () => { stop(); scheduler.dispose(); listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.treeDemo === api) delete window.treeDemo; };
 }
 if (location.pathname.endsWith("/examples/binary-tree/index.html")) mountDemo();

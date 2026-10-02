@@ -1,6 +1,7 @@
 // 页面仅管理时钟、视口和 DOM；递归轨道及填充圆体由 Calcit 生成。
 import { draw_$x_, scene_at } from "../../target/js/solar/quamolit.examples.solar.mjs";
 import { to_js_data } from "../../target/js/solar/calcit.core.mjs";
+import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), slider = document.querySelector("#time");
@@ -8,7 +9,13 @@ const play = document.querySelector("#play"), panel = document.querySelector("#p
 const params = new URLSearchParams(location.search);
 const parsed = Number(params.get("t") || 0);
 let time = Number.isFinite(parsed) && parsed >= 0 && parsed <= 120 ? parsed : 0;
-let playing = false, raf = null, anchor = 0, started = 0, paints = 0;
+let playing = false, anchor = 0, started = 0, paints = 0;
+const scheduler = new DemandFrameScheduler({
+  requestFrame: callback => requestAnimationFrame(callback),
+  cancelFrame: handle => cancelAnimationFrame(handle),
+  paint: (now, reasons) => playing ? tick(now) : draw(),
+});
+function wake(reason) { scheduler.request(reason); scheduler.resume(); }
 function draw() {
   const rect = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   const w = Math.max(1, Math.round(rect.width * dpr)), h = Math.max(1, Math.round(rect.height * dpr));
@@ -30,24 +37,23 @@ function sample(t) {
 }
 function stop() {
   playing = false;
-  if (raf !== null) cancelAnimationFrame(raf);
-  raf = null; play.textContent = "播放";
+  scheduler.pause(); play.textContent = "播放";
 }
 function tick(now) {
   if (!playing) return;
   const next = anchor + Math.max(0, now - started) / 1000;
   sample(Math.min(120, next));
-  if (next >= 120) stop(); else raf = requestAnimationFrame(tick);
+  if (next >= 120) stop(); else scheduler.request("animation");
 }
 function start() {
   if (playing) return;
   if (time >= 120) sample(0);
   anchor = time; started = performance.now(); playing = true; play.textContent = "暂停";
-  raf = requestAnimationFrame(tick);
+  wake("animation");
 }
 function snapshot() {
   const scene = to_js_data(scene_at(time));
-  return { time, nodeCount: scene.nodes.length, scene, playing, paints, width: canvas.width, height: canvas.height };
+  return { pending: scheduler.pending, time, nodeCount: scene.nodes.length, scene, playing, paints, width: canvas.width, height: canvas.height };
 }
 function seek(t) { stop(); sample(t); return snapshot(); }
 play.onclick = () => playing ? stop() : start();
@@ -64,12 +70,12 @@ toggle.onclick = () => {
   toggle.setAttribute("aria-expanded", String(!panel.hidden));
   toggle.textContent = panel.hidden ? "展开面板" : "收起面板";
 };
-const observer = new ResizeObserver(draw); observer.observe(canvas);
+const observer = new ResizeObserver(() => wake("resize")); observer.observe(canvas);
 let resolution;
 function watchDpr() {
   resolution?.removeEventListener("change", watchDpr);
   resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`);
-  resolution.addEventListener("change", watchDpr); draw();
+  resolution.addEventListener("change", watchDpr); wake("dpr");
 }
 watchDpr();
 const listeners = new AbortController();
@@ -78,6 +84,6 @@ window.addEventListener("pagehide", stop, { signal: listeners.signal });
 const api = { seek, snapshot, pause: stop, play: start };
 window.solarDemo = api;
 if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) start();
-return () => { stop(); listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.solarDemo === api) delete window.solarDemo; };
+return () => { stop(); scheduler.dispose(); listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.solarDemo === api) delete window.solarDemo; };
 }
 if (location.pathname.endsWith("/examples/solar/index.html")) mountDemo();

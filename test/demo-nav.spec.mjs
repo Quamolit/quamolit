@@ -3,17 +3,36 @@ import { readFile } from "node:fs/promises";
 const catalog = JSON.parse(await readFile(new URL("../demos/catalog.json", import.meta.url), "utf8"));
 const artifactURL = `http://127.0.0.1:${process.env.QUAMOLIT_DEMO_TEST_PORT || 5190}/preview/`;
 
-for (const [demo, api, input, time] of [
+for (const [demo, api, input, time, end] of [
   ["tidal-bloom", "metricFlowDemo", "#view-analytics", 1.4],
   ["signal-weave", "signalWeaveDemo", "#mode-campaign", 1.2],
   ["cohort-pulse", "cohortPulseDemo", "#filter-risk", 0.9],
+  ["binary-tree", "treeDemo", "#play", 1, 60],
+  ["curve", "curveDemo", "#play", 1, 120],
+  ["solar", "solarDemo", "#play", 1, 120],
+  ["clock", "clockDemo", "#play", 1, 120],
+  ["raining", "rainingDemo", "#play", 75, 900],
+  ["finder", "finderDemo", "#tour", 1, 10],
+  ["icons", "iconsDemo", "#increase", 1, 120],
 ]) {
   test(`${demo}：共享调度的空闲、输入/尺寸与 DPR 通知唤醒、卸载取消`, async ({ page }) => {
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.goto(`demos/index.html?demo=${demo}&t=${time}`);
+    await page.goto(`demos/index.html?demo=${demo}&t=${time}&tick=${time}`);
     await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
     const snapshot = () => page.evaluate((name) => window[name].snapshot(), api);
+    if (end !== undefined) {
+      await page.evaluate(
+        ({ api, end, demo }) => {
+          window[api].seek(end - (demo === "raining" ? 1 : 0.04));
+          window[api].play();
+        },
+        { api, end, demo },
+      );
+      await expect.poll(async () => (await snapshot()).playing).toBe(false);
+      const finished = await snapshot();
+      expect(finished.time ?? finished.tick).toBe(end);
+    }
     await expect.poll(async () => (await snapshot()).pending).toBe(false);
     const idle = await snapshot();
     await page.waitForTimeout(2100);
@@ -25,7 +44,7 @@ for (const [demo, api, input, time] of [
     expect(paused.pending).toBe(false);
     await page.setViewportSize({ width: 1000, height: 760 });
     await expect.poll(async () => (await snapshot()).width).toBe(1000);
-    expect((await snapshot()).time).toBe(paused.time);
+    expect((await snapshot()).time ?? (await snapshot()).tick).toBe(paused.time ?? paused.tick);
     const resized = await snapshot();
     const session = await page.context().newCDPSession(page);
     // 同时改变 CSS 尺寸，验证真实 ResizeObserver 通知；无通知的 DPR-only 更新另记 #50。
@@ -36,7 +55,7 @@ for (const [demo, api, input, time] of [
       mobile: false,
     });
     await expect.poll(async () => (await snapshot()).width).toBe(2002);
-    expect((await snapshot()).time).toBe(paused.time);
+    expect((await snapshot()).time ?? (await snapshot()).tick).toBe(paused.time ?? paused.tick);
     expect((await snapshot()).paints).toBeGreaterThan(resized.paints);
     await page.evaluate((name) => {
       window.disposedChartApi = window[name];

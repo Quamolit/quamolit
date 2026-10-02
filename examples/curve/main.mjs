@@ -1,6 +1,7 @@
 // 页面只管理时钟/视口/DOM；旋转与 32 段顶点都在 Calcit。
 import { curve_points, draw_$x_, scene_at } from "../../target/js/curve/quamolit.examples.curve.mjs";
 import { to_js_data } from "../../target/js/curve/calcit.core.mjs";
+import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), slider = document.querySelector("#time");
@@ -8,7 +9,13 @@ const play = document.querySelector("#play"), panel = document.querySelector("#p
 const params = new URLSearchParams(location.search);
 const parsed = Number(params.get("t") || 0);
 let time = Number.isFinite(parsed) && parsed >= 0 && parsed <= 120 ? parsed : 0;
-let playing = false, raf = null, anchor = 0, started = 0, paints = 0;
+let playing = false, anchor = 0, started = 0, paints = 0;
+const scheduler = new DemandFrameScheduler({
+  requestFrame: callback => requestAnimationFrame(callback),
+  cancelFrame: handle => cancelAnimationFrame(handle),
+  paint: (now, reasons) => playing ? tick(now) : draw(),
+});
+function wake(reason) { scheduler.request(reason); scheduler.resume(); }
 function draw() {
   const rect = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   const w = Math.max(1, Math.round(rect.width * dpr)), h = Math.max(1, Math.round(rect.height * dpr));
@@ -30,25 +37,24 @@ function sample(t) {
 }
 function stop() {
   playing = false;
-  if (raf !== null) cancelAnimationFrame(raf);
-  raf = null; play.textContent = "播放";
+  scheduler.pause(); play.textContent = "播放";
 }
 function tick(now) {
   if (!playing) return;
   const next = anchor + Math.max(0, now - started) / 1000;
   sample(Math.min(120, next));
-  if (next >= 120) stop(); else raf = requestAnimationFrame(tick);
+  if (next >= 120) stop(); else scheduler.request("animation");
 }
 function start() {
   if (playing) return;
   if (time >= 120) sample(0);
   anchor = time; started = performance.now(); playing = true; play.textContent = "暂停";
-  raf = requestAnimationFrame(tick);
+  wake("animation");
 }
 function seek(t) { stop(); sample(t); return snapshot(); }
 function snapshot() {
   const points = to_js_data(curve_points(time));
-  return { time, pointCount: points.length, nodeCount: to_js_data(scene_at(time)).nodes.length, points, scene: to_js_data(scene_at(time)), playing, paints, width: canvas.width, height: canvas.height };
+  return { pending: scheduler.pending, time, pointCount: points.length, nodeCount: to_js_data(scene_at(time)).nodes.length, points, scene: to_js_data(scene_at(time)), playing, paints, width: canvas.width, height: canvas.height };
 }
 play.onclick = () => playing ? stop() : start();
 document.querySelector("#reset").onclick = () => seek(0);
@@ -64,12 +70,12 @@ toggle.onclick = () => {
   toggle.setAttribute("aria-expanded", String(!panel.hidden));
   toggle.textContent = panel.hidden ? "展开面板" : "收起面板";
 };
-const observer = new ResizeObserver(draw); observer.observe(canvas);
+const observer = new ResizeObserver(() => wake("resize")); observer.observe(canvas);
 let resolution;
 function watchDpr() {
   resolution?.removeEventListener("change", watchDpr);
   resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`);
-  resolution.addEventListener("change", watchDpr); draw();
+  resolution.addEventListener("change", watchDpr); wake("dpr");
 }
 watchDpr();
 const listeners = new AbortController();
@@ -78,6 +84,6 @@ window.addEventListener("pagehide", stop, { signal: listeners.signal });
 const api = { seek, snapshot, pause: stop, play: start };
 window.curveDemo = api;
 if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) start();
-return () => { stop(); listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.curveDemo === api) delete window.curveDemo; };
+return () => { stop(); scheduler.dispose(); listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.curveDemo === api) delete window.curveDemo; };
 }
 if (location.pathname.endsWith("/examples/curve/index.html")) mountDemo();
