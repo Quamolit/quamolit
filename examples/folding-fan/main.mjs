@@ -40,6 +40,7 @@ import {
   take_load,
 } from "../../target/js/folding-fan/quamolit.resource-load-queue.mjs";
 import { init_tags, option_$o_unwrap, to_js_data } from "../../target/js/folding-fan/calcit.core.mjs";
+import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
 export function mountDemo() {
   const canvas = document.querySelector("canvas"),
     context = canvas.getContext("2d");
@@ -73,7 +74,7 @@ export function mountDemo() {
     error = "",
     resourceError = "",
     playing = false,
-    raf = null,
+    disposed = false,
     anchor = 0,
     started = 0,
     until = 120,
@@ -84,6 +85,16 @@ export function mountDemo() {
     runtimeGeneration = 1,
     pumpPromise = null,
     autoPlayed = false;
+  const scheduler = new DemandFrameScheduler({
+    requestFrame: (callback) => requestAnimationFrame(callback),
+    cancelFrame: (handle) => cancelAnimationFrame(handle),
+    paint: (now) => (playing ? tick(now) : draw()),
+  });
+  function wake(reason) {
+    if (disposed) return;
+    scheduler.request(reason);
+    scheduler.resume();
+  }
   const resourceTags = init_tags(["actions", "backpressured", "host", "queue", "state", "task", "transition"]);
   const eventTimes = (params.get("events") || "").split(",").filter(Boolean).map(Number);
   try {
@@ -94,6 +105,7 @@ export function mountDemo() {
   }
   model = replay(events, time);
   function draw() {
+    if (disposed) return;
     const resource = to_js_data(resourceState).phase[0];
     const rect = (gpu?.canvas.isConnected ? gpu.canvas : canvas).getBoundingClientRect(),
       dpr = devicePixelRatio || 1;
@@ -175,8 +187,7 @@ export function mountDemo() {
   }
   function stop() {
     playing = false;
-    if (raf !== null) cancelAnimationFrame(raf);
-    raf = null;
+    scheduler.pause();
     play.textContent = "播放时间";
   }
   function tick(now) {
@@ -184,10 +195,10 @@ export function mountDemo() {
     const next = anchor + Math.max(0, now - started) / 1000;
     sample(Math.min(until, next));
     if (next >= until) stop();
-    else raf = requestAnimationFrame(tick);
+    else wake("animation");
   }
   function start(limit = 120) {
-    if (playing) return;
+    if (playing || disposed) return;
     if (time >= 120) {
       events = empty_events();
       sample(0);
@@ -197,7 +208,7 @@ export function mountDemo() {
     until = Math.min(120, limit);
     playing = true;
     play.textContent = "暂停时间";
-    raf = requestAnimationFrame(tick);
+    wake("play");
   }
   function snapshot() {
     const resource = to_js_data(resourceState).phase[0];
@@ -213,6 +224,8 @@ export function mountDemo() {
       loadQueue: to_js_data(load_queue_metrics(loadQueue)),
       error: [error, resourceError, gpuError].filter(Boolean).join("；"),
       playing,
+      pending: scheduler.pending,
+      disposed,
       paints,
       backend,
       gpuMetrics,
@@ -279,14 +292,14 @@ export function mountDemo() {
     panelToggle.setAttribute("aria-expanded", String(!panel.hidden));
     panelToggle.textContent = panel.hidden ? "展开面板" : "收起面板";
   };
-  const observer = new ResizeObserver(draw);
+  const observer = new ResizeObserver(() => wake("viewport"));
   observer.observe(canvas);
   let resolution;
   function watchDpr() {
     resolution?.removeEventListener("change", watchDpr);
     resolution = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`);
     resolution.addEventListener("change", watchDpr);
-    draw();
+    wake("dpr");
   }
   watchDpr();
   const listeners = new AbortController();
@@ -302,6 +315,7 @@ export function mountDemo() {
     state.device?.destroy();
   }
   async function selectBackend(value) {
+    if (disposed) return snapshot();
     const epoch = ++gpuEpoch;
     const previous = gpu;
     gpu = null;
@@ -402,8 +416,9 @@ export function mountDemo() {
         continue;
       }
       if (kind === "wake-frame") {
-        draw();
+        wake("resource");
         if (
+          !disposed &&
           !autoPlayed &&
           to_js_data(resourceState).phase[0] === "ready" &&
           !params.has("t") &&
@@ -469,6 +484,8 @@ export function mountDemo() {
     void selectBackend("webgpu");
   }
   return () => {
+    if (disposed) return;
+    disposed = true;
     gpuEpoch += 1;
     const previous = gpu;
     gpu = null;
@@ -478,6 +495,7 @@ export function mountDemo() {
     loadQueue = cancel_stale_device_loads(loadQueue, runtimeGeneration);
     void commitResource(close_resource(resourceState));
     stop();
+    scheduler.dispose();
     listeners.abort();
     observer.disconnect();
     resolution?.removeEventListener("change", watchDpr);

@@ -4,6 +4,8 @@
 
 图片的 loading/ready/error、失败重试、generation 隔离和卸载现由纯 Calcit [`quamolit.resource-lifecycle`](resource-lifecycle.md)、[统一加载队列](resource-load-queue.md)与[图片资源 runner](image-resource-runner.md)共同决定。`ImageHost` 创建、解码、尺寸验证、generation 表、安装和逻辑释放均由 Calcit 调用 js-ffi 类型化 API；页面只提供 URL、时钟、视口和 DOM。迟到 Promise 不能覆盖新版本或已关闭页面。
 
+页面播放、资源 `wake-frame`、ResizeObserver 与 DPR 通知复用现有 `DemandFrameScheduler`，至多保留一个待执行帧；暂停不是拒绝失效通知，图片 ready/error 或尺寸变化仍能在原时间重绘。同步 seek、快照与后端/标注控件的原行为保留。卸载取消待执行帧并关闭资源，迟到解码只能完成 Calcit 清理，不能再绘制共享 canvas 或启动自动播放。既有浏览器门禁用真实图片解码后的受控 Promise 验证暂停唤醒、两秒空闲、Toggle 终点和卸载后的资源归零/像素不变，不依赖是否再次发网络请求；这不是新的图片加载器，也不代表 GPU 硬件或性能验收。
+
 全屏 Canvas 按视口 × DPR 重设 backing store；650 × 432 是原图片与逻辑几何，不是固定页面尺寸。DOM 控制面板可收起，导航始终可用。`?t=` 与有序 `?events=0,0.18` 重放时间和 Toggle 输入，`window.foldingFanDemo` 提供固定时间、Toggle、快照与暂停，供截图与回归复用；`?image=missing` 验证解码失败时显式诊断。
 
 输入日志由 Calcit 的 `FanEvent`、`append-event`、`events-through`、`branch-toggle` 与 `replay` 维护。任意 seek 只重放时间不晚于目标时刻的事件，同一时间的多个 Toggle 保留插入顺序；从历史时间点击时保留该时刻及之前的事件，截断未来，再追加当前 Toggle。日志最多 100 条，时间须有限、非降序且处于 0–120 秒。页面 JS 只解析 URL、驱动时钟和 DOM，不再保存最后一个 Model 或实现图片资源状态机。
