@@ -3519,12 +3519,13 @@
             :return $ :: 'List 'String
         'compact-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn compact-document (document width height)
-            assert |invalid-finder-compact-viewport $ and (motion/finite-number? width) (>= width 300) (motion/finite-number? height) (>= height 600)
+            assert |invalid-finder-compact-viewport $ and (motion/finite-number? width) (>= width 300) (motion/finite-number? height) (> height 0)
             assert |invalid-finder-compact-scene $ scene/validate-scene document
             let
+                stage-height $ compact-stage-height height
                 folders $ foldl (range 0 5) (empty-nodes)
                   fn (acc folder)
-                    concat acc $ compact-item document folder -1 width height
+                    concat acc $ compact-item document folder -1 width stage-height
                 nodes $ foldl (range 0 5) folders $ fn (acc folder)
                   foldl
                     range 0 $ count $ cards-for folder
@@ -3533,7 +3534,7 @@
                         any? (:nodes document)
                           fn (node)
                             = (:id node) (str |card- folder |/ index)
-                        concat result $ compact-item document folder index width height
+                        concat result $ compact-item document folder index width stage-height
                         , result
               struct-with document $ :nodes nodes
           :examples $ []
@@ -3639,6 +3640,29 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/RectNode)
             :args $ [] 'quamolit.scene-ir/SceneDocument 'Number 'Number 'Number 'Number
+        'compact-scroll-limit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-scroll-limit (height)
+            - (compact-stage-height height) height
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'compact-stage-height $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-stage-height (height)
+            assert |invalid-finder-compact-height $ and (motion/finite-number? height) (> height 0)
+            if (< height 600) 600 height
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'compact-view-y $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-view-y (height scroll)
+            assert |invalid-finder-compact-scroll $ and (motion/finite-number? scroll) (>= scroll 0)
+              <= scroll $ compact-scroll-limit height
+            -
+              / (compact-stage-height height) 2
+              , scroll
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
         'demo-log $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn demo-log ()
             -> (empty-events) (append-event 0 |folder 0 -1) (append-event 0.55 |card 0 1) (append-event 1.1 |back 0 -1) (append-event 1.6 |back 0 -1) (append-event 2.15 |folder 3 -1) (append-event 2.65 |card 3 2) (append-event 3.15 |back 3 -1) (append-event 3.65 |back 3 -1)

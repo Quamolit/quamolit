@@ -44,9 +44,16 @@ async function checkCompactPixels(page) {
     reference.width = canvas.width;
     reference.height = canvas.height;
     const ctx = reference.getContext("2d");
-    ctx.setTransform(snapshot.view.scale, 0, 0, snapshot.view.scale, canvas.width / 2, canvas.height / 2);
+    ctx.setTransform(
+      snapshot.view.scale,
+      0,
+      0,
+      snapshot.view.scale,
+      canvas.width / 2,
+      (Math.max(cssHeight, 600) / 2 - snapshot.scroll) * snapshot.view.scale,
+    );
     const ew = cssWidth - 24,
-      eh = Math.min(cssHeight - 120, 600),
+      eh = Math.min(Math.max(cssHeight, 600) - 120, 600),
       base = (ew - 48) / 2;
     const color = (c) => `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},${c.a})`;
     const geometry = (id) => {
@@ -193,6 +200,90 @@ async function clickLogical(page, x, y) {
   );
   await page.mouse.click(position.x, position.y);
 }
+
+for (const dpr of [1, 2])
+  test(`短视口 DPR ${dpr}：视窗、滚轮与五组全部卡片可达，滚动不改意图`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 390 },
+      deviceScaleFactor: dpr,
+      hasTouch: true,
+    });
+    const page = await context.newPage();
+    try {
+      for (let folder = 0; folder < 5; folder++) {
+        await ready(page, "?t=0");
+        const initial = await page.evaluate(() => window.finderDemo.snapshot());
+        expect(initial.scrollLimit).toBe(210);
+        expect(initial.view.y).toBe(300 * dpr);
+        await page.locator("#panel-toggle").click();
+        await expect(page.locator("#finder-viewport")).toBeVisible();
+        await page.locator("#finder-scroll").press("End");
+        await expect.poll(() => page.evaluate(() => window.finderDemo.snapshot().scroll)).toBe(210);
+        await page.locator("#panel-toggle").click();
+        await page.mouse.move(195, 220);
+        await page.mouse.wheel(0, -1000);
+        await expect.poll(() => page.evaluate(() => window.finderDemo.snapshot().scroll)).toBe(0);
+        const position = Math.max(0, Math.min(52 + folder * 124 - 200, 210));
+        const scrolled = await page.evaluate((value) => window.finderDemo.setScroll(value), position);
+        expect(scrolled.model).toEqual(initial.model);
+        expect(scrolled.events).toEqual(initial.events);
+        expect(scrolled.time).toBe(initial.time);
+        await checkCompactPixels(page);
+        const failure = await page.evaluate(() => {
+          const before = window.finderDemo.snapshot();
+          let rejected = 0;
+          for (const value of [NaN, Infinity, -Infinity])
+            try {
+              window.finderDemo.setScroll(value);
+            } catch {
+              rejected++;
+            }
+          return { before, after: window.finderDemo.snapshot(), rejected };
+        });
+        expect(failure.rejected).toBe(3);
+        expect(failure.after).toEqual(failure.before);
+        await page.touchscreen.tap(195, 52 + folder * 124 - position);
+        await page.evaluate(() => window.finderDemo.pause());
+        let time = 0.42;
+        const opened = await page.evaluate((value) => window.finderDemo.seek(value), time);
+        expect(opened.model.folder).toBe(folder);
+        const count = opened.presentation.nodes.filter(
+          (node) => node.id.startsWith(`card-${folder}/`) && !node.id.endsWith("/label"),
+        ).length;
+        for (let card = 0; card < count; card++) {
+          const scroll = Math.max(0, Math.min(172 + Math.floor(card / 2) * 120 - 200, 210));
+          const before = await page.evaluate(() => window.finderDemo.snapshot());
+          const after = await page.evaluate((value) => window.finderDemo.setScroll(value), scroll);
+          expect(after.model).toEqual(before.model);
+          expect(after.time).toBe(before.time);
+          expect(after.events).toEqual(before.events);
+          await page.touchscreen.tap(195 + ((card % 2) * 2 - 1) * 87.5, 172 + Math.floor(card / 2) * 120 - scroll);
+          await page.evaluate(() => window.finderDemo.pause());
+          expect((await page.evaluate(() => window.finderDemo.snapshot())).model.card).toBe(card);
+          time += 0.42;
+          await page.evaluate((value) => window.finderDemo.seek(value), time);
+          await checkCompactPixels(page);
+          if (folder === 3 && card === 4)
+            await page.screenshot({ path: testInfo.outputPath(`finder-short-last-dpr${dpr}.png`) });
+          await page.touchscreen.tap(8, 380);
+          await page.evaluate(() => window.finderDemo.pause());
+          time += 0.42;
+          await page.evaluate((value) => window.finderDemo.seek(value), time);
+        }
+        const paused = await page.evaluate(() => window.finderDemo.snapshot());
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect.poll(() => page.evaluate(() => window.finderDemo.snapshot().scrollLimit)).toBe(0);
+        await expect(page.locator("#finder-viewport")).toBeHidden();
+        const taller = await page.evaluate(() => window.finderDemo.snapshot());
+        expect(taller.scroll).toBe(0);
+        expect(taller.model).toEqual(paused.model);
+        expect(taller.time).toBe(paused.time);
+        await page.setViewportSize({ width: 390, height: 390 });
+      }
+    } finally {
+      await context.close();
+    }
+  });
 
 async function captureWithAndWithoutOverlay(page, testInfo, name) {
   await page.screenshot({ path: testInfo.outputPath(`${name}-overlay.png`) });

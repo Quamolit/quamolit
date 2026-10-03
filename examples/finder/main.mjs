@@ -7,9 +7,11 @@ export function mountDemo() {
 const canvas = document.querySelector("#scene"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), message = document.querySelector("#message"), slider = document.querySelector("#time");
 const play = document.querySelector("#play"), panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
+const scrollViewport = document.querySelector("#finder-viewport"), scrollControl = document.querySelector("#finder-scroll");
 const params = new URLSearchParams(location.search);
 let log = finder.empty_events(), time = 0, model = finder.initial(), paints = 0;
 let scene, presentation, interactionPlan, paintedModel, paintedTime, compact = false;
+let scroll = 0, scrollLimit = 0;
 let playing = false, anchor = 0, started = 0, until = 10;
 let view = { scale: 1, x: 0, y: 0 };
 const scheduler = new DemandFrameScheduler({
@@ -22,11 +24,14 @@ function draw() {
   const bounds = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   const document = finder.scene_at(model,time);
   compact = bounds.width < 720;
-  const displayed = compact ? finder.compact_document(document,Math.max(300,bounds.width),Math.max(600,bounds.height)) : document;
+  scrollLimit = compact ? finder.compact_scroll_limit(bounds.height) : 0;
+  scroll = Math.max(0,Math.min(scroll,scrollLimit));
+  scrollViewport.hidden = scrollLimit === 0; scrollControl.max = String(scrollLimit); scrollControl.value = String(scroll);
+  const displayed = compact ? finder.compact_document(document,Math.max(300,bounds.width),bounds.height) : document;
   const nextHitPlan = finder.hit_plan(model,time,displayed);
   const width = Math.max(1, Math.round(bounds.width * dpr)), height = Math.max(1, Math.round(bounds.height * dpr));
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
-  view = compact ? {scale:dpr,x:width/2,y:height/2} : { scale: Math.min(width / 1100, height / 800), x: panel.hidden ? width / 2 : width * 0.38, y: height / 2 };
+  view = compact ? {scale:dpr,x:width/2,y:finder.compact_view_y(bounds.height,scroll)*dpr} : { scale: Math.min(width / 1100, height / 800), x: panel.hidden ? width / 2 : width * 0.38, y: height / 2 };
   context.setTransform(1, 0, 0, 1, 0, 0); context.clearRect(0, 0, width, height);
   context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
   draw_reference_$x_(context, displayed);
@@ -59,7 +64,7 @@ function snapshot() {
     model: to_js_data(model),
     events: to_js_data(log),
     scene: to_js_data(scene),
-    presentation: to_js_data(presentation), compact,
+    presentation: to_js_data(presentation), compact, scroll, scrollLimit,
     hitCandidates: to_js_data(interactionPlan).candidates.length,
     folderValues: to_js_data(finder.folder_values(model, time)),
     cardValues: to_js_data(finder.card_values(model, time)),
@@ -71,6 +76,13 @@ function snapshot() {
   };
 }
 function seek(next) { stop(); sample(next); return snapshot(); }
+function setScroll(value) {
+  const next=Number(value);
+  if(!Number.isFinite(next))throw new RangeError("档案视窗位置必须是有限数值");
+  scroll=Math.max(0,Math.min(next,scrollLimit)); draw(); return snapshot();
+}
+scrollControl.oninput=()=>safely(()=>setScroll(scrollControl.value));
+canvas.onwheel=event=>{if(compact&&scrollLimit>0){event.preventDefault();safely(()=>setScroll(scroll+event.deltaY));}};
 function send(kind, folder = -1, card = -1, at = time, autoplay = true) {
   if (!Number.isFinite(at) || at < 0 || at > 10) throw new RangeError("事件时间无效");
   stop(); sample(at);
@@ -109,7 +121,7 @@ watchDpr();
 const listeners = new AbortController();
 document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); }, { signal: listeners.signal });
 window.addEventListener("pagehide", stop, { signal: listeners.signal });
-const api = { seek, send, snapshot, pause: stop, play: start, tour: () => { stop(); log = finder.demo_log(); sample(0); return snapshot(); } };
+const api = { seek, send, snapshot, setScroll, pause: stop, play: start, tour: () => { stop(); log = finder.demo_log(); sample(0); return snapshot(); } };
 window.finderDemo = api;
 if (params.has("log")) safely(() => {
   const events = JSON.parse(params.get("log"));
@@ -124,6 +136,6 @@ if (params.has("log")) safely(() => {
 });
 const requested = Number(params.get("t") || 0);
 safely(() => sample(Number.isFinite(requested) && requested >= 0 && requested <= 10 ? requested : 0));
-return () => { stop(); scheduler.dispose(); canvas.onclick = null; listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.finderDemo === api) delete window.finderDemo; };
+return () => { stop(); scheduler.dispose(); canvas.onclick = null; canvas.onwheel = null; scrollControl.oninput = null; listeners.abort(); observer.disconnect(); resolution?.removeEventListener("change", watchDpr); if (window.finderDemo === api) delete window.finderDemo; };
 }
 if (location.pathname.endsWith("/examples/finder/index.html")) mountDemo();

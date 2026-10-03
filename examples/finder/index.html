@@ -11,11 +11,12 @@
     <p>点击画布上的文件夹，再点击卡片。空白处返回；也可以播放固定点击日志，观察居中、放大与其他项目淡出。</p>
     <div class="buttons"><button id="tour">播放预设</button><button id="back">返回一层</button><button id="play">播放时间</button><button id="reset">重置</button></div>
     <label>时间（秒）<input id="time" type="range" min="0" max="10" step="0.01" value="0"></label>
+    <label id="finder-viewport" hidden>档案视窗<input id="finder-scroll" aria-label="滚动植物档案" type="range" min="0" max="0" step="1" value="0"></label>
     <div class="buttons"><button data-time="0">0 s</button><button data-time="0.25">0.25 s</button><button data-time="0.75">0.75 s</button><button data-time="1.3">1.3 s</button><button data-time="2.85">2.85 s</button></div>
     <div class="buttons"><button id="share">复制当前画面链接</button></div>
     <output id="status" aria-live="off"></output>
     <p id="message" role="status"></p>
-    <p class="note">场景、命中与窄屏布局由 Calcit 生成；Canvas2D 参考绘制。窄屏纵向文件夹、两列卡片，稳定帧文字至少18px。上一项尚未完全关闭时仍可切换；点击对应当前已显示画面，每个节点从自己的采样姿态继续过渡。</p>
+    <p class="note">场景、命中与窄屏布局由 Calcit 生成；Canvas2D 参考绘制。窄屏纵向文件夹、两列卡片，稳定帧文字至少18px；短视口用档案视窗或滚轮浏览。上一项尚未完全关闭时仍可切换；点击对应当前已显示画面，每个节点从自己的采样姿态继续过渡。</p>
     <a href="https://github.com/Quamolit/quamolit/blob/main/docs/finder-restoration.md">行为依据与检验规则</a>
   </aside>
   <script type="module" src="./main.mjs"></script>

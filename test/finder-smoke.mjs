@@ -139,9 +139,24 @@ test("窄屏五组和18张卡片保留可读字号、44px目标及父级缩放�
     [NaN, 844],
     [390, Infinity],
     [299, 844],
-    [390, 599],
+    [390, 0],
   ])
     assert.throws(() => finder.compact_document(source, width, height), /invalid-finder-compact-viewport/);
+});
+
+test("短视口保持600px逻辑舞台，滚动边界与根逆变换有独立期望", () => {
+  for (const height of [200, 390, 599, 600, 844]) {
+    const stage = Math.max(height, 600),
+      limit = stage - height;
+    assert.equal(finder.compact_stage_height(height), stage);
+    assert.equal(finder.compact_scroll_limit(height), limit);
+    assert.equal(finder.compact_view_y(height, 0), stage / 2);
+    assert.equal(finder.compact_view_y(height, limit), stage / 2 - limit);
+  }
+  for (const value of [NaN, Infinity, 0, -1])
+    assert.throws(() => finder.compact_stage_height(value), /invalid-finder-compact-height/);
+  for (const scroll of [NaN, Infinity, -1, 201])
+    assert.throws(() => finder.compact_view_y(400, scroll), /invalid-finder-compact-scroll/);
 });
 
 test("五个旧文件夹及中文植物卡片，展开/聚焦/返回具有稳定身份", () => {
