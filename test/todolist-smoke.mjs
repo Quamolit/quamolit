@@ -18,8 +18,10 @@ import {
   draw_text_$x_ as drawText,
   font_family_css as fontFamilyCss,
 } from "../target/js/todolist/quamolit.canvas-reference.mjs";
-import { default_font as defaultFont } from "../target/js/todolist/quamolit.scene-ir.mjs";
+import { default_font as defaultFont, SceneContent, FontFallback } from "../target/js/todolist/quamolit.scene-ir.mjs";
 import * as fonts from "../target/js/todolist/quamolit.font-resource.mjs";
+import * as presence from "../target/js/todolist/quamolit.presence.mjs";
+import { Easing } from "../target/js/todolist/quamolit.motion.mjs";
 import {
   geometry_signature as geometry,
   property_signature as properties,
@@ -66,6 +68,14 @@ const tags = init_tags([
   "d",
   "e",
   "f",
+  "parent",
+  "key",
+  "bindings",
+  "text",
+  "linear",
+  "fallback",
+  "sans-serif",
+  "buffer",
 ]);
 const field = (x, k) => x.get(tags[k]);
 const rows = (m) => js(m).rows;
@@ -129,6 +139,92 @@ test("命中消费计划里的实际矩阵，不重新按 Model 推算位置；�
     /invalid-todo-hit-transforms/,
   );
   assert.throws(() => todo.hit_with_plan(model, hits, NaN, 0), /invalid-todo-hit/);
+});
+
+test("Presence 字体按 family/version 共享，退出持有到终点；重入、百次装卸与非法输入", () => {
+  const empty = new CalcitSliceList([]);
+  const base = field(todo.start_plan(live(), 1), "scene");
+  const template = field(base, "nodes").get(0);
+  const spec = defaultFont().assoc(tags.family, "ChartFont").assoc(tags.version, 1);
+  const document = (specs) =>
+    base.assoc(
+      tags.nodes,
+      new CalcitSliceList(
+        specs.map((font, index) => {
+          const payload = enumNth(todo.text(0, "图表收入", 18, todo.color(1, 0, 0, 1)), 1).assoc(tags.font, font);
+          return template
+            .assoc(tags.id, `label-${index}`)
+            .assoc(tags.key, `label-${index}`)
+            .assoc(tags.parent, "")
+            .assoc(tags.bindings, empty)
+            .assoc(tags.content, enumNew(SceneContent, tags.text, payload));
+        }),
+      ),
+    );
+  const same = spec.assoc(tags.fallback, enumNew(FontFallback, tags["sans-serif"]));
+  const full = document([spec, same, defaultFont()]);
+  const blank = base.assoc(tags.nodes, empty);
+  const start = presence.start_presence(full);
+  const refs = fonts.presence_font_references(start);
+  assert.deepEqual(js(refs), [{ kind: ["font"], id: "ChartFont", version: 1 }]);
+  const before = js(start);
+  const easing = enumNew(Easing, tags.linear);
+  const exit = field(presence.reconcile_presence(start, blank, 0, 1, easing), "model");
+  for (const time of [0, 0.25, 0.5, 0.75])
+    assert.deepEqual(
+      js(fonts.presence_font_references(field(presence.settle_presence(exit, time), "model"))),
+      js(refs),
+    );
+  const end = field(presence.settle_presence(exit, 1), "model");
+  assert.equal(count(fonts.presence_font_references(end)), 0);
+  assert.deepEqual(js(start), before, "选择器与结算不修改旧 Model");
+  const registryOf = (transition) => field(transition, "registry");
+  let registry = registryOf(fonts.sync_font_leases(lifecycle.initial_registry(1), empty, refs, 1));
+  registry = registryOf(fonts.sync_font_leases(registry, empty, refs, 1));
+  assert.equal(js(registry).entries[0].references, 2, "不同所有者各持一个 lease");
+  assert.equal(registryOf(fonts.sync_font_leases(registry, refs, refs, 1)), registry, "重复提交不增加引用");
+  registry = registryOf(fonts.sync_font_leases(registry, refs, empty, 1));
+  assert.equal(js(registry).entries[0].references, 1);
+  registry = registryOf(fonts.sync_font_leases(registry, refs, empty, 1));
+  for (let cycle = 0; cycle < 100; cycle++) {
+    const entering = field(presence.reconcile_presence(end, full, cycle * 3, 1, easing), "model");
+    const currentRefs = fonts.presence_font_references(entering);
+    registry = registryOf(fonts.sync_font_leases(registry, empty, currentRefs, 1));
+    const leaving = field(presence.reconcile_presence(entering, blank, cycle * 3 + 1, 1, easing), "model");
+    const middle = field(presence.settle_presence(leaving, cycle * 3 + 1.5), "model");
+    assert.equal(
+      registryOf(fonts.sync_font_leases(registry, currentRefs, fonts.presence_font_references(middle), 1)),
+      registry,
+    );
+    const revived = field(presence.reconcile_presence(middle, full, cycle * 3 + 1.5, 1, easing), "model");
+    assert.deepEqual(js(fonts.presence_font_references(revived)), js(currentRefs));
+    const ended = field(presence.settle_presence(leaving, cycle * 3 + 2), "model");
+    registry = registryOf(fonts.sync_font_leases(registry, currentRefs, fonts.presence_font_references(ended), 1));
+    assert.equal(js(lifecycle.registry_metrics(registry)).idle, 1);
+    assert.equal(js(registry).loads, 1);
+  }
+  const newer = fonts.presence_font_references(presence.start_presence(document([spec.assoc(tags.version, 2)])));
+  const switched = fonts.sync_font_leases(registry, empty, newer, 1);
+  assert.equal(js(field(switched, "actions"))[0][1].version, 1, "先驱逐 idle 旧版本，再加载新版本");
+  assert.equal(js(registryOf(switched)).entries[0].state.identity.version, 2);
+  assert.deepEqual(js(fonts.presence_font_references(presence.start_presence(document([defaultFont()])))), []);
+  for (const budget of [0, -1, NaN, Infinity])
+    assert.throws(() => fonts.sync_font_leases(registry, empty, empty, budget), /invalid-font-budget/);
+  assert.throws(() => fonts.font_identity(defaultFont()), /invalid-external-font/);
+  assert.throws(
+    () => fonts.sync_font_leases(registry, refs, new CalcitSliceList([refs.get(0), refs.get(0)]), 1),
+    /duplicate-font-reference/,
+  );
+  assert.throws(
+    () =>
+      fonts.sync_font_leases(
+        registry,
+        empty,
+        new CalcitSliceList([lifecycle.resource(enumNew(lifecycle.ResourceKind, tags.buffer), "x", 1)]),
+        1,
+      ),
+    /invalid-font-reference/,
+  );
 });
 
 test("固定日志直接跳转与顺序游标得到相同逻辑 Model、画面与释放计数", () => {

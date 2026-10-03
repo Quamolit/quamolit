@@ -145,7 +145,7 @@ ID/version、Presence 共享租约、实际 buffer/texture 宿主与受限设备
 - 已落地公共 [版本化实例源资源表](instance-resource-table.md)（`quamolit.instance-resource`，定义级 `:file` 宿主 + 类型化 Calcit 入口，100 次装卸回到 live 基线）。
 - 已落地纯 Calcit [通用资源生命周期](resource-lifecycle.md)及[多资源注册表](resource-registry.md)：图片、纹理、几何、字体、字形、buffer、pipeline 共用 logical identity、loading/ready/error、generation 隔离与动作协议；相同资源共享引用，零引用资源进入有界 LRU 缓存，迟到结果按完整身份安全释放。Folding Fan 与 100 次多资源装卸已进入自动测试。
 - 已落地纯 Calcit [Presence 资源连接](presence-resources.md)：唯一实例源按 buffer identity 获取一次 lease，退出转 idle、重入复用、容量换版本驱逐，100 次真实 Presence 出入后 close 回零。
-- Calcit [Presence WebGPU 宿主](presence-webgpu-resources.md)、[device/registry 状态机](presence-device-coordinator.md)、[异步 runner](presence-resource-runner.md)与[加载任务队列](resource-load-queue.md)已驱动 batch 创建、上传、绘制和销毁；队列支持优先级、去重、背压与取消。Presence buffer、[Canvas 图片](image-resource-runner.md)、[texture runner](webgpu-texture-runner.md)及[Scene 图片图层](webgpu-scene-images.md)已有实际消费；font/glyph、geometry、pipeline loader 及 queue-safe 回收仍待接线。
+- Calcit [Presence WebGPU 宿主](presence-webgpu-resources.md)、[device/registry 状态机](presence-device-coordinator.md)、[异步 runner](presence-resource-runner.md)与[加载任务队列](resource-load-queue.md)已驱动 batch 创建、上传、绘制和销毁；队列支持优先级、去重、背压与取消。Presence buffer、[Canvas 图片](image-resource-runner.md)、[texture runner](webgpu-texture-runner.md)及[Scene 图片图层](webgpu-scene-images.md)已有实际消费；font loader与共享宿主已随#203/#205合并，不再列为未实现。本切片通过既有字体入口从Presence文字提取共享租约并同步registry，独立消费者承担退出/重入/100次出入验收；实际看板/capture/resize组合、glyph、geometry、pipeline loader及queue-safe回收仍待接线。
 
 ### #38：普通组件合批与显式 instances 共享入口
 
