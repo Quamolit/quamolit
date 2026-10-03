@@ -20,6 +20,14 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 
 本批未优化时间帧Scene/绑定分配或全ID访问；现有文字使用内置monospace，不证明#51的外部字体/图片资源租约与退出并发。WebGPU一般组不支持，硬件及性能结论未新增；#34/#53/M3不能因此关闭。
 
+## 字体租约与真实退出联合提交
+
+浮层“启用字体资源”显式启用 `QuamolitDashboard/version=1`，通过现有 Calcit 字体 loader 申请本机中文字体；默认不加载、不改变原画面。逻辑字体描述与 Presence Model 投影在 `with-font`，Registry/LoadQueue/FontResourceHost 仍使用公共入口，`DashboardFonts` 只是本示例的连接状态，不是第二套资源运行时。绘制不修改原动画 Model；启用后所有正向、seek 与乱序帧都按同一资源选择投影。
+
+先生成实际 Scene 并编译/提交 HitPlan 协调捕获，再同步同一展示 Model 的租约。退出开始立刻禁交互、释放原生捕获，文字与租约仍留到0.6秒退出终点；终点归零后资源进入 idle，不冒充已销毁。中途重入与 idle 重入复用一次加载；页面卸载关闭自己的 registry、取消队列并精确删除 FontFace。异步完成总是交给最新 Calcit 状态判定；关闭后的迟到结果不能安装或触发重绘。
+
+现有看板浏览器门禁在 DPR1/2 组合真实 FontFace、按住柱图、退出与 resize、0.5 alpha 中间帧、快速重入、终点归还与 idle 复用及重复卸载。另在真实字体加载等待期间卸载，验证迟到完成后 accepted=0、live=0、running=0，画面计数不变。原全帧隔离组像素和原入场效果回归保留。字体可用性 revision 只在接纳时增加；当前页面全量重绘，不声称已接保留布局缓存。该连接只管理一种可选字体，失败保留通用回退，尚无版本切换/自动重试 UI、图片联合或 GPU fence/recovery；#34/#51/M2/M3仍开放。
+
 ## Scene 能力与完整预检
 
 以下区分完整 `canvas-scene/draw-document!` 与受限 GPU 消费者，不能把单图层能力拼成任意 Scene 都支持的承诺。
