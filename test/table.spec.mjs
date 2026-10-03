@@ -71,3 +71,58 @@ test("窄屏 DPR 2 resize 与浮层不改变九格", async ({ browser }, testInf
     await context.close();
   }
 });
+
+for (const dpr of [1, 2]) {
+  test(`实际 Scene 命中 DPR ${dpr}：标签、格子边缘、resize与面板缩放后使用当前视图`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: dpr });
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    try {
+      await ready(page);
+      const clickLocal = async (x, y) => {
+        const point = await page.evaluate(
+          ({ x, y }) => {
+            const state = window.tableDemo.snapshot(),
+              bounds = document.querySelector("canvas").getBoundingClientRect();
+            return {
+              x: bounds.left + ((state.view.x + x * state.view.scale) * bounds.width) / state.width,
+              y: bounds.top + ((state.view.y + y * state.view.scale) * bounds.height) / state.height,
+            };
+          },
+          { x, y },
+        );
+        await page.mouse.click(point.x, point.y);
+      };
+      await clickLocal(-76, 8); // 文本覆盖的区域仍属于中间格子，不生成第二套交互。
+      await expect(page.locator("#editor")).toBeVisible();
+      expect((await page.evaluate(() => window.tableDemo.snapshot())).selected).toBe(4);
+      await page.locator("#editor").fill("当前Scene");
+      await page.locator("#editor").press("Enter");
+      await page.locator("#panel-toggle").click();
+      await expect(page.locator("#panel")).toBeHidden();
+      await clickLocal(88, 50); // 含抗锯齿取整的鼠标坐标避开精确边界；纯Node覆盖边界。
+      expect((await page.evaluate(() => window.tableDemo.snapshot())).selected).toBe(4);
+      await page.locator("#editor").press("Escape");
+      await clickLocal(92, 0); // 可见格子之间的缝隙不能误开编辑器。
+      await expect(page.locator("#editor")).toBeHidden();
+      const before = await page.evaluate(() => window.tableDemo.snapshot());
+      await page.setViewportSize({ width: 740, height: 680 });
+      await expect
+        .poll(() => page.locator("canvas").evaluate((canvas) => [canvas.width, canvas.height]))
+        .toEqual([740 * dpr, 680 * dpr]);
+      await clickCell(page, 8);
+      expect((await page.evaluate(() => window.tableDemo.snapshot())).selected).toBe(8);
+      await page.locator("#editor").fill("重绘后命中");
+      await page.locator("#editor").press("Enter");
+      const after = await page.evaluate(() => window.tableDemo.snapshot());
+      expect(after.cells[4]).toBe(before.cells[4]);
+      expect(after.cells[8]).toBe("重绘后命中");
+      expect(after.scene.nodes[17].content[1].text).toBe("重绘后命中");
+      expect(after.scene.nodes).toHaveLength(18);
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+}

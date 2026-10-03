@@ -7,6 +7,7 @@ const editor = document.querySelector("#editor"), panel = document.querySelector
 const toggle = document.querySelector("#panel-toggle"), status = document.querySelector("#status");
 const message = document.querySelector("#message"), params = new URLSearchParams(location.search);
 let cells = table.initial(), selected = -1, paints = 0;
+let renderedScene, hitPlan;
 let view = { scale: 1, x: 0, y: 0 };
 function locateEditor() {
   if (editor.hidden || selected < 0) return;
@@ -22,14 +23,16 @@ function draw() {
   const width = Math.max(1, Math.round(bounds.width * dpr)), height = Math.max(1, Math.round(bounds.height * dpr));
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   view = { scale: Math.min(width / (panel.hidden ? 640 : 760), height / (panel.hidden ? 500 : 570)), x: panel.hidden ? width / 2 : width * 0.43, y: height / 2 };
+  const nextScene = table.scene_at(cells, selected), nextHitPlan = table.hit_plan(nextScene);
   context.setTransform(1, 0, 0, 1, 0, 0); context.clearRect(0, 0, width, height);
   context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
-  table.draw_$x_(context, cells, selected);
+  table.draw_scene_$x_(context, nextScene);
+  renderedScene = nextScene; hitPlan = nextHitPlan;
   paints++; locateEditor();
   status.textContent = `3 × 3 · ${to_js_data(cells).filter(Boolean).length} 格有文字 · 绘制 ${paints}\n点击格子编辑；画布 ${width} × ${height} 实际像素`;
   status.dataset.result = "pass";
 }
-function snapshot() { return { cells: to_js_data(cells), selected, scene: to_js_data(table.scene_at(cells, selected)), paints, width: canvas.width, height: canvas.height, view: { ...view } }; }
+function snapshot() { return { cells: to_js_data(cells), selected, scene: to_js_data(renderedScene), paints, width: canvas.width, height: canvas.height, view: { ...view } }; }
 function commit() {
   if (editor.hidden || selected < 0) return snapshot();
   cells = table.set_cell(cells, selected, editor.value);
@@ -48,7 +51,7 @@ canvas.addEventListener("click", event => safely(() => {
   const bounds = canvas.getBoundingClientRect();
   const x = ((event.clientX - bounds.left) * canvas.width / bounds.width - view.x) / view.scale;
   const y = ((event.clientY - bounds.top) * canvas.height / bounds.height - view.y) / view.scale;
-  const index = table.hit_at(x, y);
+  const index = table.hit_with_plan(hitPlan, x, y);
   if (index >= 0) open(index); else commit();
 }), { signal: listeners.signal });
 editor.addEventListener("keydown", event => {
