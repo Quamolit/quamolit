@@ -15,7 +15,17 @@
 - 拒绝已有 alpha 绑定、重复描述符 ID/version、group/instances 和非顶层节点，不静默降级。不支持把多个独立模型直接拼入同一个 Scene；需要先形成统一逻辑 Model。
 - 这不是嵌套组隔离透明度，也不实现真实资源释放或指针捕获。[TodoList](todolist-restoration.md)已消费此连接，提供行级 Model、文字、错峰/重排、输入日志及全屏操作页面。
 
-## 可复现验证
+## 嵌套声明（开发中，尚未接页面控制）
+
+`declare-tree(model, descriptors, fade-ids)` 同样返回普通 `ComponentDeclaration`，但保留逻辑父路径，并支持 group 的 `opacity` 生命周期绑定。`fade-ids` 是原始 Scene 节点 ID 列表，显式指定哪些节点承担淡化：整组出入只选择父 group，后代保留原始 alpha；选择父子两项意味着有意叠加两项局部动画，不自动猜测或去重。未选择的节点仍遵守逻辑进入/退出/结算，但不新增淡化绑定。静态后代可包含其他合法 Scene 图元；淡化目标当前限 group/rect/polyline/text，已有对应 alpha/opacity 绑定会明确报错。
+
+渲染 ID/key 按完整逻辑 path 的 kind/key 长度编码，不使用物理节点 ID；父引用也由父路径生成。同 key 换父/换类型的新旧节点可共存，不与 `declare-flat` 的历史 ID 混用。所有退出节点使用 `SceneInteraction :disabled`，阻止子树内目标及祖先目标后备；资源释放仍等显式结算。时间采样不结算，也不改变 Model。
+
+嵌套声明可通过普通计划采样 Scene；绘制需使用支持组隔离的 `canvas-scene/draw-document!`，不能把既有平面 `draw-plan!` 参考入口当作嵌套 renderer。`fade-ids` 应属于应用声明配置，不随时间逐帧猜测；非淡化节点如果单独出入，应用须为其明确选择额外的淡化目标或其他动画，否则只是保留到结算。
+
+Layered Signals 的 `presence-scene-at` 使用该声明，整组只选择 `dashboard`。既有 `test:layered-dashboard` 在真实28节点嵌套 Scene 上验证乱序时间、隔离合成像素、原始0.55子组透明度、25/50/75%重入、27项终点释放与重复结算。**这是开发中的采样连接，不是页面按钮/原生capture/resize/资源租约的完整应用验收**；后续仍在同一页面与门禁接线，不新增演示或renderer。
+
+## 既有叶节点验证
 
 `yarn test:retained-component` 已包含严格类型、原生连续性、Node 的 1000 帧几何共享、25/50/75% 重入连续性、100 次装卸及终点释放一次；Chromium 在 t=0/0.25/0.5/0.75/1/0.5 对照独立原生 Canvas 全部像素，并保存各时刻图片附件。该夹具不计为恢复后的 TodoList demo。
 

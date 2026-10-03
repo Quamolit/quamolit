@@ -4432,6 +4432,14 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
             :args $ [] 'Number 'Number 'Number
+        'presence-scene-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-scene-at (model time)
+            let
+                declaration $ presence-component/declare-tree model (binding/empty-descriptors) ([] |dashboard)
+              binding/resolve-scene (:scene declaration) (:motions declaration) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.presence/PresenceModel 'Number
         'rect-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn rect-node (id parent x y width height fill)
             scene/SceneNode :id id :key id :parent parent :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :rect $ scene/RectNode :x x :y y :width width :height height :fill fill
@@ -4496,7 +4504,7 @@
             :args $ [] 'String 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
       :ns $ %{} 'NsEntry (:doc "|图表型 UI 动画：以嵌套矩形裁剪展示数据揭示，以隔离组透明度保证重叠图元只整体合成一次。")
         :code $ quote $ ns quamolit.examples.layered-dashboard
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-scene :as canvas-scene)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-scene :as canvas-scene) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding)
     'quamolit.examples.raining $ %{} 'FileEntry
       :defs $ {}
         'build-drops $ %{} 'CodeEntry (:doc |)
@@ -11146,6 +11154,23 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'quamolit.presence/PresenceModel $ :: 'List 'quamolit.motion/ScalarDescriptor
+        'declare-tree $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-tree (model descriptors fade-ids)
+            assert |invalid-presence-fade-owner $ every? fade-ids $ fn (id)
+              not $ empty? id
+            let
+                document $ scene/SceneDocument :nodes $ map (:items model)
+                  fn (item) (tree-node item fade-ids)
+                motions $ concat descriptors $ map
+                  filter (:items model)
+                    fn (item) (tree-fades? item fade-ids)
+                  , tree-motion
+              scene/validate-scene document
+              binding/validate-descriptors motions
+              component/ComponentDeclaration :scene document :motions motions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'quamolit.presence/PresenceModel (:: 'List 'quamolit.motion/ScalarDescriptor) (:: 'List 'String)
         'item-id $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn item-id (item)
             let
@@ -11200,6 +11225,91 @@
               _ $ raise |presence-requires-flat-leaf
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.scene-ir/SceneContent
+        'tree-alpha $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn tree-alpha (content)
+            match content
+              (:group group) (:opacity group)
+              _ $ leaf-alpha content
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.scene-ir/SceneContent
+        'tree-fades? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn tree-fades? (item fade-ids)
+            and (animated-alpha? item)
+              includes? fade-ids $ :id $ :node (:entry item)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.presence/PresenceItem $ :: 'List 'String
+        'tree-item-id $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn tree-item-id (item)
+            tree-path-id $ :path $ :entry item
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.presence/PresenceItem
+        'tree-motion $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn tree-motion (item)
+            let
+                original-alpha $ tree-alpha $ :content
+                  :node $ :entry item
+                tween $ :alpha item
+              motion/ScalarDescriptor :id (tree-item-id item) :version 0 :motion $ motion/ScalarMotion :tween $ struct-with tween
+                :from $ * original-alpha $ :from tween
+                :to $ * original-alpha $ :to tween
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'quamolit.presence/PresenceItem
+        'tree-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn tree-node (item fade-ids)
+            let
+                original-node $ :node $ :entry item
+                render-id $ tree-item-id item
+                owns-fade $ includes? fade-ids $ :id original-node
+              if owns-fade $ do
+                tree-alpha $ :content original-node
+                assert |presence-tree-binding-conflict $ every? (:bindings original-node)
+                  fn (entry)
+                    not= (:target entry)
+                      tree-target $ :content original-node
+              struct-with original-node (:id render-id) (:key render-id)
+                :parent $ if
+                  empty? $ :parent original-node
+                  , | $ tree-path-id
+                    butlast $ :path $ :entry item
+                :bindings $ if (tree-fades? item fade-ids)
+                  conj (:bindings original-node)
+                    scene/ScalarBinding :target
+                      tree-target $ :content original-node
+                      , :motion-id render-id :version 0
+                  :bindings original-node
+                :interaction $ if
+                  = (:phase item) (presence/PresencePhase :exit)
+                  scene/SceneInteraction :disabled
+                  :interaction original-node
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
+            :args $ [] 'quamolit.presence/PresenceItem $ :: 'List 'String
+        'tree-path-id $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn tree-path-id (path)
+            foldl path |presence-tree $ fn (acc segment)
+              hint-fn $ {}
+                :args $ [] 'String 'quamolit.scene-diff/IdentitySegment
+                :return 'String
+              str acc |/
+                count $ :kind segment
+                , |: (:kind segment) |/
+                  count $ :key segment
+                  , |: $ :key segment
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] $ :: 'List 'quamolit.scene-diff/IdentitySegment
+        'tree-target $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn tree-target (content)
+            match content
+              (:group group) (scene/ScalarTarget :opacity)
+              _ $ scene/ScalarTarget :alpha
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/ScalarTarget)
             :args $ [] 'quamolit.scene-ir/SceneContent
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.presence-component
