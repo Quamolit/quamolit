@@ -628,17 +628,33 @@
             match (:content node)
               (:group group)
                 let
-                    layer $ raw-layer-create! width height
-                    layer-context $ layer-context! layer
                     transform $ multiply-matrix parent-transform $ :transform group
-                  layer-context .save!
-                  set-transform! layer-context transform
-                  clip-group! layer-context $ :clip group
-                  try
-                    draw-children! layer-context nodes (:id node) transform width height lookup
-                    fn (error) (layer-context .restore!) (raise error)
-                  layer-context .restore!
-                  composite-layer! context layer $ :opacity group
+                    unclipped? $ match (:clip group)
+                      (:none) true
+                      _ false
+                    raster-sensitive? $ any? nodes $ fn (child)
+                      and
+                        = (:parent child) (:id node)
+                        match (:content child)
+                          (:polyline line) true
+                          (:image image) true
+                          _ false
+                  if
+                    and
+                      = (:opacity group) 1
+                      , unclipped? $ not raster-sensitive?
+                    draw-children! context nodes (:id node) transform width height lookup
+                    let
+                        layer $ raw-layer-create! width height
+                        layer-context $ layer-context! layer
+                      layer-context .save!
+                      set-transform! layer-context transform
+                      clip-group! layer-context $ :clip group
+                      try
+                        draw-children! layer-context nodes (:id node) transform width height lookup
+                        fn (error) (layer-context .restore!) (raise error)
+                      layer-context .restore!
+                      composite-layer! context layer $ :opacity group
               (:instances instances) (raise |unsupported-canvas-scene-instances)
               _ $ draw-leaf! context (:content node) parent-transform lookup
             , &unit
