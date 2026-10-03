@@ -9,6 +9,7 @@ import {
   _$n_enum_$o_nth as enumNth,
   _PCT__$o__$o_ as enumNew,
   option_$o_unwrap as unwrapOption,
+  count,
 } from "../target/js/todolist/calcit.core.mjs";
 import * as lifecycle from "../target/js/todolist/quamolit.resource-lifecycle.mjs";
 import * as queueApi from "../target/js/todolist/quamolit.resource-load-queue.mjs";
@@ -51,6 +52,14 @@ const tags = init_tags([
   "font",
   "interactive",
   "resource-generation",
+  "registry",
+  "host",
+  "handles",
+  "accepted",
+  "released",
+  "entries",
+  "generation",
+  "references",
 ]);
 const field = (x, k) => x.get(tags[k]);
 const rows = (m) => js(m).rows;
@@ -258,7 +267,7 @@ test("字体版本独立失效，命名字体安全引用且绘制不启动加�
   assert.equal(calls.length, 3, "非法字体在save/fillText之前拒绝");
 });
 
-test("Calcit 字体加载归一化失败，旧版本不安装，释放按确切宿主身份", async () => {
+test("字体加载/队列/registry：失败、迟到隔离、共享与精确释放", async () => {
   const previousFace = globalThis.FontFace;
   const previousDocument = globalThis.document;
   let creates = 0,
@@ -363,6 +372,121 @@ test("Calcit 字体加载归一化失败，旧版本不安装，释放按确切�
       const repeated = fonts.complete_font_load(state, completed.get(tags.queue), result);
       assert.equal(js(repeated.get(tags.loaded))[0], "none", "重复完成不能再次交付句柄");
     }
+    const reg = (transition) => transition.get(tags.registry);
+    const hostActions = (host, transition) => fonts.apply_font_registry_actions_$x_(host, transition.get(tags.actions));
+    const taskFor = (registry, id, queue = queueApi.initial_load_queue(1, 4)) => {
+      const state = lifecycle.find_entry(registry.get(tags.entries), id).get(tags.state);
+      const queued = queueApi.enqueue_load(
+        queue,
+        1,
+        id,
+        state.get(tags.generation),
+        enumNew(queueApi.ResourceLoadPriority, tags.interactive),
+      );
+      const taken = queueApi.take_load(queued.get(tags.queue));
+      return { queue: taken.get(tags.queue), task: unwrapOption(taken.get(tags.task)) };
+    };
+    const settle = async (host, registry, id, fontSpec, source = "ok") => {
+      const { queue, task } = taskFor(registry, id);
+      const result = await fonts.run_font_load_task_$x_(fontSpec, source, task);
+      return fonts.complete_font_registry_load_$x_(host, registry, queue, result);
+    };
+    let host = fonts.initial_font_resource_host();
+    let registry = reg(lifecycle.acquire_registry(lifecycle.initial_registry(2), identity, 1));
+    registry = reg(lifecycle.acquire_registry(registry, identity, 1));
+    const beforeCreates = creates;
+    const shared = await settle(host, registry, identity, spec);
+    host = shared.get(tags.host);
+    registry = reg(shared.get(tags.transition));
+    assert.equal(creates - beforeCreates, 1, "两个lease共享一次实际FontFace加载");
+    assert.equal(lifecycle.find_entry(registry.get(tags.entries), identity).get(tags.references), 2);
+    assert.equal(js(lifecycle.registry_metrics(registry)).loads, 1);
+    assert.equal(installed.size, 1);
+    const sharedFace = unwrapOption(fonts.installed_font(host, identity, 1)).getRequired(tags.face);
+    for (let i = 0; i < 2; i++) {
+      const release = lifecycle.release_registry(registry, identity);
+      registry = reg(release);
+      host = hostActions(host, release);
+      assert.equal(installed.has(sharedFace), true, "最后lease释放后进入idle，不销毁缓存");
+    }
+    assert.equal(js(lifecycle.registry_metrics(registry)).idle, 1);
+    registry = reg(lifecycle.acquire_registry(registry, identity, 1));
+    assert.equal(js(lifecycle.registry_metrics(registry)).loads, 1, "idle重入不重复加载");
+    const companion = lifecycle.resource(enumNew(lifecycle.ResourceKind, tags.font), "companion", 2);
+    registry = reg(lifecycle.acquire_registry(registry, companion, 1));
+    const second = await settle(host, registry, companion, spec.assoc(tags.version, 2));
+    host = second.get(tags.host);
+    registry = reg(second.get(tags.transition));
+    const companionFace = unwrapOption(fonts.installed_font(host, companion, 1)).getRequired(tags.face);
+    assert.equal(installed.size, 2, "两个不同完整身份的generation都是1，允许共存");
+    registry = reg(lifecycle.release_registry(registry, identity));
+    const third = lifecycle.resource(enumNew(lifecycle.ResourceKind, tags.font), "third", 3);
+    const evicted = lifecycle.acquire_registry(registry, third, 1);
+    registry = reg(evicted);
+    host = hostActions(host, evicted);
+    assert.equal(installed.has(sharedFace), false);
+    assert.equal(installed.has(companionFace), true, "驱逐旧身份不能按generation误删其他字体");
+    const closed = lifecycle.close_registry(registry);
+    host = hostActions(host, closed);
+    assert.equal(count(host.get(tags.handles)), 0);
+    assert.equal(host.get(tags.accepted), 2);
+    assert.equal(host.get(tags.released), 2);
+    assert.equal(installed.size, 0);
+    assert.equal(hostActions(host, closed), host, "重复release动作不再持有句柄");
+
+    // 同一身份/generation在关闭后重入：取消任务不去重；旧结果不能占有新请求。
+    registry = reg(lifecycle.acquire_registry(lifecycle.initial_registry(1), identity, 1));
+    const old = taskFor(registry, identity);
+    const pending = fonts.run_font_load_task_$x_(spec, "ok", old.task);
+    registry = reg(lifecycle.close_registry(registry));
+    let queue = queueApi.cancel_resource_loads(old.queue, identity);
+    registry = reg(lifecycle.acquire_registry(registry, identity, 1));
+    queue = queueApi
+      .enqueue_load(queue, 1, identity, 1, enumNew(queueApi.ResourceLoadPriority, tags.interactive))
+      .get(tags.queue);
+    const late = fonts.complete_font_registry_load_$x_(host, registry, queue, await pending);
+    assert.equal(late.get(tags.transition).get(tags.registry), registry);
+    assert.deepEqual(js(late.get(tags.transition).get(tags.actions)), []);
+    assert.equal(late.get(tags.host), host);
+    assert.equal(installed.size, 0);
+    const fresh = queueApi.take_load(late.get(tags.queue));
+    const freshResult = await fonts.run_font_load_task_$x_(spec, "ok", unwrapOption(fresh.get(tags.task)));
+    const accepted = fonts.complete_font_registry_load_$x_(host, registry, fresh.get(tags.queue), freshResult);
+    host = accepted.get(tags.host);
+    registry = reg(accepted.get(tags.transition));
+    assert.equal(installed.size, 1);
+    const repeated = fonts.complete_font_registry_load_$x_(host, registry, accepted.get(tags.queue), freshResult);
+    assert.equal(repeated.get(tags.host), host, "重放已接纳结果不能删除当前字体或重复计数");
+    assert.equal(installed.size, 1);
+    const closeReentry = lifecycle.close_registry(registry);
+    host = hostActions(host, closeReentry);
+    assert.equal(installed.size, 0);
+
+    registry = reg(lifecycle.acquire_registry(lifecycle.initial_registry(1), identity, 1));
+    const failure = await settle(fonts.initial_font_resource_host(), registry, identity, spec, "reject");
+    assert.equal(js(failure.get(tags.transition).get(tags.registry)).entries[0].state.phase[0], "error");
+    assert.equal(count(failure.get(tags.host).get(tags.handles)), 0);
+    assert.equal(installed.size, 0);
+
+    host = fonts.initial_font_resource_host();
+    registry = lifecycle.initial_registry(1);
+    for (let cycle = 0; cycle < 100; cycle++) {
+      const id = lifecycle.resource(enumNew(lifecycle.ResourceKind, tags.font), `cycle-${cycle}`, 1);
+      const acquired = lifecycle.acquire_registry(registry, id, 1);
+      registry = reg(acquired);
+      host = hostActions(host, acquired);
+      const completion = await settle(host, registry, id, spec);
+      host = completion.get(tags.host);
+      registry = reg(completion.get(tags.transition));
+      registry = reg(lifecycle.release_registry(registry, id));
+      assert.equal(installed.size, 1);
+      assert.equal(count(host.get(tags.handles)), 1, "容量1保留一个idle字体，不能逐轮膨胀");
+    }
+    host = hostActions(host, lifecycle.close_registry(registry));
+    assert.equal(host.get(tags.accepted), 100);
+    assert.equal(host.get(tags.released), 100);
+    assert.equal(count(host.get(tags.handles)), 0);
+    assert.equal(installed.size, 0);
   } finally {
     if (previousFace === undefined) delete globalThis.FontFace;
     else globalThis.FontFace = previousFace;

@@ -44,10 +44,8 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
     const core = await import("/target/js/app/calcit.core.mjs");
     const tags = core.init_tags(["face"]);
     const spec = app.font_spec("QuamolitChineseFixture", 1);
-    const result = await app.load_font_$x_(
-      spec,
-      "local('PingFangSC-Regular'), local('Noto Sans CJK SC'), local('WenQuanYi Zen Hei')",
-    );
+    const source = "local('PingFangSC-Regular'), local('Noto Sans CJK SC'), local('WenQuanYi Zen Hei')";
+    const result = await app.load_font_$x_(spec, source);
     if (core.to_js_data(result.get(0)) !== "ready") return { result: core.to_js_data(result) };
     const loaded = result.get(1),
       face = loaded.getRequired(tags.face);
@@ -63,10 +61,24 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
     actual.id = "consumer-font-evidence";
     const a = actual.getContext("2d"),
       b = reference.getContext("2d");
-    let released, failure;
+    let released, failure, sharedRegistry;
     const frames = [];
     let plan = app.start_font(0, spec);
     try {
+      const nativeBefore = document.fonts.size;
+      // 获取、共享、idle重入及close均由消费方Calcit完成；JS不实现registry/loader。
+      const shared = core.to_js_data(await app.shared_font_cycle_$x_(spec, source));
+      sharedRegistry = {
+        accepted: shared.host.accepted,
+        released: shared.host.released,
+        live: shared.host.handles.length,
+        loads: shared.transition.registry.loads,
+        resident: shared.transition.registry.entries.length,
+        running: shared.queue.running.length,
+        nativeBefore,
+        nativeAfter: document.fonts.size,
+        originalRetained: document.fonts.has(face),
+      };
       failure = core.to_js_data(await app.load_font_$x_(spec, "not-a-font-source"));
       for (const time of [1, 0, 0.5, 0.25, 1]) {
         plan = app.update_font(plan, time, spec);
@@ -114,6 +126,7 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
         failure,
         frames,
         glyphChecks,
+        sharedRegistry,
         fallbackDifferences,
         status: face.status,
       };
@@ -137,6 +150,20 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
     "中文不能以空白/缺字画面互比冒充通过",
   );
   assert.equal(evidence.fallbackDifferences, 0);
+  assert.deepEqual(
+    Object.fromEntries(
+      ["accepted", "released", "live", "loads", "resident", "running", "originalRetained"].map((key) => [
+        key,
+        evidence.sharedRegistry[key],
+      ]),
+    ),
+    { accepted: 1, released: 1, live: 0, loads: 1, resident: 0, running: 0, originalRetained: true },
+  );
+  assert.equal(
+    evidence.sharedRegistry.nativeBefore,
+    evidence.sharedRegistry.nativeAfter,
+    "共享字体close只删除自己的确切FontFace",
+  );
   for (const [index, frame] of evidence.frames.entries()) {
     if (artifacts) {
       frame.screenshot = `font-chinese-${index}-${frame.time}.png`;

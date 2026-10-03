@@ -8075,6 +8075,24 @@
           :code $ quote $ defenum FontLoadOutcome (:ready 'quamolit.font-resource/LoadedFont) (:failed 'String)
           :examples $ []
           :schema $ :: 'EnumDef
+        'FontRegistryCompletion $ %{} 'CodeEntry
+          :doc "|现有队列、registry和字体宿主的完成结果；宿主安装/释放已执行，wake/error动作仍由应用消费。"
+          :code $ quote $ defstruct FontRegistryCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue) (:host 'quamolit.font-resource/FontResourceHost) (:transition 'quamolit.resource-lifecycle/RegistryTransition)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'FontResourceHandle $ %{} 'CodeEntry
+          :doc "|宿主字体句柄以完整identity和resource generation定位，不进入Scene或逻辑registry。"
+          :code $ quote $ defstruct FontResourceHandle (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:generation 'Number) (:loaded 'quamolit.font-resource/LoadedFont) (:installed? 'Bool)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'FontResourceHost $ %{} 'CodeEntry
+          :doc "|仅保存接纳的宿主引用；accepted/released统计所有权转移，不是FontFace构造或物理内存计数。"
+          :code $ quote $ defstruct FontResourceHost
+            :handles $ :: 'List 'quamolit.font-resource/FontResourceHandle
+            :accepted 'Number
+            :released 'Number
+          :examples $ []
+          :schema $ :: 'StructDef
         'FontSetHost $ %{} 'CodeEntry
           :doc "|document.fonts原生集合薄桥；不是Quamolit资源表或排版器，js-ffi#158交付后替换。"
           :code $ quote $ deftrait FontSetHost
@@ -8099,6 +8117,50 @@
           :code $ quote $ defstruct QueuedFontLoadResult (:task 'quamolit.resource-load-queue/ResourceLoadTask) (:outcome 'quamolit.font-resource/FontLoadOutcome)
           :examples $ []
           :schema $ :: 'StructDef
+        'apply-font-registry-actions! $ %{} 'CodeEntry
+          :doc "|只执行字体install/release动作，其他种类和load/wake/error留给应用；重复应用不重复安装/释放。"
+          :code $ quote $ defn apply-font-registry-actions! (host actions)
+            if (empty? actions) host $ let
+                wrapped $ -> actions first .unwrap
+                next $ match wrapped $
+                  :resource resource-id action
+                  if
+                    = (:kind resource-id) (resource/ResourceKind :font)
+                    match action
+                      (:install generation expected)
+                        do
+                          assert |font-install-identity-mismatch $ = expected resource-id
+                          assert |missing-font-resource-handle $ any? (:handles host)
+                            fn (handle) (font-handle-matches? handle resource-id generation)
+                          struct-with host $ :handles $ map (:handles host)
+                            fn (handle)
+                              if
+                                and (font-handle-matches? handle resource-id generation)
+                                  not $ :installed? handle
+                                do
+                                  assert |font-registry-install-failed $ install-font! (:loaded handle)
+                                    :spec $ :loaded handle
+                                  struct-with handle $ :installed? true
+                                , handle
+                      (:release generation)
+                        let
+                            matches $ filter (:handles host)
+                              fn (handle) (font-handle-matches? handle resource-id generation)
+                            kept $ filter (:handles host)
+                              fn (handle)
+                                not $ font-handle-matches? handle resource-id generation
+                          each matches $ fn (handle)
+                            release-font! $ :loaded handle
+                            , &unit
+                          if (empty? matches) host $ struct-with host (:handles kept)
+                            :released $ + (:released host) (count matches)
+                      _ host
+                    , host
+              recur next $ rest actions
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.font-resource/FontResourceHost)
+            :args $ [] 'quamolit.font-resource/FontResourceHost $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
+            :features $ #{} :js-ffi
         'complete-font-load $ %{} 'CodeEntry
           :doc "|纯Calcit双重接受：先结算队列token，再核对资源identity/generation/loading。取消/unknown/关闭/被替换的结果不安装、不改变当前资源，也不发wake-frame。返回none会丢弃未安装句柄引用；长期已安装字体由调用方按ResourceAction显式释放。"
           :code $ quote $ defn complete-font-load (state queue result)
@@ -8135,6 +8197,70 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.font-resource/FontLoadCompletion)
             :args $ [] 'quamolit.resource-lifecycle/ResourceState 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.font-resource/QueuedFontLoadResult
+        'complete-font-registry-load! $ %{} 'CodeEntry
+          :doc "|先复用既有queue/generation完成判定，再推进逻辑registry并执行安装；迟到结果不接纳，重放已接纳结果不误删活动字体。"
+          :code $ quote $ defn complete-font-registry-load! (host registry queue result)
+            let
+                task $ :task result
+              assert |font-registry-kind-mismatch $ =
+                :kind $ :identity task
+                resource/ResourceKind :font
+              let
+                  state $ if
+                    resource/contains-entry? (:entries registry) (:identity task)
+                    :state $ resource/find-entry (:entries registry) (:identity task)
+                    resource/initial-state $ :identity task
+                  completed $ complete-font-load state queue result
+                  transition $ if
+                    empty? $ :actions $ :transition completed
+                    resource/registry-transition registry $ resource/empty-registry-actions
+                    match (:outcome result)
+                      (:ready _)
+                        resource/ready-registry registry (:identity task) (:resource-generation task)
+                      (:failed message)
+                        resource/failed-registry registry (:identity task) (:resource-generation task) message
+                  next-host $ match (:loaded completed)
+                    (:some loaded)
+                      do
+                        assert |duplicate-font-resource-generation $ not $ any? (:handles host)
+                          fn (handle)
+                            font-handle-matches? handle (:identity task) (:resource-generation task)
+                        let
+                            tracked $ struct-with host
+                              :handles $ conj (:handles host)
+                                FontResourceHandle :identity (:identity task) :generation (:resource-generation task) :loaded loaded :installed? false
+                              :accepted $ inc $ :accepted host
+                          apply-font-registry-actions! tracked $ :actions transition
+                    (:none)
+                      match (:outcome result)
+                        (:ready loaded)
+                          if
+                            any? (:handles host)
+                              fn (handle)
+                                =
+                                  :face $ :loaded handle
+                                  :face loaded
+                            , host $ do (release-font! loaded) host
+                        (:failed _) host
+                FontRegistryCompletion :queue (:queue completed) :host next-host :transition transition
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.font-resource/FontRegistryCompletion)
+            :args $ [] 'quamolit.font-resource/FontResourceHost 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.font-resource/QueuedFontLoadResult
+            :features $ #{} :js-ffi
+        'font-handle-matches? $ %{} 'CodeEntry (:doc "|完整资源身份与generation匹配，避免两个资源同generation时串释放。")
+          :code $ quote $ defn font-handle-matches? (handle resource-id generation)
+            and
+              = (:identity handle) resource-id
+              = (:generation handle) generation
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.font-resource/FontResourceHandle 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'initial-font-resource-host $ %{} 'CodeEntry (:doc "|创建空的字体宿主所有权表，不创建FontFaceSet。")
+          :code $ quote $ defn initial-font-resource-host ()
+            FontResourceHost :handles ([]) :accepted 0 :released 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.font-resource/FontResourceHost)
+            :args $ []
         'install-font! $ %{} 'CodeEntry
           :doc "|只安装与当前Model描述完全一致的已加载结果；旧版本返回false且不触碰document.fonts。没有自动动画调度或资源队列。"
           :code $ quote $ defn install-font! (loaded expected)
@@ -8149,6 +8275,18 @@
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.font-resource/LoadedFont 'quamolit.scene-ir/FontSpec
             :features $ #{} :js-ffi
+        'installed-font $ %{} 'CodeEntry (:doc "|按完整identity/generation读取已安装字体；未ready或已释放明确none。")
+          :code $ quote $ defn installed-font (host resource-id generation)
+            let
+                matches $ filter (:handles host)
+                  fn (handle)
+                    and (:installed? handle) (font-handle-matches? handle resource-id generation)
+              if (empty? matches) (Option :none)
+                Option :some $ :loaded $ -> matches first .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.font-resource/FontResourceHost 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+            :return $ :: 'Option 'quamolit.font-resource/LoadedFont
         'load-font! $ %{} 'CodeEntry
           :doc "|显式异步加载，不安装、不绘制、不修改Model；失败返回封闭枚举。调用方按版本处理结果并提升字体可用性修订。"
           :code $ quote $ defn load-font! (spec source)
@@ -14727,7 +14865,11 @@
               let
                   slot $ assert-type (-> slots first .unwrap) 'quamolit.resource-load-queue/ResourceLoadSlot
                   task $ :task slot
-                if (same-load-request? task device-generation descriptor resource-generation) (%some task)
+                if
+                  and
+                    not $ :cancelled? slot
+                    same-load-request? task device-generation descriptor resource-generation
+                  %some task
                   recur (rest slots) device-generation descriptor resource-generation
           :examples $ []
           :schema $ :: 'Fn $ {}
