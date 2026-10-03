@@ -632,10 +632,17 @@
                     unclipped? $ match (:clip group)
                       (:none) true
                       _ false
+                    raster-sensitive? $ any? nodes $ fn (child)
+                      and
+                        = (:parent child) (:id node)
+                        match (:content child)
+                          (:polyline line) true
+                          (:image image) true
+                          _ false
                   if
                     and
                       = (:opacity group) 1
-                      , unclipped?
+                      , unclipped? $ not raster-sensitive?
                     draw-children! context nodes (:id node) transform width height lookup
                     let
                         layer $ raw-layer-create! width height
