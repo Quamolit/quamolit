@@ -6,6 +6,8 @@
 
 所有带 ID/version 的 Motion 描述（标量、Vec2、颜色、两输入组合和 CPU 自定义标量）现在统一要求非空 ID、有限非负整数版本。独立 CPU 采样与 GPU 候选分类使用同一边界；不能让 `1.5` 或空 ID 先被采样接受、到 Scene 绑定时才失败。版本代表描述内容的修订，内容变化必须递增版本；不能在同一 ID/version 下悄悄替换内容。对于接受原始 `Number` 的结构体，这些约束由入口的运行时校验执行，静态类型仍保证它是数值而非字符串。
 
+小数时间端点（[#213](https://github.com/Quamolit/quamolit/issues/213)）：`start=0.3,duration=0.25,from=0,to=1` 在 `time=0.55` 精确返回 `1`，不因除法舍入返回 `1.0000000000000002`。起点前返回 `from`，正时长终点及之后返回 `to`；中间进度限制到 `[0,1]`，linear/smoothstep 的结果限制到端点包络，升降方向一致，不改变零时长在起点切换的规则。既有 `test:motion` 覆盖原生与编译 JS 的小数起点、乱序邻域、升降、缓动和零时长；`test:motion-browser` 将公共返回值直接用于严格 Scene 组透明度，验证初始/中间/终点 Canvas 像素，不依赖应用侧 clamp。Scene 的合法性检查与既有像素阈值不变；本修复不等于 GPU 浮点合同或已发布 alpha.3 已含此修复，下游绕过须在新 tag 消费复测后移除。
+
 早期 `old-fade` 命名的矩形位置夹具把 `from=10,to=20,start=0,duration=1` 的 `ScalarTween` 映射为画面 x，并非旧 fade 组件的透明度迁移。真正对照旧 `comp-fade-in-out` 的 [迁移夹具](fade-migration.md)现使用 v=4 对应的 0.25 秒 opacity tween、显式 Model 和 Scene 绑定。本仓库的 [基础浏览器夹具](../test/motion.html) 使用 Calcit 编译出的 `sample-at` 在 Canvas 上展示位置中间帧；Canvas 只负责夹具绘制，不是新渲染后端。`docs/architectures/motion-scalar.cirru` 保留可重复校验的 Calcit 架构 scaffold，真正定义存于 `calcit.cirru`，后者由 Calcit CLI 修改而非文本生成。
 
 二维切片新增 `Vec2 { x, y }`、`Vec2Tween`、`Vec2Motion`、`Vec2Descriptor` 与 `sample-vec2`。两轴共用一个按标量规则采样的进度，因而起止、缓动和 `duration=0` 语义一致；坐标必须有限，端点是带类型的 `Vec2`，不能误传标量。它目前只处理常量和 tween，不宣称支持变换矩阵或颜色。架构 scaffold 见 `docs/architectures/motion-vec2.cirru`。

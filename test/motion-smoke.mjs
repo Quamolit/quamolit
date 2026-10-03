@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import * as motion from "../target/js/motion/quamolit.motion.mjs";
+import * as core from "../target/js/motion/calcit.core.mjs";
 import { valid_motion_version_$q_ as validMotionVersion } from "../target/js/motion/quamolit.motion.mjs";
 import {
   main_$x_,
@@ -22,6 +24,51 @@ test("Motion 描述版本在 JS 侧只接受有限非负整数", () => {
   for (const version of [0, 1, 24]) assert.equal(validMotionVersion(version), true);
   for (const version of [-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
     assert.equal(validMotionVersion(version), false);
+  }
+});
+
+test("小数起点 tween 精确终点及乱序邻域不越出端点包络 (#213)", () => {
+  const tags = core.init_tags(["start", "duration", "from", "to", "easing", "linear", "smoothstep"]);
+  const make = (start, duration, from, to, easing) =>
+    core._$n__PCT__$M_(
+      motion.ScalarTween,
+      tags.start,
+      start,
+      tags.duration,
+      duration,
+      tags.from,
+      from,
+      tags.to,
+      to,
+      tags.easing,
+      core._PCT__$o__$o_(motion.Easing, tags[easing]),
+    );
+  for (const start of [0.3, 0.7, 1.1, 12.3, 59.9]) {
+    for (const easing of ["linear", "smoothstep"]) {
+      for (const [from, to] of [
+        [0, 1],
+        [1, 0],
+        [-31.1, 9.7],
+        [9.7, -31.1],
+        [0.1, 0.1],
+      ]) {
+        const tween = make(start, 0.25, from, to, easing);
+        const end = start + 0.25;
+        assert.equal(motion.sample_tween(tween, start), from);
+        assert.equal(motion.sample_tween(tween, end), to);
+        const times = [end, start, end - 1e-14, end + 1e-14, start + 0.125, start - 1e-14, end];
+        const results = times.map((time) => motion.sample_tween(tween, time));
+        assert.deepEqual(
+          results,
+          times.map((time) => motion.sample_tween(tween, time)),
+        );
+        for (const value of results) assert.ok(value >= Math.min(from, to) && value <= Math.max(from, to));
+        assert.ok(Math.abs(motion.sample_tween(tween, start + 0.125) - (from + to) / 2) < 1e-11);
+      }
+    }
+    const instant = make(start, 0, 7, -3, "linear");
+    assert.equal(motion.sample_tween(instant, start - 1e-14), 7);
+    assert.equal(motion.sample_tween(instant, start), -3);
   }
 });
 

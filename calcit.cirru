@@ -10133,13 +10133,12 @@
                 duration $ :duration tween
                 from $ :from tween
                 to $ :to tween
-              if (= duration 0)
-                if (< time start) from to
-                let
-                    progress $ if (< time start) 0 $ if
-                      > time $ + start duration
-                      , 1
-                        / (- time start) duration
+              if (< time start) from $ if
+                or (= duration 0)
+                  >= time $ + start duration
+                , to $ let
+                    raw $ / (- time start) duration
+                    progress $ if (< raw 0) 0 $ if (> raw 1) 1 raw
                     ratio $ match (:easing tween)
                       (:linear) progress
                       (:smoothstep)
@@ -10147,8 +10146,10 @@
                     value $ +
                       * from $ - 1 ratio
                       * to ratio
+                    low $ if (< from to) from to
+                    high $ if (> from to) from to
                   assert |invalid-motion-result $ finite-number? value
-                  , value
+                  if (< value low) low $ if (> value high) high value
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.motion/ScalarTween 'Number
@@ -10178,6 +10179,31 @@
                 is-throws $ sample-tween good $ / 1 0
                 is-throws $ sample-tween negative 0.5
                 is-throws $ sample-tween invalid 0.5
+              :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |decimal-endpoint-envelope)
+              :code $ quote $ let
+                  starts $ [] 0.3 0.7 1.1 12.3 59.9
+                is= true $ every? starts $ fn (start)
+                  let
+                      rising $ ScalarTween :start start :duration 0.25 :from 0 :to 1 :easing $ Easing :linear
+                      falling $ ScalarTween :start start :duration 0.25 :from 1 :to 0 :easing $ Easing :linear
+                      smooth $ ScalarTween :start start :duration 0.25 :from 0 :to 1 :easing $ Easing :smoothstep
+                      instant $ ScalarTween :start start :duration 0 :from 0 :to 1 :easing $ Easing :linear
+                      end $ + start 0.25
+                    and
+                      = 1 $ sample-tween rising end
+                      = 0 $ sample-tween falling end
+                      = 1 $ sample-tween smooth end
+                      = 0 $ sample-tween rising start
+                      = 1 $ sample-tween instant start
+                      every?
+                        [] end start (- end 0.00000000000001) (+ end 0.00000000000001) end
+                        fn (time)
+                          let
+                              up $ sample-tween rising time
+                              down $ sample-tween falling time
+                              eased $ sample-tween smooth time
+                            and (>= up 0) (<= up 1) (>= down 0) (<= down 1) (>= eased 0) (<= eased 1)
               :tags $ #{} :motion :unit
         'sample-vec2 $ %{} 'CodeEntry
           :doc "|Sample a Vec2 descriptor at arbitrary finite seconds without previous-frame state."
