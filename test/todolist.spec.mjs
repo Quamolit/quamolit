@@ -611,13 +611,34 @@ for (const dpr of [1, 2])
       expect(scrolled.scroll).toBe(scrolled.scrollLimit);
       expect(scrolled.model).toEqual(long.model);
       expect(scrolled.time).toBe(long.time);
+      const rejected = await page.evaluate(() => {
+        const before = window.todoDemo.snapshot();
+        const failures = [];
+        for (const value of [NaN, Infinity, -Infinity]) {
+          try {
+            window.todoDemo.setScroll(value);
+          } catch (error) {
+            failures.push(error.message);
+          }
+        }
+        return { before, after: window.todoDemo.snapshot(), failures };
+      });
+      expect(rejected.failures).toHaveLength(3);
+      expect(rejected.after).toEqual(rejected.before);
       await page.screenshot({ path: testInfo.outputPath(`compact-list-dpr${dpr}.png`) });
+      // 独立布局公式：末行下边缘182，完成按钮中心155，滚到末尾后中心应在height-27。
+      const lastRow = long.model.rows.at(-1);
+      await page.touchscreen.tap(46, 844 - 27);
+      await page.evaluate(() => window.todoDemo.pause());
+      const tapped = await page.evaluate(() => window.todoDemo.snapshot());
+      expect(tapped.model.rows.find((row) => row.id === lastRow.id).done).toBe(!lastRow.done);
+      expect(tapped.events).toHaveLength(long.events.length + 1);
       await page.setViewportSize({ width: 320, height: 640 });
       await expect.poll(() => page.evaluate(() => window.todoDemo.snapshot().width)).toBe(320 * dpr);
-      expect((await page.evaluate(() => window.todoDemo.snapshot())).model).toEqual(long.model);
+      expect((await page.evaluate(() => window.todoDemo.snapshot())).model).toEqual(tapped.model);
       await page.setViewportSize({ width: 1280, height: 900 });
       await expect.poll(() => page.evaluate(() => window.todoDemo.snapshot().compact)).toBe(false);
-      expect((await page.evaluate(() => window.todoDemo.snapshot())).model).toEqual(long.model);
+      expect((await page.evaluate(() => window.todoDemo.snapshot())).model).toEqual(tapped.model);
     } finally {
       await context.close();
     }

@@ -119,7 +119,11 @@ canvas.onclick=event=>safely(()=>{
   if(hit.action==="edit") {stop();editId=hit.id;draft.value=hit.text;panel.hidden=false;toggle.setAttribute("aria-expanded","true");toggle.textContent="收起面板";document.querySelector("#submit").textContent="保存";document.querySelector("#cancel-edit").hidden=false;draft.focus();}
   else send(hit.action,hit.id);
 });
-function setScroll(value) { scroll=Math.max(0,Math.min(Number(value),scrollLimit)); draw(); return snapshot(); }
+function setScroll(value) {
+  const next=Number(value);
+  if(!Number.isFinite(next))throw new RangeError("列表视窗位置必须是有限数值");
+  scroll=Math.max(0,Math.min(next,scrollLimit)); draw(); return snapshot();
+}
 scrollControl.oninput=()=>safely(()=>setScroll(scrollControl.value));
 canvas.onwheel=event=>{if(compact&&scrollLimit>0){event.preventDefault();safely(()=>setScroll(scroll+event.deltaY));}};
 toggle.onclick=()=>{panel.hidden=!panel.hidden;toggle.setAttribute("aria-expanded",String(!panel.hidden));toggle.textContent=panel.hidden?"展开面板":"收起面板";};
