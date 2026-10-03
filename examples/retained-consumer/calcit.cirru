@@ -98,6 +98,28 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
             :args $ [] 'Number
+        'cycle-font-presence $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cycle-font-presence (registry document)
+            let
+                empty-document $ scene/SceneDocument :nodes $ scene/empty-scene-nodes
+                end $ presence/start-presence empty-document
+                end-refs $ font/empty-font-references
+              foldl (range 100) registry $ fn (current index)
+                let
+                    entering $ :model $ presence/reconcile-presence end document (* index 3) 1 (motion/Easing :linear)
+                    entering-refs $ font/presence-font-references entering
+                    got $ font/sync-font-leases current end-refs entering-refs 1
+                    leaving $ :model $ presence/reconcile-presence entering empty-document
+                      + 1 $ * index 3
+                      , 1 (motion/Easing :linear)
+                    settled $ :model $ presence/settle-presence leaving
+                      + 2 $ * index 3
+                    final-refs $ font/presence-font-references settled
+                  assert |font-presence-cycle-empty $ empty? final-refs
+                  :registry $ font/sync-font-leases (:registry got) entering-refs final-refs 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceRegistry)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.scene-ir/SceneDocument
         'declare $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare (props model input ready viewport)
             let
@@ -852,9 +874,14 @@
               :async true
               :features $ #{} :js-ffi
             let
-                resource-id $ lifecycle/resource (lifecycle/ResourceKind :font) |consumer-font $ :version spec
-                acquired $ lifecycle/acquire-registry (lifecycle/initial-registry 1) resource-id 1
-                shared $ lifecycle/acquire-registry (:registry acquired) resource-id 1
+                document $ :scene $ :component (declare-font 0 0 0 spec 0)
+                model $ presence/start-presence document
+                references $ font/presence-font-references model
+                empty-refs $ font/empty-font-references
+                empty-document $ scene/SceneDocument :nodes $ scene/empty-scene-nodes
+                resource-id $ font/font-identity spec
+                acquired $ font/sync-font-leases (lifecycle/initial-registry 1) empty-refs references 1
+                shared $ font/sync-font-leases (:registry acquired) empty-refs references 1
                 registry $ :registry shared
                 state $ :state $ lifecycle/find-entry (:entries registry) resource-id
                 enqueued $ load-queue/enqueue-load (load-queue/initial-load-queue 1 4) 1 resource-id (:generation state) (load-queue/ResourceLoadPriority :interactive)
@@ -868,23 +895,38 @@
               try
                 let
                     ready $ :registry $ :transition completed
-                    once $ lifecycle/release-registry ready resource-id
-                    idle $ lifecycle/release-registry (:registry once) resource-id
-                    idle-host $ font/apply-font-registry-actions!
-                      font/apply-font-registry-actions! (:host completed) (:actions once)
-                      :actions idle
-                    reentered $ lifecycle/acquire-registry (:registry idle) resource-id 1
-                    closed $ lifecycle/close-registry $ :registry reentered
+                    exiting $ :model $ presence/reconcile-presence model empty-document 0 1 (motion/Easing :linear)
+                    middle $ :model $ presence/settle-presence exiting 0.5
+                    middle-refs $ font/presence-font-references middle
+                    held $ font/sync-font-leases ready references middle-refs 1
+                    revived $ :model $ presence/reconcile-presence middle document 0.5 1 (motion/Easing :linear)
+                    revived-refs $ font/presence-font-references revived
+                    reentry $ font/sync-font-leases (:registry held) middle-refs revived-refs 1
+                    removed $ :model $ presence/reconcile-presence revived empty-document 0.5 1 (motion/Easing :linear)
+                    end $ :model $ presence/settle-presence removed 1.5
+                    end-refs $ font/presence-font-references end
+                    once $ font/sync-font-leases (:registry reentry) revived-refs end-refs 1
+                    idle $ font/sync-font-leases (:registry once) references end-refs 1
+                    idle-host $ font/apply-font-registry-actions! (:host completed) (:actions idle)
+                    cycled $ cycle-font-presence (:registry idle) document
+                    closed $ lifecycle/close-registry cycled
                     closed-host $ font/apply-font-registry-actions! idle-host $ :actions closed
                   assert |shared-font-two-leases $ =
                     :references $ lifecycle/find-entry (:entries ready) resource-id
                     , 2
-                  assert |shared-font-load-once $ = (:loads ready) 1
+                  assert |font-exit-retains-lease $ = (:registry held) ready
+                  assert |font-rapid-reentry-reuses-lease $ = (:registry reentry) ready
+                  assert |font-first-owner-release $ =
+                    :references $ lifecycle/find-entry
+                      :entries $ :registry once
+                      , resource-id
+                    , 1
                   assert |shared-font-idle $ =
                     :idle $ lifecycle/registry-metrics $ :registry idle
                     , 1
-                  assert |shared-font-reentry-load-once $ =
-                    :loads $ :registry reentered
+                  assert |font-100-presence-cycles-load-once $ = (:loads cycled) 1
+                  assert |font-100-presence-cycles-idle $ =
+                    :idle $ lifecycle/registry-metrics cycled
                     , 1
                   assert |shared-font-host-accepted-once $ = (:accepted closed-host) 1
                   assert |shared-font-host-released-once $ = (:released closed-host) 1

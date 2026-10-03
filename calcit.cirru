@@ -6988,6 +6988,12 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.font-resource/FontRegistryCompletion)
             :args $ [] 'quamolit.font-resource/FontResourceHost 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.font-resource/QueuedFontLoadResult
             :features $ #{} :js-ffi
+        'empty-font-references $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-font-references () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.resource-lifecycle/ResourceIdentity
         'font-handle-matches? $ %{} 'CodeEntry (:doc "|完整资源身份与generation匹配，避免两个资源同generation时串释放。")
           :code $ quote $ defn font-handle-matches? (handle resource-id generation)
             and
@@ -6996,6 +7002,14 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.font-resource/FontResourceHandle 'quamolit.resource-lifecycle/ResourceIdentity 'Number
+        'font-identity $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn font-identity (spec)
+            assert |invalid-external-font $ and (scene/valid-font? spec)
+              not= (:family spec) |
+            resource/resource (resource/ResourceKind :font) (:family spec) (:version spec)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceIdentity)
+            :args $ [] 'quamolit.scene-ir/FontSpec
         'initial-font-resource-host $ %{} 'CodeEntry (:doc "|创建空的字体宿主所有权表，不创建FontFaceSet。")
           :code $ quote $ defn initial-font-resource-host ()
             FontResourceHost :handles ([]) :accepted 0 :released 0
@@ -7056,6 +7070,28 @@
           :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.font-resource/FontLoadOutcome)
             :args $ [] 'quamolit.scene-ir/FontSpec 'String
             :features $ #{} :js-ffi
+        'presence-font-references $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn presence-font-references (model)
+            foldl (:items model) (empty-font-references)
+              fn (references item)
+                match
+                  :content $ :node $ :entry item
+                  (:text text)
+                    let
+                        spec $ :font text
+                      assert |invalid-presence-font $ scene/valid-font? spec
+                      if
+                        = (:family spec) |
+                        , references $ let
+                            font-ref $ font-identity spec
+                          if
+                            any? references $ fn (previous) (= previous font-ref)
+                            , references $ conj references font-ref
+                  _ references
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.presence/PresenceModel
+            :return $ :: 'List 'quamolit.resource-lifecycle/ResourceIdentity
         'raw-font-set $ %{} 'CodeEntry (:doc "|仅读取原生document.fonts；无平台时明确失败。")
           :code $ quote $ defn raw-font-set () (raise |js-only-font-set)
           :examples $ []
@@ -7098,9 +7134,44 @@
           :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.font-resource/QueuedFontLoadResult)
             :args $ [] 'quamolit.scene-ir/FontSpec 'String 'quamolit.resource-load-queue/ResourceLoadTask
             :features $ #{} :js-ffi
+        'sync-font-leases $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sync-font-leases (registry previous next budget)
+            assert |invalid-font-budget $ and (motion/finite-number? budget) (> budget 0)
+            .each (concat previous next)
+              fn (font-ref)
+                hint-fn $ {} (:return 'Unit)
+                  :args $ [] 'quamolit.resource-lifecycle/ResourceIdentity
+                assert |invalid-font-reference $ = (:kind font-ref) (resource/ResourceKind :font)
+                assert |invalid-font-reference $ = font-ref $ resource/resource (:kind font-ref) (:id font-ref) (:version font-ref)
+            assert |duplicate-font-reference $ every? previous $ fn (font-ref)
+              = 1 $ count $ filter previous
+                fn (other) (= font-ref other)
+            assert |duplicate-font-reference $ every? next $ fn (font-ref)
+              = 1 $ count $ filter next
+                fn (other) (= font-ref other)
+            let
+                released $ foldl previous
+                  resource/registry-transition registry $ resource/empty-registry-actions
+                  fn (transition font-ref)
+                    if
+                      any? next $ fn (other) (= font-ref other)
+                      , transition $ let
+                          changed $ resource/release-registry (:registry transition) font-ref
+                        resource/registry-transition (:registry changed)
+                          concat (:actions transition) (:actions changed)
+              foldl next released $ fn (transition font-ref)
+                if
+                  any? previous $ fn (other) (= font-ref other)
+                  , transition $ let
+                      changed $ resource/acquire-registry (:registry transition) font-ref budget
+                    resource/registry-transition (:registry changed)
+                      concat (:actions transition) (:actions changed)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryTransition)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry (:: 'List 'quamolit.resource-lifecycle/ResourceIdentity) (:: 'List 'quamolit.resource-lifecycle/ResourceIdentity) 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.font-resource
-          :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract) (js-ffi.shared :as shared) (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as load-queue)
+          :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract) (js-ffi.shared :as shared) (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as load-queue) (quamolit.presence :as presence) (quamolit.motion :as motion)
     'quamolit.frame-clock $ %{} 'FileEntry
       :defs $ {}
         'FrameSample $ %{} 'CodeEntry

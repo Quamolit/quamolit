@@ -17,7 +17,7 @@
 
 `test/host/presence-resources.mjs` 仍是验证 CPU Float32 快照的薄宿主适配：持有 `InstanceSourceRegistry`、独占所有权、按计划先校验所有新引用再立即释放。它不实现通用缓存，输入为 Calcit `PresenceModel`（不是 `toJsData` 结果）。重复 `sync` 无副作用；`clear()` 用于整个测试场景销毁。
 
-一个所有者独占一个 registry，调用方不得在所有者外释放它持有的源，也不得把离线/乱序截图重放结果同步到真实宿主。截图重放须创建隔离的 state。基础连接只生成 buffer 生命周期动作；实际 WebGPU 执行由下一节的专用宿主消费。图片、字体仍不在本连接范围内。
+一个实例所有者独占自己的引用计划；共享 registry 时只能释放自己获取的 lease，不能释放其他所有者的引用，也不得把离线/乱序截图重放结果同步到真实宿主。截图重放须创建隔离的 state。基础连接只生成 buffer 生命周期动作；实际 WebGPU 执行由下一节的专用宿主消费。图片、字体不在这个实例连接范围内。文字另复用 `font-resource/presence-font-references` 与 `sync-font-leases`，无需改变现有 `PresenceResources` 数据结构，具体合同见[字体资源](scene-ir-core.md#文字基础语义)。
 
 实例 buffer 的真实 WebGPU batch 创建、上传、绘制、释放与 device rebuild 已由 [Presence WebGPU 资源宿主](presence-webgpu-resources.md)消费这些动作。图片、字体和通用多图层资源仍不在该实例专项范围内。
 
