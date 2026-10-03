@@ -9,7 +9,7 @@ const canvas = document.querySelector("#scene"), ctx = canvas.getContext("2d");
 const panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
 const status = document.querySelector("#status"), message = document.querySelector("#message"), slider = document.querySelector("#time");
 const play = document.querySelector("#play"), draft = document.querySelector("#draft");
-let log = todo.demo_log(), session = todo.initial_session(), plan, time = 0;
+let log = todo.demo_log(), session = todo.initial_session(), plan, interactionPlan, time = 0;
 let playing = false, disposed = false, anchor = 0, started = 0, paints = 0, editId = "";
 const scheduler = new DemandFrameScheduler({
   requestFrame: callback => requestAnimationFrame(callback),
@@ -26,6 +26,8 @@ let cachedModel, cachedData;
 const data = () => { const value=model(); if(value!==cachedModel){cachedModel=value;cachedData=to_js_data(value);}return cachedData; };
 function draw() {
   if (disposed || !plan) return;
+  // 命中由本次实际采样的 Scene/变换生成，与绘制一起提交；事件不重建动画声明。
+  interactionPlan = todo.hit_plan(plan);
   const bounds = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   const width = Math.max(1, Math.round(bounds.width*dpr)), height = Math.max(1, Math.round(bounds.height*dpr));
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
@@ -83,7 +85,7 @@ function send(kind,id="",label="") {
 }
 function safely(action) { try { message.textContent = ""; return action(); } catch(error) { stop(); message.textContent = error.message; } }
 function snapshot() {
-  return {time,playing,paints,pending:scheduler.pending,waiting:scheduler.waiting,disposed,model:data(),events:to_js_data(log),scene:to_js_data(plan.get(tags.scene)),transforms:to_js_data(plan.get(tags.transforms)),builds:plan.get(tags["plan-builds"]),width:canvas.width,height:canvas.height,view:{...view}};
+  return {time,playing,paints,pending:scheduler.pending,waiting:scheduler.waiting,disposed,model:data(),events:to_js_data(log),scene:to_js_data(plan.get(tags.scene)),transforms:to_js_data(plan.get(tags.transforms)),hitCandidates:to_js_data(interactionPlan).candidates.length,builds:plan.get(tags["plan-builds"]),width:canvas.width,height:canvas.height,view:{...view}};
 }
 document.querySelector("#entry-form").onsubmit = event => { event.preventDefault(); safely(()=>{send(editId?"edit":"add",editId,draft.value);cancelEdit();draft.value="";}); };
 document.querySelector("#cancel-edit").onclick = cancelEdit;
@@ -97,7 +99,7 @@ canvas.onclick=event=>safely(()=>{
   const bounds=canvas.getBoundingClientRect();
   const x=((event.clientX-bounds.left)*canvas.width/bounds.width-view.x)/view.scale;
   const y=((event.clientY-bounds.top)*canvas.height/bounds.height-view.y)/view.scale;
-  const hit=to_js_data(todo.hit_at(model(),time,x,y));
+  const hit=to_js_data(todo.hit_with_plan(model(),interactionPlan,x,y));
   if (!hit.id) return;
   if(hit.action==="edit") {stop();editId=hit.id;draft.value=hit.text;panel.hidden=false;toggle.setAttribute("aria-expanded","true");toggle.textContent="收起面板";document.querySelector("#submit").textContent="保存";document.querySelector("#cancel-edit").hidden=false;draft.focus();}
   else send(hit.action,hit.id);

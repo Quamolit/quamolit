@@ -6014,31 +6014,93 @@
         'hit-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hit-at (model time x y)
             assert |invalid-todo-hit $ and (motion/finite-number? time) (motion/finite-number? x) (motion/finite-number? y)
-            foldl
-              reverse $ :rows model
-              empty-hit
-              fn (hit row)
-                hint-fn $ {}
-                  :args $ [] 'quamolit.examples.todolist/Hit 'quamolit.examples.todolist/Row
-                  :return 'quamolit.examples.todolist/Hit
-                if
-                  not $ empty? $ :id hit
-                  , hit $ let
-                      alpha $ row-alpha model row time
-                      local-x $ + x $ * 40 (- 1 alpha)
-                      local-y $ - y $ transition/sample-transition (:y row) time
-                    if
-                      and (:present row) (> alpha 0) (>= local-y -25) (<= local-y 25) (>= local-x -282) (<= local-x 292)
-                      Hit :id (:id row) :text (:text row) :action $ cond
-                          < local-x -248
-                          , |toggle
-                        (< local-x 200) |edit
-                        (< local-x 250) |front
-                        true |remove
-                      , hit
+            hit-with-plan model
+              hit-plan $ start-plan model time
+              , x y
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Hit)
             :args $ [] 'quamolit.examples.todolist/Model 'Number 'Number 'Number
+        'hit-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-plan (plan)
+            let
+                nodes $ :nodes $ :scene plan
+                transforms $ :transforms plan
+              assert |invalid-todo-hit-transforms $ = (count nodes) (count transforms)
+              hit/compile-hit-plan $ scene/SceneDocument :nodes $ foldl
+                range $ count nodes
+                scene/empty-scene-nodes
+                fn (out index)
+                  hint-fn $ {}
+                    :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'Number
+                    :return $ :: 'List 'quamolit.scene-ir/SceneNode
+                  let
+                      sampled-node $ &list:nth nodes index
+                      matrix $ &list:nth transforms index
+                      group-id $ str |todo-hit/ $ :id sampled-node
+                    if
+                      ends-with? (:id sampled-node) |/card
+                      match (:content sampled-node)
+                        (:rect rect)
+                          concat out $ []
+                            scene/SceneNode :id group-id :key group-id :parent | :bindings ([]) :interaction
+                              if
+                                >
+                                  :a $ :fill rect
+                                  , 0
+                                scene/SceneInteraction :none
+                                scene/SceneInteraction :disabled
+                              , :content $ scene/SceneContent :group $ scene/GroupNode :transform matrix :opacity 1 :clip
+                                scene/ClipSpec :rect $ scene/ClipRect :x -282 :y -25 :width 574 :height 50
+                            struct-with sampled-node $ :parent group-id
+                        _ $ raise |invalid-todo-card
+                      , out
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan
+          :tests $ [] $ %{} 'TestEntry (:name |sampled-scene-exit-hit)
+            :code $ quote $ let
+                model $ replay
+                  events-through (demo-log) 0
+                  , 1
+                plan $ hit-plan $ start-plan model 1
+                exiting $ dispatch model 1 |remove |3 |
+                next $ hit-plan $ start-plan exiting 1
+              is= 3 $ hit/candidate-count plan
+              is= |toggle $ :action $ hit-with-plan model plan -270 -160
+              is= 2 $ hit/candidate-count next
+              is= | $ :id $ hit-with-plan exiting next -270 -160
+            :tags $ #{} :todolist
+        'hit-with-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-with-plan (model plan x y)
+            assert |invalid-todo-hit $ and (motion/finite-number? x) (motion/finite-number? y)
+            match (hit/hit-test-plan plan x y)
+              (:miss visited) (empty-hit)
+              (:hit result)
+                let
+                    node $ scene/node-for-id (:nodes plan) (:node-id result)
+                    matrix $ hit/world-for-parent (:nodes plan) (:parent node)
+                  match
+                    find (:rows model)
+                      fn (row)
+                        hint-fn $ {}
+                          :args $ [] 'quamolit.examples.todolist/Row
+                          :return 'Bool
+                        = (:target result)
+                          str (:id row) |/card
+                    (:none) (raise |missing-todo-hit-row)
+                    (:some row)
+                      match (hit/inverse-point matrix x y)
+                        (:singular) (empty-hit)
+                        (:point local-x local-y)
+                          Hit :id (:id row) :text (:text row) :action $ cond
+                              < local-x -248
+                              , |toggle
+                            (< local-x 200) |edit
+                            (< local-x 250) |front
+                            true |remove
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Hit)
+            :args $ [] 'quamolit.examples.todolist/Model 'quamolit.scene-hit/HitPlan 'Number 'Number
         'initial $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initial ()
             Model :rows (empty-rows) :presence
@@ -6312,6 +6374,7 @@
         :code $ quote $ ns quamolit.examples.todolist
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.presence :as presence) (quamolit.presence-component :as lifecycle) (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.retained-component :as retained)
             calcit.test :refer $ is= is-throws
+            quamolit.scene-hit :as hit
     'quamolit.fixed-step $ %{} 'FileEntry
       :defs $ {}
         'SimulationState $ %{} 'CodeEntry
