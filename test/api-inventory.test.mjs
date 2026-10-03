@@ -101,10 +101,11 @@ test("稳定 Trait 需要冻结方法声明，不能只锁 Trait 标签", () => 
   assert.throws(() => verifyStableContract(entry("'Number"), entry("'String")));
   assert.throws(() => signatureEntry({ id: "x/Host", schema: "'Trait" }));
 });
-test("显式清单覆盖全部 namespace，不自动接受新的 test/examples", () => {
+test("显式清单覆盖全部 namespace，不自动接受新示例或恢复已退役应用", () => {
   const rows = expandManifest(manifest());
   verifyCoverage(rows, ["quamolit.ui-motion", "quamolit.test.demo"]);
   assert.throws(() => verifyCoverage(rows, ["quamolit.ui-motion", "quamolit.test.demo", "quamolit.examples.new"]));
+  assert.throws(() => verifyCoverage(rows, ["quamolit.ui-motion", "quamolit.test.demo", "quamolit.app.main"]));
   assert.throws(() => verifyCoverage(rows, ["quamolit.ui-motion"]));
 });
 test("重复分类、未知状态和缺失迁移去向必须拒绝", () => {

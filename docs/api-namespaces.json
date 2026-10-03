@@ -31,38 +31,6 @@
       ]
     },
     {
-      "status": "legacy",
-      "purpose": "历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收",
-      "doc": "docs/demo-restoration.md",
-      "replacement": "quamolit.examples.*（内部示例；不是库 API）",
-      "namespaces": [
-        "quamolit.app.comp.binary-tree",
-        "quamolit.app.comp.clock",
-        "quamolit.app.comp.code-table",
-        "quamolit.app.comp.container",
-        "quamolit.app.comp.digits",
-        "quamolit.app.comp.drag-demo",
-        "quamolit.app.comp.file-card",
-        "quamolit.app.comp.finder",
-        "quamolit.app.comp.folder",
-        "quamolit.app.comp.folding-fan",
-        "quamolit.app.comp.icon-increase",
-        "quamolit.app.comp.icon-play",
-        "quamolit.app.comp.icons-table",
-        "quamolit.app.comp.portal",
-        "quamolit.app.comp.raindrop",
-        "quamolit.app.comp.raining",
-        "quamolit.app.comp.ring",
-        "quamolit.app.comp.solar",
-        "quamolit.app.comp.task",
-        "quamolit.app.comp.task-toggler",
-        "quamolit.app.comp.todolist",
-        "quamolit.app.main",
-        "quamolit.app.schema",
-        "quamolit.app.updater"
-      ]
-    },
-    {
       "status": "internal",
       "purpose": "项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时",
       "doc": "AGENTS.md",
