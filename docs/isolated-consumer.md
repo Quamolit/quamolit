@@ -27,6 +27,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 | 检验 | 本切片证据 |
 | --- | --- |
+| 原生圆弧消费 #212 | 消费者以 Calcit `ArcNode` 声明带透明描边的开口圆弧，随父组淡入；与其他图元一起安装、编译并搬移。能力枚举和合法 payload 覆盖同步，九种 Canvas document 图元在乱序时间通过独立原生 Canvas 全 RGBA 零差异对照。圆弧 GPU、命中及标量绑定不在此验收范围；DPR 1/2 的方向、跨零、整圈和零跨度合同复用 Scene 核心浏览器测试 |
 | 字体 Calcit 消费 | 消费方 FontSpec / 中文文字声明 / transform / 资源修订；1000 移动帧共享文字节点，同时间版本变化计划构建1→2。真实 FontFace 不自动安装，过期版本拒绝，精确句柄释放且重复释放为false；中文五个乱序帧与独立原生全RGBA参考零差异，缺失首选字体走原生monospace回退。每个汉字非空且区别缺字字形。共享租约由同一声明生成的 Presence 驱动：退出中间帧持有、快速重入不重载、两个所有者逐一释放、100次出入只加载一次，close后 accepted=released=1/live=0；Calcit 内断言，浏览器核对 FontFaceSet 回到基线。不是实际看板/capture组合、字体文件覆盖分析或排版缓存证据。inline 不增加下游 npm 或原始 JS 文件请求，复用原安装/搬移门禁与artifact |
 | 声明与版本行为 | 消费者独立 Calcit 声明；时间 `[1,0,0.5,0.25,1]` 对应 x `[120,80,100,90,120]`；同时间 Model/资源/视口分别更新 y/颜色/宽度 |
 | 保留执行 | Node 连续 1000 帧，声明/计划构建各 1，绑定与变换采样分别 1001；静态矩形、局部折线与编译槽位身份不变；旧帧不受影响 |

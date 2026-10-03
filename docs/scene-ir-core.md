@@ -60,6 +60,18 @@ Presence 文字可复用同一共享入口：`presence-font-references(model)` �
 
 ## 原生曲线与圆体
 
+### 原生圆弧（#212）
+
+`SceneContent :arc` 使用纯数据 `ArcNode { cx, cy, radius, start-angle, end-angle, counterclockwise, width, stroke }`，由 `canvas-reference/draw-arc!` 调用 js-ffi 已类型化的 `CanvasContextHost.arc!`。不添加专属 JS wrapper，不在应用或绘制器中离散折线。中心、半径、角度与宽度必须有限；半径大于零，宽度非负，颜色沿用 ColorRgba。宽度为零不绘制。
+
+角度为弧度，零角朝右；CSS 坐标中 `counterclockwise=false` 顺时针，`true` 逆时针。起止角不预先取模：按 [HTML Canvas arc 规范](https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-arc)，所选方向的跨度至少 `2π` 才画完整圆；跨零遵循所选方向，相同起止角按原生零长度路径处理，不自动改成完整圆。固定圆头、开放描边，无填充、扇区闭合、dash 或可选 lineCap。每条弧独立 beginPath，不连接上一条弧；不 closePath，以免引入径向线段。
+
+几何签名包含中心、半径、两个角度、方向和宽度，颜色只进入属性签名，无宿主资源字段。`draw-reference!` 支持顶层弧；`canvas-scene/draw-document!` 支持原有祖先 transform/clip/隔离 opacity，绝对根变换由 Scene 提供（包括 DPR），不是继承调用者 context 的外部变换。
+
+复用 `test:scene-core` 的原生/Node 门禁及 `test:motion-browser` 的 Scene 浏览器门禁：DPR1/2、乱序0/0.5/2.5秒、顺逆/跨零/完整圆/相同角度/零宽、圆头，与独立原生 Canvas 整帧 RGBA 零差异比较；错误方向/圆头是必需负例。`test:gpu-component` 检查完整图层 fallback 与节点身份诊断 `unsupported-node:arc`，不静默丢弧，不将 mock 或 Canvas 对照当真实 GPU 通过。
+
+这是实验性 Scene 扩展：目前 WebGPU 无圆弧实现，矩形组件 GPU 入口明确整层回退；图片专属 GPU 入口仍预检拒绝非支持图元。弧的独立命中/指针目标、标量绑定和 retained-path 专用入口未实现，不以整圆命中或折线近似偷偷替代；绑定明确拒绝 `unsupported-arc-binding`，应用可以重新声明显式时间采样的弧。首次实际迁移对象是 Discs Vortex；待新 tag 后撤销其点离散绕过，并按原圈数/速度/DPR生产门禁复验，再收口 #212。
+
 `SceneContent :cubic-path` 使用 `CubicPathNode { start, segments, width, stroke }`；每个 `CubicSegment` 明确保存 `control-1`、`control-2`、`end` 三个有限 `Vec2`。路径至少一段、宽度必须有限且大于零。`SceneContent :circle` 使用 `CircleNode { cx, cy, radius, width, fill, stroke }`；半径必须为正，描边宽度非负。两者均是纯 Calcit 数据：几何与属性签名参与 `scene-diff`，不携带 Canvas 句柄。
 
 `canvas-reference` 直接调用 js-ffi `CanvasContextHost` 上已类型化的 `bezier-curve-to!` 与 `arc!`，没有 Quamolit 专用 JavaScript wrapper。Curve 和 Solar 分别作为 32 段 cubic 与 10 个 circle 的首批用户；旧 16 步/48 边近似只保留为测试误差基准。`retained-path`、标量绑定与 WebGPU 后端目前明确拒绝这两类新节点，后续支持必须单独声明语义，不得静默降级为折线。
