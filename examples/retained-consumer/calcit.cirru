@@ -98,6 +98,28 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
             :args $ [] 'Number
+        'cycle-font-presence $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cycle-font-presence (registry document)
+            let
+                empty-document $ scene/SceneDocument :nodes $ scene/empty-scene-nodes
+                end $ presence/start-presence empty-document
+                end-refs $ font/empty-font-references
+              foldl (range 100) registry $ fn (current index)
+                let
+                    entering $ :model $ presence/reconcile-presence end document (* index 3) 1 (motion/Easing :linear)
+                    entering-refs $ font/presence-font-references entering
+                    got $ font/sync-font-leases current end-refs entering-refs 1
+                    leaving $ :model $ presence/reconcile-presence entering empty-document
+                      + 1 $ * index 3
+                      , 1 (motion/Easing :linear)
+                    settled $ :model $ presence/settle-presence leaving
+                      + 2 $ * index 3
+                    final-refs $ font/presence-font-references settled
+                  assert |font-presence-cycle-empty $ empty? final-refs
+                  :registry $ font/sync-font-leases (:registry got) entering-refs final-refs 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceRegistry)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.scene-ir/SceneDocument
         'declare $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare (props model input ready viewport)
             let
@@ -886,22 +908,7 @@
                     once $ font/sync-font-leases (:registry reentry) revived-refs end-refs 1
                     idle $ font/sync-font-leases (:registry once) references end-refs 1
                     idle-host $ font/apply-font-registry-actions! (:host completed) (:actions idle)
-                    cycled $ foldl (range 100) (:registry idle)
-                      fn (current index)
-                        hint-fn $ {} (:return 'quamolit.resource-lifecycle/ResourceRegistry) (:async false)
-                          :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry 'Number
-                        let
-                            entering $ :model $ presence/reconcile-presence end document (* index 3) 1 (motion/Easing :linear)
-                            entering-refs $ font/presence-font-references entering
-                            got $ font/sync-font-leases current end-refs entering-refs 1
-                            leaving $ :model $ presence/reconcile-presence entering empty-document
-                              + 1 $ * index 3
-                              , 1 (motion/Easing :linear)
-                            settled $ :model $ presence/settle-presence leaving
-                              + 2 $ * index 3
-                            final-refs $ font/presence-font-references settled
-                          assert |font-presence-cycle-empty $ empty? final-refs
-                          :registry $ font/sync-font-leases (:registry got) entering-refs final-refs 1
+                    cycled $ cycle-font-presence (:registry idle) document
                     closed $ lifecycle/close-registry cycled
                     closed-host $ font/apply-font-registry-actions! idle-host $ :actions closed
                   assert |shared-font-two-leases $ =
