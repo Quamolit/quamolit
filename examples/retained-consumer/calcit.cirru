@@ -826,6 +826,59 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
             :args $ [] 'quamolit.presence/PresenceModel 'String 'Number 'Number
+        'shared-font-cycle! $ %{} 'CodeEntry
+          :doc "|消费方用Calcit获取两个lease，共享一次原生加载，idle重入不重载，显式close释放；不依赖JS registry。"
+          :code $ quote $ defn shared-font-cycle! (spec source)
+            hint-fn $ {}
+              :args $ [] 'quamolit.scene-ir/FontSpec 'String
+              :return 'quamolit.font-resource/FontRegistryCompletion
+              :async true
+              :features $ #{} :js-ffi
+            let
+                resource-id $ lifecycle/resource (lifecycle/ResourceKind :font) |consumer-font $ :version spec
+                acquired $ lifecycle/acquire-registry (lifecycle/initial-registry 1) resource-id 1
+                shared $ lifecycle/acquire-registry (:registry acquired) resource-id 1
+                registry $ :registry shared
+                state $ :state $ lifecycle/find-entry (:entries registry) resource-id
+                enqueued $ load-queue/enqueue-load (load-queue/initial-load-queue 1 4) 1 resource-id (:generation state) (load-queue/ResourceLoadPriority :interactive)
+                taken $ load-queue/take-load $ :queue enqueued
+                result $ js-await $ font/run-font-load-task! spec source
+                  -> (:task taken) .unwrap
+                completed $ font/complete-font-registry-load! (font/initial-font-resource-host) registry (:queue taken) result
+                owned $ ->
+                  font/installed-font (:host completed) resource-id $ :generation state
+                  , .unwrap
+              try
+                let
+                    ready $ :registry $ :transition completed
+                    once $ lifecycle/release-registry ready resource-id
+                    idle $ lifecycle/release-registry (:registry once) resource-id
+                    idle-host $ font/apply-font-registry-actions!
+                      font/apply-font-registry-actions! (:host completed) (:actions once)
+                      :actions idle
+                    reentered $ lifecycle/acquire-registry (:registry idle) resource-id 1
+                    closed $ lifecycle/close-registry $ :registry reentered
+                    closed-host $ font/apply-font-registry-actions! idle-host $ :actions closed
+                  assert |shared-font-two-leases $ =
+                    :references $ lifecycle/find-entry (:entries ready) resource-id
+                    , 2
+                  assert |shared-font-load-once $ = (:loads ready) 1
+                  assert |shared-font-idle $ =
+                    :idle $ lifecycle/registry-metrics $ :registry idle
+                    , 1
+                  assert |shared-font-reentry-load-once $ =
+                    :loads $ :registry reentered
+                    , 1
+                  assert |shared-font-host-accepted-once $ = (:accepted closed-host) 1
+                  assert |shared-font-host-released-once $ = (:released closed-host) 1
+                  assert |shared-font-host-closed $ empty? $ :handles closed-host
+                  font/FontRegistryCompletion :host closed-host :queue (:queue completed) :transition closed
+                fn (error) (font/release-font! owned)
+                  raise $ :message $ errors/normalize-error error
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.font-resource/FontRegistryCompletion)
+            :args $ [] 'quamolit.scene-ir/FontSpec 'String
+            :features $ #{} :js-ffi
         'start $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start (time model ready viewport)
             retained/build-execution-plan (request time model ready viewport) declare-execution
@@ -924,4 +977,4 @@
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.main
-          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as lifecycle) (quamolit.resource-load-queue :as load-queue) (quamolit.scene-hit :as hit) (quamolit.canvas-scene :as canvas-scene) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as pointer-browser)
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as lifecycle) (quamolit.resource-load-queue :as load-queue) (quamolit.scene-hit :as hit) (quamolit.canvas-scene :as canvas-scene) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as pointer-browser) (js-ffi.shared :as errors)
