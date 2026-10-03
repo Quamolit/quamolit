@@ -1,6 +1,7 @@
 // 宿主只负责时钟、URL、DOM 与坐标逆变换；场景、命中、过渡和日志重放均在 Calcit。
 import * as finder from "../../target/js/finder/quamolit.examples.finder.mjs";
 import { to_js_data } from "../../target/js/finder/calcit.core.mjs";
+import { draw_reference_$x_ } from "../../target/js/finder/quamolit.canvas-reference.mjs";
 import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const canvas = document.querySelector("#scene"), context = canvas.getContext("2d");
@@ -8,6 +9,7 @@ const status = document.querySelector("#status"), message = document.querySelect
 const play = document.querySelector("#play"), panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
 const params = new URLSearchParams(location.search);
 let log = finder.empty_events(), time = 0, model = finder.initial(), paints = 0;
+let scene, interactionPlan, paintedModel, paintedTime;
 let playing = false, anchor = 0, started = 0, until = 10;
 let view = { scale: 1, x: 0, y: 0 };
 const scheduler = new DemandFrameScheduler({
@@ -17,13 +19,15 @@ const scheduler = new DemandFrameScheduler({
 });
 function wake(reason) { scheduler.request(reason); scheduler.resume(); }
 function draw() {
+  const document = finder.scene_at(model,time), nextHitPlan = finder.hit_plan(model,time,document);
   const bounds = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   const width = Math.max(1, Math.round(bounds.width * dpr)), height = Math.max(1, Math.round(bounds.height * dpr));
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   view = { scale: Math.min(width / 1100, height / 800), x: panel.hidden ? width / 2 : width * 0.38, y: height / 2 };
   context.setTransform(1, 0, 0, 1, 0, 0); context.clearRect(0, 0, width, height);
   context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
-  finder.draw_$x_(context, model, time);
+  draw_reference_$x_(context, document);
+  scene=document; interactionPlan=nextHitPlan; paintedModel=model; paintedTime=time;
   paints++;
   slider.value = String(time);
   status.textContent = `t = ${time.toFixed(2)} s · 文件夹 ${to_js_data(model).folder} · 卡片 ${to_js_data(model).card}\n文件夹展开 ${finder.folder_value(model, time).toFixed(2)} · 卡片聚焦 ${finder.card_value(model, time).toFixed(2)}\n事件 ${to_js_data(log).length} 条 · 绘制 ${paints}`;
@@ -51,7 +55,8 @@ function snapshot() {
     time,
     model: to_js_data(model),
     events: to_js_data(log),
-    scene: to_js_data(finder.scene_at(model, time)),
+    scene: to_js_data(scene),
+    hitCandidates: to_js_data(interactionPlan).candidates.length,
     folderValues: to_js_data(finder.folder_values(model, time)),
     cardValues: to_js_data(finder.card_values(model, time)),
     playing,
@@ -76,9 +81,9 @@ canvas.onclick = event => safely(() => {
   const bounds = canvas.getBoundingClientRect();
   const x = ((event.clientX - bounds.left) * canvas.width / bounds.width - view.x) / view.scale;
   const y = ((event.clientY - bounds.top) * canvas.height / bounds.height - view.y) / view.scale;
-  const at = playing ? Math.min(until, anchor + Math.max(0, performance.now() - started) / 1000) : time;
-  const hit = to_js_data(finder.hit_at(finder.replay(log, at), at, x, y));
-  if (hit.kind !== "none") send(hit.kind, hit.folder, hit.card, at);
+  // 点击当前已提交画面，不按新 wall-clock 再采样另一份几何。
+  const hit = to_js_data(finder.hit_with_plan(paintedModel,paintedTime,interactionPlan,x,y));
+  if (hit.kind !== "none") send(hit.kind, hit.folder, hit.card, paintedTime);
 });
 document.querySelector("#tour").onclick = () => safely(() => { stop(); log = finder.demo_log(); sample(0); start(4.2); });
 document.querySelector("#back").onclick = () => safely(() => send("back"));

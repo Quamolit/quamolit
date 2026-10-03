@@ -1,6 +1,6 @@
 # Finder 植物档案恢复：M3 #36/#37/#34 切片
 
-历史 `9b5bcdd` 的 Finder 有五组植物文件夹，打开时居中放大，其他文件夹淡出；每组的中文卡片可以继续居中放大，其他卡片淡出，再逐层返回。本切片保留五组名称和卡片文本，以 Calcit `FinderModel` 中 5 条文件夹和 18 条卡片 `TransitionIntent` 分别保存每个稳定节点的目标，`scene-at (model time)` 生成 Scene 节点，`hit-at (model time x y)` 判断画布点击。页面 JS 只管理宿主时间、DOM、URL 与 Canvas 坐标逆变换。
+历史 `9b5bcdd` 的 Finder 有五组植物文件夹，打开时居中放大，其他文件夹淡出；每组的中文卡片可以继续居中放大，其他卡片淡出，再逐层返回。本切片保留五组名称和卡片文本，以 Calcit `FinderModel` 中 5 条文件夹和 18 条卡片 `TransitionIntent` 分别保存每个稳定节点的目标，`scene-at (model time)` 生成 Scene 节点。页面每次绘制从同一Scene编译公共HitPlan，`hit-with-plan`命中实际已提交画面，不按点击瞬间的新宿主时间猜测另一份布局；事件记录在该画面时间，继续从可见姿态过渡。页面 JS 只管理宿主时间、DOM、URL 与 Canvas 坐标逆变换。
 
 `append-event` 校验非降序点击日志，`replay` 在任意时间从日志重建 Model；历史时刻新输入先截断未来事件。`select-folder`、`select-card`、`back` 会同时重定向各节点自己的意图，因此上一文件夹或卡片尚未完全关闭时可以直接选择另一项，切换事件帧保持完整 Scene 相等，随后旧项退出与新项进入并行发生；连续 A→B→C 也不会丢掉仍在退出的 A。页面提供预设点击日志、手动点击、时间 seek 与包含日志的分享链接。逻辑构图为 1100 × 800 contain，全屏 Canvas 按视口和 DPR 更新实际像素；DOM 控制浮层可收起，桌面打开时构图避让浮层，窄屏默认收起。
 
@@ -17,4 +17,4 @@ yarn test:demo-nav
 
 Node 检查五组中文内容、稳定节点 ID、卡片几何、命中、快速打断、跨文件夹／卡片切换连续性与日志乱序重放；Chromium 实际点击仍在关闭过程中的另一项，保存切换开始／中间／终点的浮层和纯 Canvas 画面，并继续验证分享链接的 Scene 和 Canvas 像素一致、DPR 2 暂停 resize 与浮层。CI 上传 `test-results/finder/`。
 
-当前是 Canvas2D 参考绘制，尚未接保留式组件计划或 WebGPU；并行动画使用固定 5/18 个小型意图，未作为大规模节点性能方案。`hit-at` 为该示例的独立几何判定，不代表 #34 的通用命中索引、层序与指针捕获已完成。窄屏 contain 构图的文字/点击目标优化见 [#128](https://github.com/Quamolit/quamolit/issues/128)。Curve/Solar 与 Folding Fan 的剩余保真仍由 #136 跟踪，M3 不关闭。
+当前是 Canvas2D 参考绘制，尚未接保留式组件计划或 WebGPU；并行动画使用固定 5/18 个小型意图，未作为大规模节点性能方案。真实页面复用公共命中；历史`hit-at`保留用于兼容与数值对照，但不参与实际页面点击。`hit-plan`仅调整原交互政策，不改Scene几何、颜色或层序：关闭中其他文件夹仍可重开，卡片只在当前目标文件夹展开值大于0.05时参与命中，空白继续返回。Node覆盖五组、多时间乱序/打断的历史范围及移动/缩小反例；DPR1/2浏览器冻结rAF、单独前移宿主时钟验证不命中尚未绘制的新位置。这不是通用捕获或全链路索引优化，不关闭#34。窄屏 contain 构图的文字/点击目标优化仍见 [#128](https://github.com/Quamolit/quamolit/issues/128)，M3 不关闭。

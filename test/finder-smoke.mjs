@@ -2,6 +2,74 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { to_js_data as data } from "../target/js/finder/calcit.core.mjs";
 import * as finder from "../target/js/finder/quamolit.examples.finder.mjs";
+import { CalcitSliceList, newTag } from "@calcit/procs";
+
+const tags = Object.fromEntries(
+  ["nodes", "candidates", "content", "id", "interaction", "x", "y", "width", "height"].map((name) => [
+    name,
+    newTag(name),
+  ]),
+);
+
+test("同次采样 Scene 命中保留原操作政策，乱序/打断与卡片禁用不修改声明", () => {
+  const initial = finder.initial();
+  const models = [initial];
+  for (let folder = 0; folder < 5; folder++) {
+    const open = finder.select_folder(initial, folder, 0);
+    const focus = finder.select_card(open, 0, 0.42);
+    models.push(open, focus, finder.back(focus, 0.6), finder.back(open, 0.21));
+  }
+  let queries = 0;
+  for (const model of models)
+    for (const time of [0.75, 0, 0.01, 0.21, 0.42, 0.6, 0.75, 1]) {
+      const document = finder.scene_at(model, time),
+        before = data(document);
+      const plan = finder.hit_plan(model, time, document);
+      for (const node of before.nodes.filter((node) => node.content[0] === "rect")) {
+        const rect = node.content[1];
+        for (const x of [
+          rect.x - 1,
+          rect.x + 1,
+          rect.x + rect.width / 2,
+          rect.x + rect.width - 1,
+          rect.x + rect.width + 1,
+        ])
+          for (const y of [rect.y - 1, rect.y + rect.height / 2, rect.y + rect.height + 1]) {
+            assert.deepEqual(
+              data(finder.hit_with_plan(model, time, plan, x, y)),
+              data(finder.hit_at(model, time, x, y)),
+            );
+            queries++;
+          }
+      }
+      assert.deepEqual(data(document), before);
+    }
+  assert.ok(queries > 10000);
+  for (const bad of [NaN, Infinity, -Infinity]) {
+    assert.throws(() => finder.hit_plan(initial, bad, finder.scene_at(initial, 0)), /invalid-finder-hit-time/);
+    assert.throws(
+      () => finder.hit_with_plan(initial, 0, finder.hit_plan(initial, 0, finder.scene_at(initial, 0)), bad, 0),
+      /invalid-finder-hit/,
+    );
+  }
+});
+
+test("命中读取移动/缩小后的实际 Scene，不按 Model 初始几何猜测", () => {
+  const model = finder.initial(),
+    document = finder.scene_at(model, 0);
+  const nodes = document.get(tags.nodes);
+  const moved = finder.rect_node("folder-0", 550, 350, 50, 44, 0.2, 0.3, 0.4, 1);
+  const changed = document.assoc(
+    tags.nodes,
+    new CalcitSliceList(Array.from({ length: nodes.len() }, (_, i) => (i === 0 ? moved : nodes.get(i)))),
+  );
+  const plan = finder.hit_plan(model, 0, changed);
+  assert.equal(plan.get(tags.candidates).len(), 5);
+  assert.deepEqual(data(finder.hit_with_plan(model, 0, plan, 550, 350)), { kind: "folder", folder: 0, card: -1 });
+  assert.equal(data(finder.hit_with_plan(model, 0, plan, -340, -20)).kind, "none");
+  assert.equal(data(finder.hit_with_plan(model, 0, plan, 576, 350)).kind, "none");
+  assert.equal(data(finder.hit_at(model, 0, 550, 350)).kind, "none");
+});
 
 const scene = (model, time) => data(finder.scene_at(model, time)).nodes;
 

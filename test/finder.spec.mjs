@@ -1,5 +1,34 @@
 import { expect, test } from "@playwright/test";
 
+for (const dpr of [1, 2])
+  test(`DPR ${dpr}：点击已提交画面，不按尚未绘制的宿主时间重新命中`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: dpr });
+    const page = await context.newPage();
+    try {
+      const origin = new Date("2026-10-04T00:00:00Z");
+      await page.clock.install({ time: origin });
+      await page.clock.pauseAt(origin);
+      await ready(page);
+      await page.locator("#panel-toggle").click();
+      await page.evaluate(() => window.finderDemo.send("folder", 0, -1, 0, false));
+      const shown = await page.evaluate(() => window.finderDemo.seek(0.1));
+      const folder = shown.scene.nodes.find((node) => node.id === "folder-0").content[1];
+      await page.evaluate(() => {
+        window.finderDemo.play();
+        const now = performance.now();
+        // 模拟主线程时钟已前进但rAF尚未提交新帧；不改变当前可见Scene。
+        performance.now = () => now + 1000;
+      });
+      await clickLogical(page, folder.x + folder.width / 2, folder.y + folder.height / 2);
+      const result = await page.evaluate(() => window.finderDemo.snapshot());
+      expect(result.events.at(-1)).toMatchObject({ kind: "back", at: 0.1 });
+      expect(result.scene).toEqual(shown.scene);
+      expect(result.time).toBe(0.1);
+    } finally {
+      await context.close();
+    }
+  });
+
 async function ready(page, query = "") {
   await page.goto(`http://127.0.0.1:5180/examples/finder/index.html${query}`);
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
