@@ -20,7 +20,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 2. 使用 `caps --ci add` 安装指定候选提交及递归依赖，`caps verify` 验证存储，Yarn immutable + node-modules 安装唯一直接 npm 依赖 `@calcit/procs`。
 3. 对消费者 `app.main` 全部定义严格检查并编译。它不引用 `quamolit.test.*`、手写框架 JS 或 JS sampler Map；候选提交必须包含公共组件、Presence、版本化实例资源表、WebGPU 脏区上传与 device recovery 接口，不能用更早版本运行完整门禁。
    随后在同一临时模块副本依次验证 `:file` 绘制与 `:inline` 释放片段：未重编译仍是旧行为，显式重编译后注入故障经公共 Calcit 调用可见。每次使用新 Node 进程；file阶段不改Snapshot，inline阶段只经CLI事务改库副本的FFI元数据（dry-run/revision保护），函数体/schema不变。消费者Snapshot、作者源码与共享缓存不变；共用同一准备流程，只增加一次编译，不新增命令或CI job。
-4. 根据当前 Calcit 单行静态 ESM import/export 收集入口可达文件；门禁拒绝动态 import、测试 namespace、原始文件路径与额外 npm 包。把这个闭包与标准 runtime 移到同级运行目录，原编译目录改名；运行目录不含 Calcit 源码、模块链接或 `src/host`。这不是通用 JS bundler，生成器格式变化时需更新并重新验证门禁。
+4. 根据当前 Calcit 单行静态 ESM import/export 收集入口可达文件；门禁拒绝动态 import、测试/演示 namespace、原始文件路径与额外 npm 包。先用测试与演示 namespace 反例确认拒绝发生在读文件之前且不污染闭包，再验证实际消费者。把这个闭包与标准 runtime 移到同级运行目录，原编译目录改名；运行目录不含 Calcit 源码、模块链接或 `src/host`。这不是通用 JS bundler，生成器格式变化时需更新并重新验证门禁。
 5. 从搬移目录执行 Node 合同和 Chromium 页面，检查固定时间、同时间失效、像素及页面按钮。Vite/Playwright 由测试工程提供，仅用于驱动，不进入消费模块；请求记录中 Vite 开发客户端来自测试工具是预期行为。
 
 ## 实际断言与成果

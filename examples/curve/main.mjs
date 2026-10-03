@@ -1,7 +1,7 @@
 // 页面只管理时钟/视口/DOM；旋转与 32 段顶点都在 Calcit。
 import { curve_points, draw_$x_, scene_at } from "../../target/js/curve/quamolit.examples.curve.mjs";
 import { to_js_data } from "../../target/js/curve/calcit.core.mjs";
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), slider = document.querySelector("#time");

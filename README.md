@@ -37,7 +37,7 @@ yarn test:ui-motion
 yarn demo
 ```
 
-`yarn release:demos` 构建完整演示站点。`yarn compile` / `yarn release` 目前仍以 bootstrap 为迁移基线，不能代替应用验收。关键链路测试、截图与硬件范围集中在[检验规则](docs/verification.md)；不要把无 GPU 的 SKIP 算作通过，也不要把编译通过或上传计数当作性能达标。
+`yarn compile && yarn release` 将统一画廊与真实动画构建到 `dist/`；根 URL 保留分享参数进入 `/demos/index.html`。`release:demos` 是同一构建配置的 `dist-demos/` 兼容输出。bootstrap 仅由 `compile:bootstrap` 为 runtime smoke 编译，不能代表应用验收；主 Snapshot 的命名 entry 创建仍待 Calcit #1665。现有 `test:demo-nav` 只从普通发布产物运行根入口、交互与导航。关键链路和硬件范围见[检验规则](docs/verification.md)；SKIP、编译或上传计数不代表性能达标。
 
 M1 动画与组件逻辑合同已验收；M2 的保留执行与 WebGPU、M3 的完整绘制/交互、M4 的性能发布仍在推进。当前状态与下一项只在[计划 v3](docs/plan-v3.md)维护；编码前读 [AGENTS.md](AGENTS.md)。暂不扩展性能优化，复用现有公共入口、消费者与门禁。
 
@@ -49,7 +49,7 @@ Start with the [demo gallery](demos/README.md) (`yarn demo`) and the [API stabil
 
 The [standalone consumer](examples/retained-consumer/README.md) demonstrates component declarations, retained execution, Canvas and a supported WebGPU subset through Calcit imports. Those renderer/resource interfaces remain experimental. See the [verification rules](docs/verification.md) for actual coverage and hardware limits; passing compilation is not proof of application behavior or performance. The [migration contract](docs/api-contract.md#旧入口弃用计划) replaces the old homepage DSL tutorial; historical code remains in Git history and is not removed here.
 
-Use Calcit 0.28.0 and Node.js 24, then run the development commands above. `yarn release:demos` builds the demo site; `compile`/`release` still target the migration bootstrap. Follow [plan v3](docs/plan-v3.md) for milestone status. Reuse existing interfaces and tests before adding more layers.
+Use Calcit 0.28.0 and Node.js 24, then run the development commands above. `yarn compile && yarn release` builds the unified gallery and animations into `dist/`; the root URL preserves shared parameters and redirects to that same page. `release:demos` uses the same configuration with a compatibility output directory. Bootstrap is smoke-only; named Calcit entries still await upstream #1665. Navigation tests exercise the ordinary release output, not source fallback. Follow [plan v3](docs/plan-v3.md) for milestone status.
 
 ## History and license
 

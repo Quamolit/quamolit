@@ -3,7 +3,7 @@ import { scene_at, start_component, update_component } from "../../target/js/bin
 import { sample_plan_at, draw_plan_$x_ } from "../../target/js/binary-tree/quamolit.retained-component.mjs";
 import { draw_reference_$x_ } from "../../target/js/binary-tree/quamolit.canvas-reference.mjs";
 import { to_js_data, init_tags } from "../../target/js/binary-tree/calcit.core.mjs";
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const tags = init_tags(["scene", "transforms", "transform-samples"]);
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");

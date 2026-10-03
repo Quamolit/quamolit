@@ -67,6 +67,7 @@ test("所有演示页面已登记，路径、说明和编译入口存在", async
     assert.match(entry.path, /^(?:index\.html|(?:test|examples)\/[\w/-]+\.html)$/);
     await access(join(root, entry.docs));
     assert.ok(!entry.compile || entry.compile === "consumer" || scripts[entry.compile]);
+    assert.ok(!["compile", "compile:demos"].includes(entry.compile), "清单不能递归调用完整编译");
     const html = await readFile(join(root, entry.path), "utf8");
     assert.match(html, /aria-label="演示导航"/);
     if (!entry.path.startsWith("examples/")) {
@@ -74,4 +75,24 @@ test("所有演示页面已登记，路径、说明和编译入口存在", async
       assert.equal(new URL(back, `https://example.com/preview/${entry.path}`).pathname, "/preview/demos/index.html");
     }
   }
+});
+
+test("普通 compile/release 构建统一应用，bootstrap 只提供 smoke core", async () => {
+  const { scripts } = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  assert.match(scripts.compile, /caps --ci.*scripts\/prepare-demos\.mjs/);
+  assert.equal(scripts["compile:demos"], "yarn compile");
+  assert.match(scripts["compile:bootstrap"], /target\/js\/app/);
+  assert.match(scripts["test:demo-nav"], /yarn compile && yarn release/);
+  const prepare = await readFile(join(root, "scripts/prepare-demos.mjs"), "utf8");
+  assert.match(prepare, /run\(\["compile:bootstrap"\]\)/);
+  assert.doesNotMatch(prepare, /run\(\["compile"\]\)/);
+  const config = (await import("../vite.config.mjs")).default;
+  assert.equal(config.build.outDir, "dist");
+  for (const path of ["index.html", "demos/index.html", "examples/todolist/index.html"])
+    assert.ok(config.build.rolldownOptions.input.includes(join(root, path)));
+  const server = await readFile(join(root, "test/demo-nav-server.mjs"), "utf8");
+  assert.match(server, /resolve\("dist"\)/);
+  const main = await readFile(join(root, "main.mjs"), "utf8");
+  assert.doesNotMatch(main, /import|target\/js|quamolit\.bootstrap/);
+  assert.match(main, /location\.replace\(destination\)/);
 });

@@ -2,7 +2,7 @@
 import * as todo from "../../target/js/todolist/quamolit.examples.todolist.mjs";
 import { draw_plan_$x_ } from "../../target/js/todolist/quamolit.retained-component.mjs";
 import { init_tags, to_js_data } from "../../target/js/todolist/calcit.core.mjs";
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const tags = init_tags(["model", "rows", "revision", "released", "plan-builds", "cursor", "time", "scene", "transforms"]);
 const canvas = document.querySelector("#scene"), ctx = canvas.getContext("2d");

@@ -1,7 +1,7 @@
 // 页面仅管理时钟、视口和 DOM；递归轨道及填充圆体由 Calcit 生成。
 import { draw_$x_, scene_at } from "../../target/js/solar/quamolit.examples.solar.mjs";
 import { to_js_data } from "../../target/js/solar/calcit.core.mjs";
-import { DemandFrameScheduler } from "../../src/host/demand-frame-scheduler.mjs";
+import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const canvas = document.querySelector("canvas"), context = canvas.getContext("2d");
 const status = document.querySelector("#status"), slider = document.querySelector("#time");
