@@ -17,7 +17,8 @@
       <label>逻辑时间 <output id="time-output">0.00</output></label>
       <input id="time" type="range" min="0" max="1" step="0.01" value="0" />
       <div class="actions"><button id="play">播放</button><button id="reset">重置</button></div>
-      <div class="actions"><button id="presence-toggle" aria-pressed="false">隐藏看板</button></div>
+      <div class="actions"><button id="presence-toggle" aria-pressed="false">隐藏看板</button><button id="chart-toggle" aria-pressed="false">隐藏图表</button></div>
+      <p>图表子组件可独立渐出和重入；隐藏整个看板时，相同生命周期只淡化一次，已有独立子动画继续组合。</p>
       <p id="status">准备中</p>
     </aside>
     <script type="module" src="./main.mjs"></script>
