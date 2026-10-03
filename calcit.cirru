@@ -4578,7 +4578,7 @@
             DragView :scale-x 1 :scale-y 1 :x 0 :y 0
           :examples $ []
         'DragModel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct DragModel (:x 'Number) (:y 'Number) (:value 'Number) (:kind 'String) (:pointer 'Number) (:anchor-x 'Number) (:anchor-y 'Number) (:start-value 'Number)
+          :code $ quote $ defstruct DragModel (:x 'Number) (:y 'Number) (:value 'Number) (:kind 'String) (:pointer 'Number) (:anchor-x 'Number) (:anchor-y 'Number) (:start-value 'Number) (:enabled? 'Bool)
           :examples $ []
           :schema $ :: 'StructDef
         'DragView $ %{} 'CodeEntry (:doc |)
@@ -4606,6 +4606,21 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.drag-demo/DragModel)
             :args $ [] 'quamolit.examples.drag-demo/DragModel 'Number 'Number 'Number
+        'commit-drag-scene! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn commit-drag-scene! (element)
+            let
+                model @*drag-model
+                committed $ pointer-browser/reconcile-pointer-surface! (pointer-browser/pointer-surface-host element)
+                  hit/compile-hit-plan $ scene-at model
+                  , @*drag-pointer-state
+              reset! *drag-pointer-state $ :state committed
+              when (:capture-released committed)
+                reset! *drag-model $ end-pointer model $ :pointer model
+              , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.browser/DomElementHost
+            :features $ #{} :js-ffi
         'current-model $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn current-model () @*drag-model
           :examples $ []
@@ -4679,13 +4694,9 @@
           :code $ quote $ defn hit-at (model x y)
             assert |invalid-drag-point $ and (motion/finite-number? x) (motion/finite-number? y)
             cond
-                and
-                  <=
-                    abs $ - x $ :x model
-                    , 50
-                  <=
-                    abs $ - y $ :y model
-                    , 30
+                not $ :enabled? model
+                , |none
+              (and (<= (abs (- x (:x model))) 50) (<= (abs (- y (:y model))) 30))
                 , |rect
               (and (<= (abs (- x 100)) 36) (<= (abs (- y 40)) 16))
                 , |slider
@@ -4695,7 +4706,7 @@
             :args $ [] 'quamolit.examples.drag-demo/DragModel 'Number 'Number
         'initial $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initial ()
-            DragModel :x 0 :y 0 :value 10 :kind |none :pointer -1 :anchor-x 0 :anchor-y 0 :start-value 10
+            DragModel :x 0 :y 0 :value 10 :kind |none :pointer -1 :anchor-x 0 :anchor-y 0 :start-value 10 :enabled? true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.drag-demo/DragModel)
             :args $ []
@@ -4859,10 +4870,20 @@
                   text-node |slider-label
                     str "|long long title: " $ :value model
                     , 64 7
-              scene/SceneDocument :nodes nodes
+              scene/SceneDocument :nodes $ if (:enabled? model) nodes $ map nodes
+                fn (node)
+                  struct-with node $ :interaction $ scene/SceneInteraction :disabled
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'quamolit.examples.drag-demo/DragModel
+        'set-drag-interaction! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn set-drag-interaction! (element enabled?)
+            reset! *drag-model $ struct-with @*drag-model $ :enabled? enabled?
+            commit-drag-scene! element
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.browser/DomElementHost 'Bool
+            :features $ #{} :js-ffi
         'set-drag-view! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn set-drag-view! (scale-x scale-y x y)
             assert |invalid-drag-view $ and (motion/finite-number? scale-x) (> scale-x 0) (motion/finite-number? scale-y) (> scale-y 0) (motion/finite-number? x) (motion/finite-number? y)

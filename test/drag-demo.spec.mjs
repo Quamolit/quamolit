@@ -111,3 +111,57 @@ test("实际 demo 卸载会释放捕获并移除指针监听器", async ({ page 
   expect(disposed.after.model).toEqual(disposed.before.model);
   await page.mouse.up();
 });
+
+for (const dpr of [1, 2]) {
+  test(`真实应用提交禁用/resize即时释放，恢复与重置不继承旧捕获 DPR${dpr}`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: dpr });
+    const page = await context.newPage();
+    try {
+      await ready(page);
+      let down = await logicalPoint(page, 0, 0);
+      await page.mouse.move(down.x, down.y);
+      await page.mouse.down();
+      expect((await page.evaluate(() => window.dragDemo.snapshot())).captured).toBe(1);
+      const committed = await page.evaluate(() => {
+        const canvas = document.querySelector("canvas"),
+          release = canvas.releasePointerCapture.bind(canvas);
+        let releases = 0;
+        canvas.releasePointerCapture = (id) => {
+          releases++;
+          release(id);
+        };
+        canvas.style.width = "calc(100vw - 10px)";
+        const first = window.dragDemo.setInteraction(false);
+        window.dragDemo.setInteraction(false);
+        return { first, releases, native: canvas.hasPointerCapture(1) };
+      });
+      expect(committed.first.captured).toBeNull();
+      expect(committed.first.model.pointer).toBe(-1);
+      expect(committed.native).toBe(false);
+      expect(committed.releases).toBe(1);
+      const disabled = committed.first.model;
+      await page.mouse.move(down.x + 60, down.y + 30);
+      await page.mouse.up();
+      expect((await page.evaluate(() => window.dragDemo.snapshot())).model).toEqual(disabled);
+      await page.locator("#interaction").click();
+      expect((await page.evaluate(() => window.dragDemo.snapshot())).captured).toBeNull();
+      down = await logicalPoint(page, 0, 0);
+      await page.mouse.move(down.x, down.y);
+      await page.mouse.down();
+      expect((await page.evaluate(() => window.dragDemo.snapshot())).captured).toBe(1);
+      const reset = await page.evaluate(() => {
+        const state = window.dragDemo.reset();
+        return { state, native: document.querySelector("canvas").hasPointerCapture(1) };
+      });
+      expect(reset.state.captured).toBeNull();
+      expect(reset.state.model.pointer).toBe(-1);
+      expect(reset.native).toBe(false);
+      await page.mouse.up();
+      const paints = (await page.evaluate(() => window.dragDemo.snapshot())).paints;
+      await page.waitForTimeout(2100);
+      expect((await page.evaluate(() => window.dragDemo.snapshot())).paints).toBe(paints);
+    } finally {
+      await context.close();
+    }
+  });
+}
