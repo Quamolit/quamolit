@@ -1,5 +1,5 @@
 import * as dashboard from "../../target/js/layered-dashboard/quamolit.examples.layered-dashboard.mjs";
-import { to_js_data } from "../../target/js/layered-dashboard/calcit.core.mjs";
+import { to_js_data, init_tags } from "../../target/js/layered-dashboard/calcit.core.mjs";
 import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 
 export function mountDemo() {
@@ -18,6 +18,12 @@ export function mountDemo() {
   let model = dashboard.replay_events(events, time);
   let horizon = 1;
   let scene;
+  const tags = init_tags(["task", "revision"]);
+  const defaultFontSource = "local('PingFangSC-Regular'), local('Noto Sans CJK SC'), local('WenQuanYi Zen Hei')";
+  let fontEnabled = false;
+  let fontSource = defaultFontSource;
+  let fonts = dashboard.initial_fonts();
+  let fontPromise = Promise.resolve();
   const scheduler = new DemandFrameScheduler({
     requestFrame: callback => requestAnimationFrame(callback),
     cancelFrame: handle => cancelAnimationFrame(handle),
@@ -38,10 +44,20 @@ export function mountDemo() {
       canvas.width = width;
       canvas.height = height;
     }
+    const displayModel = dashboard.with_font(model, fontEnabled);
+    scene = dashboard.frame_at(displayModel, time, width, height);
+    dashboard.commit_scene_$x_(canvas, scene, bounds.width / width, bounds.height / height);
+    fonts = dashboard.sync_fonts_$x_(fonts, displayModel);
+    const task = fonts.get(tags.task);
+    if (to_js_data(task.get(0)) === "some") {
+      fontPromise = dashboard.run_font_task_$x_(fontSource, task.get(1)).then(result => {
+        const revision = fonts.get(tags.revision);
+        fonts = dashboard.complete_font_$x_(fonts, result);
+        if (!disposed && fonts.get(tags.revision) !== revision) draw();
+      });
+    }
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, width, height);
-    scene = dashboard.frame_at(model, time, width, height);
-    dashboard.commit_scene_$x_(canvas, scene, bounds.width / width, bounds.height / height);
     dashboard.draw_frame_$x_(context, scene, width, height);
     paints++;
     slider.value = String(time);
@@ -53,6 +69,7 @@ export function mountDemo() {
     button.ariaPressed = String(!state.visible);
     status.textContent = `t=${time.toFixed(2)} · ${width}×${height} · ${state.nodeCount} 节点 · 捕获 ${state.captured ?? "无"}`;
     status.dataset.result = "pass";
+    document.querySelector("#font-enable").disabled = fontEnabled;
   }
 
   function stop() {
@@ -96,7 +113,15 @@ export function mountDemo() {
     const capture = pointer.capture;
     return { time, width: canvas.width, height: canvas.height, nodeCount: data.nodes.length, playing, paints, pending: scheduler.pending,
       visible: prior?.visible ?? true, events: log, scene: data, pointer,
+      fontEnabled, fonts: to_js_data(fonts),
       captured: capture[0] === "captured" ? capture[1] : null };
+  }
+
+  async function enableFont(source = defaultFontSource) {
+    if (disposed) return snapshot();
+    if (!fontEnabled) { fontSource = source; fontEnabled = true; draw(); }
+    await fontPromise;
+    return snapshot();
   }
 
   function setVisible(visible) {
@@ -118,6 +143,7 @@ export function mountDemo() {
   document.querySelector("#play").onclick = () => (playing ? stop() : play());
   document.querySelector("#reset").onclick = reset;
   document.querySelector("#presence-toggle").onclick = () => setVisible(!snapshot().visible);
+  document.querySelector("#font-enable").onclick = () => enableFont();
   document.querySelector("#panel-toggle").onclick = (event) => {
     const panel = document.querySelector("#panel");
     panel.hidden = !panel.hidden;
@@ -141,6 +167,7 @@ export function mountDemo() {
     if (disposed) return;
     disposePointer();
     disposed = true;
+    fonts = dashboard.close_fonts_$x_(fonts);
     stop();
     scheduler.dispose();
     listeners.abort();
@@ -148,7 +175,7 @@ export function mountDemo() {
     resolution?.removeEventListener("change", watchDpr);
     if (window.layeredDashboardDemo === api) delete window.layeredDashboardDemo;
   }
-  const api = { seek, play, pause: stop, snapshot, setVisible, reset, dispose };
+  const api = { seek, play, pause: stop, snapshot, setVisible, reset, enableFont, dispose };
   window.layeredDashboardDemo = api;
   draw();
   if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();

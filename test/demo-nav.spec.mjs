@@ -351,6 +351,110 @@ test("统一页面支持前后切换、历史记录和浮层卸载", async ({ pa
   expect(await page.evaluate(() => "curveDemo" in window)).toBe(false);
 });
 
+for (const dpr of [1, 2])
+  test(`统一静态页面 DPR${dpr}：捕获卸载与迟到字体不污染同名新挂载`, async ({ browser }) => {
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 900 },
+      deviceScaleFactor: dpr,
+      reducedMotion: "reduce",
+    });
+    try {
+      const page = await context.newPage();
+      const errors = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.goto(`${artifactURL}demos/index.html?demo=layered-dashboard&t=1`);
+      await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+      await page.evaluate(() => {
+        window.oldDashboardApi = window.layeredDashboardDemo;
+        window.dashboardStage = document.querySelector("#scene");
+        window.dashboardNativeBefore = document.fonts.size;
+        window.dashboardOriginalFont = FontFace;
+        const gate = new Promise((resolve) => {
+          window.releaseOldDashboardFont = resolve;
+        });
+        window.FontFace = class extends window.dashboardOriginalFont {
+          load() {
+            return super.load().then((face) => gate.then(() => face));
+          }
+        };
+        window.oldDashboardFontPending = window.oldDashboardApi.enableFont();
+        window.dashboardCaptureCounts = { set: 0, release: 0 };
+        for (const [method, key] of [
+          ["setPointerCapture", "set"],
+          ["releasePointerCapture", "release"],
+        ]) {
+          const original = window.dashboardStage[method].bind(window.dashboardStage);
+          window.dashboardStage[method] = (id) => {
+            window.dashboardCaptureCounts[key]++;
+            return original(id);
+          };
+        }
+      });
+      const point = await page.locator("#scene").evaluate((canvas) => {
+        const bounds = canvas.getBoundingClientRect();
+        return {
+          x: bounds.left + ((canvas.width / 2 - 208) * bounds.width) / canvas.width,
+          y: bounds.top + ((canvas.height / 2 + 140) * bounds.height) / canvas.height,
+        };
+      });
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.down();
+      expect((await page.evaluate(() => window.oldDashboardApi.snapshot())).captured).not.toBeNull();
+      // 只激活已有导航按钮，不生成pointerup，验证卸载本身释放capture。
+      await page.getByRole("button", { name: /所有演示/ }).evaluate((button) => button.click());
+      await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+      const closed = await page.evaluate(() => {
+        window.FontFace = window.dashboardOriginalFont;
+        return { state: window.oldDashboardApi.snapshot(), counts: window.dashboardCaptureCounts };
+      });
+      expect(closed.state.fonts["closed?"]).toBe(true);
+      expect(closed.state.captured).toBeNull();
+      expect(closed.state.pending).toBe(false);
+      expect(closed.counts).toEqual({ set: 1, release: 1 });
+      await page.mouse.up();
+      await page.locator('a[data-demo="examples/layered-dashboard/index.html"]').click();
+      await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+      await page.evaluate(async () => {
+        window.layeredDashboardDemo.seek(1);
+        await window.layeredDashboardDemo.enableFont();
+        // 新挂载的ResizeObserver/DPR通知先结算；随后才观察旧完成是否意外重绘。
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      });
+      await expect.poll(() => page.evaluate(() => window.layeredDashboardDemo.snapshot().pending)).toBe(false);
+      const ready = await page.evaluate(() => {
+        return { state: window.layeredDashboardDemo.snapshot(), size: document.fonts.size };
+      });
+      expect(ready.state.fonts.host.accepted).toBe(1);
+      expect(ready.state.fonts.host.handles[0]["installed?"]).toBe(true);
+      const late = await page.evaluate(async () => {
+        window.releaseOldDashboardFont();
+        await window.oldDashboardFontPending;
+        return {
+          old: window.oldDashboardApi.snapshot(),
+          next: window.layeredDashboardDemo.snapshot(),
+          size: document.fonts.size,
+          baseline: window.dashboardNativeBefore,
+          sameCanvas: window.dashboardStage === document.querySelector("#scene"),
+        };
+      });
+      expect(late.sameCanvas).toBe(true);
+      expect(late.old.paints).toBe(closed.state.paints);
+      expect(late.old.fonts.queue.running).toEqual([]);
+      expect(late.old.fonts.host.accepted).toBe(0);
+      expect(late.old.fonts.host.handles).toEqual([]);
+      expect(late.next).toEqual(ready.state);
+      expect(late.size).toBe(ready.size);
+      expect(late.size).toBe(late.baseline + 1);
+      await page.getByRole("button", { name: /所有演示/ }).click();
+      await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+      expect(await page.evaluate(() => document.fonts.size)).toBe(late.baseline);
+      expect(await page.evaluate(() => "layeredDashboardDemo" in window)).toBe(false);
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+
 test("Metric Flow 在统一画布内可交互反向切换且离开后卸载时钟", async ({ page }) => {
   await page.goto("demos/index.html?demo=tidal-bloom");
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
