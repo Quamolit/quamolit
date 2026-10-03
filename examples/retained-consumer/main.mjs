@@ -8,6 +8,9 @@ import {
   update_alpha,
   start_mirror,
   update_mirror,
+  start_layered,
+  update_layered,
+  draw_layered_$x_,
   draw_$x_,
   instances_declaration,
   browser_available_$q_,
@@ -88,7 +91,9 @@ let time = 0,
   ready = false,
   viewport = 100;
 const requestedMode = new URLSearchParams(location.search).get("motion");
-let mode = ["mixed", "dual", "alpha", "mirror", "presence", "instances", "instances-gpu", "instances-scalar"].includes(requestedMode)
+let mode = ["mixed", "dual", "alpha", "mirror", "layered", "presence", "instances", "instances-gpu", "instances-scalar"].includes(
+  requestedMode,
+)
   ? requestedMode
   : "mixed";
 if (mode === "instances-gpu" || mode === "instances-scalar") mode = "instances";
@@ -99,7 +104,12 @@ let presenceModel = presence_initial(),
 let plan =
   mode === "presence"
     ? presence_plan(presenceModel, time, presenceVersion)
-    : (mode === "mirror" ? start_mirror : mode === "alpha" ? start_alpha : mode === "dual" ? start_dual : start)(time, model, ready, viewport);
+    : (mode === "mirror" ? start_mirror : mode === "layered" ? start_layered : mode === "alpha" ? start_alpha : mode === "dual" ? start_dual : start)(
+        time,
+        model,
+        ready,
+        viewport,
+      );
 // Float32Array 是宿主提供的数据源；实例声明与实际 Canvas 绘制都走消费者的 Calcit 公共入口。
 const instanceCount = to_js_data(instances_declaration()).source.count;
 const positions = createInstancePositions(instanceCount);
@@ -132,13 +142,14 @@ function updateInstanceTime(nextTime, force = false) {
     }
     register_instances_version_$x_(instanceTable, next, snapshot);
     instanceCopiedBytes = snapshot.byteLength;
-  } else instanceCopiedBytes = patch_instances_$x_(
-    instanceTable,
-    previous,
-    next,
-    frame,
-    new Float32Array([values.x, values.y]),
-  );
+  } else
+    instanceCopiedBytes = patch_instances_$x_(
+      instanceTable,
+      previous,
+      next,
+      frame,
+      new Float32Array([values.x, values.y]),
+    );
   release_instances_$x_(instanceTable, previous);
   instanceVersion = next;
   instanceTime = nextTime;
@@ -220,7 +231,8 @@ function show() {
   }
   if (mode === "instances-scalar" && gpuState) {
     const host = gpuState.batch;
-    const recordsBefore = host.uploadedBytes, parametersBefore = host.parameterBytes;
+    const recordsBefore = host.uploadedBytes,
+      parametersBefore = host.parameterBytes;
     draw_independent_gpu_$x_(host, gpuState.program, time);
     instanceMetrics = {
       instances: instanceCount,
@@ -240,6 +252,9 @@ function show() {
     if (mode === "instances-scalar") updateInstanceTime(time);
     context.clearRect(0, 0, 320, 180);
     instanceMetrics = to_js_data(draw_resolved_instances_$x_(context, instanceTable, instanceVersion));
+  } else if (mode === "layered") {
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    draw_layered_$x_(context, plan, canvas.width, canvas.height);
   } else draw_$x_(context, plan);
   const { scene, transforms, ...counts } = snapshot();
   document.querySelector("#status").textContent = JSON.stringify(counts, null, 2);
@@ -259,13 +274,9 @@ function set(next = {}) {
     return show();
   }
   const request = { time, model, ready, viewport, ...next };
-  const updated = (mode === "mirror" ? update_mirror : mode === "alpha" ? update_alpha : mode === "dual" ? update_dual : update_plan)(
-    plan,
-    request.time,
-    request.model,
-    request.ready,
-    request.viewport,
-  );
+  const updated = (
+    mode === "mirror" ? update_mirror : mode === "layered" ? update_layered : mode === "alpha" ? update_alpha : mode === "dual" ? update_dual : update_plan
+  )(plan, request.time, request.model, request.ready, request.viewport);
   ({ time, model, ready, viewport } = request);
   plan = updated;
   return show();
@@ -346,9 +357,15 @@ async function executeGpuRecoveryActions(actions) {
           const prepared = prepare_independent_gpu(independentMotions, time);
           if (prepared.tag.value !== "ready") throw Error(`GPU 动画整层回退：${prepared.extra[0]}`);
           resource.program = prepared.extra[0];
-          resource.batch = create_gpu_$x_(canvas, resource.device, navigator.gpu.getPreferredCanvasFormat(), instanceCount);
+          resource.batch = create_gpu_$x_(
+            canvas,
+            resource.device,
+            navigator.gpu.getPreferredCanvasFormat(),
+            instanceCount,
+          );
           install_independent_gpu_$x_(resource.batch, resource.program, time);
-        } else resource.batch = await create_instances_gpu_$x_(
+        } else
+          resource.batch = await create_instances_gpu_$x_(
             canvas,
             resource.device,
             navigator.gpu.getPreferredCanvasFormat(),
@@ -394,13 +411,21 @@ function disposeGpu() {
   void commitGpuRecovery(gpu_recovery_close(gpuRecoveryState));
 }
 async function setMode(next) {
-  if (!["mixed", "dual", "alpha", "mirror", "presence", "instances", "instances-gpu", "instances-scalar"].includes(next)) throw Error("unknown-consumer-mode");
+  if (
+    !["mixed", "dual", "alpha", "mirror", "layered", "presence", "instances", "instances-gpu", "instances-scalar"].includes(next)
+  )
+    throw Error("unknown-consumer-mode");
   // 更换声明时建立新计划，不能让相同版本错误复用另一个声明的结构。
   const nextPlan = next.startsWith("instances")
     ? plan
     : next === "presence"
       ? presence_plan(presenceModel, time, presenceVersion)
-      : (next === "mirror" ? start_mirror : next === "alpha" ? start_alpha : next === "dual" ? start_dual : start)(time, model, ready, viewport);
+      : (next === "mirror" ? start_mirror : next === "layered" ? start_layered : next === "alpha" ? start_alpha : next === "dual" ? start_dual : start)(
+          time,
+          model,
+          ready,
+          viewport,
+        );
   if (next !== mode || !next.startsWith("instances")) disposeGpu();
   mode = next;
   plan = nextPlan;

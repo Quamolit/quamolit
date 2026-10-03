@@ -20,6 +20,8 @@ calcit query def app.main/update-plan --raw
 
 “往返轨道”或 `?motion=mirror` 复用同一两矩形声明，只在 Calcit 将 x Motion 改为两点 mirror 轨道。时间 0/1/2 对应起点/终点/回到起点，1.5 为返回中间帧；负时间同样周期映射。Canvas 与 GPU 消费同一来源；GPU 门禁嵌在原双轴专项，包含负时间、跨周期乱序、依赖失效、真实 shader 数值读回及1000热帧。时间域受现有精度检查约束，超出时整层回退，不能把循环理解为无限大的 f32 时间都能精确绘制。
 
+“嵌套图表与隔离透明度”或 `?motion=layered` 在同一页面由 Calcit 声明父组淡入、内层裁剪与两个交叠柱条。时间更新复用静态节点/槽位，Model 同时间变化重新声明；完整 Canvas document 按一次组透明度合成，不把透明度逐个乘到柱条上。该组场景在当前 GPU 矩形路径明确整层回退，不能只画可用子集。能力表和类型化 id/key 诊断见[Canvas 组合同](../../docs/layered-dashboard.md#scene-能力与完整预检)。这不是新的 renderer，也不扩展性能承诺。
+
 ## API 调用顺序
 
 字体切片也由本目录的 Calcit 声明：`font-spec` → `load-font!` → 核对当前版本后 `install-font!`，`start-font` / `update-font` 用同一 ComponentPlan 绘制“图表收入”。`load-font!` 在消费方Calcit中构造现有ResourceState/加载队列请求，调用公共`run-font-load-task!`和`complete-font-load`；不是JS loader。移动采用已有 CPU transform，文字节点不随时间重建；字体来源版本变化时显式提升资源版本，同时间也重声明。仅字体 ready 时更新组件可用性修订，Scene 保持与加载请求相同的 FontSpec.version；版本化宿主别名由框架自动处理，下游不拼 CSS。结束用 `release-font!` 删除确切 FontFace。加载、失败、安装和释放都调用 Quamolit Calcit 模块，两个平台 inline 随模块编译内嵌，无额外 JS loader。它是隔离门禁中的固定尺寸诊断，不新增导航作品或声称原生排版缓存已完成；临时平台接口待 js-ffi #158 替换。

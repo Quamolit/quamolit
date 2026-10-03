@@ -12,6 +12,8 @@ import {
   verifyFontConsumer,
   verifyFontConsumerBrowser,
   verifyCurveConsumer,
+  verifyLayeredConsumer,
+  verifyLayeredCanvasConsumer,
 } from "./consumer-contract.mjs";
 import { verifyInstancesConsumer } from "./consumer-instances-contract.mjs";
 import { verifyPresenceConsumer } from "./consumer-presence-contract.mjs";
@@ -160,6 +162,12 @@ try {
     () => verifyCurveConsumer({ ...app, curve_hit: () => curveMiss }, core),
     /AssertionError/,
     "反例：下游曲线命中失效必须被检出",
+  );
+  counts.layered = verifyLayeredConsumer(app, core);
+  assert.throws(
+    () => verifyLayeredConsumer({ ...app, update_layered: (plan) => plan }, core),
+    /AssertionError/,
+    "停止组/柱条时间采样的反例必须失败",
   );
   const instancesCounts = verifyInstancesConsumer(app, core);
   const presenceCounts = verifyPresenceConsumer(app, core);
@@ -432,6 +440,7 @@ try {
     assert.equal(mirror.scene.nodes[1].content[1].x, x);
   }
   await page.screenshot({ path: join(artifacts, "mirror-return-0.5.png"), fullPage: true });
+  const layeredCanvas = await verifyLayeredCanvasConsumer(page, artifacts);
   await page.click('[data-mode="mixed"]');
   assert.equal(await page.evaluate(() => window.consumer.snapshot().scene.nodes[2].content[0]), "polyline");
   await page.evaluate(async () => {
@@ -605,6 +614,25 @@ try {
       `要求 10k 实例真实 GPU，但专项未运行：${JSON.stringify(gpuInstancesBrowser)}`,
     );
   }
+  layeredCanvas.fullscreen = [];
+  for (const dpr of [1, 2]) {
+    const stage = await browser.newPage({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: dpr });
+    const output = join(artifacts, `layered-fullscreen-dpr${dpr}`);
+    await mkdir(output, { recursive: true });
+    stage.on("pageerror", (error) => errors.push(error.message));
+    stage.on("requestfailed", (request) => errors.push(`${request.url()} ${request.failure()?.errorText}`));
+    stage.on("request", (request) => requests.push(request.url()));
+    try {
+      await stage.goto(`${url}?motion=layered`);
+      await stage.waitForFunction(() => window.consumer);
+      const result = await verifyLayeredCanvasConsumer(stage, output);
+      assert.equal(result.frames[0].width, 1000 * dpr);
+      assert.equal(result.frames[0].height, 900 * dpr);
+      layeredCanvas.fullscreen.push({ dpr, ...result });
+    } finally {
+      await stage.close();
+    }
+  }
   assert.deepEqual(errors, []);
   assert.ok(requests.every((url) => !/test\/host|quamolit\.test|js-ffi-assets|source-retired/.test(url)));
   const benchmark =
@@ -627,6 +655,7 @@ try {
     fontBrowser,
     curveCounts,
     curveBrowser,
+    layeredCanvas,
     instancesCounts,
     independentInstances: {
       frames: independentFrames,

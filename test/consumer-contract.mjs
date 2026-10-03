@@ -193,6 +193,351 @@ export function verifyCurveConsumer(app, core) {
   };
 }
 
+// 嵌套组沿原公共保留计划采样；仅通过下游 app 的 Calcit 导出调用库。
+export function verifyLayeredConsumer(app, core) {
+  const tags = core.init_tags([
+    "scene",
+    "nodes",
+    "content",
+    "slots",
+    "declarations",
+    "plan-builds",
+    "binding-samples",
+    "id",
+    "key",
+    "parent",
+    "instances",
+  ]);
+  const get = (value, key) => value.get(tags[key]);
+  let plan = app.start_layered(0, 40, false, 100);
+  const original = plan;
+  const nodes = (p) => get(get(p, "scene"), "nodes");
+  const slots = get(plan, "slots");
+  for (let frame = 1; frame <= 1000; frame++) {
+    const time = frame / 1000,
+      progress = time * time * (3 - 2 * time);
+    plan = app.update_layered(plan, time, 40, false, 100);
+    const sampled = core.to_js_data(get(plan, "scene")).nodes;
+    assert.ok(Math.abs(sampled[0].content[1].opacity - progress) < 1e-12);
+    assert.ok(Math.abs(sampled[3].content[1].width - 120 * progress) < 1e-10);
+    for (const index of [1, 2, 4]) assert.equal(nodes(plan).get(index), nodes(original).get(index));
+    assert.equal(get(plan, "slots"), slots);
+  }
+  const counts = {
+    frames: 1000,
+    declarations: get(plan, "declarations"),
+    builds: get(plan, "plan-builds"),
+    samples: get(plan, "binding-samples"),
+  };
+  assert.deepEqual(counts, { frames: 1000, declarations: 1, builds: 1, samples: 2002 });
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    plan = app.update_layered(plan, time, 40, false, 100);
+    const progress = time * time * (3 - 2 * time);
+    assert.equal(core.to_js_data(get(plan, "scene")).nodes[3].content[1].width, 120 * progress);
+  }
+  plan = app.update_layered(plan, 0.5, 64, false, 100);
+  assert.equal(core.to_js_data(get(plan, "scene")).nodes[3].content[1].width, 72, "同时间 Model 变化必须更新图表");
+  const document = get(plan, "scene");
+  assert.deepEqual(core.to_js_data(app.canvas_diagnostics(document)), []);
+  assert.deepEqual(
+    core.to_js_data(app.gpu_diagnostics(plan)),
+    core.to_js_data(document).nodes.map((node) => ({
+      id: node.id,
+      key: node.key,
+      kind: node.content[0],
+      reason: node.parent ? "nested-scene-requires-layer-fallback" : "unsupported-node:group",
+    })),
+    "同一 Calcit 组件向 GPU 返回全部节点诊断，不能只报首个节点或静默漏绘",
+  );
+  const prototype = nodes(plan).get(0).get(tags.content).enumPrototype;
+  const kinds = Object.keys(core.to_js_data(prototype.prototype)).sort();
+  assert.deepEqual(
+    kinds,
+    ["circle", "cubic-path", "group", "image", "instances", "polygon", "polyline", "rect", "text"],
+    "新增 Scene 种类必须同步能力表和门禁",
+  );
+  // 这里只测种类分类，不以空 payload 声称图元数据合法或已经绘制。
+  for (const kind of kinds) {
+    const tag = core.init_tags([kind])[kind];
+    assert.equal(app.canvas_content_supported_$q_(core._PCT__$o__$o_(prototype, tag, null)), kind !== "instances");
+  }
+  const instance = nodes(plan)
+    .get(4)
+    .assoc(tags.id, "external-particles")
+    .assoc(tags.key, "particles-key")
+    .assoc(tags.parent, "")
+    .assoc(tags.content, core._PCT__$o__$o_(prototype, tags.instances, app.instances_declaration()));
+  const unsupported = document.assoc(tags.nodes, nodes(plan).assoc(4, instance));
+  assert.deepEqual(core.to_js_data(app.canvas_diagnostics(unsupported)), [
+    { id: "external-particles", key: "particles-key", kind: "instances", reason: "unsupported-canvas-scene-instances" },
+  ]);
+  const gpuDiagnostics = core.to_js_data(app.gpu_diagnostics(plan.assoc(tags.scene, unsupported)));
+  assert.deepEqual(gpuDiagnostics.at(-1), {
+    id: "external-particles",
+    key: "particles-key",
+    kind: "instances",
+    reason: "unsupported-node:instances",
+  });
+  let calls = 0;
+  const context = new Proxy(
+    {},
+    {
+      get() {
+        calls++;
+        throw Error("unexpected-canvas-access");
+      },
+    },
+  );
+  assert.throws(
+    () => app.draw_document_$x_(context, unsupported, 320, 180),
+    /unsupported-canvas-scene-instances.*external-particles.*particles-key/,
+  );
+  assert.equal(calls, 0, "完整预检必须发生在任何 Canvas 操作之前");
+  assert.equal(app.prepare_gpu(plan).tag.value, "fallback", "组语义不能静默变为矩形子集");
+  const primitive = app.primitive_document(0.5);
+  const primitiveBefore = core.to_js_data(primitive);
+  assert.deepEqual(
+    primitiveBefore.nodes.map((node) => node.content[0]).sort(),
+    kinds.filter((kind) => kind !== "instances"),
+    "所有声明支持的 document 图元必须具有合法的真实 payload",
+  );
+  assert.deepEqual(core.to_js_data(app.canvas_diagnostics(primitive)), []);
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    assert.equal(
+      core.to_js_data(app.primitive_document(time)).nodes[0].content[1].opacity,
+      time * time * (3 - 2 * time),
+    );
+  }
+  assert.throws(() => app.primitive_document(NaN), /invalid-motion-time/);
+  assert.throws(() => app.draw_primitives_$x_(context, primitive, null, 320, 180), /missing-image-resource/);
+  assert.throws(
+    () => app.draw_primitives_$x_(context, primitive, { naturalWidth: 7, naturalHeight: 8 }, 320, 180),
+    /image-size-mismatch/,
+  );
+  assert.equal(calls, 0, "晚于其他图元的图片失败仍必须在任何绘制前检出");
+  assert.deepEqual(core.to_js_data(primitive), primitiveBefore, "资源预检和布局不能修改声明");
+  return counts;
+}
+
+// 同一个搬移后的消费者、同一个 Canvas；参考只用独立原生绘制，不解释 Scene 数据。
+async function verifyPrimitiveCanvasConsumer(page, artifacts) {
+  const frames = [];
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    const result = await page.evaluate(async (time) => {
+      const app = await import(new URL("./target/js/app/app.main.mjs", location.href).href);
+      const core = await import(new URL("./target/js/app/calcit.core.mjs", location.href).href);
+      const canvas = document.querySelector("canvas"),
+        actual = canvas.getContext("2d"),
+        width = canvas.width,
+        height = canvas.height,
+        scale = Math.min(width / 320, height / 180),
+        x = width / 2 - 144 * scale,
+        y = height / 2 - 74 * scale;
+      const bitmap = document.createElement("canvas");
+      bitmap.width = bitmap.height = 8;
+      const pixels = bitmap.getContext("2d");
+      pixels.fillStyle = "#ffff00";
+      pixels.fillRect(0, 0, 4, 8);
+      pixels.fillStyle = "#00ffff";
+      pixels.fillRect(4, 0, 4, 8);
+      const image = new Image();
+      image.src = bitmap.toDataURL();
+      await image.decode();
+      actual.setTransform(1, 0, 0, 1, 0, 0);
+      actual.clearRect(0, 0, width, height);
+      const declaration = app.primitive_document(time),
+        before = JSON.stringify(core.to_js_data(declaration));
+      app.draw_primitives_$x_(actual, declaration, image, width, height);
+      const layer =
+        typeof OffscreenCanvas === "function" ? new OffscreenCanvas(width, height) : document.createElement("canvas");
+      layer.width = width;
+      layer.height = height;
+      const c = layer.getContext("2d");
+      c.setTransform(scale, 0, 0, scale, x, y);
+      c.beginPath();
+      c.rect(0, 0, 288, 148);
+      c.clip();
+      c.fillStyle = "#ff0000";
+      c.fillRect(8, 8, 48, 24);
+      c.save();
+      c.strokeStyle = "#0000ff";
+      c.lineWidth = 4;
+      c.lineCap = c.lineJoin = "round";
+      c.beginPath();
+      c.moveTo(72, 12);
+      c.lineTo(96, 40);
+      c.lineTo(120, 12);
+      c.stroke();
+      c.restore();
+      c.font = "12px monospace";
+      c.textAlign = "left";
+      c.textBaseline = "middle";
+      c.direction = "ltr";
+      c.fillStyle = "#000000";
+      c.fillText("Metrics", 8, 60);
+      c.drawImage(image, 0, 0, 8, 8, 144, 8, 32, 32);
+      c.fillStyle = "#00ff00";
+      c.strokeStyle = "#000000";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(192, 12);
+      c.lineTo(224, 12);
+      c.lineTo(216, 40);
+      c.closePath();
+      c.fill();
+      c.stroke();
+      c.strokeStyle = "#ff00ff";
+      c.lineWidth = 4;
+      c.beginPath();
+      c.moveTo(248, 12);
+      c.bezierCurveTo(248, 40, 280, 40, 280, 12);
+      c.stroke();
+      c.fillStyle = "#00ffff";
+      c.strokeStyle = "#000000";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(36, 112, 20, 0, Math.PI * 2, false);
+      c.closePath();
+      c.fill();
+      c.stroke();
+      const expected = document.createElement("canvas");
+      expected.width = width;
+      expected.height = height;
+      const e = expected.getContext("2d");
+      e.globalAlpha = time * time * (3 - 2 * time);
+      e.drawImage(layer, 0, 0);
+      const a = actual.getImageData(0, 0, width, height).data,
+        b = e.getImageData(0, 0, width, height).data;
+      let differences = 0,
+        covered = 0;
+      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) differences++;
+      for (let i = 3; i < a.length; i += 4) if (a[i]) covered++;
+      return {
+        time,
+        width,
+        height,
+        differences,
+        covered,
+        unchanged: before === JSON.stringify(core.to_js_data(declaration)),
+        gpuAvailable: navigator.gpu !== undefined,
+      };
+    }, time);
+    assert.equal(result.gpuAvailable, false);
+    assert.equal(result.unchanged, true, "布局与绘制不修改 Calcit 声明");
+    assert.equal(result.differences, 0, "八种合法 Canvas document 图元须实际绘制，不能缺失或简化");
+    assert.equal(result.covered === 0, time === 0);
+    frames.push(result);
+    if ([0, 0.5, 1].includes(time))
+      await page.screenshot({ path: `${artifacts}/primitives-frame-${time}.png`, fullPage: true });
+  }
+  return { result: "PASS", frames, scope: "八种 document 图元，无 GPU，独立原生 Canvas 全图参考" };
+}
+
+export async function verifyLayeredCanvasConsumer(page, artifacts) {
+  await page.evaluate(() => {
+    window.__consumerGpuDescriptor = Object.getOwnPropertyDescriptor(navigator, "gpu");
+    Object.defineProperty(navigator, "gpu", { value: undefined, configurable: true });
+  });
+  try {
+    await page.click('[data-mode="layered"]');
+    await page.evaluate(() => window.consumer.set({ model: 40, ready: false, viewport: 100 }));
+    const frames = [];
+    for (const time of [1, 0, 0.5, 0.25, 1]) {
+      const result = await page.evaluate((time) => {
+        const state = window.consumer.set({ time });
+        const canvas = document.querySelector("canvas"),
+          actual = canvas.getContext("2d");
+        const width = canvas.width,
+          height = canvas.height,
+          scale = Math.min(width / 320, height / 180);
+        const x = width / 2 - 144 * scale,
+          y = height / 2 - 74 * scale;
+        const progress = Math.max(0, Math.min(1, time));
+        const fade = progress * progress * (3 - 2 * progress);
+        // 对照独立原生绘制，不调用库；隔离 surface 类型必须与声明的后端一致。
+        // Chromium 的 DOM/Offscreen 分数 clip 边缘并非像素等价。
+        const surface = (isolated = true) => {
+          const c =
+            isolated && typeof OffscreenCanvas === "function"
+              ? new OffscreenCanvas(width, height)
+              : document.createElement("canvas");
+          c.width = width;
+          c.height = height;
+          return c;
+        };
+        const expected = surface(false),
+          panel = surface(),
+          plot = surface();
+        const p = panel.getContext("2d"),
+          q = plot.getContext("2d"),
+          e = expected.getContext("2d");
+        p.setTransform(scale, 0, 0, scale, x, y);
+        p.beginPath();
+        p.rect(0, 0, 288, 148);
+        p.clip();
+        p.font = "12px monospace";
+        p.textBaseline = "middle";
+        p.fillStyle = "rgb(33,51,77)";
+        p.fillText("渠道转化", 8, 18);
+        q.setTransform(scale, 0, 0, scale, x + 8 * scale, y + 40 * scale);
+        q.beginPath();
+        q.rect(0, 0, 120, 64);
+        q.clip();
+        q.fillStyle = "red";
+        q.fillRect(0, 0, 120 * fade, 32);
+        q.fillStyle = "blue";
+        q.fillRect(48, 16, 104, 32);
+        p.setTransform(1, 0, 0, 1, 0, 0);
+        p.globalAlpha = 0.5;
+        p.drawImage(plot, 0, 0);
+        e.globalAlpha = fade;
+        e.drawImage(panel, 0, 0);
+        const a = actual.getImageData(0, 0, width, height).data;
+        const b = e.getImageData(0, 0, width, height).data;
+        let differences = 0;
+        for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) differences++;
+        const pixel = (px, py) => Array.from(actual.getImageData(x + px * scale, y + py * scale, 1, 1).data);
+        return {
+          time,
+          width,
+          height,
+          differences,
+          gpuAvailable: navigator.gpu !== undefined,
+          mode: state.mode,
+          overlap: pixel(69, 64),
+          clipped: pixel(134, 64),
+          opacity: state.scene.nodes[0].content[1].opacity,
+        };
+      }, time);
+      assert.equal(result.mode, "layered");
+      assert.equal(result.gpuAvailable, false, "同一组场景在强制无 WebGPU 下仍必须完整绘制");
+      assert.equal(result.differences, 0, "Calcit 组/裁剪/透明度须与独立原生 Canvas 全像素一致");
+      assert.deepEqual(result.clipped, [0, 0, 0, 0]);
+      if (time === 1) {
+        assert.deepEqual(result.overlap, [0, 0, 255, 128]);
+        assert.notDeepEqual(result.overlap, [85, 0, 170, 191], "不能把隔离透明度改成逐子节点透明度");
+      }
+      frames.push(result);
+      if ([0, 0.5, 1].includes(time))
+        await page.screenshot({ path: `${artifacts}/layered-frame-${time}.png`, fullPage: true });
+    }
+    const primitives = await verifyPrimitiveCanvasConsumer(page, artifacts);
+    await page.click('[data-mode="mixed"]');
+    return {
+      result: "PASS",
+      frames,
+      primitives,
+      scope: "强制无 WebGPU 的嵌套组/裁剪/隔离透明度 Calcit 下游 Canvas 路径；非 GPU 性能证据",
+    };
+  } finally {
+    await page.evaluate(() => {
+      if (window.__consumerGpuDescriptor) Object.defineProperty(navigator, "gpu", window.__consumerGpuDescriptor);
+      else delete navigator.gpu;
+      delete window.__consumerGpuDescriptor;
+    });
+  }
+}
+
 // 摘要只读取现有报告；不执行测试，也不将 mock/缺失结果记为 GPU 通过。
 export function formatConsumerSummary(report) {
   assert.ok(["PASS", "FAIL", "RUNNING", "NOT_RUN"].includes(report.result), "未知消费者结果");

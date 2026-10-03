@@ -13,6 +13,8 @@
 
 数值预检保守限制每个角点的仿射项绝对值之和不超过 `1e37`，为 f32 中间乘加及投影预留余量；不能只检查 CPU 最终相消结果是否有限。
 
+`diagnose-plan(plan)` 是纯 Calcit 的显式诊断入口，返回按节点绘制顺序排列的 `List<quamolit.scene-ir/SceneDiagnostic>`，字段为 `id/key/kind/reason`；和 Canvas `unsupported-nodes` 共用类型，不共用能力判定。它先执行与 `prepare-plan` 相同的 Scene/采样矩阵校验，再列出全部不支持节点，包括嵌套节点和超出 f32 域的矩形。合法但不支持的计划返回诊断；非法计划仍报错，不作为合法回退。它不访问宿主句柄、不更新 Model、不执行绘制。调用者按需查询，不把完整诊断分配加入每帧准备路径；既有 `PreparedFrame :fallback String` 和首个原因保持不变。此入口仅描述当前矩形后端，不冒充图片/instances 专用后端或 GPU Motion lowering 的完整诊断。
+
 `update-frame(previous,next)` 由 Calcit 比较物理绘制索引上的记录，给出 `RectWrite {index,record}` 和记录上传预算。重排不按颜色排序；删除末尾只降低绘制数，旧 buffer 尾部不再绘制。一个矩形记录为 64 字节：x/y/w/h、rgba、a/b/c/d、e/f/0/0。RGB 遵循现有 Canvas `color-css` 的 8 位取整，再转换为 f32；alpha 保留连续值，shader 用预乘 alpha 混合。
 
 `create-renderer!(canvas,device,format,capacity)` 创建固定容量的 `RectRendererHost`；device 为 js-ffi 的类型化 `DeviceHost`。CPU 批次和标量/实例 GPU 采样共享这个专属句柄，公共提交/安装/绘制/释放不再接收裸 JsObject，消费者须同步参数/返回 schema；不兼容实例源表或另一种 `RectBatchHost`。句柄由 `defexternal` 声明实际只读 `capacity/disposed` 字段（Snapshot 归一化为 Trait），没有新增 JS 包装对象。内嵌 JS 的原始 ABI 仍为 JsObject，局部转换只在本模块边界；Calcit 0.27 不支持把此 Trait 直接写入内嵌 JS Fn ABI。`raw-dispose!` 保存原释放片段，不增加原生资源。类型证据不验证任意手工伪造 JS 对象，Canvas 参数与 raw 创建边界仍开放；接口仍为实验，不宣称整个 renderer ABI 已封闭。

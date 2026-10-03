@@ -48,6 +48,8 @@ const tags = init_tags([
   "viewport",
   "time",
   "slots",
+  "key",
+  "parent",
 ]);
 const get = (o, k) => o.get(tags[k]);
 const set = (o, k, v) => o.assoc(tags[k], v);
@@ -155,6 +157,25 @@ test("CPU 变换原样保留；非矩形整层回退，不返回部分 GPU 内�
     js(get(transformed, "transforms")),
   );
   assert.throws(() => gpu.prepare_plan(set(transformed, "transforms", list([]))), /invalid-gpu-component-transforms/);
+  assert.throws(() => gpu.diagnose_plan(set(transformed, "transforms", list([]))), /invalid-gpu-component-transforms/);
+});
+
+test("节点诊断按绘制顺序完整返回身份；不替换原整层 fallback 契约", () => {
+  const p = base();
+  assert.deepEqual(js(gpu.diagnose_plan(p)), []);
+  const mixed = fixture.start_mixed(0.25, 40, false, 100),
+    polyline = nodes(mixed).get(65),
+    second = set(set(polyline, "id", "second-polyline"), "key", "second-key");
+  // 无 CPU transform sampler 的计划，保留合法图元但增加第二个不支持节点。
+  const unsupported = withNodes(p, [polyline, second]);
+  const before = js(unsupported);
+  assert.deepEqual(js(gpu.diagnose_plan(unsupported)), [
+    { id: get(polyline, "id"), key: get(polyline, "key"), kind: "polyline", reason: "unsupported-node:polyline" },
+    { id: "second-polyline", key: "second-key", kind: "polyline", reason: "unsupported-node:polyline" },
+  ]);
+  assert.deepEqual(js(gpu.prepare_plan(unsupported)), ["fallback", "unsupported-node:polyline"]);
+  assert.deepEqual(js(unsupported), before);
+  assert.throws(() => gpu.diagnose_plan(withNodes(p, [polyline, polyline])), /duplicate-scene-id-or-sibling-key/);
 });
 
 test("数值域失败回退；非法 Scene 明确拒绝，输入不变", () => {

@@ -25,6 +25,17 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/BatchPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan
+        'canvas-content-supported? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn canvas-content-supported? (content) (canvas-scene/content-supported? content)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/SceneContent
+        'canvas-diagnostics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn canvas-diagnostics (document) (canvas-scene/unsupported-nodes document)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-ir/SceneDocument
+            :return $ :: 'List 'quamolit.scene-ir/SceneDiagnostic
         'create-batch-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-batch-gpu! (canvas device format capacity) (batch/create-renderer! canvas device format capacity)
           :examples $ []
@@ -211,6 +222,47 @@
           :schema $ :: 'Fn $ {}
             :return 'quamolit.retained-component/ExecutionDeclaration
             :args $ [] 'Number 'Number 'Number 'quamolit.scene-ir/FontSpec 'Number
+        'declare-layered $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-layered (props model input ready viewport)
+            component/ComponentDeclaration :scene
+              scene/SceneDocument :nodes $ []
+                scene/SceneNode :id |panel :parent | :key |panel :content
+                  scene/SceneContent :group $ scene/GroupNode :transform
+                    scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 16 :f 16
+                    , :clip
+                      scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 288 :height 148
+                      , :opacity 1
+                  , :bindings
+                    [] $ scene/ScalarBinding :target (scene/ScalarTarget :opacity) :motion-id |fade :version 1
+                    , :interaction $ scene/SceneInteraction :none
+                scene/SceneNode :id |heading :parent |panel :key |heading :content
+                  scene/SceneContent :text $ scene/TextNode :x 8 :y 18 :size 12 :text "|渠道转化" :fill
+                    motion/ColorRgba :r 0.13 :g 0.2 :b 0.3 :a 1
+                    , :font $ scene/default-font
+                  , :bindings ([]) :interaction $ scene/SceneInteraction :none
+                scene/SceneNode :id |plot :parent |panel :key |plot :content
+                  scene/SceneContent :group $ scene/GroupNode :transform
+                    scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 8 :f 40
+                    , :clip
+                      scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 120 :height 64
+                      , :opacity 0.5
+                  , :bindings ([]) :interaction $ scene/SceneInteraction :none
+                scene/SceneNode :id |bar-a :parent |plot :key |bar-a :content
+                  scene/SceneContent :rect $ scene/RectNode :x 0 :y 0 :width 0 :height 32 :fill $ if ready
+                    motion/ColorRgba :r 0 :g 0.7 :b 0.4 :a 1
+                    motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+                  , :bindings
+                    [] $ scene/ScalarBinding :target (scene/ScalarTarget :width) :motion-id |bar :version 1
+                    , :interaction $ scene/SceneInteraction :none
+                scene/SceneNode :id |bar-b :parent |plot :key |bar-b :content
+                  scene/SceneContent :rect $ scene/RectNode :x 48 :y 16 :width 104 :height 32 :fill $ motion/ColorRgba :r 0 :g 0 :b 1 :a 1
+                  , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              , :motions $ []
+                motion/ScalarDescriptor :id |fade :version 1 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from 0 :to 1 :easing (motion/Easing :smoothstep)
+                motion/ScalarDescriptor :id |bar :version 1 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from 0 :to (+ 80 model) :easing (motion/Easing :smoothstep)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
         'declare-mirror $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-mirror (props model input ready viewport)
             assoc (declare props model input ready viewport) :motions $ [] $ motion/ScalarDescriptor :id |x :version 1 :motion
@@ -246,6 +298,13 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument
             :features $ #{} :js-ffi
+        'draw-document! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-document! (context document width height)
+            canvas-scene/draw-document! context document width height $ fn (id version) (raise |layered-consumer-has-no-images)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument 'Number 'Number
+            :features $ #{} :js-ffi
         'draw-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-gpu! (host program time) (gpu/draw-at! host program time)
           :examples $ []
@@ -270,6 +329,25 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.instance-gpu/SourceDraw)
             :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'quamolit.instance-resource/InstanceTableHost 'Number
+        'draw-layered! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-layered! (context plan width height) (platform/clear-canvas! context width height)
+            canvas-scene/draw-document! context
+              fit-layered-document (:scene plan) width height
+              , width height $ fn (id version) (raise |layered-consumer-has-no-images)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.retained-component/ComponentPlan 'Number 'Number
+            :features $ #{} :js-ffi
+        'draw-primitives! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-primitives! (context document image width height)
+            canvas-scene/draw-document! context (fit-layered-document document width height) width height $ fn (id version)
+              assert |unexpected-primitive-image-id $ = id |primitive-bitmap
+              assert |unexpected-primitive-image-version $ = version 1
+              , image
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument 'js-ffi.browser/ImageHost 'Number 'Number
+            :features $ #{} :js-ffi
         'draw-resolved-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-resolved-instances! (context table version)
             let
@@ -303,6 +381,27 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
             :args $ [] 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer-browser/PointerEventHost
             :features $ #{} :js-ffi
+        'fit-layered-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn fit-layered-document (document width height)
+            let
+                scale $ if
+                  < (/ width 320) (/ height 180)
+                  / width 320
+                  / height 180
+                nodes $ :nodes document
+                root $ &list:nth nodes 0
+                root-content $ match (:content root)
+                  (:group g)
+                    scene/SceneContent :group $ struct-with g $ :transform
+                      scene/Matrix2D :a scale :b 0 :c 0 :d scale :e
+                        + (/ width 2) (* -144 scale)
+                        , :f $ + (/ height 2) (* -74 scale)
+                  _ $ raise |invalid-layered-root
+              struct-with document $ :nodes $ assoc nodes 0
+                struct-with root $ :content root-content
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'Number 'Number
         'font-request $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn font-request (time spec)
             component/ComponentRequest :id |consumer-font :time time :versions
@@ -318,6 +417,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/FontSpec)
             :args $ [] 'String 'Number
+        'gpu-diagnostics $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn gpu-diagnostics (plan) (batch/diagnose-plan plan)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.retained-component/ComponentPlan
+            :return $ :: 'List 'quamolit.scene-ir/SceneDiagnostic
         'gpu-recovery-close $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-close (state) (recovery/close-recovery state)
           :examples $ []
@@ -593,6 +698,58 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'quamolit.presence/PresenceModel 'Number 'Number
+        'primitive-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn primitive-document (time)
+            scene/SceneDocument :nodes $ []
+              scene/SceneNode :id |primitives :key |primitives :parent | :content
+                scene/SceneContent :group $ scene/GroupNode :transform
+                  scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                  , :clip
+                    scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 288 :height 148
+                    , :opacity $ motion/sample-scalar
+                      motion/ScalarDescriptor :id |primitive-opacity :version 1 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from 0 :to 1 :easing (motion/Easing :smoothstep)
+                      , time
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-rect :key |primitive-rect :parent |primitives :content
+                scene/SceneContent :rect $ scene/RectNode :x 8 :y 8 :width 48 :height 24 :fill $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-polyline :key |primitive-polyline :parent |primitives :content
+                scene/SceneContent :polyline $ scene/PolylineNode :points
+                  [] (motion/Vec2 :x 72 :y 12) (motion/Vec2 :x 96 :y 40) (motion/Vec2 :x 120 :y 12)
+                  , :width 4 :stroke $ motion/ColorRgba :r 0 :g 0 :b 1 :a 1
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-text :key |primitive-text :parent |primitives :content
+                scene/SceneContent :text $ scene/TextNode :x 8 :y 60 :size 12 :text |Metrics :fill
+                  motion/ColorRgba :r 0 :g 0 :b 0 :a 1
+                  , :font $ scene/default-font
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-image :key |primitive-image :parent |primitives :content
+                scene/SceneContent :image $ scene/ImageNode :source
+                  scene/ImageSource :id |primitive-bitmap :version 1 :width 8 :height 8
+                  , :matrix
+                    scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+                    , :sx 0 :sy 0 :sw 8 :sh 8 :dx 144 :dy 8 :dw 32 :dh 32
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-polygon :key |primitive-polygon :parent |primitives :content
+                scene/SceneContent :polygon $ scene/PolygonNode :points
+                  [] (motion/Vec2 :x 192 :y 12) (motion/Vec2 :x 224 :y 12) (motion/Vec2 :x 216 :y 40)
+                  , :width 2 :fill
+                    motion/ColorRgba :r 0 :g 1 :b 0 :a 1
+                    , :stroke $ motion/ColorRgba :r 0 :g 0 :b 0 :a 1
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-cubic :key |primitive-cubic :parent |primitives :content
+                scene/SceneContent :cubic-path $ scene/CubicPathNode :start (motion/Vec2 :x 248 :y 12) :segments
+                  [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 248 :y 40) :control-2 (motion/Vec2 :x 280 :y 40) :end $ motion/Vec2 :x 280 :y 12
+                  , :width 4 :stroke $ motion/ColorRgba :r 1 :g 0 :b 1 :a 1
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-circle :key |primitive-circle :parent |primitives :content
+                scene/SceneContent :circle $ scene/CircleNode :cx 36 :cy 112 :radius 20 :width 2 :fill
+                  motion/ColorRgba :r 0 :g 1 :b 1 :a 1
+                  , :stroke $ motion/ColorRgba :r 0 :g 0 :b 0 :a 1
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
         'register-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn register-instances! (table positions)
             resource/register! table
@@ -693,6 +850,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'quamolit.scene-ir/FontSpec
+        'start-layered $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-layered (time model ready viewport)
+            retained/build-component-plan (request time model ready viewport) declare-layered
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number 'Number 'Bool 'Number
         'start-mirror $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-mirror (time model ready viewport)
             retained/build-component-plan (request time model ready viewport) declare-mirror
@@ -735,6 +898,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'quamolit.scene-ir/FontSpec
+        'update-layered $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-layered (plan time model ready viewport)
+            retained/update-component-plan plan (request time model ready viewport) declare-layered
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
         'update-mirror $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-mirror (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare-mirror
