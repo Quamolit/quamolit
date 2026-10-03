@@ -1,4 +1,151 @@
 import assert from "node:assert/strict";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
+export function verifyFontConsumer(app, core) {
+  const tags = core.init_tags(["scene", "nodes", "content", "font", "slots", "transforms", "plan-builds"]);
+  const spec = app.font_spec("QuamolitChineseFixture", 0);
+  let plan = app.start_font(0, spec);
+  const slots = plan.get(tags.slots);
+  const textNode = plan.get(tags.scene).get(tags.nodes).get(0);
+  for (const [time, x] of [
+    [1, 60],
+    [0, 20],
+    [0.5, 40],
+    [0.25, 30],
+    [1, 60],
+  ]) {
+    plan = app.update_font(plan, time, spec);
+    const text = core.to_js_data(plan.get(tags.scene)).nodes[0].content[1];
+    assert.equal(text.x + core.to_js_data(plan.get(tags.transforms))[0].e, x);
+    assert.equal(text.text, "图表收入");
+    assert.equal(text.font.version, 0);
+    assert.equal(plan.get(tags.slots), slots);
+    assert.equal(plan.get(tags.scene).get(tags.nodes).get(0), textNode, "移动复用文字声明，不重建几何");
+    assert.equal(plan.get(tags["plan-builds"]), 1);
+  }
+  const before = plan;
+  for (let frame = 0; frame < 1000; frame++) {
+    plan = app.update_font(plan, frame / 1000, spec);
+    assert.equal(plan.get(tags.scene).get(tags.nodes).get(0), textNode);
+    assert.equal(plan.get(tags["plan-builds"]), 1);
+  }
+  plan = app.update_font(plan, 1, app.font_spec("QuamolitChineseFixture", 1));
+  assert.equal(plan.get(tags["plan-builds"]), 2, "同时间 ready 修订不可复用旧计划");
+  assert.equal(core.to_js_data(plan.get(tags.scene)).nodes[0].content[1].font.version, 1);
+  assert.equal(core.to_js_data(before.get(tags.scene)).nodes[0].content[1].font.version, 0);
+  return { times: [1, 0, 0.5, 0.25, 1], transformFrames: 1000, buildsBeforeReady: 1, buildsAfterReady: 2 };
+}
+
+// 只驱动消费方 Calcit；不在测试 JS 中实现 FontSpec、文字声明或动画采样。
+export async function verifyFontConsumerBrowser(page, artifacts) {
+  const evidence = await page.evaluate(async () => {
+    const app = await import("/target/js/app/app.main.mjs");
+    const core = await import("/target/js/app/calcit.core.mjs");
+    const tags = core.init_tags(["face"]);
+    const spec = app.font_spec("QuamolitChineseFixture", 1);
+    const result = await app.load_font_$x_(
+      spec,
+      "local('PingFangSC-Regular'), local('Noto Sans CJK SC'), local('WenQuanYi Zen Hei')",
+    );
+    if (core.to_js_data(result.get(0)) !== "ready") return { result: core.to_js_data(result) };
+    const loaded = result.get(1),
+      face = loaded.getRequired(tags.face);
+    const autoInstalled = document.fonts.has(face);
+    const stale = app.install_font_$x_(loaded, app.font_spec("QuamolitChineseFixture", 2));
+    const afterStale = document.fonts.has(face);
+    const installed = app.install_font_$x_(loaded, spec);
+    const actual = document.createElement("canvas"),
+      reference = document.createElement("canvas");
+    actual.width = reference.width = 320;
+    actual.height = reference.height = 180;
+    document.body.append(actual);
+    actual.id = "consumer-font-evidence";
+    const a = actual.getContext("2d"),
+      b = reference.getContext("2d");
+    let released, failure;
+    const frames = [];
+    let plan = app.start_font(0, spec);
+    try {
+      failure = core.to_js_data(await app.load_font_$x_(spec, "not-a-font-source"));
+      for (const time of [1, 0, 0.5, 0.25, 1]) {
+        plan = app.update_font(plan, time, spec);
+        app.draw_$x_(a, plan);
+        b.clearRect(0, 0, 320, 180);
+        b.font = '24px "QuamolitChineseFixture", monospace';
+        b.textBaseline = "middle";
+        b.fillStyle = "rgb(255,0,0)";
+        b.fillText("图表收入", 20 + 40 * time, 50);
+        const av = a.getImageData(0, 0, 320, 180).data,
+          bv = b.getImageData(0, 0, 320, 180).data;
+        let differences = 0,
+          nonblank = 0;
+        for (let i = 0; i < av.length; i++) {
+          if (av[i] !== bv[i]) differences++;
+          if (bv[i]) nonblank++;
+        }
+        frames.push({ time, differences, nonblank, png: actual.toDataURL("image/png") });
+      }
+      // 单独缺字负例：四个汉字都必须非空，且与同字体的缺字字形不同。
+      const glyphs = ["图", "表", "收", "入", "\uFFFF"].map((text) => {
+        b.clearRect(0, 0, 320, 180);
+        b.fillText(text, 20, 50);
+        return Array.from(b.getImageData(0, 0, 80, 100).data);
+      });
+      const glyphChecks = glyphs.slice(0, 4).map((pixels) => ({
+        nonblank: pixels.some((value) => value !== 0),
+        differsFromMissing: pixels.some((value, index) => value !== glyphs[4][index]),
+      }));
+      const missing = app.font_spec("QuamolitMissingFontNeverInstalled", 2);
+      app.draw_$x_(a, app.update_font(plan, 1, missing));
+      b.clearRect(0, 0, 320, 180);
+      b.font = "24px monospace";
+      b.fillText("图表收入", 60, 50);
+      const av = a.getImageData(0, 0, 320, 180).data,
+        bv = b.getImageData(0, 0, 320, 180).data;
+      let fallbackDifferences = 0;
+      for (let i = 0; i < av.length; i++) if (av[i] !== bv[i]) fallbackDifferences++;
+      return {
+        result: "PASS",
+        autoInstalled,
+        stale,
+        afterStale,
+        installed,
+        failure,
+        frames,
+        glyphChecks,
+        fallbackDifferences,
+        status: face.status,
+      };
+    } finally {
+      released = app.release_font_$x_(loaded);
+      if (!released || document.fonts.has(face) || app.release_font_$x_(loaded))
+        throw new Error("font-release-contract-failed");
+    }
+  });
+  assert.equal(evidence.result, "PASS", JSON.stringify(evidence));
+  assert.deepEqual(
+    [evidence.autoInstalled, evidence.stale, evidence.afterStale, evidence.installed],
+    [false, false, false, true],
+  );
+  assert.equal(evidence.status, "loaded");
+  assert.equal(evidence.failure[0], "failed");
+  assert.ok(evidence.failure[1].length > 0);
+  assert.ok(evidence.frames.every((frame) => frame.differences === 0 && frame.nonblank > 0));
+  assert.ok(
+    evidence.glyphChecks.every((glyph) => glyph.nonblank && glyph.differsFromMissing),
+    "中文不能以空白/缺字画面互比冒充通过",
+  );
+  assert.equal(evidence.fallbackDifferences, 0);
+  for (const [index, frame] of evidence.frames.entries()) {
+    if (artifacts) {
+      frame.screenshot = `font-chinese-${index}-${frame.time}.png`;
+      await writeFile(join(artifacts, frame.screenshot), Buffer.from(frame.png.split(",")[1], "base64"));
+    }
+    delete frame.png;
+  }
+  return evidence;
+}
 
 // 摘要只读取现有报告；不执行测试，也不将 mock/缺失结果记为 GPU 通过。
 export function formatConsumerSummary(report) {

@@ -24,7 +24,7 @@ Scene 标量绑定已有 [CPU 参考解析器](scene-binding.md)。实例 typed-
 
 `quamolit.font-resource` 提供显式 `load-font!(spec, source)`，返回 `FontLoadOutcome :ready LoadedFont / :failed String`。它只加载，不自动安装、绘制或修改Model；构造异常及Promise拒绝统一在Calcit处理。`install-font!(loaded, expected-spec)` 只安装与当前请求描述完全一致的结果，过期版本返回false且不访问document.fonts；`release-font!` 删除确切FontFace，重复删除返回false，不按family误删新版本。调用方先核对当前请求再安装，随后更新供Scene采样的可用性修订并触发重绘；资源队列/generation、Model和释放仍由调用方显式管理，不声称已接通一般字体资源缓存。
 
-新增namespace用于隔离异步字体宿主与纯Scene/绘制模块，不能放入image runner或绘制循环。两个原生:inline仅创建/加载FontFace和读取document.fonts；临时类型化Trait关联[js-ffi #158](https://github.com/calcit-lang/js-ffi/issues/158)，上游交付后替换并删除局部平台声明。下游只引用Calcit模块，不手工导入JS。既有TodoList门禁增加纯FontSpec校验、Node失败/过期/释放合同，以及真实Chromium本地Arial/Liberation Sans加载、损坏字体失败、缺失首选字体回退和全RGBA原生参考。Node替身不算浏览器字体证据；当前中文缺字、独立安装搬移、精确文字命中与仅移动时不重排的完整验收尚未完成，旧monospace近似命中不能外推命名字体。
+新增namespace用于隔离异步字体宿主与纯Scene/绘制模块，不能放入image runner或绘制循环。两个原生:inline仅创建/加载FontFace和读取document.fonts；临时类型化Trait关联[js-ffi #158](https://github.com/calcit-lang/js-ffi/issues/158)，上游交付后替换并删除局部平台声明。下游只引用Calcit模块，不手工导入JS。既有TodoList门禁增加纯FontSpec校验、Node失败/过期/释放合同，以及真实Chromium本地Arial/Liberation Sans加载、损坏字体失败、缺失首选字体回退和全RGBA原生参考。独立消费者另声明“图表收入”，沿现有组件/transform链路验证乱序时间、1000次移动共享文字节点、同时间字体修订重声明，以及本地CJK加载、构造失败、过期安装拒绝、原生回退、非空与缺字字形差异；固定帧进入原消费者artifact。macOS用实际PostScript名PingFangSC-Regular，Linux依赖既有Playwright安装的WenQuanYi Zen Hei，缺失时失败不跳过。字形诊断验证浏览器最终绘制不是缺字，不等于解析字体文件证明全部字符覆盖。Node替身不算浏览器字体证据；精确文字命中、资源队列接入与仅移动时不重排的原生布局/字形缓存计数仍未完成，旧monospace近似命中不能外推命名字体。
 
 ## #53 路径前置：正式开放折线
 

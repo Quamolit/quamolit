@@ -22,6 +22,8 @@ calcit query def app.main/update-plan --raw
 
 ## API 调用顺序
 
+字体切片也由本目录的 Calcit 声明：`font-spec` → `load-font!` → 核对当前版本后 `install-font!`，`start-font` / `update-font` 用同一 ComponentPlan 绘制“图表收入”。移动采用已有 CPU transform，文字节点不随时间重建；字体 ready 时显式提升资源版本，同时间也重声明。结束用 `release-font!` 删除确切 FontFace。加载、失败、安装和释放都调用 Quamolit Calcit 模块，两个平台 inline 随模块编译内嵌，无额外 JS loader。它是隔离门禁中的固定尺寸诊断，不新增导航作品或声称原生排版缓存已完成；临时平台接口待 js-ffi #158 替换。
+
 `declare` 返回纯 Scene/Motion 声明，`declare-execution` 添加蓝色折线及 CPU 变换提供者，返回 `ExecutionDeclaration`。`request` 构造带完整版本的 `ComponentRequest`，`start` 调用 `build-execution-plan`，`update-plan` 调用 `update-execution-plan`。`draw!` 用 js-ffi 清屏，再调用统一 `draw-plan!`，调用者不选择内部标量/路径计划。
 
 蓝色折线的局部端点是 `(0,140) → (40,140)`，横向变换为 `20 + 10*time + model - 40`。连续时间同时改变粉色矩形的标量绑定和折线变换；同时间 Model 改变会重新声明二者。静态节点、折线局部几何和标量槽位在 1000 个时间更新中保持对象身份，绑定采样与变换采样计数分别显示。
