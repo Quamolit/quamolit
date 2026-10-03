@@ -31,7 +31,7 @@ Layered Signals 的 `presence-scene-at` 使用组合入口，选 `dashboard/char
 
 这不证明资源租约、GPU组语义、所有换类型/病态路径组合或完整#34已验收。实现是CPU正确性路径，节点归序/ID核对可有二次复杂度，不声称指针全路由扫描或时间帧分配已优化；旧叶节点的1000帧保留计数也不能外推到这个应用。
 
-既有独立消费者的 `nested-presence-at` 由Calcit代码直接调用公共 `declare-tree`，使用自己的5节点图表、显式panel淡化目标和公共绑定解析；`test:consumer` 在候选干净安装/编译/产物搬移后检查乱序alpha、子组0.5透明度、退出禁用和ID唯一性。不需要下游导入框架内部JS或本仓库demo。
+既有独立消费者的 `nested-presence-at` 由Calcit代码直接调用公共 `declare-tree-coalesced`，使用自己的5节点图表，同时选择panel/plot淡化目标和公共绑定解析。共同退出时panel承接生命周期，plot原始0.5透明度不再乘一次生命周期；`test:consumer` 在候选干净安装/编译/产物搬移后检查乱序alpha、子组0.5透明度、退出禁用和ID唯一性，并保留原生Canvas参考的完整RGBA比较。不需要下游导入框架内部JS或本仓库demo。
 
 ## 既有叶节点验证
 
