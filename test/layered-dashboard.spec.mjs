@@ -163,11 +163,14 @@ test("嵌套淡化显式合并同一意图，独立子动画与原declare-tree�
       );
       const data = core.to_js_data(binding.resolve_scene(declared.get(tags.scene), declared.get(tags.motions), time));
       return {
-        opacities: ["dashboard", "chart", "overlap"].map(id => data.nodes.find(node => node.id.endsWith(`/${id.length}:${id}`))?.content[1].opacity),
+        opacities: ["dashboard", "chart", "overlap"].map(
+          (id) => data.nodes.find((node) => node.id.endsWith(`/${id.length}:${id}`))?.content[1].opacity,
+        ),
         motions: core.to_js_data(declared.get(tags.motions)).length,
       };
     };
     const parent = app.set_layout(app.initial(), false, true, 1);
+    const parentBefore = JSON.stringify(core.to_js_data(parent));
     const child = app.set_layout(app.initial(), true, false, 1);
     const independent = app.set_layout(child, false, false, 1.3);
     let events = app.record_chart_visibility(app.empty_events(), 1, false);
@@ -200,6 +203,12 @@ test("嵌套淡化显式合并同一意图，独立子动画与原declare-tree�
       deliberate: sample(parent, 1.3, false),
       child: sample(child, 1.3, true),
       independent: sample(independent, 1.6, true),
+      siblingMotions: core.to_js_data(
+        component
+          .declare_tree_coalesced(parent, binding.empty_descriptors(), core.arrayToList(["metric-a", "metric-b"]))
+          .get(tags.motions),
+      ).length,
+      immutable: JSON.stringify(core.to_js_data(parent)) === parentBefore,
       equivalent,
       branch: core.to_js_data(branch),
       counts,
@@ -207,11 +216,13 @@ test("嵌套淡化显式合并同一意图，独立子动画与原declare-tree�
   });
   expect(result.parent.motions).toBe(1);
   expect(result.deliberate.motions).toBe(2);
+  expect(result.siblingMotions).toBe(2);
+  expect(result.immutable).toBe(true);
   for (const [actual, expected] of [
     [result.parent.opacities, [0.5, 1, 0.55]],
     [result.deliberate.opacities, [0.5, 0.5, 0.55]],
     [result.child.opacities, [1, 0.5, 0.55]],
-    [result.independent.opacities, [0.5, 0.25, 0.55]],
+    [result.independent.opacities, [0.5, 0, 0.55]],
   ])
     actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index], 12));
   expect(result.equivalent).toEqual(Array(8).fill(true));
@@ -273,16 +284,27 @@ for (const dpr of [1, 2]) {
         width: 1200 * dpr,
         counts: { set: 1, release: 1 },
       });
-      const groups = (state) => ["dashboard", "chart", "overlap"].map(id => state.scene.nodes.find(node => node.id.endsWith(`/${id.length}:${id}`))?.content[1].opacity);
+      const groups = (state) =>
+        ["dashboard", "chart", "overlap"].map(
+          (id) => state.scene.nodes.find((node) => node.id.endsWith(`/${id.length}:${id}`))?.content[1].opacity,
+        );
       const middle = await page.evaluate(() => window.layeredDashboardDemo.seek(1.3));
       groups(middle).forEach((value, index) => expect(value).toBeCloseTo([1, 0.5, 0.55][index], 12));
       await page.screenshot({ path: testInfo.outputPath(`nested-chart-mid-dpr${dpr}.png`) });
       const revived = await page.evaluate(() => {
-        const before = window.layeredDashboardDemo.snapshot().scene.nodes.map((node) => node.content);
+        const before = Object.fromEntries(
+          window.layeredDashboardDemo.snapshot().scene.nodes.map((node) => [node.id, node.content]),
+        );
+        const pixels = document.querySelector("canvas").toDataURL();
         window.layeredDashboardDemo.setChartVisible(true);
-        return { before, ...window.layeredDashboardDemo.snapshot() };
+        return {
+          before,
+          samePixels: pixels === document.querySelector("canvas").toDataURL(),
+          ...window.layeredDashboardDemo.snapshot(),
+        };
       });
-      expect(revived.scene.nodes.map((node) => node.content)).toEqual(revived.before);
+      expect(Object.fromEntries(revived.scene.nodes.map((node) => [node.id, node.content]))).toEqual(revived.before);
+      expect(revived.samePixels).toBe(true);
       expect(revived.captured).toBeNull();
       await page.mouse.up();
       await page.evaluate(() => window.layeredDashboardDemo.seek(1.9));
@@ -293,8 +315,9 @@ for (const dpr of [1, 2]) {
       await page.getByRole("button", { name: "恢复图表", exact: true }).click();
       await page.evaluate(() => window.layeredDashboardDemo.seek(3.3));
       expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).nodeCount).toBe(28);
+      const parentStart = (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).time;
       await page.getByRole("button", { name: "隐藏看板", exact: true }).click();
-      const parent = await page.evaluate(() => window.layeredDashboardDemo.seek(3.6));
+      const parent = await page.evaluate((time) => window.layeredDashboardDemo.seek(time + 0.3), parentStart);
       groups(parent).forEach((value, index) => expect(value).toBeCloseTo([0.5, 1, 0.55][index], 12));
       await page.evaluate(() => window.layeredDashboardDemo.seek(4));
       expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).nodeCount).toBe(1);

@@ -351,6 +351,29 @@ test("统一页面支持前后切换、历史记录和浮层卸载", async ({ pa
   expect(await page.evaluate(() => "curveDemo" in window)).toBe(false);
 });
 
+test("静态发布看板可独立切换图表子组件并从同页导航卸载", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("demos/index.html?demo=layered-dashboard&t=1");
+  await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+  await page.locator("canvas").evaluate((canvas) => (window.nestedChartCanvas = canvas));
+  await page.getByRole("button", { name: "隐藏图表", exact: true }).click();
+  const middle = await page.evaluate(() => window.layeredDashboardDemo.seek(1.3));
+  expect(middle).toMatchObject({ visible: true, chartVisible: false, nodeCount: 28 });
+  const chart = middle.scene.nodes.find((node) => node.id.endsWith("/5:chart"));
+  expect(chart.content[1].opacity).toBeCloseTo(0.5, 12);
+  const removed = await page.evaluate(() => window.layeredDashboardDemo.seek(1.6));
+  expect(removed.nodeCount).toBe(19);
+  await page.getByRole("button", { name: "恢复图表", exact: true }).click();
+  expect((await page.evaluate(() => window.layeredDashboardDemo.seek(2.2))).nodeCount).toBe(28);
+  await page
+    .getByRole("navigation", { name: "演示导航" })
+    .getByRole("button", { name: /所有演示/ })
+    .click();
+  await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+  expect(await page.evaluate(() => "layeredDashboardDemo" in window)).toBe(false);
+  expect(await page.locator("canvas").evaluate((canvas) => canvas === window.nestedChartCanvas)).toBe(true);
+});
+
 test("Metric Flow 在统一画布内可交互反向切换且离开后卸载时钟", async ({ page }) => {
   await page.goto("demos/index.html?demo=tidal-bloom");
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
