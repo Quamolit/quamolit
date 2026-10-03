@@ -26,7 +26,7 @@
 
 编译后的 [场景夹具](../test/scene-core.html) 在 `t=[1,0,0.5,0.25,1]` 逐次构造并校验相同结构的 Scene IR。`quamolit.canvas-reference/draw-reference-rects!` 在 Calcit 中按原顺序读取 `SceneDocument` 的矩形节点，使用 `js-ffi.canvas-batches/fill-solid-rect!` 绘制；测试 JS 只准备白色画布、核对 JSON/像素和状态，不再解释矩形绘制。该窄参考路径暂不执行 group 变换、裁剪、隔离透明度或实例图层，不能算完整 Canvas2D 后端。独立的 [实例数据夹具](../test/instance-sources.html) 用 [版本化宿主边界](instance-sources.md) 登记并绘制 10k 个位置，检查同一时间的版本切换。`yarn test:scene-core` 验证严格公共类型、Calcit 原生反例以及编译后 JS 的 JSON 往返；`yarn test:motion-browser` 验证 Chromium 中间帧、像素、背景、样式恢复和刷新重放。架构 scaffold 见 [scene-ir-core.cirru](architectures/scene-ir-core.cirru)，Snapshot `calcit.cirru` 由 Calcit CLI 维护。
 
-Scene 标量绑定已有 [CPU 参考解析器](scene-binding.md)。实例 typed-array 的版本化引用和宿主快照边界已有实现；资源表、批量绑定执行与上传优化仍待后续里程碑。执行计划与增量调度属于 #50；`canvas-scene` 目前是正确性路径，每组分配全尺寸 surface，不代表最终性能方案。固定时间截图及像素验证见 [Layered Signals](layered-dashboard.md)。
+Scene 标量绑定已有 [CPU 参考解析器](scene-binding.md)。实例 typed-array 的版本化引用和宿主快照边界已有实现；资源表、批量绑定执行与上传优化仍待后续里程碑。执行计划与增量调度属于 #50；`canvas-scene` 对 opacity=1 且 clip=none 的组直接累计矩阵并绘制，不创建隔离 surface。透明组或有裁剪的组仍分配全尺寸 surface，保持子节点重叠和裁剪边缘的原有合成语义；没有把组 alpha 下推到子节点，也没有重排。现有 `test:layered-dashboard` 验证零/单次隔离分配及既定完整像素合同。这仍不是有界图层缓存或最终性能方案。固定时间截图及像素验证见 [Layered Signals](layered-dashboard.md)。
 
 ## 后续支持扩展
 

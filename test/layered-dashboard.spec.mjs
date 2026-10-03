@@ -1,5 +1,70 @@
 import { expect, test } from "@playwright/test";
 
+test("不透明无裁剪组零离屏分配，透明或裁剪组仍隔离", async ({ page }) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const counts = await page.evaluate(async () => {
+    const base = "/target/js/layered-dashboard/";
+    const app = await import(`${base}quamolit.examples.layered-dashboard.mjs`);
+    const renderer = await import(`${base}quamolit.canvas-scene.mjs`);
+    const scene = await import(`${base}quamolit.scene-ir.mjs`);
+    const core = await import(`${base}calcit.core.mjs`);
+    const tags = core.init_tags(["nodes", "content", "group", "clip", "none", "opacity"]);
+    const source = app.scene_at(1, 1000, 700);
+    const originalNodes = source.get(tags.nodes).toArray();
+    const groupValue = (node) => core._$n_enum_$o_nth(node.get(tags.content), 1);
+    const isGroup = (node) => core.to_js_data(node.get(tags.content))[0] === "group";
+    const groupNodes = originalNodes.filter(isGroup);
+    const clipped = groupNodes.find((node) => core.to_js_data(groupValue(node)).clip[0] === "rect");
+    if (!clipped) throw new Error("missing clipped reference");
+    const withGroup = (node, group) =>
+      node.assoc(tags.content, core._PCT__$o__$o_(scene.SceneContent, tags.group, group));
+    const opaqueNodes = originalNodes.map((node) =>
+      isGroup(node)
+        ? withGroup(
+            node,
+            groupValue(node).assoc(tags.opacity, 1).assoc(tags.clip, core._PCT__$o__$o_(scene.ClipSpec, tags.none)),
+          )
+        : node,
+    );
+    const index = originalNodes.findIndex(isGroup);
+    const canvas = document.createElement("canvas");
+    canvas.width = 1000;
+    canvas.height = 700;
+    const context = canvas.getContext("2d");
+    const Original = window.OffscreenCanvas;
+    let count = 0;
+    window.OffscreenCanvas = class extends Original {
+      constructor(width, height) {
+        super(width, height);
+        count++;
+      }
+    };
+    try {
+      const draw = (nodes) => {
+        count = 0;
+        context.clearRect(0, 0, 1000, 700);
+        renderer.draw_document_$x_(context, source.assoc(tags.nodes, core.arrayToList(nodes)), 1000, 700, () => {
+          throw new Error("unexpected image");
+        });
+        return count;
+      };
+      const opaque = draw(opaqueNodes);
+      const transparent = [...opaqueNodes];
+      transparent[index] = withGroup(opaqueNodes[index], groupValue(opaqueNodes[index]).assoc(tags.opacity, 0.5));
+      const alpha = draw(transparent);
+      const clipping = [...opaqueNodes];
+      clipping[index] = withGroup(
+        opaqueNodes[index],
+        groupValue(opaqueNodes[index]).assoc(tags.clip, groupValue(clipped).get(tags.clip)),
+      );
+      return { opaque, alpha, clipped: draw(clipping) };
+    } finally {
+      window.OffscreenCanvas = Original;
+    }
+  });
+  expect(counts).toEqual({ opaque: 0, alpha: 1, clipped: 1 });
+});
+
 test("首个rAF早于播放启动时间不倒退Model，终点仍停帧", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
