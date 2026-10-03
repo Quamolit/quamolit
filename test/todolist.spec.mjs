@@ -434,6 +434,8 @@ for (const dpr of [1, 2])
       const page = await context.newPage();
       await ready(page, 1);
       await page.locator("#live").click();
+      await expect(page.locator("#list-viewport")).toHaveAttribute("hidden", "");
+      await expect(page.locator("#list-viewport")).toHaveCSS("display", "none");
       await page.locator("#panel-toggle").click();
       const before = await page.evaluate(() => window.todoDemo.snapshot());
       expect(before.hitCandidates).toBe(3);
@@ -518,6 +520,9 @@ for (const dpr of [1, 2])
       await page.locator("#panel-toggle").click();
       const original = await page.evaluate(() => window.todoDemo.snapshot());
       expect(original.compact).toBe(true);
+      expect(original.scrollLimit).toBe(0);
+      await expect(page.locator("#list-viewport")).toHaveAttribute("hidden", "");
+      await expect(page.locator("#list-viewport")).toHaveCSS("display", "none");
       expect(original.view.scale).toBe(dpr);
       const pixels = await page.evaluate(() => {
         const s = window.todoDemo.snapshot(),
@@ -602,6 +607,8 @@ for (const dpr of [1, 2])
       });
       const long = await page.evaluate(() => window.todoDemo.snapshot());
       expect(long.scrollLimit).toBeGreaterThan(0);
+      await expect(page.locator("#list-viewport")).not.toHaveAttribute("hidden", "");
+      await expect(page.locator("#list-viewport")).toHaveCSS("display", "grid");
       for (const row of long.model.rows) {
         const first = long.presentation.nodes.find((n) => n.id.endsWith(`/${row.id}/edit`));
         const second = long.presentation.nodes.find((n) => n.id.endsWith(`/${row.id}/edit/line-2`));
@@ -639,6 +646,8 @@ for (const dpr of [1, 2])
       await page.setViewportSize({ width: 1280, height: 900 });
       await expect.poll(() => page.evaluate(() => window.todoDemo.snapshot().compact)).toBe(false);
       expect((await page.evaluate(() => window.todoDemo.snapshot())).model).toEqual(tapped.model);
+      await expect(page.locator("#list-viewport")).toHaveAttribute("hidden", "");
+      await expect(page.locator("#list-viewport")).toHaveCSS("display", "none");
     } finally {
       await context.close();
     }
