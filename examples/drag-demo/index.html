@@ -9,7 +9,8 @@
     <span class="eyebrow">QUAMOLIT / ORIGINAL 10</span>
     <h1>Drag demo<br><small>把图形带出原来的边界</small></h1>
     <p>拖动蓝色矩形改变位置；拖动右侧滑块改变数值。指针离开图形后仍保持拖动，抬起或取消时释放捕获。</p>
-    <div class="buttons"><button id="reset">重置</button><button id="preset">演示一段拖动</button></div>
+    <div class="buttons"><button id="reset">重置</button><button id="preset">演示一段拖动</button><button id="interaction" aria-pressed="false">禁用交互</button></div>
+    <p>禁用交互保留画面，但立即释放正在进行的拖动；恢复后需要重新按下。重置也会先释放捕获。</p>
     <output id="status" aria-live="off"></output>
     <p id="message" role="status"></p>
     <p class="note">状态、命中、坐标更新与 Scene 由 Calcit 定义；DOM 只负责导航和说明，Canvas 覆盖整个视口。</p>

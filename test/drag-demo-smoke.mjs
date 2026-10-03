@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as drag from "../target/js/drag-demo/quamolit.examples.drag-demo.mjs";
-import { to_js_data } from "../target/js/drag-demo/calcit.core.mjs";
+import { to_js_data, init_tags } from "../target/js/drag-demo/calcit.core.mjs";
 
 test("Calcit 拖动状态保持锚点，非拥有者不能移动或释放", () => {
   const start = drag.initial();
@@ -38,4 +38,23 @@ test("滑块沿原 0.2 单位映射，并在 -4 至 40 夹取；Scene 身份稳�
   );
   assert.throws(() => drag.hit_at(start, NaN, 0));
   assert.throws(() => drag.begin_pointer(start, -1, 0, 0));
+});
+
+test("禁用交互只屏蔽目标，不删除或简化原有图形", () => {
+  const tags = init_tags(["enabled?"]),
+    enabled = drag.initial(),
+    disabled = enabled.assoc(tags["enabled?"], false);
+  assert.equal(drag.hit_at(disabled, 0, 0), "none");
+  assert.equal(drag.hit_at(disabled, 100, 40), "none");
+  assert.equal(drag.begin_pointer(disabled, 7, 0, 0), disabled);
+  const before = to_js_data(drag.scene_at(enabled)).nodes;
+  const after = to_js_data(drag.scene_at(disabled)).nodes;
+  assert.deepEqual(
+    after.map((node) => node.interaction),
+    before.map(() => ["disabled"]),
+  );
+  assert.deepEqual(
+    after.map(({ interaction, ...node }) => node),
+    before.map(({ interaction, ...node }) => node),
+  );
 });

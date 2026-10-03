@@ -457,6 +457,12 @@ test("11 个原有动画复用一块全屏 Canvas，缩减动态效果时不等�
     await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
     await expect(page.locator("#scene")).toHaveAttribute("data-persistent", "yes");
     await expect(page.locator("#scene")).toHaveCSS("transition-duration", "0s");
+    if (entry.id === "drag-demo") {
+      await page.getByRole("button", { name: "禁用交互", exact: true }).click();
+      expect((await page.evaluate(() => window.dragDemo.snapshot())).model["enabled?"]).toBe(false);
+      await page.getByRole("button", { name: "恢复交互", exact: true }).click();
+      expect((await page.evaluate(() => window.dragDemo.snapshot())).model["enabled?"]).toBe(true);
+    }
   }
   expect(await page.locator("canvas").count()).toBe(1);
   expect(await page.locator("#scene").boundingBox()).toEqual({ x: 0, y: 0, width: 1280, height: 900 });

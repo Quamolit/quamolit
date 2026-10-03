@@ -7,7 +7,8 @@ export function mountDemo() {
   const panel = document.querySelector("#panel"),
     toggle = document.querySelector("#panel-toggle");
   const status = document.querySelector("#status"),
-    message = document.querySelector("#message");
+    message = document.querySelector("#message"),
+    interaction = document.querySelector("#interaction");
   let paints = 0;
   let view = { scale: 1, x: 0, y: 0 };
   function draw() {
@@ -30,6 +31,8 @@ export function mountDemo() {
       (view.x * bounds.width) / width,
       (view.y * bounds.height) / height,
     );
+    // 显式提交新 Scene：尺寸/Model 更新不能等下一次 PointerEvent 才协调捕获。
+    drag.commit_drag_scene_$x_(canvas);
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, width, height);
     context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
@@ -37,6 +40,8 @@ export function mountDemo() {
     drag.draw_$x_(context, model);
     paints++;
     const state = to_js_data(model);
+    interaction.textContent = state["enabled?"] ? "禁用交互" : "恢复交互";
+    interaction.setAttribute("aria-pressed", String(!state["enabled?"]));
     const pointer = drag.current_pointer();
     status.textContent = `矩形 (${state.x.toFixed(1)}, ${state.y.toFixed(1)}) · 滑块 ${state.value.toFixed(2)}\n活动指针 ${pointer < 0 ? "无" : pointer} · 绘制 ${paints} · ${width} × ${height} 像素`;
     status.dataset.result = "pass";
@@ -64,17 +69,25 @@ export function mountDemo() {
   }
   const disposePointer = drag.install_drag_pointer_$x_(canvas, draw);
   function reset() {
+    drag.set_drag_interaction_$x_(canvas, false);
     drag.reset_demo_$x_();
     draw();
     return snapshot();
   }
   function preset() {
+    drag.set_drag_interaction_$x_(canvas, false);
     drag.preset_demo_$x_();
     draw();
     return snapshot();
   }
   document.querySelector("#reset").onclick = () => safely(reset);
   document.querySelector("#preset").onclick = () => safely(preset);
+  function setInteraction(enabled) {
+    drag.set_drag_interaction_$x_(canvas, enabled);
+    draw();
+    return snapshot();
+  }
+  interaction.onclick = () => safely(() => setInteraction(!snapshot().model["enabled?"]));
   toggle.onclick = () => {
     panel.hidden = !panel.hidden;
     toggle.setAttribute("aria-expanded", String(!panel.hidden));
@@ -102,7 +115,7 @@ export function mountDemo() {
     resolution?.removeEventListener("change", watchDpr);
     if (window.dragDemo === api) delete window.dragDemo;
   }
-  const api = { snapshot, reset, preset, draw, dispose };
+  const api = { snapshot, reset, preset, setInteraction, draw, dispose };
   window.dragDemo = api;
   return dispose;
 }
