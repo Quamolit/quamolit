@@ -10,6 +10,7 @@ import {
   _PCT__$o__$o_ as enumNew,
   option_$o_unwrap as unwrapOption,
   count,
+  CalcitSliceList,
 } from "../target/js/todolist/calcit.core.mjs";
 import * as lifecycle from "../target/js/todolist/quamolit.resource-lifecycle.mjs";
 import * as queueApi from "../target/js/todolist/quamolit.resource-load-queue.mjs";
@@ -60,11 +61,75 @@ const tags = init_tags([
   "entries",
   "generation",
   "references",
+  "transforms",
+  "a",
+  "d",
+  "e",
+  "f",
 ]);
 const field = (x, k) => x.get(tags[k]);
 const rows = (m) => js(m).rows;
 const live = () => todo.replay(todo.events_through(todo.demo_log(), 0), 1);
 const scene = (p) => js(field(p, "scene"));
+
+test("实际采样 Scene 命中对照历史按钮范围，乱序、重排和退出均一致", () => {
+  const oracle = (model, time, x, y) => {
+    const source = field(model, "rows");
+    for (let i = source.len() - 1; i >= 0; i--) {
+      const row = source.get(i),
+        value = js(row);
+      const alpha = todo.row_alpha(model, row, time);
+      const localX = x + 40 * (1 - alpha),
+        localY = y - transitionAt(field(row, "y"), time);
+      if (!value.present || alpha <= 0 || localY < -25 || localY > 25 || localX < -282 || localX > 292) continue;
+      return {
+        id: value.id,
+        text: value.text,
+        action: localX < -248 ? "toggle" : localX < 200 ? "edit" : localX < 250 ? "front" : "remove",
+      };
+    }
+    return { id: "", text: "", action: "" };
+  };
+  for (const time of [2.6, 0, 0.25, 1.65, 1.7, 4, 0.25]) {
+    const model = todo.replay(todo.demo_log(), time),
+      plan = todo.start_plan(model, time);
+    const hits = todo.hit_plan(plan),
+      before = js(plan);
+    for (const y of [-285, -280, -255, -224, -200, -185, -160, -135, -100, 0])
+      for (const x of [-323, -300, -282, -270, -248, 0, 199.9, 200, 249.9, 250, 292, 300])
+        assert.deepEqual(
+          js(todo.hit_with_plan(model, hits, x, y)),
+          oracle(model, time, x, y),
+          `t=${time}, point=${x},${y}`,
+        );
+    assert.deepEqual(js(plan), before, "命中不改变采样计划");
+  }
+});
+
+test("命中消费计划里的实际矩阵，不重新按 Model 推算位置；按钮边界和禁用不扩张", () => {
+  const model = live(),
+    plan = todo.start_plan(model, 1),
+    transforms = field(plan, "transforms");
+  const moved = new CalcitSliceList(
+    Array.from({ length: count(transforms) }, (_, i) =>
+      transforms.get(i).assoc(tags.a, 2).assoc(tags.d, 0.5).assoc(tags.e, 120).assoc(tags.f, 20),
+    ),
+  );
+  const altered = plan.assoc(tags.transforms, moved),
+    hits = todo.hit_plan(altered);
+  assert.equal(js(todo.hit_with_plan(model, hits, -420, 20)).action, "toggle");
+  assert.equal(js(todo.hit_with_plan(model, hits, 120, 20)).action, "edit");
+  assert.equal(js(todo.hit_with_plan(model, hits, 550, 20)).action, "front");
+  assert.equal(js(todo.hit_with_plan(model, hits, 660, 20)).action, "remove");
+  assert.equal(js(todo.hit_with_plan(model, hits, 120, 33)).id, "");
+  assert.equal(js(todo.hit_with_plan(model, hits, 705, 20)).id, "");
+  assert.equal(js(todo.hit_with_plan(model, todo.hit_plan(plan), 550, 20)).id, "", "旧 Model 推算位置不能冒充实际计划");
+  assert.throws(
+    () => todo.hit_plan(plan.assoc(tags.transforms, new CalcitSliceList([]))),
+    /invalid-todo-hit-transforms/,
+  );
+  assert.throws(() => todo.hit_with_plan(model, hits, NaN, 0), /invalid-todo-hit/);
+});
 
 test("固定日志直接跳转与顺序游标得到相同逻辑 Model、画面与释放计数", () => {
   const log = todo.demo_log();

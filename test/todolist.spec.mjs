@@ -428,6 +428,49 @@ test("终点释放后两秒无连续绘制，输入重新唤醒", async ({ page 
 });
 
 for (const dpr of [1, 2])
+  test(`公共 Scene 命中 DPR ${dpr}：退出立即禁用、暂停 resize、恢复重新进入`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: dpr });
+    try {
+      const page = await context.newPage();
+      await ready(page, 1);
+      await page.locator("#live").click();
+      await page.locator("#panel-toggle").click();
+      const before = await page.evaluate(() => window.todoDemo.snapshot());
+      expect(before.hitCandidates).toBe(3);
+      await page.evaluate(() => {
+        window.todoDemo.send("remove", "3");
+        window.todoDemo.pause();
+      });
+      const exiting = await page.evaluate(() => window.todoDemo.snapshot());
+      expect(exiting.hitCandidates).toBe(2);
+      expect(exiting.scene.nodes.some((n) => n.id === "presence/rect/3/card")).toBe(true);
+      await page.setViewportSize({ width: 1000, height: 720 });
+      await expect.poll(() => page.evaluate(() => window.todoDemo.snapshot().width)).toBe(1000 * dpr);
+      expect((await page.evaluate(() => window.todoDemo.snapshot())).model).toEqual(exiting.model);
+      await clickRow(page, "3", "toggle");
+      expect((await page.evaluate(() => window.todoDemo.snapshot())).events).toEqual(exiting.events);
+      await clickRow(page, "1", "toggle");
+      await page.evaluate(() => window.todoDemo.pause());
+      expect((await page.evaluate(() => window.todoDemo.snapshot())).model.rows.find((r) => r.id === "1").done).toBe(
+        true,
+      );
+      await page.evaluate(() => {
+        window.todoDemo.send("restore");
+        window.todoDemo.pause();
+      });
+      const restored = await page.evaluate(() => window.todoDemo.seek(2));
+      expect(restored.hitCandidates).toBe(3);
+      await clickRow(page, "3", "toggle");
+      await page.evaluate(() => window.todoDemo.pause());
+      expect((await page.evaluate(() => window.todoDemo.snapshot())).model.rows.find((r) => r.id === "3").done).toBe(
+        true,
+      );
+    } finally {
+      await context.close();
+    }
+  });
+
+for (const dpr of [1, 2])
   test(`全屏 DPR ${dpr}：暂停 resize 不推进 Model，浮层不误触`, async ({ browser }, testInfo) => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: dpr });
     const page = await context.newPage();

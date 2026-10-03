@@ -10,7 +10,9 @@
 - `advance` 按日志游标应用到达的事件并显式结算；`replay` 从初始模型恢复任意时刻。时间采样与绘制不修改 Model，离线日志的释放计数不能作为宿主释放副作用重复执行。
 - Scene/Motion 由 Calcit 声明，Presence 再接统一 ExecutionDeclaration/ComponentPlan。事件与终点阶段变化才重建声明；时间更新只采样标量与位移，保留原文字和几何。行级状态和事件命中不在 JS 中重写。
 - 进入按行错峰，退出反向错峰；删除立即禁交互，延迟期间仍保留画面。清空也有退出位移/alpha；这不是一般嵌套父级/子树的绘制支持。
-- `hit-at` 对示例行的逻辑区域按绘制逆序命中，不是 #34 的通用命中索引或指针捕获。编辑通过浮层输入，而非恢复旧 prompt UI。
+- 每次绘制提交由 `hit-plan(ComponentPlan)` 从同一次采样的卡片 Scene、alpha 与实际变换生成公共 `Scene HitPlan`，Canvas 点击复用 `hit-with-plan(Model, HitPlan, x, y)`，不重建动画声明或按 Model 另算位置。`hit-at` 保留为已有调用的便利入口，内部也走同一计划。行内按钮范围仍为 x=-282…292、y=-25…25，采用矩形 clip 保持原有可点击边界；文字/装饰不抢占按钮。退出卡片的 Presence interaction 为 none，alpha=0的进入项也显式屏蔽；不能将这一应用策略当作公共 HitPlan 自动按 opacity 禁用。编辑通过浮层输入，而非恢复旧 prompt UI。
+
+此入口是 TodoList 自己的交互投影，不是新的 renderer：只投影顶层卡片及其采样矩阵，保留逻辑 target，使用现有 HitPlan 的逆变换、裁剪和逆绘制层序；不处理一般嵌套组件或原生 pointer capture。Node 对照历史按钮公式的乱序时间/边界，额外修改实际计划的缩放与平移，防止回到旧 Model 扫描。Chromium DPR1/2验证退出开始立即禁交互、卡片仍可见、暂停resize不推进Model、其他行可点击、恢复进入后重新命中。完整嵌套 Presence 退出/资源/捕获组合与全路由访问计数仍归 #34，不能因本 demo 通过关闭。
 - `SceneContent :text` 是基础单行、左对齐、中线、monospace 文字；支持位置、字号、颜色及叶节点 alpha，尚无复杂 shaping、字体资源表、文字裁剪或 GPU 字形缓存。diff 把文字/字号/位置视为几何，颜色视为属性。
 - 原生文字使用 js-ffi `0.2.1-alpha.2` 的类型化 `CanvasContextHost.fill-text!`；`draw-text!` 在 Calcit 中设置字体、对齐和颜色，并在异常路径恢复 Canvas 状态。已移除本地 `raw-fill-text!` inline 适配；保留原生 Canvas 像素对照和浏览器回归测试。参见上游 [js-ffi #124](https://github.com/calcit-lang/js-ffi/issues/124)。
 
