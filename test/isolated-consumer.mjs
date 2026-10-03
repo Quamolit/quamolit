@@ -7,7 +7,12 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createServer } from "vite";
 import { chromium } from "@playwright/test";
-import { verifyConsumer, verifyFontConsumer, verifyFontConsumerBrowser, verifyCurveConsumer } from "./consumer-contract.mjs";
+import {
+  verifyConsumer,
+  verifyFontConsumer,
+  verifyFontConsumerBrowser,
+  verifyCurveConsumer,
+} from "./consumer-contract.mjs";
 import { verifyInstancesConsumer } from "./consumer-instances-contract.mjs";
 import { verifyPresenceConsumer } from "./consumer-presence-contract.mjs";
 import { verifyRecoveryConsumer } from "./consumer-recovery-contract.mjs";
