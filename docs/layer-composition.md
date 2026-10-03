@@ -59,5 +59,6 @@ GPU 冷帧位置上传 80 kB，所有采样热帧为 0 B；源版本保持不变
 - `yarn test:layer-composition`：DPR 1/2 的两层同步、暂停 resize、模拟 adapter 失败；实例使用独立原生循环参考，UI bitmap 复用上层画面，因此它是层合成验收，不替代现有看板自身的文字/裁剪验收。Canvas 合成整帧 RGBA 零差异。
 - 本机硬件命令：`QUAMOLIT_LAYER_REQUIRE_GPU=1 yarn playwright test --config test/layer-composition.playwright.config.mjs --headed -g '真实 GPU'`。Apple / Metal-3，DPR 1/2 通过；整图最大 RGB 差值 2、alpha 差值 0。该像素对齐、alpha=0.5 的矩形夹具预先规定 RGB≤2/alpha≤1，来源是 8-bit 预乘/反预乘量化；不能外推到任意分数几何。诊断在同一浏览器任务内重绘并读取，因为呈现后的 WebGPU drawing buffer 不是持久快照；直接跨任务 `drawImage` 会读到清空后的 buffer，并非实际页面漏绘。
 - 已补：运行中 DPR 1→2、独立卡片命中、Metal device loss 整层 Canvas 回退与同版本重建（重传 80 kB）、统一导航往返、实例资源卸载回零。`test:demo-nav` 完整静态产物的 59 项浏览器检查通过，包括异步 adapter 迟到后不创建设备、不复活画布。Actions 已接入，结果须按 PR 实际运行确认；CPU 阶段报告已补，合成成本仍未测，其他 GPU 平台未验证。
+- 2026-10-04 在Calcit/runtime0.28.0、js-ffi0.2.1-alpha.11、Node24、锁定Chromium与真实Apple/Metal-3复测，并在同一个硬件用例补充：GPU重建后运行中DPR1→2，两张surface尺寸同步且暂停时间保持0.5；原生鼠标点击同一CSS点在GPU运行与device-lost整层Canvas回退后均命中UI的metric-a并唤醒播放。DPR1/2专项2/2通过，原全图RGB≤2/alpha≤1合同不变（实际maxRgb=2、maxAlpha=0）。普通headless6项通过、硬件2项明确SKIP；这是CDP模拟DPR，不是跨物理屏幕、跨层capture或任意图元画质验收。测试端口临时覆盖到空闲5230，不停止常驻5193/5199或复用其旧产物；覆盖不进入仓库配置。
 
 浏览器门禁完成前不提交完成声明，不把本示例加入艺术作品验收，也不以结构测试替代 #177 的截图或硬件证据。
