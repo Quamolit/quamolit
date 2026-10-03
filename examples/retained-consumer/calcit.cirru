@@ -605,6 +605,23 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
+        'nested-presence-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn nested-presence-at (time)
+            let
+                sampled $ :scene $ start-layered 1 40 false 100
+                document $ struct-with sampled $ :nodes
+                  map (:nodes sampled)
+                    fn (item)
+                      struct-with item $ :bindings $ []
+                initial-model $ presence/start-presence document
+                exiting $ :model $ presence/reconcile-presence initial-model
+                  scene/SceneDocument :nodes $ scene/empty-scene-nodes
+                  , 0 1 (motion/Easing :linear)
+                declaration $ presence-component/declare-tree exiting (binding/empty-descriptors) ([] |panel)
+              binding/resolve-scene (:scene declaration) (:motions declaration) time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
         'patch-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn patch-instances! (table previous version frame positions)
             resource/register-patch! table

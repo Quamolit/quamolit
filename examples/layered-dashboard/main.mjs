@@ -1,4 +1,4 @@
-import { draw_$x_, scene_at } from "../../target/js/layered-dashboard/quamolit.examples.layered-dashboard.mjs";
+import * as dashboard from "../../target/js/layered-dashboard/quamolit.examples.layered-dashboard.mjs";
 import { to_js_data } from "../../target/js/layered-dashboard/calcit.core.mjs";
 import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 
@@ -14,6 +14,10 @@ export function mountDemo() {
   let disposed = false, paints = 0;
   let started = 0;
   let anchor = 0;
+  let events = dashboard.empty_events();
+  let model = dashboard.replay_events(events, time);
+  let horizon = 1;
+  let scene;
   const scheduler = new DemandFrameScheduler({
     requestFrame: callback => requestAnimationFrame(callback),
     cancelFrame: handle => cancelAnimationFrame(handle),
@@ -36,11 +40,18 @@ export function mountDemo() {
     }
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, width, height);
-    draw_$x_(context, time, width, height);
+    scene = dashboard.frame_at(model, time, width, height);
+    dashboard.commit_scene_$x_(canvas, scene, bounds.width / width, bounds.height / height);
+    dashboard.draw_frame_$x_(context, scene, width, height);
     paints++;
     slider.value = String(time);
+    slider.max = String(horizon);
     output.value = time.toFixed(2);
-    status.textContent = `t=${time.toFixed(2)} · ${width}×${height} · Scene composited`;
+    const state = snapshot();
+    const button = document.querySelector("#presence-toggle");
+    button.textContent = state.visible ? "隐藏看板" : "恢复看板";
+    button.ariaPressed = String(!state.visible);
+    status.textContent = `t=${time.toFixed(2)} · ${width}×${height} · ${state.nodeCount} 节点 · 捕获 ${state.captured ?? "无"}`;
     status.dataset.result = "pass";
   }
 
@@ -51,20 +62,26 @@ export function mountDemo() {
   }
   function seek(value) {
     stop();
-    time = Math.max(0, Math.min(1, value));
+    time = Math.max(0, Math.min(horizon, value));
+    model = dashboard.replay_events(events, time);
     draw();
     return snapshot();
   }
   function tick(now) {
     if (!playing) return;
-    time = Math.min(1, anchor + (now - started) / 900);
+    const previous = time;
+    time = Math.min(horizon, Math.max(previous, anchor + Math.max(0, now - started) / 900));
+    model = dashboard.advance(model, events, previous, time);
     draw();
-    if (time < 1) wake("animation");
+    if (time < horizon) wake("animation");
     else stop();
   }
   function play() {
     if (playing || disposed) return;
-    if (time >= 1) time = 0;
+    if (time >= horizon) {
+      time = 0;
+      model = dashboard.replay_events(events, time);
+    }
     anchor = time;
     started = performance.now();
     playing = true;
@@ -72,13 +89,35 @@ export function mountDemo() {
     wake("play");
   }
   function snapshot() {
-    const scene = to_js_data(scene_at(time, canvas.width, canvas.height));
-    return { time, width: canvas.width, height: canvas.height, nodeCount: scene.nodes.length, playing, paints, pending: scheduler.pending };
+    const data = to_js_data(scene);
+    const log = to_js_data(events);
+    const prior = log.filter(event => event.time <= time).at(-1);
+    const pointer = to_js_data(dashboard.current_pointer());
+    const capture = pointer.capture;
+    return { time, width: canvas.width, height: canvas.height, nodeCount: data.nodes.length, playing, paints, pending: scheduler.pending,
+      visible: prior?.visible ?? true, events: log, scene: data, pointer,
+      captured: capture[0] === "captured" ? capture[1] : null };
   }
+
+  function setVisible(visible) {
+    stop();
+    events = dashboard.record_visibility(events, time, visible);
+    model = dashboard.set_visible(model, visible, time);
+    horizon = Math.max(1, time, dashboard.animation_end(model));
+    draw(); // 新 Scene 立即协调捕获，不能等待下一次 PointerEvent 或动画终点。
+    if (time < horizon && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();
+    return snapshot();
+  }
+  function reset() {
+    stop(); events = dashboard.empty_events(); horizon = 1; time = 0;
+    model = dashboard.initial(); draw(); return snapshot();
+  }
+  const disposePointer = dashboard.install_pointer_$x_(canvas, draw);
 
   slider.oninput = () => seek(Number(slider.value));
   document.querySelector("#play").onclick = () => (playing ? stop() : play());
-  document.querySelector("#reset").onclick = () => seek(0);
+  document.querySelector("#reset").onclick = reset;
+  document.querySelector("#presence-toggle").onclick = () => setVisible(!snapshot().visible);
   document.querySelector("#panel-toggle").onclick = (event) => {
     const panel = document.querySelector("#panel");
     panel.hidden = !panel.hidden;
@@ -98,11 +137,9 @@ export function mountDemo() {
   const listeners = new AbortController();
   document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); }, {signal:listeners.signal});
   window.addEventListener("pagehide", stop, {signal:listeners.signal});
-  const api = { seek, play, pause: stop, snapshot };
-  window.layeredDashboardDemo = api;
-  draw();
-  if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();
-  return () => {
+  function dispose() {
+    if (disposed) return;
+    disposePointer();
     disposed = true;
     stop();
     scheduler.dispose();
@@ -110,7 +147,12 @@ export function mountDemo() {
     observer.disconnect();
     resolution?.removeEventListener("change", watchDpr);
     if (window.layeredDashboardDemo === api) delete window.layeredDashboardDemo;
-  };
+  }
+  const api = { seek, play, pause: stop, snapshot, setVisible, reset, dispose };
+  window.layeredDashboardDemo = api;
+  draw();
+  if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();
+  return dispose;
 }
 
 if (location.pathname.endsWith("/examples/layered-dashboard/index.html")) mountDemo();

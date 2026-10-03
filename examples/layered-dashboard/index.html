@@ -13,10 +13,11 @@
       <nav aria-label="演示导航"><a href="../../demos/index.html?group=art">← 动画目录</a></nav>
       <p class="eyebrow">QUAMOLIT / SCENE COMPOSITING</p>
       <h1>Layered Signals</h1>
-      <p>嵌套裁剪逐步揭示柱图；整个看板与重叠信号块分别做隔离透明度合成。</p>
+      <p>嵌套裁剪逐步揭示柱图；整个看板与重叠信号块分别做隔离透明度合成。按住看板或柱图可捕获指针，隐藏时立即释放，整个组件继续渐出。</p>
       <label>逻辑时间 <output id="time-output">0.00</output></label>
       <input id="time" type="range" min="0" max="1" step="0.01" value="0" />
       <div class="actions"><button id="play">播放</button><button id="reset">重置</button></div>
+      <div class="actions"><button id="presence-toggle" aria-pressed="false">隐藏看板</button></div>
       <p id="status">准备中</p>
     </aside>
     <script type="module" src="./main.mjs"></script>
