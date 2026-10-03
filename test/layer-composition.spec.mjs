@@ -109,6 +109,52 @@ test("真实 GPU 透明底层与 Canvas UI 同屏，切回 Canvas 不重置帧",
   expect(rebuilt.backend).toBe("webgpu");
   expect(rebuilt.version).toBe(state.version);
   expect(rebuilt.metrics["position-bytes-uploaded"]).toBe(80000);
+  const session = await page.context().newCDPSession(page);
+  try {
+    for (const dpr of [1, 2]) {
+      await session.send("Emulation.setDeviceMetricsOverride", {
+        width: 1280,
+        height: 720,
+        deviceScaleFactor: dpr,
+        mobile: false,
+      });
+      await expect.poll(() => page.evaluate(() => window.layerCompositionDemo.snapshot().viewport.dpr)).toBe(dpr);
+      expect(
+        await page.locator("canvas").evaluateAll((nodes) => nodes.map((node) => [node.width, node.height])),
+      ).toEqual([
+        [1280 * dpr, 720 * dpr],
+        [1280 * dpr, 720 * dpr],
+      ]);
+      expect(await page.evaluate(() => window.layerCompositionDemo.snapshot())).toMatchObject({
+        time: 0.5,
+        playing: false,
+        backend: "webgpu",
+        metrics: { instances: 10000 },
+      });
+    }
+    await page.locator("#panel-toggle").click();
+    for (const backend of ["webgpu", "canvas"]) {
+      if (backend === "canvas") {
+        await page.evaluate(() => window.layerCompositionDemo.loseDevice());
+        await expect.poll(() => page.evaluate(() => window.layerCompositionDemo.snapshot().reason)).toBe("device-lost");
+      }
+      await page.mouse.click(640 - 250 * 0.93, 360 + 12 - 88 * 0.93);
+      const clicked = await page.evaluate(() => {
+        const state = window.layerCompositionDemo.snapshot();
+        window.layerCompositionDemo.pause();
+        window.layerCompositionDemo.seek(0.5);
+        return state;
+      });
+      expect(clicked.backend).toBe(backend);
+      expect(clicked.playing).toBe(true);
+      expect(clicked.lastHit).toEqual({
+        "layer-id": "ui",
+        hit: { target: "toggle-play", "node-id": "metric-a", visited: 1 },
+      });
+    }
+  } finally {
+    await session.detach();
+  }
   await page.evaluate(() => window.layerCompositionDemo.setBackend("canvas"));
   expect((await page.evaluate(() => window.layerCompositionDemo.snapshot())).time).toBe(0.5);
 });
