@@ -6,6 +6,20 @@ Scene、动画时间、矩阵相乘、树遍历与绘制顺序全部由 Calcit �
 
 可在 URL 使用 `?t=0`、`?t=0.5`、`?t=1` 固定截图，也可通过 `window.layeredDashboardDemo.seek(t)` 乱序采样。验收时同时检查：起点只有背景、中间帧裁剪边界内只有部分柱图、终点完整显示，以及重叠色块仍按一次组透明度合成。
 
+## 显隐生命周期与捕获
+
+导航中的同一 Layered Signals 页面增加“隐藏看板／恢复看板”，不另建入口。原有 `t=0/.5/1` 的缩放、上移、柱图揭示和0.55隔离组效果保持不变；显隐使用0.6秒线性生命周期，整组只给 dashboard 绑定 Presence alpha，后代保留自身颜色及透明度。入场尚未完成时的显隐与原有动画叠加，打断当帧连续。
+
+Model、显隐事件、乱序重放、正常播放的增量推进、终点结算、Scene投影和指针监听均在 Calcit。绘制只读Model；viewport投影保留逻辑path和当前动画意图，resize不创建新的显隐事件。先编译同一 sampled Scene 的CSS命中计划，再协调旧PointerState、保存新状态/计划，最后绘制；实际像素到CSS比例采用元素边界/像素尺寸，避免DPR取整带来的坐标偏差。root/柱图目标由Scene表达，退出开始自动disabled整个子树，不等资源终点释放。
+
+可按住柱图获得原生捕获，再调用 `setVisible(false)` 观察立即释放；恢复后不会恢复旧捕获，须重新按下。`lostpointercapture`、up/cancel、blur和卸载复用公共指针状态机，监听器与原生捕获幂等清理。当前单个统一页面对应一个该demo实例；应用内部两个atom保存已提交计划与指针状态，不是新的框架运行时。
+
+展示：导航 `?demo=layered-dashboard&t=1` → 隐藏 → 用时间条查看1.3秒中间帧、1.6秒终点；在1.3秒恢复可查看连续重入至1.9秒。`window.layeredDashboardDemo` 保留 seek/play/pause/snapshot，并提供setVisible/reset/dispose。显隐日志当前仅在内存，不序列化进URL；`?t=`仍是原有入场直链，刷新不会保留新日志。seek保留日志供重放，seek后新操作裁掉未来分支；重置清空日志。
+
+`yarn test:layered-dashboard` 沿既有门禁验证8项Chromium用例：DPR1/2下resize与退出同次提交，在无新PointerEvent时释放恰好一次；渐出仍有28节点，中间帧截图、重入连续、新按下再次捕获、重复卸载后无监听/待执行帧；原有像素与全屏浮层断言不变。纯协议同时检查日志增量/乱序等价、100次1↔28节点往返、换父新旧身份共存、嵌套子项仍在原父组裁剪/层序，以及整组渐出的独立一次合成参考。首个rAF允许早于播放注册时间，宿主保证推进时间不倒退，回归检查终点停帧和两秒空闲。截图和报告仍在忽略的test-results/CI artifact，不入库。
+
+本批未优化时间帧Scene/绑定分配或全ID访问；现有文字使用内置monospace，不证明#51的外部字体/图片资源租约与退出并发。WebGPU一般组不支持，硬件及性能结论未新增；#34/#53/M3不能因此关闭。
+
 ## Scene 能力与完整预检
 
 以下区分完整 `canvas-scene/draw-document!` 与受限 GPU 消费者，不能把单图层能力拼成任意 Scene 都支持的承诺。

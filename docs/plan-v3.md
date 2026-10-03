@@ -4,7 +4,7 @@
 
 ## 当前事实与下一项交付
 
-2026-10-03 核对：已合并基线为 #205（`5405d53`，包含 #199/#200/#202/#203），采用 Calcit/runtime 0.28.0、js-ffi 0.2.1-alpha.11，版本合同见[工具链升级](calcit-027-upgrade.md)。以下矩阵区分已合并实现、尚未合并候选与未验收范围；实时合并状态以链接中的 GitHub 记录为准。功能通过不等于稳定 API、全画质或性能达标，不再用逐 PR 的“本分支下一项”覆盖计划。
+2026-10-03 核对：已合并基线为 `a972626`（#205/#206/#207，包含 #199/#200/#202/#203），采用 Calcit/runtime 0.28.0、js-ffi 0.2.1-alpha.11，版本合同见[工具链升级](calcit-027-upgrade.md)。以下矩阵区分已合并实现、尚未合并候选与未验收范围；实时合并状态以链接中的 GitHub 记录为准。功能通过不等于稳定 API、全画质或性能达标，不再用逐 PR 的“本分支下一项”覆盖计划。
 
 ### 阶段矩阵
 
@@ -32,7 +32,7 @@
 | Canvas UI + GPU 层 | 显式 RenderLayer，统一时间/视口、声明顺序与整层回退 | 单根实例层可与 UI 同屏，不自动拆任意 Scene | [分层契约与门禁](layer-composition.md)；#177 的默认后端/成本决策未完成，跨层 capture 与 GPU 文字不在现有合同 |
 | 模块与真实入口 | 单个 Calcit 模块，inline/file 随安装内嵌；主 Snapshot 与独立消费者分工明确 | 同一模块可消费受支持 GPU 入口，无手工宿主 JS 导入 | [FFI](calcit-first-ffi.md)、[消费者](isolated-consumer.md)；[已合并 #201](https://github.com/Quamolit/quamolit/pull/201)贯通普通 compile/release 并隔离演示调度器；语言 named entry 创建仍待 [Calcit #1665](https://github.com/calcit-lang/calcit/issues/1665)，不把 entry 当分发隔离机制 |
 
-当前优先补齐 #34/#53 的图形与交互功能，不扩展性能优化。#205 已完成同一 registry/queue 的共享字体加载、idle重入与精确释放；[候选 #206](https://github.com/Quamolit/quamolit/pull/206)将 Scene/capture 提交接入真实 Drag 应用，全部 Actions 已通过，尚未合并。下一步继续应用退出/禁交互的完整接线；精确文字命中、原生排版/路径缓存、GPU文字与栅格化仍未完成，不能关闭 #51/#53/M2/M3。
+当前优先补齐 #34/#53 的图形与交互功能，不扩展性能优化。#205 的共享字体和 #206 的实际Drag提交已合并；[候选 #208](https://github.com/Quamolit/quamolit/pull/208)将实际采样Scene命中接到TodoList，全部Actions通过但尚未合并。当前候选进一步用[嵌套Presence声明](presence-component.md)接到[真实看板](layered-dashboard.md#显隐生命周期与捕获)：显式淡化所有权、退出归序、整组禁交互、原生捕获与resize/快速重入。完整图表资源租约组合、全指针ID访问、精确文字命中、排版/路径缓存和GPU组语义仍未验收，不关闭 #34/#51/#53/M2/M3；正常时间帧仍有参考Scene投影/绑定分配，不宣称新的保留计数或性能目标。
 
 并行于功能主线，#204 首批工程减法移除24个退役 `quamolit.app.*`，不删除旧库 API、不减少原有11个demo或门禁。替代/删除条件维护在 [API 迁移清单](api-contract.md#历史应用移除范围)，工程面积与本机门禁前后观测随本批 PR 提供；仍保留15个旧 namespace，完整逐项登记/发布迁移待后续。新增抽象准入与 PR 粒度使用已有模板/AGENTS，状态证据集中本页与主题文档，不新增状态页或扫描框架。后续功能 PR 更新能力边界，不持续追加逐 PR 历史。
 

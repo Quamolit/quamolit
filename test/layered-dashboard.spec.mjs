@@ -1,5 +1,249 @@
 import { expect, test } from "@playwright/test";
 
+test("首个rAF早于播放启动时间不倒退Model，终点仍停帧", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=0.96");
+  await page.evaluate(() => {
+    window.layeredDashboardDemo.pause();
+    const original = requestAnimationFrame;
+    let first = true;
+    window.requestAnimationFrame = (callback) =>
+      original((timestamp) => {
+        const earlier = first;
+        first = false;
+        callback(earlier ? timestamp - 100 : timestamp);
+      });
+    window.layeredDashboardDemo.play();
+  });
+  await expect.poll(() => page.evaluate(() => window.layeredDashboardDemo.snapshot().playing)).toBe(false);
+  const finished = await page.evaluate(() => window.layeredDashboardDemo.snapshot());
+  expect(finished.time).toBe(1);
+  expect(finished.pending).toBe(false);
+  await page.waitForTimeout(2100);
+  expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).paints).toBe(finished.paints);
+  expect(errors).toEqual([]);
+});
+
+test("显隐按钮、事件重放和一百次往返沿用实际看板组件", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  await page.getByRole("button", { name: "隐藏看板", exact: true }).click();
+  expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).visible).toBe(false);
+  await page.evaluate(() => window.layeredDashboardDemo.seek(1.3));
+  await page.getByRole("button", { name: "恢复看板", exact: true }).click();
+  expect(
+    (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).scene.nodes[1].content[1].opacity,
+  ).toBeCloseTo(0.5, 12);
+  const result = await page.evaluate(async () => {
+    const base = "/target/js/layered-dashboard/";
+    const app = await import(`${base}quamolit.examples.layered-dashboard.mjs`);
+    const presence = await import(`${base}quamolit.presence.mjs`);
+    const core = await import(`${base}calcit.core.mjs`);
+    let events = app.record_visibility(app.empty_events(), 1, false);
+    events = app.record_visibility(events, 1.3, true);
+    let model = app.initial(),
+      previous = 0;
+    const equivalent = [0, 0.25, 0.75, 1, 1.1, 1.3, 1.6, 1.9, 2].map((time) => {
+      model = app.advance(model, events, previous, time);
+      previous = time;
+      return (
+        JSON.stringify(core.to_js_data(model)) === JSON.stringify(core.to_js_data(app.replay_events(events, time)))
+      );
+    });
+    const unordered = [1.9, 1.3, 0, 1.1, 1.9].map((time) => {
+      const data = core.to_js_data(app.frame_at(app.replay_events(events, time), time, 1000, 700));
+      return { time, opacity: data.nodes[1].content[1].opacity, count: data.nodes.length };
+    });
+    const branch = core.to_js_data(app.record_visibility(events, 1.1, true));
+    const counts = [];
+    model = app.initial();
+    for (let index = 0; index < 100; index++) {
+      const start = index * 2 + 1;
+      model = app.set_visible(model, false, start);
+      model = app.advance(model, app.empty_events(), start, start + 0.7);
+      counts.push(core.to_js_data(model).items.length);
+      model = app.set_visible(model, true, start + 1);
+      model = app.advance(model, app.empty_events(), start + 1, start + 1.7);
+      counts.push(core.to_js_data(model).items.length);
+    }
+    return { equivalent, unordered, branch, counts, needsFrame: presence.presence_needs_frame_$q_(model, 201) };
+  });
+  expect(result.equivalent).toEqual(Array(9).fill(true));
+  expect(result.unordered.map((frame) => frame.count)).toEqual(Array(5).fill(28));
+  result.unordered.forEach((frame, index) => expect(frame.opacity).toBeCloseTo([1, 0.5, 0, 5 / 6, 1][index], 12));
+  expect(result.branch).toEqual([
+    { time: 1, visible: false },
+    { time: 1.1, visible: true },
+  ]);
+  expect(result.counts).toEqual(Array.from({ length: 200 }, (_, index) => (index % 2 === 0 ? 1 : 28)));
+  expect(result.needsFrame).toBe(false);
+});
+
+test("嵌套换父保留新旧逻辑身份，退出叶不能借活跃祖先命中", async ({ page }) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const result = await page.evaluate(async () => {
+    const base = "/target/js/layered-dashboard/";
+    const app = await import(`${base}quamolit.examples.layered-dashboard.mjs`);
+    const presence = await import(`${base}quamolit.presence.mjs`);
+    const component = await import(`${base}quamolit.presence-component.mjs`);
+    const binding = await import(`${base}quamolit.scene-binding.mjs`);
+    const hit = await import(`${base}quamolit.scene-hit.mjs`);
+    const core = await import(`${base}calcit.core.mjs`);
+    const tags = core.init_tags(["nodes", "items", "alpha", "easing", "model", "id", "parent", "released"]);
+    const get = (value, key) => value.get(tags[key]);
+    const source = app.interactive_scene_at(1, 1000, 700);
+    const nodes = get(source, "nodes");
+    const changed = [];
+    const card = nodes.get(6);
+    for (let index = 0; index < 28; index++) {
+      if (index === 6) continue;
+      const node = nodes.get(index);
+      changed.push(node);
+      if (index === 15) changed.push(card.assoc(tags.parent, "chart"));
+    }
+    const desired = source.assoc(tags.nodes, new core.CalcitSliceList(changed));
+    const initial = presence.start_presence(source);
+    const easing = get(get(get(initial, "items").get(0), "alpha"), "easing");
+    const model = get(presence.reconcile_presence(initial, desired, 0, 1, easing), "model");
+    const declaration = component.declare_tree(
+      model,
+      binding.empty_descriptors(),
+      new core.CalcitSliceList(["metric-a"]),
+    );
+    const scene = binding.resolve_scene(
+      declaration.get(core.init_tags(["scene"]).scene),
+      declaration.get(core.init_tags(["motions"]).motions),
+      0.5,
+    );
+    const data = core.to_js_data(scene);
+    const cards = data.nodes.filter((node) => node.id.endsWith("/8:metric-a"));
+    const candidates = core.to_js_data(hit.compile_hit_plan(scene)).candidates;
+    const withoutBar = source.assoc(
+      tags.nodes,
+      new core.CalcitSliceList(
+        Array.from({ length: 28 }, (_, index) => nodes.get(index)).filter((node) => get(node, "id") !== "bar-1"),
+      ),
+    );
+    const leafExit = get(presence.reconcile_presence(initial, withoutBar, 0, 1, easing), "model");
+    const leafDeclaration = component.declare_tree(
+      leafExit,
+      binding.empty_descriptors(),
+      new core.CalcitSliceList(["bar-1"]),
+    );
+    const leafData = core.to_js_data(leafDeclaration);
+    return {
+      cards,
+      unique: new Set(data.nodes.map((node) => node.id)).size === data.nodes.length,
+      oldCandidate: candidates.some(
+        (candidate) => candidate.node.id === cards.find((card) => card.interaction[0] === "disabled").id,
+      ),
+      released: core.to_js_data(get(presence.settle_presence(model, 1), "released")).map((entry) => entry.node.id),
+      retainedBar: leafData.scene.nodes.findIndex((node) => node.id.endsWith("/5:bar-1")),
+      nextGroup: leafData.scene.nodes.findIndex((node) => node.id.endsWith("/7:overlap")),
+      leafCount: leafData.scene.nodes.length,
+    };
+  });
+  expect(result.cards).toHaveLength(2);
+  expect(result.cards[0].parent).not.toBe(result.cards[1].parent);
+  expect(result.cards.map((card) => card.content[1].fill.a)).toEqual([0.5, 0.5]);
+  expect(result.unique).toBe(true);
+  expect(result.oldCandidate).toBe(false);
+  expect(result.released).toEqual(["metric-a"]);
+  expect(result.leafCount).toBe(28);
+  expect(result.retainedBar).toBeGreaterThan(15);
+  expect(result.retainedBar).toBeLessThan(result.nextGroup);
+});
+
+for (const dpr of [1, 2]) {
+  test(`真实看板退出与resize同次提交立即释放捕获，快速重入和卸载 DPR${dpr}`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: dpr });
+    const page = await context.newPage();
+    try {
+      const errors = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+      await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+      await page.evaluate(() => {
+        const canvas = document.querySelector("canvas");
+        window.captureCounts = { set: 0, release: 0 };
+        for (const [method, key] of [
+          ["setPointerCapture", "set"],
+          ["releasePointerCapture", "release"],
+        ]) {
+          const original = canvas[method].bind(canvas);
+          canvas[method] = (id) => {
+            window.captureCounts[key]++;
+            return original(id);
+          };
+        }
+      });
+      const point = () =>
+        page.locator("canvas").evaluate((canvas) => {
+          const bounds = canvas.getBoundingClientRect();
+          return {
+            x: bounds.left + ((canvas.width / 2 - 208) * bounds.width) / canvas.width,
+            y: bounds.top + ((canvas.height / 2 + 140) * bounds.height) / canvas.height,
+          };
+        });
+      let position = await point();
+      await page.mouse.move(position.x, position.y);
+      await page.mouse.down();
+      const read = () =>
+        page.evaluate(() => ({ ...window.layeredDashboardDemo.snapshot(), counts: { ...window.captureCounts } }));
+      expect((await read()).pointer.capture[2]).toBe("chart");
+      const exiting = await page.evaluate(() => {
+        const canvas = document.querySelector("canvas");
+        canvas.style.width = "calc(100vw - 80px)";
+        canvas.style.height = "calc(100vh - 40px)";
+        window.layeredDashboardDemo.setVisible(false);
+        window.layeredDashboardDemo.pause();
+        return { ...window.layeredDashboardDemo.snapshot(), counts: { ...window.captureCounts } };
+      });
+      expect(exiting.captured).toBeNull();
+      expect(exiting.counts).toEqual({ set: 1, release: 1 });
+      expect(exiting.width).toBe(1200 * dpr);
+      expect(exiting.nodeCount).toBe(28); // 退出仍可见，不能用立刻删除替代。
+      expect(exiting.scene.nodes.slice(1).every((node) => node.interaction[0] === "disabled")).toBe(true);
+      await page.evaluate(() => window.layeredDashboardDemo.seek(1.3));
+      expect((await read()).scene.nodes[1].content[1].opacity).toBeCloseTo(0.5, 12);
+      await page.screenshot({ path: testInfo.outputPath(`dashboard-exit-dpr${dpr}.png`) });
+      const reentered = await page.evaluate(() => {
+        window.layeredDashboardDemo.setVisible(false); // 重复提交不重新计时，也不再次释放。
+        const before = window.layeredDashboardDemo.snapshot().scene.nodes.map((node) => node.content);
+        window.layeredDashboardDemo.setVisible(true);
+        window.layeredDashboardDemo.pause();
+        return { before, ...window.layeredDashboardDemo.snapshot(), counts: { ...window.captureCounts } };
+      });
+      expect(reentered.scene.nodes.map((node) => node.content)).toEqual(reentered.before);
+      expect(reentered.captured).toBeNull();
+      expect(reentered.counts.release).toBe(1);
+      await page.mouse.up();
+      position = await point();
+      await page.mouse.move(position.x, position.y);
+      await page.mouse.down();
+      expect((await read()).counts.set).toBe(2);
+      const unmounted = await page.evaluate(() => {
+        const api = window.layeredDashboardDemo;
+        api.dispose();
+        api.dispose();
+        document
+          .querySelector("canvas")
+          .dispatchEvent(new PointerEvent("pointerdown", { pointerId: 19, clientX: 500, clientY: 500 }));
+        return { state: api.snapshot(), counts: { ...window.captureCounts }, removed: !window.layeredDashboardDemo };
+      });
+      expect(unmounted.removed).toBe(true);
+      expect(unmounted.state.captured).toBeNull();
+      expect(unmounted.state.pointer["hover-node"]).toBe("");
+      expect(unmounted.counts).toEqual({ set: 2, release: 2 });
+      expect(unmounted.state.pending).toBe(false);
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
 test("真实嵌套看板整组退出只合成一次 alpha，乱序采样与重入连续", async ({ page }, testInfo) => {
   await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
   const result = await page.evaluate(async () => {

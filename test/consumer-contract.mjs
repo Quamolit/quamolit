@@ -343,7 +343,17 @@ export function verifyLayeredConsumer(app, core) {
   );
   assert.equal(calls, 0, "晚于其他图元的图片失败仍必须在任何绘制前检出");
   assert.deepEqual(core.to_js_data(primitive), primitiveBefore, "资源预检和布局不能修改声明");
-  return counts;
+  const presenceTimes = [1, 0, 0.5, 0.25, 1];
+  for (const time of presenceTimes) {
+    const nested = core.to_js_data(app.nested_presence_at(time)).nodes;
+    assert.equal(nested.length, 5);
+    assert.equal(nested[0].content[1].opacity, 1 - time);
+    assert.equal(nested[2].content[1].opacity, 0.5, "整组Presence不能向嵌套子组重复下推alpha");
+    assert.ok(nested.every((node) => node.interaction[0] === "disabled"));
+    assert.equal(new Set(nested.map((node) => node.id)).size, 5);
+  }
+  assert.throws(() => app.nested_presence_at(NaN), /invalid-scene-sample-time/);
+  return { ...counts, nestedPresence: { times: presenceTimes, nodes: 5, disabled: true } };
 }
 
 // 同一个搬移后的消费者、同一个 Canvas；参考只用独立原生绘制，不解释 Scene 数据。
