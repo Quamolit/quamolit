@@ -33,6 +33,152 @@ async function ready(page, query = "") {
   await page.goto(`http://127.0.0.1:5180/examples/finder/index.html${query}`);
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
 }
+
+async function checkCompactPixels(page) {
+  const evidence = await page.evaluate(() => {
+    const snapshot = window.finderDemo.snapshot(),
+      canvas = document.querySelector("canvas");
+    const cssWidth = canvas.clientWidth,
+      cssHeight = canvas.clientHeight;
+    const reference = document.createElement("canvas");
+    reference.width = canvas.width;
+    reference.height = canvas.height;
+    const ctx = reference.getContext("2d");
+    ctx.setTransform(snapshot.view.scale, 0, 0, snapshot.view.scale, canvas.width / 2, canvas.height / 2);
+    const ew = cssWidth - 24,
+      eh = Math.min(cssHeight - 120, 600),
+      base = (ew - 48) / 2;
+    const color = (c) => `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},${c.a})`;
+    const geometry = (id) => {
+      const card = id.startsWith("card-"),
+        [folder, index] = id
+          .replace(/^(folder-|card-)/, "")
+          .split("/")
+          .map(Number);
+      const source = snapshot.scene.nodes.find((node) => node.id === id).content[1];
+      const parent = snapshot.scene.nodes.find((node) => node.id === `folder-${folder}`).content[1];
+      const f = (parent.width - 140) / 560,
+        center = (folder * 124 - 248) * (1 - f);
+      if (!card) {
+        const width = 140 + (ew - 140) * f,
+          height = 100 + (eh - 100) * f;
+        return { x: -width / 2, y: center - height / 2, width, height };
+      }
+      const factor = Math.max(f, 0.0001),
+        q = (source.width / factor - 150) / 540;
+      const width = factor * (base + (ew - 32 - base) * q),
+        height = factor * (88 + (eh - 112 - 88) * q);
+      const x = factor * ((index % 2) * 2 - 1) * ((base + 16) / 2) * (1 - q);
+      const y = center + factor * ((Math.floor(index / 2) * 120 - 128) * (1 - q) + 28 * q);
+      return { x: x - width / 2, y: y - height / 2, width, height };
+    };
+    for (const node of snapshot.scene.nodes) {
+      const source = node.content[1],
+        label = node.content[0] === "text",
+        id = node.id.replace(/\/label$/, "");
+      const body = geometry(id);
+      ctx.fillStyle = color(source.fill);
+      if (!label) ctx.fillRect(body.x, body.y, body.width, body.height);
+      else {
+        const folder = id.startsWith("folder-"),
+          ratio = body.width / base;
+        ctx.font = `${folder ? source.size : 18 * ratio}px monospace`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.direction = "ltr";
+        ctx.fillText(
+          source.text,
+          body.x + (folder ? 14 : 12 * ratio),
+          folder ? body.y + 35 : body.y + body.height / 2 + 6 * ratio,
+        );
+      }
+    }
+    const actual = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+    const expected = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const shifted = document.createElement("canvas");
+    shifted.width = canvas.width;
+    shifted.height = canvas.height;
+    shifted.getContext("2d").drawImage(reference, 1, 0);
+    const wrong = shifted.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+    let differences = 0,
+      shiftedDifferences = 0;
+    for (let i = 0; i < actual.length; i++) {
+      if (actual[i] !== expected[i]) differences++;
+      if (actual[i] !== wrong[i]) shiftedDifferences++;
+    }
+    return { differences, shiftedDifferences };
+  });
+  expect(evidence.differences).toBe(0);
+  expect(evidence.shiftedDifferences).toBeGreaterThan(0);
+}
+
+for (const dpr of [1, 2])
+  test(`窄屏 DPR ${dpr}：五组18张卡片真实触摸、独立中间帧与暂停resize`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      deviceScaleFactor: dpr,
+      hasTouch: true,
+    });
+    const page = await context.newPage();
+    try {
+      for (let folder = 0; folder < 5; folder++) {
+        await ready(page, "?t=0");
+        await checkCompactPixels(page);
+        await page.touchscreen.tap(195, 422 + folder * 124 - 248);
+        await page.evaluate(() => window.finderDemo.pause());
+        const middle = await page.evaluate(() => window.finderDemo.seek(0.21));
+        expect(middle.model.folder).toBe(folder);
+        await checkCompactPixels(page);
+        let time = 0.42;
+        const open = await page.evaluate((t) => window.finderDemo.seek(t), time);
+        await checkCompactPixels(page);
+        for (const node of open.presentation.nodes.filter(
+          (node) => node.id.startsWith(`card-${folder}/`) && !node.id.endsWith("/label"),
+        )) {
+          expect(node.content[1].width).toBeGreaterThanOrEqual(44);
+          expect(node.content[1].height).toBeGreaterThanOrEqual(44);
+          const label = open.presentation.nodes.find((item) => item.id === `${node.id}/label`).content[1];
+          expect(label.size).toBeGreaterThanOrEqual(18);
+        }
+        const count = open.presentation.nodes.filter(
+          (node) => node.id.startsWith(`card-${folder}/`) && !node.id.endsWith("/label"),
+        ).length;
+        for (let card = 0; card < count; card++) {
+          await page.touchscreen.tap(
+            195 + (((card % 2) * 2 - 1) * ((390 - 72) / 2 + 16)) / 2,
+            422 + Math.floor(card / 2) * 120 - 128,
+          );
+          await page.evaluate(() => window.finderDemo.pause());
+          expect((await page.evaluate(() => window.finderDemo.snapshot())).model.card).toBe(card);
+          await page.evaluate((t) => window.finderDemo.seek(t), time + 0.18);
+          await checkCompactPixels(page);
+          time += 0.42;
+          await page.evaluate((t) => window.finderDemo.seek(t), time);
+          await checkCompactPixels(page);
+          if (card === 0) await page.screenshot({ path: testInfo.outputPath(`folder-${folder}-focus-dpr${dpr}.png`) });
+          await page.touchscreen.tap(8, 836);
+          await page.evaluate(() => window.finderDemo.pause());
+          time += 0.42;
+          await page.evaluate((t) => window.finderDemo.seek(t), time);
+        }
+        const before = await page.evaluate(() => window.finderDemo.snapshot());
+        await page.setViewportSize({ width: 320, height: 640 });
+        await expect.poll(() => page.evaluate(() => window.finderDemo.snapshot().width)).toBe(320 * dpr);
+        const resized = await page.evaluate(() => window.finderDemo.snapshot());
+        expect(resized.model).toEqual(before.model);
+        expect(resized.time).toBe(before.time);
+        await checkCompactPixels(page);
+        await page.locator("#panel-toggle").click();
+        await expect(page.locator("#panel")).toBeVisible();
+        await page.locator("#panel-toggle").click();
+        await expect(page.locator("#panel")).toBeHidden();
+        expect((await page.evaluate(() => window.finderDemo.snapshot())).model).toEqual(before.model);
+        await page.setViewportSize({ width: 390, height: 844 });
+      }
+    } finally {
+      await context.close();
+    }
+  });
 async function clickLogical(page, x, y) {
   const position = await page.evaluate(
     ({ x, y }) => {

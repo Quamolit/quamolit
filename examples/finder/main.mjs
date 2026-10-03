@@ -9,7 +9,7 @@ const status = document.querySelector("#status"), message = document.querySelect
 const play = document.querySelector("#play"), panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
 const params = new URLSearchParams(location.search);
 let log = finder.empty_events(), time = 0, model = finder.initial(), paints = 0;
-let scene, interactionPlan, paintedModel, paintedTime;
+let scene, presentation, interactionPlan, paintedModel, paintedTime, compact = false;
 let playing = false, anchor = 0, started = 0, until = 10;
 let view = { scale: 1, x: 0, y: 0 };
 const scheduler = new DemandFrameScheduler({
@@ -19,15 +19,18 @@ const scheduler = new DemandFrameScheduler({
 });
 function wake(reason) { scheduler.request(reason); scheduler.resume(); }
 function draw() {
-  const document = finder.scene_at(model,time), nextHitPlan = finder.hit_plan(model,time,document);
   const bounds = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  const document = finder.scene_at(model,time);
+  compact = bounds.width < 720;
+  const displayed = compact ? finder.compact_document(document,Math.max(300,bounds.width),Math.max(600,bounds.height)) : document;
+  const nextHitPlan = finder.hit_plan(model,time,displayed);
   const width = Math.max(1, Math.round(bounds.width * dpr)), height = Math.max(1, Math.round(bounds.height * dpr));
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
-  view = { scale: Math.min(width / 1100, height / 800), x: panel.hidden ? width / 2 : width * 0.38, y: height / 2 };
+  view = compact ? {scale:dpr,x:width/2,y:height/2} : { scale: Math.min(width / 1100, height / 800), x: panel.hidden ? width / 2 : width * 0.38, y: height / 2 };
   context.setTransform(1, 0, 0, 1, 0, 0); context.clearRect(0, 0, width, height);
   context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
-  draw_reference_$x_(context, document);
-  scene=document; interactionPlan=nextHitPlan; paintedModel=model; paintedTime=time;
+  draw_reference_$x_(context, displayed);
+  scene=document; presentation=displayed; interactionPlan=nextHitPlan; paintedModel=model; paintedTime=time;
   paints++;
   slider.value = String(time);
   status.textContent = `t = ${time.toFixed(2)} s · 文件夹 ${to_js_data(model).folder} · 卡片 ${to_js_data(model).card}\n文件夹展开 ${finder.folder_value(model, time).toFixed(2)} · 卡片聚焦 ${finder.card_value(model, time).toFixed(2)}\n事件 ${to_js_data(log).length} 条 · 绘制 ${paints}`;
@@ -56,6 +59,7 @@ function snapshot() {
     model: to_js_data(model),
     events: to_js_data(log),
     scene: to_js_data(scene),
+    presentation: to_js_data(presentation), compact,
     hitCandidates: to_js_data(interactionPlan).candidates.length,
     folderValues: to_js_data(finder.folder_values(model, time)),
     cardValues: to_js_data(finder.card_values(model, time)),

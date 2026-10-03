@@ -73,6 +73,77 @@ test("命中读取移动/缩小后的实际 Scene，不按 Model 初始几何猜
 
 const scene = (model, time) => data(finder.scene_at(model, time)).nodes;
 
+test("窄屏五组和18张卡片保留可读字号、44px目标及父级缩放边界", () => {
+  for (const [width, height] of [
+    [320, 640],
+    [390, 844],
+    [600, 800],
+  ])
+    for (let folder = 0; folder < 5; folder++) {
+      const initial = finder.initial(),
+        opened = finder.select_folder(initial, folder, 0);
+      const source = finder.scene_at(opened, 0.42),
+        original = data(source);
+      const projected = finder.compact_document(source, width, height),
+        nodes = data(projected).nodes;
+      const plan = finder.hit_plan(opened, 0.42, projected);
+      for (let index = 0; index < data(finder.cards_for(folder)).length; index++) {
+        const rect = nodes.find((node) => node.id === `card-${folder}/${index}`).content[1];
+        const label = nodes.find((node) => node.id === `card-${folder}/${index}/label`).content[1];
+        assert.ok(rect.width >= 44 && rect.height >= 44);
+        assert.ok(label.size >= 18);
+        assert.equal(
+          data(finder.hit_with_plan(opened, 0.42, plan, rect.x + rect.width / 2, rect.y + rect.height / 2)).card,
+          index,
+        );
+        const focused = finder.select_card(opened, index, 0.42),
+          closing = finder.back(focused, 0.6);
+        for (const [model, time] of [
+          [opened, 0.1],
+          [opened, 0.21],
+          [focused, 0.51],
+          [focused, 0.78],
+          [closing, 0.6],
+          [closing, 0.72],
+          [closing, 0.96],
+        ]) {
+          const view = data(finder.compact_document(finder.scene_at(model, time), width, height)).nodes;
+          const parent = view.find((node) => node.id === `folder-${folder}`).content[1];
+          for (const card of view.filter(
+            (node) => node.id.startsWith(`card-${folder}/`) && !node.id.endsWith("/label"),
+          )) {
+            const r = card.content[1],
+              text = view.find((node) => node.id === `${card.id}/label`).content[1],
+              epsilon = 1e-8;
+            assert.ok(r.x >= parent.x - epsilon && r.x + r.width <= parent.x + parent.width + epsilon);
+            assert.ok(r.y >= parent.y - epsilon && r.y + r.height <= parent.y + parent.height + epsilon);
+            assert.ok(text.x >= r.x && text.x + text.text.length * text.size <= r.x + r.width + epsilon);
+            assert.ok(text.y - text.size / 2 >= r.y && text.y + text.size / 2 <= r.y + r.height);
+          }
+        }
+      }
+      assert.deepEqual(data(source), original);
+      const home = finder.compact_document(finder.scene_at(initial, 0), width, height),
+        homePlan = finder.hit_plan(initial, 0, home);
+      for (let index = 0; index < 5; index++) {
+        const r = data(home).nodes.find((node) => node.id === `folder-${index}`).content[1];
+        assert.ok(r.width >= 44 && r.height >= 44);
+        assert.equal(
+          data(finder.hit_with_plan(initial, 0, homePlan, r.x + r.width / 2, r.y + r.height / 2)).folder,
+          index,
+        );
+      }
+    }
+  const source = finder.scene_at(finder.initial(), 0);
+  for (const [width, height] of [
+    [NaN, 844],
+    [390, Infinity],
+    [299, 844],
+    [390, 599],
+  ])
+    assert.throws(() => finder.compact_document(source, width, height), /invalid-finder-compact-viewport/);
+});
+
 test("五个旧文件夹及中文植物卡片，展开/聚焦/返回具有稳定身份", () => {
   const start = finder.initial();
   assert.deepEqual(
