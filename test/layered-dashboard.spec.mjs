@@ -167,6 +167,73 @@ test("不透明无裁剪组零离屏分配，透明或裁剪组仍隔离", async
   expect(counts).toEqual({ opaque: 0, alpha: 1, clipped: 1 });
 });
 
+test("类型化隔离层覆盖离屏与 DOM 回退，合成像素和目标状态不变", async ({ page }) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const results = await page.evaluate(async () => {
+    const renderer = await import("/target/js/layered-dashboard/quamolit.canvas-scene.mjs");
+    const Original = window.OffscreenCanvas;
+    const results = [];
+    try {
+      for (const fallback of [false, true]) {
+        window.OffscreenCanvas = fallback ? undefined : Original;
+        const layer = renderer.layer_create_$x_(16, 12);
+        const context = renderer.layer_context_$x_(layer);
+        context.fillStyle = "#248abc";
+        context.fillRect(2, 3, 8, 6);
+        const makeTarget = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 16;
+          canvas.height = 12;
+          const target = canvas.getContext("2d");
+          target.setTransform(2, 0, 0, 2, 3, 4);
+          target.globalAlpha = 0.75;
+          return target;
+        };
+        const actual = makeTarget();
+        renderer.composite_layer_$x_(actual, layer, 0.5);
+        const expected = makeTarget();
+        expected.save();
+        expected.setTransform(1, 0, 0, 1, 0, 0);
+        expected.globalAlpha = 0.5;
+        expected.drawImage(layer, 0, 0);
+        expected.restore();
+        const pixels = actual.getImageData(0, 0, 16, 12).data;
+        const reference = expected.getImageData(0, 0, 16, 12).data;
+        results.push({
+          kind: layer instanceof HTMLCanvasElement ? "dom" : "offscreen",
+          size: [layer.width, layer.height],
+          differentBytes: pixels.filter((value, index) => value !== reference[index]).length,
+          visiblePixels: pixels.filter((_, index) => index % 4 === 3 && pixels[index] > 0).length,
+          alpha: actual.globalAlpha,
+          transform: [...actual.getTransform().toFloat64Array()],
+        });
+      }
+      for (const [width, height] of [
+        [0, 12],
+        [16, -1],
+        [NaN, 12],
+        [16, Infinity],
+      ]) {
+        let rejected = false;
+        try {
+          renderer.layer_create_$x_(width, height);
+        } catch {
+          rejected = true;
+        }
+        if (!rejected) throw new Error(`invalid surface accepted: ${width},${height}`);
+      }
+    } finally {
+      window.OffscreenCanvas = Original;
+    }
+    return results;
+  });
+  expect(results.map((result) => result.kind)).toEqual(["offscreen", "dom"]);
+  for (const result of results) {
+    expect(result).toMatchObject({ size: [16, 12], differentBytes: 0, visiblePixels: 48, alpha: 0.75 });
+    expect(result.transform).toEqual([2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 3, 4, 0, 1]);
+  }
+});
+
 test("首个rAF早于播放启动时间不倒退Model，终点仍停帧", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

@@ -53,3 +53,5 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 同一消费者的 `primitive-document(time)` 用 Calcit 声明8种 document 支持图元的真实 payload（group/rect/polyline/text/image/polygon/cubic-path/circle）；`draw-primitives!` 通过公共模块绘制，与图表共用一个纯 Calcit 布局函数。现有无GPU浏览器门禁在同一Canvas上检查5个乱序时间、固定尺寸与全屏DPR1/2，逐通道比较独立原生参考，不从Scene数据生成参考；绘制前后声明不变。JS测试只创建8×8图片宿主和期望画面，不是库的实现或新增demo。图片缺失/尺寸不符的Node反例使用不可访问Canvas替身，要求零宿主调用；instances仍明确拒绝。结果位于原报告的 `layeredCanvas.primitives` 与各fullscreen记录的 `primitives`，截图仍为忽略artifact。这补齐合法图元实际绘制证据，不把种类查询当资源验证，不外推到任意路径/字体排版或GPU完整语义。
 
 像素参考独立计算动画、矩阵、裁剪和组合成，但与实际后端采用同类隔离 surface（可用时 OffscreenCanvas，否则 DOM Canvas），最终绘制到 DOM Canvas。Chromium 上以 scale=3.125、clip 顶边 y=343.75 原生复现，边界像素 DOM Canvas 为 `[255,0,0,16]`、OffscreenCanvas 为 `[0,0,0,0]`；因此不能混用 surface 类型再用宽松阈值掩盖差异。门禁保持整帧零差异，不证明两类原生 Canvas 边缘栅格化相同，也不外推到 #144 的 Canvas/GPU 合同。
+
+隔离 surface 在 Calcit 遍历中使用 `CanvasLayerHost`，通过 `layer-create!` 检查有限正尺寸后创建；`layer-context!`/`composite-layer!` 只在三个原始 inline ABI 处转换 JsObject。不新增宿主文件或依赖，下游安装模块并编译即可携带片段。此类型是 js-ffi #147 的局部过渡方案，上游发布类型化平台入口后替换。既有浏览器门禁分别核验离屏与 DOM 回退的原生合成 RGBA 零差异、非空图像、transform/globalAlpha 恢复及非法尺寸拒绝。

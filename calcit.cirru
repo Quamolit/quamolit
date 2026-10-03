@@ -548,6 +548,12 @@
           :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
     'quamolit.canvas-scene $ %{} 'FileEntry
       :defs $ {}
+        'CanvasLayerHost $ %{} 'CodeEntry
+          :doc "|临时隔离 Canvas surface 类型，兼容 OffscreenCanvas 与 HTMLCanvasElement；只由 layer-create! 创建。js-ffi #147 提供平台类型后替换，不承诺任意 JS 对象有效。"
+          :code $ quote $ deftrait CanvasLayerHost (:width 'Number) (:height 'Number)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+          :schema $ :: 'Trait
         'clip-group! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn clip-group! (context clip)
             match clip
@@ -563,10 +569,10 @@
             :features $ #{} :js-ffi
         'composite-layer! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn composite-layer! (context surface opacity)
-            raw-composite-layer! (unsafe-coerce context JsObject) surface opacity
+            raw-composite-layer! (unsafe-coerce context JsObject) (unsafe-coerce surface JsObject) opacity
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject 'Number
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.canvas-scene/CanvasLayerHost 'Number
             :features $ #{} :js-ffi
         'content-supported? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn content-supported? (content)
@@ -645,7 +651,7 @@
                       , unclipped? $ not raster-sensitive?
                     draw-children! context nodes (:id node) transform width height lookup
                     let
-                        layer $ raw-layer-create! width height
+                        layer $ layer-create! width height
                         layer-context $ layer-context! layer
                       layer-context .save!
                       set-transform! layer-context transform
@@ -672,10 +678,20 @@
             :args $ []
         'layer-context! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn layer-context! (surface)
-            unsafe-coerce (raw-layer-context! surface) js-ffi.canvas-batches/CanvasContextHost
+            unsafe-coerce
+              raw-layer-context! $ unsafe-coerce surface JsObject
+              , js-ffi.canvas-batches/CanvasContextHost
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'js-ffi.canvas-batches/CanvasContextHost)
-            :args $ [] 'JsObject
+            :args $ [] 'quamolit.canvas-scene/CanvasLayerHost
+            :features $ #{} :js-ffi
+        'layer-create! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn layer-create! (width height)
+            assert |invalid-canvas-scene-size $ and (motion/finite-number? width) (motion/finite-number? height) (> width 0) (> height 0)
+            unsafe-coerce (raw-layer-create! width height) CanvasLayerHost
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-scene/CanvasLayerHost)
+            :args $ [] 'Number 'Number
             :features $ #{} :js-ffi
         'lookup-image! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn lookup-image! (image lookup)
