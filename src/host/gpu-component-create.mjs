@@ -17,10 +17,23 @@ fn sampleMotion(m: Motion, original: f32) -> f32 {
   if (m.flags.x == 0.0) { return original; }
   let fromValue = m.interval.x; let toValue = m.interval.y;
   let start = m.interval.z; let duration = m.interval.w;
-  if (view.time < start) { return fromValue; }
-  if (duration == 0.0 || view.time >= start + duration) { return toValue; }
-  var ratio = clamp((view.time - start) / duration, 0.0, 1.0);
-  if (m.flags.y == 1.0) { ratio = ratio * ratio * (3.0 - 2.0 * ratio); }
+  let mirror = m.flags.y >= 2.0;
+  if (duration == 0.0) {
+    if (!mirror && view.time < start) { return fromValue; }
+    return toValue;
+  }
+  var ratio: f32;
+  if (mirror) {
+    // floor 周期映射包含负时间；1 是终点，2 回到起点。
+    let elapsed = (view.time - start) / duration;
+    let phase = elapsed - 2.0 * floor(elapsed / 2.0);
+    ratio = clamp(1.0 - abs(phase - 1.0), 0.0, 1.0);
+  } else {
+    if (view.time < start) { return fromValue; }
+    if (view.time >= start + duration) { return toValue; }
+    ratio = clamp((view.time - start) / duration, 0.0, 1.0);
+  }
+  if (m.flags.y == 1.0 || m.flags.y == 3.0) { ratio = ratio * ratio * (3.0 - 2.0 * ratio); }
   return fromValue * (1.0 - ratio) + toValue * ratio;
 }` : `struct View { size: vec2f, time: f32, padding: f32 }
 @group(0) @binding(0) var<uniform> view: View;`;

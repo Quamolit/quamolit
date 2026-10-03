@@ -6,6 +6,8 @@ import {
   update_dual,
   start_alpha,
   update_alpha,
+  start_mirror,
+  update_mirror,
   draw_$x_,
   instances_declaration,
   browser_available_$q_,
@@ -86,7 +88,7 @@ let time = 0,
   ready = false,
   viewport = 100;
 const requestedMode = new URLSearchParams(location.search).get("motion");
-let mode = ["mixed", "dual", "alpha", "presence", "instances", "instances-gpu", "instances-scalar"].includes(requestedMode)
+let mode = ["mixed", "dual", "alpha", "mirror", "presence", "instances", "instances-gpu", "instances-scalar"].includes(requestedMode)
   ? requestedMode
   : "mixed";
 if (mode === "instances-gpu" || mode === "instances-scalar") mode = "instances";
@@ -97,7 +99,7 @@ let presenceModel = presence_initial(),
 let plan =
   mode === "presence"
     ? presence_plan(presenceModel, time, presenceVersion)
-    : (mode === "alpha" ? start_alpha : mode === "dual" ? start_dual : start)(time, model, ready, viewport);
+    : (mode === "mirror" ? start_mirror : mode === "alpha" ? start_alpha : mode === "dual" ? start_dual : start)(time, model, ready, viewport);
 // Float32Array 是宿主提供的数据源；实例声明与实际 Canvas 绘制都走消费者的 Calcit 公共入口。
 const instanceCount = to_js_data(instances_declaration()).source.count;
 const positions = createInstancePositions(instanceCount);
@@ -257,7 +259,7 @@ function set(next = {}) {
     return show();
   }
   const request = { time, model, ready, viewport, ...next };
-  const updated = (mode === "alpha" ? update_alpha : mode === "dual" ? update_dual : update_plan)(
+  const updated = (mode === "mirror" ? update_mirror : mode === "alpha" ? update_alpha : mode === "dual" ? update_dual : update_plan)(
     plan,
     request.time,
     request.model,
@@ -392,13 +394,13 @@ function disposeGpu() {
   void commitGpuRecovery(gpu_recovery_close(gpuRecoveryState));
 }
 async function setMode(next) {
-  if (!["mixed", "dual", "alpha", "presence", "instances", "instances-gpu", "instances-scalar"].includes(next)) throw Error("unknown-consumer-mode");
+  if (!["mixed", "dual", "alpha", "mirror", "presence", "instances", "instances-gpu", "instances-scalar"].includes(next)) throw Error("unknown-consumer-mode");
   // 更换声明时建立新计划，不能让相同版本错误复用另一个声明的结构。
   const nextPlan = next.startsWith("instances")
     ? plan
     : next === "presence"
       ? presence_plan(presenceModel, time, presenceVersion)
-      : (next === "alpha" ? start_alpha : next === "dual" ? start_dual : start)(time, model, ready, viewport);
+      : (next === "mirror" ? start_mirror : next === "alpha" ? start_alpha : next === "dual" ? start_dual : start)(time, model, ready, viewport);
   if (next !== mode || !next.startsWith("instances")) disposeGpu();
   mode = next;
   plan = nextPlan;

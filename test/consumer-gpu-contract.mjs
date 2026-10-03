@@ -167,14 +167,16 @@ export function verifyIndependentGpuConsumer(app, core) {
   };
 }
 
-export function verifyGpuConsumer(app, core, alpha = false) {
+export function verifyGpuConsumer(app, core, mode = false) {
+  const alpha = mode === true,
+    mirror = mode === "mirror";
   assert.deepEqual(
     core.to_js_data(app.prepare_gpu(app.start(0, 40, false, 100))),
     ["fallback", "cpu-transform-required"],
     "混合场景不能为通过 GPU 验收静默漏画折线",
   );
-  const source = (alpha ? app.start_alpha : app.start_rects)(0, 40, false, 100);
-  const update = alpha ? app.update_alpha : app.update_rects;
+  const source = (mirror ? app.start_mirror : alpha ? app.start_alpha : app.start_rects)(0, 40, false, 100);
+  const update = mirror ? app.update_mirror : alpha ? app.update_alpha : app.update_rects;
   const before = core.to_js_data(source);
   const prepared = app.prepare_gpu(source);
   assert.equal(prepared.tag.value, "ready");
@@ -185,14 +187,14 @@ export function verifyGpuConsumer(app, core, alpha = false) {
     core.to_js_data(app.prepare_gpu(source.assoc(fields.slots, new core.CalcitSliceList([bound, bound])))),
     [
       "fallback",
-      `duplicate-gpu-scalar-target;key=badge;target=:${alpha ? "alpha" : "x"};motion=:${alpha ? "keyframes" : "tween"}`,
+      `duplicate-gpu-scalar-target;key=badge;target=:${alpha ? "alpha" : "x"};motion=:${alpha || mirror ? "keyframes" : "tween"}`,
     ],
     "干净安装的公共入口须返回完整绑定诊断，不能部分绘制或仅测根仓库源码",
   );
   assert.deepEqual(core.to_js_data(program.get(fields.parameters)), [
     alpha
       ? { index: 1, axis: 2, start: 0, duration: 1, from: 0, to: 1, easing: 1 }
-      : { index: 1, axis: 0, start: 0, duration: 1, from: 80, to: 120, easing: 0 },
+      : { index: 1, axis: 0, start: 0, duration: 1, from: 80, to: 120, easing: mirror ? 2 : 0 },
   ]);
   const m = nativeDevice();
   const host = app.create_gpu_$x_(m.canvas, m.device, "bgra8unorm", 2);
@@ -203,7 +205,7 @@ export function verifyGpuConsumer(app, core, alpha = false) {
     assert.equal(host.parameterBytes, 352);
     for (let frame = 0; frame < 1000; frame++) {
       // 无逐帧 update_rects/CPU sampler；只传已安装 program 和绝对时间。
-      app.draw_gpu_$x_(host, program, (frame % 101) / 100);
+      app.draw_gpu_$x_(host, program, mirror ? (frame % 501) / 100 - 2.5 : (frame % 101) / 100);
     }
     const hotWrites = m.writes.slice(coldWrites);
     assert.equal(hotWrites.length, 1000);
@@ -215,14 +217,17 @@ export function verifyGpuConsumer(app, core, alpha = false) {
     assert.equal(m.draws.length, 1001);
     assert.ok(m.draws.every((args) => args[0] === 6 && args[1] === 2));
     assert.equal(m.counts().submissions, 1001);
-    for (const time of [1, 0, 0.5, 0.25, 1]) {
+    for (const time of mirror ? [3, 2, 1, 0, -0.25, 2.5, 1] : [1, 0, 0.5, 0.25, 1]) {
       app.draw_gpu_$x_(host, program, time);
       assert.equal(m.writes.at(-1).values[2], time);
       const reference = update(source, time, 40, false, 100);
       assert.equal(app.gpu_reusable_$q_(program, reference), true);
       const rect = core.to_js_data(reference.get(fields.scene)).nodes[1].content[1];
       if (alpha) assert.equal(rect.fill.a, time * time * (3 - 2 * time));
-      else assert.equal(rect.x, 80 + 40 * time);
+      else {
+        const phase = time - 2 * Math.floor(time / 2);
+        assert.equal(rect.x, 80 + 40 * (mirror ? 1 - Math.abs(phase - 1) : time));
+      }
     }
     for (const [model, ready, viewport] of [
       [41, false, 100],

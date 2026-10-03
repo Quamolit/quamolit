@@ -8963,14 +8963,22 @@
                     abs from
                     abs to
                 budget $ + 0.00001 $ * 0.00001 minimum
-                scale $ / (* 8 1.1920928955078125e-7) budget
+                scale $ /
+                  *
+                    if
+                      >= (:easing p) 2
+                      , 16 8
+                    , 1.1920928955078125e-7
+                  , budget
               if
                 and (= duration 0) (not= from to)
                 motion/Vec2 :x 2 :y 0
                 let
                     speed $ if (= from to) 0 $ *
                       if
-                        = (:easing p) 1
+                        or
+                          = (:easing p) 1
+                          = (:easing p) 3
                         , 1.5 1
                       /
                         abs $ - to from
@@ -9110,12 +9118,23 @@
                       if
                         and
                           = 2 $ count $ :frames track
-                          = (:loop track) (motion/TrackLoop :clamp)
+                          or
+                            = (:loop track) (motion/TrackLoop :clamp)
+                            = (:loop track) (motion/TrackLoop :mirror)
                         let
                             initial $ motion/first-keyframe $ :frames track
                             final $ motion/last-keyframe $ :frames track
                             duration $ - (:at final) (:at initial)
-                          make-parameter slot $ motion/ScalarTween :start (:at initial) :duration duration :from (:value initial) :to (:value final) :easing $ :easing initial
+                            mirror? $ = (:loop track) (motion/TrackLoop :mirror)
+                          match
+                            make-parameter slot $ motion/ScalarTween :start (:at initial) :duration duration :from (:value initial) :to (:value final) :easing $ :easing initial
+                            (:ready parameter)
+                              ParameterResult :ready $ if mirror?
+                                assoc
+                                  assoc parameter :easing $ + (:easing parameter) 2
+                                  , :from $ if (= duration 0) (:to parameter) (:from parameter)
+                                , parameter
+                            (:fallback reason) (ParameterResult :fallback reason)
                         ParameterResult :fallback |scalar-kernel-not-supported
                     _ $ ParameterResult :fallback |scalar-kernel-not-supported
           :examples $ []

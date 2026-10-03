@@ -157,6 +157,15 @@
           :schema $ :: 'Fn $ {}
             :return 'quamolit.retained-component/ExecutionDeclaration
             :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'declare-mirror $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-mirror (props model input ready viewport)
+            assoc (declare props model input ready viewport) :motions $ [] $ motion/ScalarDescriptor :id |x :version 1 :motion
+              motion/ScalarMotion :keyframes $ motion/ScalarTrack :loop (motion/TrackLoop :mirror) :frames $ []
+                motion/ScalarKeyframe :at 0 :value 80 :easing $ motion/Easing :linear
+                motion/ScalarKeyframe :at 1 :value 120 :easing $ motion/Easing :smoothstep
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
         'dispose-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn dispose-gpu! (host) (batch/dispose-renderer! host)
           :examples $ []
@@ -532,6 +541,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'start-mirror $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-mirror (time model ready viewport)
+            retained/build-component-plan (request time model ready viewport) declare-mirror
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number 'Number 'Bool 'Number
         'start-rects $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-rects (time model ready viewport)
             retained/build-component-plan (request time model ready viewport) declare
@@ -559,6 +574,12 @@
         'update-dual $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-dual (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare-dual
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+        'update-mirror $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-mirror (plan time model ready viewport)
+            retained/update-component-plan plan (request time model ready viewport) declare-mirror
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number

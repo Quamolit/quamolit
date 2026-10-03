@@ -191,12 +191,14 @@ export async function verifyIndependentGpuConsumerBrowser(page, artifacts) {
 
 // 测试驱动仅导入搬移后的 app.main；不把测试文件放进消费者 runtime。
 export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
-  const alpha = dual === "alpha";
+  const alpha = dual === "alpha",
+    mirror = dual === "mirror";
   // 诊断驱动注入自包含 probe，不安装到消费者，不增加生产模块/文件请求。
   // probe 复用 host 内实际 shader 与参数；没有另写一份测试版 WGSL 公式。
   if (dual) await page.addScriptTag({ content: `globalThis.__quamolitScalarProbe = ${readScalarSample.toString()}` });
   const report = await page.evaluate(async (dual) => {
-    const alpha = dual === "alpha";
+    const alpha = dual === "alpha",
+      mirror = dual === "mirror";
     if (!navigator.gpu) return { result: "SKIP", reason: "webgpu-unavailable" };
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) return { result: "SKIP", reason: "adapter-unavailable" };
@@ -215,8 +217,8 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
       return { result: "SKIP", reason: "software-adapter", adapter: identity };
     }
     const app = await import("/target/js/app/app.main.mjs");
-    const start = alpha ? app.start_alpha : dual ? app.start_dual : app.start_rects;
-    const update = alpha ? app.update_alpha : dual ? app.update_dual : app.update_rects;
+    const start = mirror ? app.start_mirror : alpha ? app.start_alpha : dual ? app.start_dual : app.start_rects;
+    const update = mirror ? app.update_mirror : alpha ? app.update_alpha : dual ? app.update_dual : app.update_rects;
     const device = await adapter.requestDevice();
     const errors = [],
       frames = [],
@@ -257,6 +259,7 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
         { time: 1, viewport: 200 },
         // 新夹具只移动已有 badge 到静态条带上，不增加节点或动画实现。
         ...(alpha ? [0, 0.5, 1].map((time) => ({ time, model: 80, ready: true, overlap: true })) : []),
+        ...(mirror ? [3, 2, -1, -0.25, 2.5].map((time) => ({ time })) : []),
       ]) {
         model = request.model ?? model;
         ready = request.ready ?? ready;
@@ -341,14 +344,21 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
         });
       }
       if (dual) {
-        for (const time of [0.37, 0.81, 0.4999999, -0.1, 1.1, 0, 1]) {
+        for (const time of mirror
+          ? [-2.25, -0.1, 0, 1, 1.000001, 1.75, 2, 2.000001, 3.37, 3.5]
+          : [0.37, 0.81, 0.4999999, -0.1, 1.1, 0, 1]) {
           // 相同时间先走公共入口及其精度预算；probe 不自行绕过能力判定。
           app.draw_gpu_$x_(host, program, time);
           const actual = await globalThis.__quamolitScalarProbe(host, 1, time, alpha ? 2 : 0);
-          const t = Math.max(0, Math.min(1, time)),
+          const phase = time - 2 * Math.floor(time / 2);
+          const t = mirror ? 1 - Math.abs(phase - 1) : Math.max(0, Math.min(1, time)),
             eased = t * t * (3 - 2 * t);
-          const expected = alpha ? [eased, eased] : [80 + 64 * eased, 22 + model + 32 * eased];
-          if (!alpha) {
+          const expected = mirror
+            ? [80 + 40 * t, 0]
+            : alpha
+              ? [eased, eased]
+              : [80 + 64 * eased, 22 + model + 32 * eased];
+          if (!alpha && !mirror) {
             actual.push(...(await globalThis.__quamolitScalarProbe(host, 1, time, 3)));
             expected.push(30 + viewport / 10 + 64 * eased, 20 + 32 * eased);
           }
@@ -364,7 +374,7 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
     }
     return {
       result: "PASS",
-      mode: alpha ? "smoothstep-alpha" : dual ? "smoothstep-xy-size" : "linear-x",
+      mode: mirror ? "mirror-linear-x" : alpha ? "smoothstep-alpha" : dual ? "smoothstep-xy-size" : "linear-x",
       adapter: identity,
       frames,
       numericSamples,
@@ -380,13 +390,13 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
       ["expectedPng", "canvas"],
       ...(frame.overlap ? [["diffPng", "diff"]] : []),
     ]) {
-      const filename = `gpu-${alpha ? "alpha-" : dual ? "dual-" : ""}frame-${index}-${suffix}.png`;
+      const filename = `gpu-${mirror ? "mirror-" : alpha ? "alpha-" : dual ? "dual-" : ""}frame-${index}-${suffix}.png`;
       await writeFile(join(artifacts, filename), Buffer.from(frame[key].split(",")[1], "base64"));
       frame[key] = filename;
     }
   }
   assert.deepEqual(report.errors, []);
-  assert.equal(report.frames.length, alpha ? 11 : 8);
+  assert.equal(report.frames.length, mirror ? 13 : alpha ? 11 : 8);
   for (const [index, frame] of report.frames.entries()) {
     if (frame.overlap) {
       // 新的透明叠加夹具沿用分层合同的 RGB≤2；8个原画面的零差异门禁不变。
@@ -398,12 +408,12 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
       if (frame.time === 0.5)
         assert.ok(Math.abs(frame.overlapPixel[1] - 102) > 2, "错误层序的灰色上层必须被独立公式拒绝");
     } else assert.equal(frame.differences, 0, JSON.stringify(frame));
-    const reused = index < 5 || index > 8;
+    const reused = index < 5 || (mirror ? index >= 8 : index > 8);
     assert.equal(frame.reused, reused);
     assert.equal(frame.uploadedBytes, reused ? 0 : 128);
-    assert.equal(frame.parameterBytes, reused ? 0 : dual && !alpha ? 448 : 352);
+    assert.equal(frame.parameterBytes, reused ? 0 : dual && !alpha && !mirror ? 448 : 352);
   }
-  assert.equal(report.numericSamples.length, dual ? 7 : 0);
+  assert.equal(report.numericSamples.length, mirror ? 10 : dual ? 7 : 0);
   for (const sample of report.numericSamples) {
     for (let axis = 0; axis < sample.expected.length; axis++) {
       assert.ok(
@@ -415,6 +425,8 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
   if (dual === true) {
     report.alpha = await verifyGpuConsumerBrowser(page, artifacts, "alpha");
     assert.equal(report.alpha.result, "PASS", "已取得真实GPU的双轴专项必须实际执行alpha，不将子项SKIP藏在PASS内");
+    report.mirror = await verifyGpuConsumerBrowser(page, artifacts, "mirror");
+    assert.equal(report.mirror.result, "PASS", "已取得真实 GPU 必须执行镜像轨道专项");
   }
   return report;
 }

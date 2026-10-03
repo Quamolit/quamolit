@@ -2,9 +2,9 @@
 
 推进 #52，消费 #118 的 ComponentPlan/矩形批次候选，不另造组件或 Scene。已接入参数常驻和 vertex shader 采样；已有真实 GPU 像素、线性及双轴 smoothstep 非整数读回，以及独立消费者分发验证。完整精度域与性能验收仍在开发，不以这些诊断帧代表完整数值等价。
 
-`quamolit.gpu-scalar-program/prepare-program(plan)` 返回 `ProgramResult :ready ScalarProgram` 或 `:fallback reason`。ready 保存同一来源计划、矩形帧和 ScalarParameter 列表。通过既有 `motion-gpu/lower-scalar` 检查描述符，再将明确支持的矩形 x/y/alpha/width/height constant、linear/smoothstep tween 或两点 clamp 轨道转成参数。轨道复用 tween 编码与 shader，段 easing 取首帧；重复时间保留“时间点前取首值，到点后右侧胜出”，非恒定零时长跳变仍被原精度预算拒绝。多段及 repeat/mirror 未实现，仍明确回退。alpha 是填充透明度替换，端点须在 `[0,1]`，不是 group opacity；隔离组、CPU 自定义变换、其他目标/算子及不支持的节点仍整层回退，不返回部分有效绑定。
+`quamolit.gpu-scalar-program/prepare-program(plan)` 返回 `ProgramResult :ready ScalarProgram` 或 `:fallback reason`。ready 保存同一来源计划、矩形帧和 ScalarParameter 列表。通过既有 `motion-gpu/lower-scalar` 检查描述符，再将明确支持的矩形 x/y/alpha/width/height constant、linear/smoothstep tween 或两点 clamp/mirror 轨道转成参数。轨道复用 tween 编码与 shader，段 easing 取首帧；重复时间保留“时间点前取首值，到点后右侧胜出”，非恒定零时长跳变仍被原精度预算拒绝。多段及 repeat 未实现，仍明确回退。alpha 是填充透明度替换，端点须在 `[0,1]`，不是 group opacity；隔离组、CPU 自定义变换、其他目标/算子及不支持的节点仍整层回退，不返回部分有效绑定。
 
-参数逻辑布局为 `index, axis, start, duration, from, to, easing, padding`，共8个Number。axis 0/1/2/3/4 对应 x/y/alpha/width/height，easing 0/1 对应 linear/smoothstep。constant归一化为相同from/to、duration=0；零时长在 time<start 时取from，否则取to，shader在除法前处理分支。storage buffer按节点保留五个32B槽，每槽为from/to/start/duration、enabled/easing/0/0；位置为index×160+axis×32，不在shader中搜索绑定。alpha交给原预乘混合；宽高在既有顶点路径中生成矩形，不改变绘制顺序。
+参数逻辑布局为 `index, axis, start, duration, from, to, easing, padding`，共8个Number。axis 0/1/2/3/4 对应 x/y/alpha/width/height，easing 0/1 对应 clamp linear/smoothstep，2/3 对应 mirror linear/smoothstep。constant归一化为相同from/to、duration=0；零时长在 time<start 时取from，否则取to，shader在除法前处理分支。storage buffer按节点保留五个32B槽，每槽为from/to/start/duration、enabled/easing/0/0；位置为index×160+axis×32，不在shader中搜索绑定。alpha交给原预乘混合；宽高在既有顶点路径中生成矩形，不改变绘制顺序。
 
 五槽共用原buffer与pipeline，不增加资源数量，但参数容量从每节点96B增为160B。10k现有双轴负载的参数冷安装为1600000B清零+640000B写入=2240000B，热帧仍仅16B uniform。历史硬件/正式基准按当时源码保留，不冒充五槽布局的新性能报告；本轮是功能扩展，不声称加速。
 
@@ -25,6 +25,8 @@ Apple/Metal-3（software=false）实际验证 t=1→0→0.5→0.25→1，每帧 
 同一硬件的有界数值读回复用 renderer 的 `scalarSource` 与已安装 storage 参数，不另写测试版 WGSL。t=0.37 得到 94.80000305175781（独立线性公式 94.8）；t=0.81 得到 112.4000015258789（112.4）；t=0.4999999 得到 100（99.999996）；t=-0.1/1.1 得到 80/120。全部满足既定 `1e-5 + 1e-5*abs(expected)`，未放宽阈值。五次共读回 40 B，每次诊断临时分配三个 buffer 并释放；测试专用 compute 不是正常绘制路径，不计稳态帧资源和吞吐。当前仅证明这个线性绑定，不能外推所有 smoothstep/双轴或整个精度域。
 
 ## 已有测试与下一交付
+
+两点镜像轨道复用相同参数布局：easing 2/3 编码往返 linear/smoothstep，WGSL 用 floor 周期映射处理负时间；首帧 easing 控制两个方向，奇数段长取末值，偶数段长取首值。零段长镜像按 CPU 规则归一化为末值常量；原始尺寸/alpha/参数域检查先执行。重复轨道的不连续周期边界和多段轨道仍回退。镜像的预算系数采用16ε（原clamp为8ε），为周期减除/归约多留余量，保持现有数值容差和 O(1) 时间门禁；大时间或小值大增幅仍可能拒绝。现有固定seed f32模型同时检查mirror，不能代替硬件验收。独立消费者的往返模式及双轴子专项复用安装、搬移、版本失效、释放与数值读回，无新renderer/命令/job。
 
 安装身份以实际 `ScalarProgram` / `InstanceProgram` 对象为准：绘制须传入该 renderer 最后成功安装的对象，即使另一份重新准备的描述结构相等也须先安装。原始 inline 仅持有不透明引用并做身份比较，不解析 Scene/Motion；公开入口仍由 Calcit 检查类型与精度。开始写入新安装前清除旧身份，全部上传成功后才标记 ready；中途失败须重新安装或销毁重建，不能继续使用旧 program。释放同时清除引用。旧/另一 renderer 的 program 在更新 uniform 和提交前拒绝，现有消费者与 Node 门禁保留该反例。
 
