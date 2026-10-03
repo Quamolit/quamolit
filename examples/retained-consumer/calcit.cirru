@@ -888,6 +888,8 @@
                     idle-host $ font/apply-font-registry-actions! (:host completed) (:actions idle)
                     cycled $ foldl (range 100) (:registry idle)
                       fn (current index)
+                        hint-fn $ {} (:return 'quamolit.resource-lifecycle/ResourceRegistry) (:async false)
+                          :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry 'Number
                         let
                             entering $ :model $ presence/reconcile-presence end document (* index 3) 1 (motion/Easing :linear)
                             entering-refs $ font/presence-font-references entering
