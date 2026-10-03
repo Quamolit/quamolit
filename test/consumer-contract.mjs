@@ -34,7 +34,7 @@ export function verifyFontConsumer(app, core) {
   assert.equal(plan.get(tags["plan-builds"]), 2, "同时间字体来源换版不可复用旧计划");
   assert.equal(core.to_js_data(plan.get(tags.scene)).nodes[0].content[1].font.version, 1);
   assert.equal(core.to_js_data(before.get(tags.scene)).nodes[0].content[1].font.version, 0);
-  return { times: [1, 0, 0.5, 0.25, 1], transformFrames: 1000, buildsBeforeReady: 1, buildsAfterReady: 2 };
+  return { times: [1, 0, 0.5, 0.25, 1], transformFrames: 1000, buildsBeforeFontChange: 1, buildsAfterFontChange: 2 };
 }
 
 // 只驱动消费方 Calcit；不在测试 JS 中实现 FontSpec、文字声明或动画采样。
