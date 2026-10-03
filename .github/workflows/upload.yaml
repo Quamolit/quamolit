@@ -7,6 +7,13 @@ on:
   pull_request: {}
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
+concurrency:
+  group: upload-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -32,6 +39,25 @@ jobs:
 
     - name: Check API namespace inventory and alpha signatures
       run: yarn check:api-inventory
+
+    - name: Publish PR preview
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      uses: Pendect/action-rsyncer@b7f90f4f8ed893d4e3f852f7a73180631f63d4bd # v2.0.0
+      env:
+        DEPLOY_KEY: ${{ secrets.rsync_private_key }}
+      with:
+        flags: '-avzr --progress'
+        options: '--rsync-path="mkdir -p /web-assets/repo/${{ github.repository }}/pr/${{ github.event.number }} && rsync"'
+        ssh_options: ''
+        src: 'dist/'
+        dest: 'rsync-user@tiye.me:/web-assets/repo/${{ github.repository }}/pr/${{ github.event.number }}/'
+
+    - name: PR preview link
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      env:
+        PREVIEW_URL: https://repo.tiye.me/${{ github.repository }}/pr/${{ github.event.number }}/
+      run: |
+        printf '### PR 预览\n\n[%s](%s)\n\n提交：`%s`。仅测试成功后上传 dist；不覆盖主站。\n' "$PREVIEW_URL" "$PREVIEW_URL" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
 
     - name: Deploy to server
       if: github.event_name == 'workflow_dispatch'
