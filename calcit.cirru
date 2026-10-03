@@ -8016,6 +8016,12 @@
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
             :names $ {} (:family |family) (:status |status)
           :schema $ :: 'Trait
+        'FontLoadCompletion $ %{} 'CodeEntry
+          :doc "|只有当前任务与loading资源都接受结果时loaded为some；调用方消费ResourceAction后安装并提升Scene资源修订。未保存长期宿主缓存。"
+          :code $ quote $ defstruct FontLoadCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue) (:transition 'quamolit.resource-lifecycle/ResourceTransition)
+            :loaded $ :: 'Option 'quamolit.font-resource/LoadedFont
+          :examples $ []
+          :schema $ :: 'StructDef
         'FontLoadOutcome $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum FontLoadOutcome (:ready 'quamolit.font-resource/LoadedFont) (:failed 'String)
           :examples $ []
@@ -8039,6 +8045,47 @@
           :code $ quote $ defstruct LoadedFont (:spec 'quamolit.scene-ir/FontSpec) (:face 'quamolit.font-resource/FontFaceHost)
           :examples $ []
           :schema $ :: 'StructDef
+        'QueuedFontLoadResult $ %{} 'CodeEntry
+          :doc "|带完整任务身份的字体加载结果；加载不安装，任务完成后必须先经过complete-font-load。"
+          :code $ quote $ defstruct QueuedFontLoadResult (:task 'quamolit.resource-load-queue/ResourceLoadTask) (:outcome 'quamolit.font-resource/FontLoadOutcome)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'complete-font-load $ %{} 'CodeEntry
+          :doc "|纯Calcit双重接受：先结算队列token，再核对资源identity/generation/loading。取消/unknown/关闭/被替换的结果不安装、不改变当前资源，也不发wake-frame。返回none会丢弃未安装句柄引用；长期已安装字体由调用方按ResourceAction显式释放。"
+          :code $ quote $ defn complete-font-load (state queue result)
+            let
+                finished $ load-queue/finish-load queue $ :token (:task result)
+              match (:outcome finished)
+                (:accepted task)
+                  do
+                    assert |font-completion-task-mismatch $ = task $ :task result
+                    if
+                      and
+                        = (:identity state) (:identity task)
+                        = (:generation state) (:resource-generation task)
+                        = (:phase state) (resource/ResourcePhase :loading)
+                      match (:outcome result)
+                        (:ready loaded)
+                          do
+                            assert |font-completion-version-mismatch $ =
+                              :version $ :spec loaded
+                              :version $ :identity task
+                            FontLoadCompletion :queue (:queue finished) :transition
+                              resource/resource-ready state $ :resource-generation task
+                              , :loaded $ Option :some loaded
+                        (:failed message)
+                          FontLoadCompletion :queue (:queue finished) :transition
+                            resource/resource-failed state (:resource-generation task) message
+                            , :loaded $ Option :none
+                      FontLoadCompletion :queue (:queue finished) :transition
+                        resource/transition state $ resource/empty-actions
+                        , :loaded $ Option :none
+                _ $ FontLoadCompletion :queue (:queue finished) :transition
+                  resource/transition state $ resource/empty-actions
+                  , :loaded $ Option :none
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.font-resource/FontLoadCompletion)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceState 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.font-resource/QueuedFontLoadResult
         'install-font! $ %{} 'CodeEntry
           :doc "|只安装与当前Model描述完全一致的已加载结果；旧版本返回false且不触碰document.fonts。没有自动动画调度或资源队列。"
           :code $ quote $ defn install-font! (loaded expected)
@@ -8107,9 +8154,25 @@
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.font-resource/LoadedFont
             :features $ #{} :js-ffi
+        'run-font-load-task! $ %{} 'CodeEntry
+          :doc "|复用通用加载队列的完整任务与token；平台Promise不能强制中断，完成后由当前queue/state决定是否接受。无自动安装。"
+          :code $ quote $ defn run-font-load-task! (spec source task)
+            hint-fn $ {} (:async true)
+              :args $ [] 'quamolit.scene-ir/FontSpec 'String 'quamolit.resource-load-queue/ResourceLoadTask
+              :return 'quamolit.font-resource/QueuedFontLoadResult
+              :features $ #{} :js-ffi
+            assert |non-font-resource-in-font-loader $ = (resource/ResourceKind :font)
+              :kind $ :identity task
+            assert |font-load-task-version-mismatch $ = (:version spec)
+              :version $ :identity task
+            QueuedFontLoadResult :task task :outcome $ js-await $ load-font! spec source
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.font-resource/QueuedFontLoadResult)
+            :args $ [] 'quamolit.scene-ir/FontSpec 'String 'quamolit.resource-load-queue/ResourceLoadTask
+            :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.font-resource
-          :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract) (js-ffi.shared :as shared)
+          :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract) (js-ffi.shared :as shared) (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as load-queue)
     'quamolit.frame-clock $ %{} 'FileEntry
       :defs $ {}
         'FrameSample $ %{} 'CodeEntry

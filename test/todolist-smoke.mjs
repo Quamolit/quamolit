@@ -3,7 +3,15 @@ import { test } from "node:test";
 import * as todo from "../target/js/todolist/quamolit.examples.todolist.mjs";
 import { sample_plan_at as sample } from "../target/js/todolist/quamolit.retained-component.mjs";
 import { sample_transition as transitionAt } from "../target/js/todolist/quamolit.transition.mjs";
-import { init_tags, to_js_data as js, _$n_enum_$o_nth as enumNth } from "../target/js/todolist/calcit.core.mjs";
+import {
+  init_tags,
+  to_js_data as js,
+  _$n_enum_$o_nth as enumNth,
+  _PCT__$o__$o_ as enumNew,
+  option_$o_unwrap as unwrapOption,
+} from "../target/js/todolist/calcit.core.mjs";
+import * as lifecycle from "../target/js/todolist/quamolit.resource-lifecycle.mjs";
+import * as queueApi from "../target/js/todolist/quamolit.resource-load-queue.mjs";
 import {
   draw_text_$x_ as drawText,
   font_family_css as fontFamilyCss,
@@ -33,6 +41,16 @@ const tags = init_tags([
   "family",
   "version",
   "face",
+  "queue",
+  "task",
+  "state",
+  "transition",
+  "loaded",
+  "actions",
+  "outcome",
+  "font",
+  "interactive",
+  "resource-generation",
 ]);
 const field = (x, k) => x.get(tags[k]);
 const rows = (m) => js(m).rows;
@@ -287,6 +305,63 @@ test("Calcit 字体加载归一化失败，旧版本不安装，释放按确切�
     assert.equal(fonts.release_font_$x_(loaded), true);
     assert.equal(fonts.release_font_$x_(loaded), false);
     assert.equal(installed.size, 0);
+    const identity = lifecycle.resource(enumNew(lifecycle.ResourceKind, tags.font), "ui-font", 1);
+    const begin = () => {
+      const state = lifecycle.request_resource(lifecycle.initial_state(identity), identity).get(tags.state);
+      const enqueued = queueApi.enqueue_load(
+        queueApi.initial_load_queue(1, 4),
+        1,
+        identity,
+        1,
+        enumNew(queueApi.ResourceLoadPriority, tags.interactive),
+      );
+      const taken = queueApi.take_load(enqueued.get(tags.queue));
+      return { state, queue: taken.get(tags.queue), task: unwrapOption(taken.get(tags.task)) };
+    };
+    for (const mode of ["cancel", "runtime", "closed", "replaced", "unknown"]) {
+      let { state, queue, task } = begin();
+      const pending = fonts.run_font_load_task_$x_(spec, "ok", task);
+      if (mode === "cancel") queue = queueApi.cancel_resource_loads(queue, identity);
+      if (mode === "runtime") queue = queueApi.cancel_stale_device_loads(queue, 2);
+      if (mode === "closed") state = lifecycle.close_resource(state).get(tags.state);
+      if (mode === "replaced") {
+        const next = lifecycle.resource(enumNew(lifecycle.ResourceKind, tags.font), "ui-font", 2);
+        state = lifecycle.request_resource(state, next).get(tags.state);
+      }
+      if (mode === "unknown") queue = queueApi.initial_load_queue(1, 4);
+      const result = await pending;
+      const completion = fonts.complete_font_load(state, queue, result);
+      assert.equal(js(completion.get(tags.loaded))[0], "none", mode);
+      assert.equal(completion.get(tags.transition).get(tags.state), state, mode);
+      assert.deepEqual(js(completion.get(tags.transition).get(tags.actions)), [], mode);
+      assert.equal(installed.size, 0, "迟到结果不自动安装");
+      assert.equal(js(queueApi.load_queue_metrics(completion.get(tags.queue))).running, 0);
+    }
+    const failedRequest = begin();
+    const failedResult = await fonts.run_font_load_task_$x_(spec, "reject", failedRequest.task);
+    const failedCompletion = fonts.complete_font_load(failedRequest.state, failedRequest.queue, failedResult);
+    assert.equal(js(failedCompletion.get(tags.transition).get(tags.state)).phase[0], "error");
+    assert.equal(js(failedCompletion.get(tags.loaded))[0], "none");
+    for (let cycle = 0; cycle < 100; cycle++) {
+      const { state, queue, task } = begin();
+      const result = await fonts.run_font_load_task_$x_(spec, "ok", task);
+      const forged = result.assoc(tags.task, task.assoc(tags["resource-generation"], 99));
+      if (cycle === 0)
+        assert.throws(() => fonts.complete_font_load(state, queue, forged), /font-completion-task-mismatch/);
+      const completed = fonts.complete_font_load(state, queue, result);
+      assert.equal(js(completed.get(tags.transition).get(tags.state)).phase[0], "ready");
+      assert.deepEqual(
+        js(completed.get(tags.transition).get(tags.actions)).map((action) => action[0]),
+        ["install", "wake-frame"],
+      );
+      const owned = unwrapOption(completed.get(tags.loaded));
+      assert.equal(fonts.install_font_$x_(owned, spec), true);
+      assert.equal(installed.size, 1);
+      assert.equal(fonts.release_font_$x_(owned), true);
+      assert.equal(installed.size, 0);
+      const repeated = fonts.complete_font_load(state, completed.get(tags.queue), result);
+      assert.equal(js(repeated.get(tags.loaded))[0], "none", "重复完成不能再次交付句柄");
+    }
   } finally {
     if (previousFace === undefined) delete globalThis.FontFace;
     else globalThis.FontFace = previousFace;

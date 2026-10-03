@@ -399,7 +399,17 @@
               :args $ [] 'quamolit.scene-ir/FontSpec 'String
               :return 'quamolit.font-resource/FontLoadOutcome
               :features $ #{} :js-ffi
-            js-await $ font/load-font! spec source
+            let
+                resource-id $ lifecycle/resource (lifecycle/ResourceKind :font) |consumer-font $ :version spec
+                state $ :state $ lifecycle/request-resource (lifecycle/initial-state resource-id) resource-id
+                enqueued $ load-queue/enqueue-load (load-queue/initial-load-queue 1 4) 1 resource-id (:generation state) (load-queue/ResourceLoadPriority :interactive)
+                taken $ load-queue/take-load $ :queue enqueued
+                task $ -> (:task taken) .unwrap
+                result $ js-await $ font/run-font-load-task! spec source task
+                completed $ font/complete-font-load state (:queue taken) result
+              match (:loaded completed)
+                (:some loaded) (font/FontLoadOutcome :ready loaded)
+                (:none) (:outcome result)
           :examples $ []
           :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.font-resource/FontLoadOutcome)
             :args $ [] 'quamolit.scene-ir/FontSpec 'String
@@ -664,4 +674,4 @@
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.main
-          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery) (quamolit.font-resource :as font)
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as lifecycle) (quamolit.resource-load-queue :as load-queue)

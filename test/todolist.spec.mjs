@@ -3,20 +3,64 @@ import { test, expect } from "@playwright/test";
 test("公共 Calcit 字体薄桥：真实加载、失败、过期拒绝与原生回退像素", async ({ page }) => {
   await page.goto("/demos/index.html?demo=todolist&t=0");
   const evidence = await page.evaluate(async () => {
-    const [font, scene, core, todo, canvas] = await Promise.all([
+    const [font, scene, core, todo, canvas, resource, loadQueue] = await Promise.all([
       import("/target/js/todolist/quamolit.font-resource.mjs"),
       import("/target/js/todolist/quamolit.scene-ir.mjs"),
       import("/target/js/todolist/calcit.core.mjs"),
       import("/target/js/todolist/quamolit.examples.todolist.mjs"),
       import("/target/js/todolist/quamolit.canvas-reference.mjs"),
+      import("/target/js/todolist/quamolit.resource-lifecycle.mjs"),
+      import("/target/js/todolist/quamolit.resource-load-queue.mjs"),
     ]);
-    const tags = core.init_tags(["font", "family", "version", "face"]);
+    const tags = core.init_tags([
+      "font",
+      "family",
+      "version",
+      "face",
+      "queue",
+      "task",
+      "state",
+      "loaded",
+      "outcome",
+      "transition",
+      "actions",
+      "interactive",
+    ]);
     const spec = scene.default_font().assoc(tags.family, "QuamolitFontFixture").assoc(tags.version, 1);
-    const result = await font.load_font_$x_(spec, "local('Arial'), local('Liberation Sans')");
+    const identity = resource.resource(core._PCT__$o__$o_(resource.ResourceKind, tags.font), "ui-font", 1);
+    const begin = () => {
+      const state = resource.request_resource(resource.initial_state(identity), identity).get(tags.state);
+      const enqueued = loadQueue.enqueue_load(
+        loadQueue.initial_load_queue(1, 4),
+        1,
+        identity,
+        1,
+        core._PCT__$o__$o_(loadQueue.ResourceLoadPriority, tags.interactive),
+      );
+      const taken = loadQueue.take_load(enqueued.get(tags.queue));
+      return { state, queue: taken.get(tags.queue), task: core.option_$o_unwrap(taken.get(tags.task)) };
+    };
+    const source = "local('Arial'), local('Liberation Sans')";
+    const active = begin();
+    const queued = await font.run_font_load_task_$x_(spec, source, active.task);
+    const result = queued.get(tags.outcome);
     const kind = core.to_js_data(result.get(0));
     if (kind !== "ready") return { kind, error: result.get(1) };
-    const loaded = result.get(1),
+    const completed = font.complete_font_load(active.state, active.queue, queued);
+    const loaded = core.option_$o_unwrap(completed.get(tags.loaded)),
       face = loaded.getRequired(tags.face);
+    const queueState = core.to_js_data(completed.get(tags.transition).get(tags.state)).phase[0];
+    const cancelled = begin();
+    const latePending = font.run_font_load_task_$x_(spec, source, cancelled.task);
+    cancelled.queue = loadQueue.cancel_resource_loads(cancelled.queue, identity);
+    const lateResult = await latePending;
+    const lateFace = lateResult.get(tags.outcome).get(1).getRequired(tags.face);
+    const ignored = font.complete_font_load(cancelled.state, cancelled.queue, lateResult);
+    const late = {
+      delivered: core.to_js_data(ignored.get(tags.loaded))[0],
+      installed: document.fonts.has(lateFace),
+      actions: core.to_js_data(ignored.get(tags.transition).get(tags.actions)),
+    };
     const autoInstalled = document.fonts.has(face);
     const stale = font.install_font_$x_(loaded, spec.assoc(tags.version, 2));
     const afterStale = document.fonts.has(face);
@@ -72,6 +116,8 @@ test("公共 Calcit 字体薄桥：真实加载、失败、过期拒绝与原生
       blankDifferences,
       retained: document.fonts.has(face),
       repeatedRelease: font.release_font_$x_(loaded),
+      queueState,
+      late,
     };
   });
   expect(evidence).toMatchObject({
@@ -84,6 +130,8 @@ test("公共 Calcit 字体薄桥：真实加载、失败、过期拒绝与原生
     fallbackDifferences: 0,
     retained: false,
     repeatedRelease: false,
+    queueState: "ready",
+    late: { delivered: "none", installed: false, actions: [] },
   });
   expect(evidence.failure[0]).toBe("failed");
   expect(evidence.failure[1].length).toBeGreaterThan(0);
