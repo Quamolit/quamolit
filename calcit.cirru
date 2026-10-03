@@ -3408,6 +3408,17 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.finder/FinderModel)
             :args $ [] 'quamolit.examples.finder/FinderModel 'Number
+        'background-hit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn background-hit (model time)
+            cond
+                > (max-card-value model time) 0.001
+                FinderHit :kind |back :folder (:folder model) :card $ :card model
+              (> (max-folder-value model time) 0.001)
+                FinderHit :kind |back :folder (:folder model) :card -1
+              true $ FinderHit :kind |none :folder -1 :card -1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.finder/FinderHit)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number
         'build-card-items $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn build-card-items (model time folder index acc)
             if
@@ -3506,6 +3517,152 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number
             :return $ :: 'List 'String
+        'compact-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-document (document width height)
+            assert |invalid-finder-compact-viewport $ and (motion/finite-number? width) (>= width 300) (motion/finite-number? height) (> height 0)
+            assert |invalid-finder-compact-scene $ scene/validate-scene document
+            let
+                stage-height $ compact-stage-height height
+                folders $ foldl (range 0 5) (empty-nodes)
+                  fn (acc folder)
+                    concat acc $ compact-item document folder -1 width stage-height
+                nodes $ foldl (range 0 5) folders $ fn (acc folder)
+                  foldl
+                    range 0 $ count $ cards-for folder
+                    , acc $ fn (result index)
+                      if
+                        any? (:nodes document)
+                          fn (node)
+                            = (:id node) (str |card- folder |/ index)
+                        concat result $ compact-item document folder index width stage-height
+                        , result
+              struct-with document $ :nodes nodes
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'Number 'Number
+        'compact-item $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-item (document folder index width height)
+            let
+                id $ if (< index 0) (str |folder- folder) (str |card- folder |/ index)
+                source $ scene/node-for-id (:nodes document) id
+                label-source $ scene/node-for-id (:nodes document) (str id |/label)
+                body $ compact-rect document folder index width height
+                label $ match (:content label-source)
+                  (:text glyph) glyph
+                  _ $ raise |invalid-finder-compact-label
+                base-width $ / (- width 72) 2
+                size $ if (< index 0) (:size label)
+                  * 18 $ / (:width body) base-width
+                text-x $ + (:x body)
+                  if (< index 0) 14 $ * 12 $ / (:width body) base-width
+                text-y $ if (< index 0)
+                  + (:y body) 35
+                  + (:y body)
+                    / (:height body) 2
+                    * 6 $ / (:width body) base-width
+              []
+                struct-with source $ :content $ scene/SceneContent :rect body
+                struct-with label-source $ :content $ scene/SceneContent :text
+                  struct-with label (:x text-x) (:y text-y) (:size size)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'Number 'Number 'Number 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'compact-rect $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-rect (document folder index width height)
+            let
+                source $ scene/node-for-id (:nodes document) (str |folder- folder)
+                parent-body $ match (:content source)
+                  (:rect body) body
+                  _ $ raise |invalid-finder-compact-parent
+                focus $ /
+                  - (:width parent-body) 140
+                  , 560
+                center-y $ *
+                  - (* folder 124) 248
+                  - 1 focus
+                expanded-width $ - width 24
+                expanded-height $ if
+                  > (- height 120) 600
+                  , 600 $ - height 120
+              if (< index 0)
+                struct-with parent-body
+                  :x $ negate $ /
+                    + 140 $ * (- expanded-width 140) focus
+                    , 2
+                  :y $ - center-y $ /
+                    + 100 $ * (- expanded-height 100) focus
+                    , 2
+                  :width $ + 140 $ * (- expanded-width 140) focus
+                  :height $ + 100 $ * (- expanded-height 100) focus
+                let
+                    source-card $ scene/node-for-id (:nodes document) (str |card- folder |/ index)
+                    body $ match (:content source-card)
+                      (:rect shape) shape
+                      _ $ raise |invalid-finder-compact-card
+                    factor $ if (< focus 0.0001) 0.0001 focus
+                    card-focus $ /
+                      -
+                        / (:width body) factor
+                        , 150
+                      , 540
+                    base-width $ / (- expanded-width 48) 2
+                    body-width $ * factor $ + base-width
+                      *
+                        - (- expanded-width 32) base-width
+                        , card-focus
+                    body-height $ * factor $ + 88
+                      *
+                        - (- expanded-height 112) 88
+                        , card-focus
+                    x $ * factor $ *
+                      -
+                        * (&number:rem index 2) 2
+                        , 1
+                      *
+                        / (+ base-width 16) 2
+                        - 1 card-focus
+                    y $ + center-y $ * factor
+                      +
+                        *
+                          -
+                            *
+                              floor $ / index 2
+                              , 120
+                            , 128
+                          - 1 card-focus
+                        * 28 card-focus
+                  struct-with body
+                    :x $ - x $ / body-width 2
+                    :y $ - y $ / body-height 2
+                    :width body-width
+                    :height body-height
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/RectNode)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'Number 'Number 'Number 'Number
+        'compact-scroll-limit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-scroll-limit (height)
+            - (compact-stage-height height) height
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'compact-stage-height $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-stage-height (height)
+            assert |invalid-finder-compact-height $ and (motion/finite-number? height) (> height 0)
+            if (< height 600) 600 height
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'compact-view-y $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-view-y (height scroll)
+            assert |invalid-finder-compact-scroll $ and (motion/finite-number? scroll) (>= scroll 0)
+              <= scroll $ compact-scroll-limit height
+            -
+              / (compact-stage-height height) 2
+              , scroll
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number
         'demo-log $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn demo-log ()
             -> (empty-events) (append-event 0 |folder 0 -1) (append-event 0.55 |card 0 1) (append-event 1.1 |back 0 -1) (append-event 1.6 |back 0 -1) (append-event 2.15 |folder 3 -1) (append-event 2.65 |card 3 2) (append-event 3.15 |back 3 -1) (append-event 3.65 |back 3 -1)
@@ -3665,6 +3822,37 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'Number 'Number 'Number
+        'hit-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-plan (model time document)
+            assert |invalid-finder-hit-time $ and (motion/finite-number? time) (>= time 0)
+            let
+                folder $ :folder model
+                cards-enabled? $ and (>= folder 0)
+                  = 1 $ folder-item-target model folder
+                  > (folder-item-value model folder time) 0.05
+                prefix $ str |card- folder |/
+                nodes $ map (:nodes document)
+                  fn (node)
+                    if
+                      starts-with? (:id node) |card-
+                      if
+                        and cards-enabled? $ starts-with? (:id node) prefix
+                        , node $ struct-with node $ :interaction (scene/SceneInteraction :disabled)
+                      , node
+              hit/compile-hit-plan $ struct-with document $ :nodes nodes
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'quamolit.scene-ir/SceneDocument
+        'hit-with-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-with-plan (model time plan x y)
+            assert |invalid-finder-hit $ and (motion/finite-number? time) (>= time 0) (motion/finite-number? x) (motion/finite-number? y)
+            match (hit/hit-test-plan plan x y)
+              (:hit result)
+                resolve-hit-target model $ :target result
+              (:miss visited) (background-hit model time)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.finder/FinderHit)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'Number 'quamolit.scene-hit/HitPlan 'Number 'Number
         'initial $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initial ()
             FinderModel :folder -1 :card -1 :folder-motions
@@ -3780,6 +3968,37 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.finder/FinderModel)
             :args $ [] (:: 'List 'quamolit.examples.finder/FinderEvent) 'Number
+        'resolve-hit-target $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resolve-hit-target (model target)
+            match
+              find (range 0 5)
+                fn (index)
+                  = target $ str |folder- index
+              (:some index)
+                FinderHit :kind
+                  if
+                    = 0 $ folder-item-target model index
+                    , |folder |back
+                  , :folder index :card -1
+              (:none)
+                let
+                    folder $ :folder model
+                  assert |unknown-finder-hit-target $ >= folder 0
+                  match
+                    find
+                      range 0 $ count $ cards-for folder
+                      fn (index)
+                        = target $ str |card- folder |/ index
+                    (:some index)
+                      FinderHit :kind
+                        if
+                          = 0 $ card-item-target model folder index
+                          , |card |back
+                        , :folder folder :card index
+                    (:none) (raise |unknown-finder-hit-target)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.finder/FinderHit)
+            :args $ [] 'quamolit.examples.finder/FinderModel 'String
         'retarget-motions $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn retarget-motions (motions target-index at duration)
             map-indexed motions $ fn (index intent)
@@ -3859,7 +4078,7 @@
             :args $ [] 'String 'String 'Number 'Number 'Number 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.finder
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.canvas-reference :as reference) (quamolit.scene-hit :as hit)
     'quamolit.examples.folding-fan $ %{} 'FileEntry
       :defs $ {}
         'FanEvent $ %{} 'CodeEntry (:doc |)

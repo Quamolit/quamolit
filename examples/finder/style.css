@@ -15,6 +15,7 @@ h1 small { font-size: 17px; color: #c4e4d5; }
 p { font-size: 14px; }
 .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
 label { display: grid; gap: 6px; }
+#finder-viewport[hidden] { display: none; }
 input { width: 100%; accent-color: #8edfc1; }
 output { display: block; white-space: pre-wrap; color: #c4e4d5; font: 13px/1.8 ui-monospace,monospace; }
 .note { font-size: 12px; color: #a5c9ba; }
