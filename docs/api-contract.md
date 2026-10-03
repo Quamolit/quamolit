@@ -24,36 +24,12 @@ alpha 阶段也不静默破坏稳定合同。稳定 API 的破坏性修改须在
 类型合同不仅记录 Fn schema：Struct/Enum/Trait 的 schema 本身可能只是 `StructDef`/`EnumDef`/`Trait` 标签，因此同时冻结其真实字段、枚举或方法声明。`make-stagger` 参数使用的 `quamolit.motion/Easing` 也纳入类型合同；这不把整个 Motion namespace 的采样器升级为稳定。门禁还检查这些签名和类型声明引用的项目类型，包括嵌套引用：新增类型必须加入合同，不能只冻结类型名称而遗漏字段、枚举项或方法签名。
 
 <!-- api-inventory:start -->
-全部 119 个项目命名空间（包含旧应用、示例和测试）；分类由 `docs/api-namespaces.json` 显式维护，不按前缀自动批准新增命名空间。
+全部 95 个项目命名空间（包含旧应用、示例和测试）；分类由 `docs/api-namespaces.json` 显式维护，不按前缀自动批准新增命名空间。
 
 | 命名空间 | 稳定性 | 用途 | 替代入口 | 文档/示例 |
 | --- | --- | --- | --- | --- |
 | `quamolit.$meta` | 内部 | 项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时 | — | [说明](../AGENTS.md) |
 | `quamolit.alias` | 旧（迁移中） | 旧组件/Shape DSL、逐帧更新与绘制期事件；仅保留迁移，不新增依赖 | quamolit.retained-component / quamolit.scene-ir / quamolit.scene-hit（实验） | [说明](../docs/api-contract.md) |
-| `quamolit.app.comp.binary-tree` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.clock` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.code-table` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.container` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.digits` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.drag-demo` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.file-card` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.finder` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.folder` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.folding-fan` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.icon-increase` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.icon-play` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.icons-table` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.portal` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.raindrop` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.raining` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.ring` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.solar` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.task` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.task-toggler` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.comp.todolist` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.main` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.schema` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
-| `quamolit.app.updater` | 旧（迁移中） | 历史应用与原始动画参考；实际恢复入口改用 examples，不代表旧 app 已通过最新类型/浏览器验收 | quamolit.examples.*（内部示例；不是库 API） | [说明](../docs/demo-restoration.md) |
 | `quamolit.bootstrap` | 内部 | 项目配置、旧宿主辅助与 bootstrap；不供下游组成新动画运行时 | — | [说明](../AGENTS.md) |
 | `quamolit.canvas-images` | 实验 | Canvas 图片 Scene 参考 | — | [说明](../docs/webgpu-scene-images.md) |
 | `quamolit.canvas-reference` | 实验 | 受限矩形/实例 Canvas 参考 | — | [说明](../docs/canvas-instances-reference.md) |
@@ -222,6 +198,41 @@ alpha 阶段也不静默破坏稳定合同。稳定 API 的破坏性修改须在
 旧 `quamolit.render.paint/paint`、`tick-tree`、`paint-tree-only-with` 不再作为新应用推荐入口，但本轮不删除，也没有凭空设定移除日期。迁移到 `quamolit.retained-component` 的显式 request/build/update/draw，并将时间/Model/资源版本纳入请求；它仍为实验入口，先验证同一画面与交互，再改依赖。绝对时间 UI 渐变优先使用稳定的 `quamolit.ui-motion`，有历史模拟则使用实验 `fixed-step`，不能把两者混用。
 
 移除旧入口的前置条件：#176 给出实际消费者清单与可编译迁移例；#36 完成真实应用/原始示例替代；相关 #34/#51 的事件与释放合同有证据；新的 alpha tag 附迁移说明并让下游先验证。满足条件后另提移除 PR，未满足前不得把旧库删除当作完成迁移。首页旧 DSL 教程已由稳定数值示例替代；旧代码块仍可从 Git 历史查阅，不复制到另一份新文档。
+
+### 历史应用移除范围
+
+推进 #204，目标 M3。2026-10-03 首批仅移除项目内部已退役的 `quamolit.app.*`，不删除上述公共旧 Shape/renderer 入口，也不声称 #36 的全部动画保真、#176 的公共迁移或 M3 已完成。删除前基线 `5405d53` 的 24 个 namespace、69 个定义经 `calcit query defs/usages` 核查，无这组应用之外的定义调用；Snapshot import 与构建配置也不再从组外引用它们。真实运行入口由 `scripts/prepare-demos.mjs`、`demos/catalog.json` 与 `quamolit.examples.*` 承接。历史源码保留在 Git，不新增 legacy 包或第二份 Snapshot。
+
+下表的旧组件均有 `quamolit.app.comp.` 前缀；最后三项使用完整 namespace。引用方仅为本组旧应用（历史文档不是运行调用方）；删除条件是无组外调用、当前入口编译及原有 11 个 demo 导航/交互回归通过、旧迁移桥梁与干净下游模块验证保留。日期/阶段统一为本批 2026-10-03 / M3，验证结果写入 PR；未通过不能按表宣称验收。
+
+| 已移除 namespace 后缀 / 完整名称 | 当前替代入口 / 内容 |
+| --- | --- |
+| `binary-tree` | `quamolit.examples.binary-tree`，递归摆动树 |
+| `clock` | `quamolit.examples.clock`，六位时钟 |
+| `code-table` | `quamolit.examples.table`，可编辑 3×3 表格 |
+| `container` | `demos/index.html` 的统一状态导航；不恢复旧门户 |
+| `digits` | `quamolit.examples.clock` 中的七段笔画声明与采样 |
+| `drag-demo` | `quamolit.examples.drag-demo`，拖动与滑块 |
+| `file-card` | `quamolit.examples.finder` 的父级卡片内变换/裁剪 |
+| `finder` | `quamolit.examples.finder`，文件夹展开/返回 |
+| `folder` | `quamolit.examples.finder` 的文件夹渐变 |
+| `folding-fan` | `quamolit.examples.folding-fan`，24 片荷花折扇 |
+| `icon-increase` | `quamolit.examples.icons`，加号旋转/数字切换 |
+| `icon-play` | `quamolit.examples.icons`，播放/暂停路径形变 |
+| `icons-table` | `quamolit.examples.icons`，两类图标同屏 |
+| `portal` | 统一导航 DOM 浮层；旧门户不在恢复范围 |
+| `raindrop` | `quamolit.examples.raining` 的固定 tick 雨滴/消散 |
+| `raining` | `quamolit.examples.raining`，固定 seed 重放 |
+| `ring` | `quamolit.examples.curve`，原 `:curve` 的32段闭合曲线 |
+| `solar` | `quamolit.examples.solar`，递归轨道/圆弧 |
+| `task` | `quamolit.examples.todolist`，条目进入/退出/重排 |
+| `task-toggler` | `quamolit.examples.todolist`，完成切换 |
+| `todolist` | `quamolit.examples.todolist`，完整事件日志与交互 |
+| `quamolit.app.main` | 普通 `compile/release` 的统一应用入口 |
+| `quamolit.app.schema` | 各 `quamolit.examples.*` 的显式 Model |
+| `quamolit.app.updater` | 各示例输入函数；绘制不更新 Model |
+
+仍保留 12 个旧 Shape/组件 namespace 与 `frame-clock`、`frame-eval`、`retained-path` 三个早期桥梁，共15项；不能因为退役应用已移除就连带删除。前者仍供旧迁移/Frame 夹具与库 API 使用，后者仍有 clock、frame、Binary Tree/retained-path 门禁。逐定义调用方及移除/外移方案还需 #204 后续登记，公共旧入口仍受上方 alpha tag/下游迁移前置条件约束。本批没有削减断言、改动像素容差、增加测试命令或宣称运行时加速。
 
 | 旧写法 | 当前可执行桥梁 | 拟议新位置 |
 | --- | --- | --- |

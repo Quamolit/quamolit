@@ -4,7 +4,7 @@
 
 ## 历史依据与逐项验收
 
-一个月前日期边界之前的最后版本为 `9b5bcdd7f7157404fb96f96a042de91085e52652`（2024-04-01，此后直到本轮重构前没有更近的提交）。以该提交 `compact.cirru` 的 portal/container 路由和组件实现为行为依据；当前 `calcit.cirru` 保留历史组件，真实入口采用已恢复的独立 Calcit 示例并在统一画布挂载，不恢复旧门户。普通 `compile/release` 构建同一应用，bootstrap 仅作 runtime smoke，不承担恢复验收。
+一个月前日期边界之前的最后版本为 `9b5bcdd7f7157404fb96f96a042de91085e52652`（2024-04-01，此后直到本轮重构前没有更近的提交）。以该提交 `compact.cirru` 的 portal/container 路由和组件实现为行为依据；当前 `calcit.cirru` 移除不再被构建入口使用的历史 `quamolit.app.*`，真实入口采用已恢复的 `quamolit.examples.*` 并在统一画布挂载，不恢复旧门户。移除范围与替代关系见 [API 迁移清单](api-contract.md#历史应用移除范围)，历史源码仍可用 `git show 9b5bcdd:compact.cirru` 查阅；本次删除前的 Snapshot 可从 `5405d53:calcit.cirru` 恢复，不复制一份 legacy Snapshot。普通 `compile/release` 构建同一应用，bootstrap 仅作 runtime smoke，不承担恢复验收。
 
 | 导航 ID | 必须保留的内容 | 恢复后的检验 |
 | --- | --- | --- |

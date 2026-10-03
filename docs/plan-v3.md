@@ -4,7 +4,7 @@
 
 ## 当前事实与下一项交付
 
-2026-10-03 核对：已合并基线为 #199（`d29f1ae`，包含 #200/#202/#203），采用 Calcit/runtime 0.28.0、js-ffi 0.2.1-alpha.11，版本合同见[工具链升级](calcit-027-upgrade.md)。以下矩阵区分已合并实现、尚未合并候选与未验收范围；实时合并状态以链接中的 GitHub 记录为准。功能通过不等于稳定 API、全画质或性能达标，不再用逐 PR 的“本分支下一项”覆盖计划。
+2026-10-03 核对：已合并基线为 #205（`5405d53`，包含 #199/#200/#202/#203），采用 Calcit/runtime 0.28.0、js-ffi 0.2.1-alpha.11，版本合同见[工具链升级](calcit-027-upgrade.md)。以下矩阵区分已合并实现、尚未合并候选与未验收范围；实时合并状态以链接中的 GitHub 记录为准。功能通过不等于稳定 API、全画质或性能达标，不再用逐 PR 的“本分支下一项”覆盖计划。
 
 ### 阶段矩阵
 
@@ -27,12 +27,24 @@
 | 基础路径、圆与文字 | rect/circle/polyline/polygon/cubic/text 使用原生 Canvas；图片走资源感知入口 | 组件矩形子集；文字/复杂路径不支持，应整层回退或明确拒绝 | [Curve](curve-restoration.md)、[图表组](layered-dashboard.md)、`test:curve-demo`/`test:icons-demo`/`test:solar-demo`；端点/接头固定为[已合并 #202](https://github.com/Quamolit/quamolit/pull/202)，中文字体加载、失败及版本隔离随 #203 合并，排版/缓存计数仍归 #53 |
 | 祖先变换、clip、组 opacity | [已合并 #159](https://github.com/Quamolit/quamolit/pull/159)：嵌套矩形裁剪与隔离 surface，只合成一次组透明度 | 图片图层仅支持规定的轴对齐窗口、组 opacity=1；一般组/旋转 clip 不支持 | [图片支持边界](webgpu-scene-images.md)、`test:webgpu-images`/`test:layered-dashboard`；[已合并 #199](https://github.com/Quamolit/quamolit/pull/199)补独立嵌套消费者与节点诊断，不补一般 GPU 组语义 |
 | 10k 同类实例 | `draw-instances!` 原生批次参考；10k 实际 Canvas 调用 | 静态/单脏记录/独立时间动画路径；不物化 10k 组件 | [实例入口](canvas-instances-reference.md)、[GPU 实例](webgpu-instances.md)、[同源报告](consumer-performance.md)；非整数中间帧差异仍归 #144，不宣称已达60 FPS |
-| 资源与设备恢复 | 逻辑 identity/generation、共享租约、图片加载与迟到清理 | 实例 buffer、texture runner 与受限 device loss/rebuild 已验证 | [资源注册表](resource-registry.md)、`test:consumer`/`test:webgpu-instances`；font 已接加载队列与迟到隔离；当前候选补共享 font 宿主、idle重入与精确释放；glyph/geometry/pipeline 回收及自动运行时接线仍未完整验收 |
+| 资源与设备恢复 | 逻辑 identity/generation、共享租约、图片加载与迟到清理 | 实例 buffer、texture runner 与受限 device loss/rebuild 已验证 | [资源注册表](resource-registry.md)、`test:consumer`/`test:webgpu-instances`；font 已接加载队列与迟到隔离，共享宿主、idle重入与精确释放随[已合并 #205](https://github.com/Quamolit/quamolit/pull/205)；glyph/geometry/pipeline 回收及自动运行时接线仍未完整验收 |
 | 命中与指针捕获 | 纯 Calcit HitPlan/PointerState；支持基础叶图元、逆变换/clip、Drag 捕获/释放 | 复用逻辑 CPU 路由；没有 GPU picking | [路由合同](scene-pointer.md)、`test:scene-hit`/`test:scene-pointer-browser`；嵌套禁用随[已合并 #200](https://github.com/Quamolit/quamolit/pull/200)，polygon/cubic 描边、版本化矩形 instances 命中及逻辑捕获提交协调随[已合并 #202](https://github.com/Quamolit/quamolit/pull/202)合并；完整应用接线、病态曲线全域及完整 ID 访问计数仍未完成 |
 | Canvas UI + GPU 层 | 显式 RenderLayer，统一时间/视口、声明顺序与整层回退 | 单根实例层可与 UI 同屏，不自动拆任意 Scene | [分层契约与门禁](layer-composition.md)；#177 的默认后端/成本决策未完成，跨层 capture 与 GPU 文字不在现有合同 |
 | 模块与真实入口 | 单个 Calcit 模块，inline/file 随安装内嵌；主 Snapshot 与独立消费者分工明确 | 同一模块可消费受支持 GPU 入口，无手工宿主 JS 导入 | [FFI](calcit-first-ffi.md)、[消费者](isolated-consumer.md)；[已合并 #201](https://github.com/Quamolit/quamolit/pull/201)贯通普通 compile/release 并隔离演示调度器；语言 named entry 创建仍待 [Calcit #1665](https://github.com/calcit-lang/calcit/issues/1665)，不把 entry 当分发隔离机制 |
 
-当前优先补齐 #34/#53 的图形与交互功能，不扩展性能优化。#202 的 polygon/cubic 描边命中、版本化矩形 instances 与逻辑捕获提交已合并；#203 的字体加载/版本隔离和 #199 的嵌套消费者已合并。下一候选在现有 `font-resource` 中消费同一 registry/queue，完成多个组件共享一次字体加载、idle重入不重载、完整identity/generation驱逐与关闭释放；独立消费者用Calcit执行整个共享周期，Chromium核对FontFaceSet恢复基线，Node验证取消后的同身份重入及100轮有界所有权。验收沿既有 `test:todolist`、`test:presence-resources`、`test:consumer` 和主题文档，不新增namespace、JS文件、Snapshot、命令或job。精确文字命中、原生排版/路径缓存、完整应用退出接线、GPU文字与栅格化仍未完成；不以共享资源通过关闭 #51/#53/M2/M3。后续功能 PR 在本矩阵更新能力边界，不另建状态页或平行门禁。
+当前优先补齐 #34/#53 的图形与交互功能，不扩展性能优化。#205 已完成同一 registry/queue 的共享字体加载、idle重入与精确释放；[候选 #206](https://github.com/Quamolit/quamolit/pull/206)将 Scene/capture 提交接入真实 Drag 应用，全部 Actions 已通过，尚未合并。下一步继续应用退出/禁交互的完整接线；精确文字命中、原生排版/路径缓存、GPU文字与栅格化仍未完成，不能关闭 #51/#53/M2/M3。
+
+并行于功能主线，#204 首批工程减法移除24个退役 `quamolit.app.*`，不删除旧库 API、不减少原有11个demo或门禁。替代/删除条件维护在 [API 迁移清单](api-contract.md#历史应用移除范围)，工程面积与本机门禁前后观测随本批 PR 提供；仍保留15个旧 namespace，完整逐项登记/发布迁移待后续。新增抽象准入与 PR 粒度使用已有模板/AGENTS，状态证据集中本页与主题文档，不新增状态页或扫描框架。后续功能 PR 更新能力边界，不持续追加逐 PR 历史。
+
+本批工程面积观测（删除前 `5405d53`；删除后为本批候选）：Snapshot 1,195,082→1,122,017字节，减少73,065字节（约6.1%）；项目namespace119→95、legacy39→15，稳定namespace仍为1，11个稳定定义及类型合同不变；脚本、CI job、作品和测试文件数量不变。新抽象/命令数量为0，未削减测试覆盖。验证使用 macOS、Node24、Calcit/runtime0.28.0、js-ffi0.2.1-alpha.11、相同锁定依赖；临时独立worktree保留删除前基线。
+
+| 同一命令，本机预热一次后交替3轮 | 删除前耗时 ms | 删除后耗时 ms |
+| --- | --- | --- |
+| `yarn compile:bootstrap`（热产物，仅诊断编译） | 1193 / 1190 / 1200 | 1119 / 1094 / 1107 |
+| `calcit analyze check-public --ns quamolit.retained-component --ns quamolit.scene-ir --ns quamolit.ui-motion` | 261 / 253 / 263 | 249 / 252 / 237 |
+| `yarn check:api-inventory` | 17066 / 8077 / 8046 | 7706 / 7473 / 6936 |
+
+上述为 wall-clock 观测，不是动画性能或稳定加速证明：测量期间存在浏览器回归负载，API门禁首轮有明显波动；bootstrap热编译也不代表完整站点冷编译。普通 `compile/release`、`test:demo-nav`（4项Node、73项Chromium）、`test:visual`（11项Chromium）、runtime、fixtures、Clock、fade迁移和Binary Tree均通过；没有修改像素容差或基线。Actions总时长与候选干净安装结果由PR记录，不把本机耗时替代#179或M3阶段验收。
 
 公共 API 的稳定性仍以[合同](api-contract.md)为准；矩阵中的可运行实验 API 不自动成为稳定接口。#144 的 MSAA/解析覆盖率只有临时硬件实验，不是默认 renderer 或正式 DPR/性能验收，不能用整数参考的零差异掩盖小数/重叠中间帧差异。
 
