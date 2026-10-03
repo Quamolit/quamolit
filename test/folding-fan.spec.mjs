@@ -34,6 +34,7 @@ test("共享调度：暂停加载唤醒、终点停帧与卸载后的迟到图�
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
   await expect.poll(async () => (await snapshot()).pending).toBe(false);
   const ready = await snapshot();
+  expect(ready.resourceRegistry).toMatchObject({ resident: 1, leased: 1, loads: 1 });
   expect(ready.time).toBe(loading.time);
   expect(ready.model).toEqual(loading.model);
   expect(ready.paints).toBeGreaterThan(loading.paints);
@@ -67,6 +68,10 @@ test("共享调度：暂停加载唤醒、终点停帧与卸载后的迟到图�
   expect(settled.paints).toBe(closed.paints);
   expect(settled.pending).toBe(false);
   expect(settled.imageMetrics.live).toBe(0);
+  expect(settled.resourceRegistry).toMatchObject({ resident: 0, leased: 0 });
+  expect(settled.imageMetrics.created).toBe(settled.imageMetrics.released);
+  await page.evaluate(() => window.closedFan.loadResource(3));
+  expect(await page.evaluate(() => window.closedFan.snapshot())).toEqual(settled);
   expect(await page.locator("canvas").evaluate((canvas) => canvas.toDataURL())).toBe(pixels);
   expect(errors).toEqual([]);
 });

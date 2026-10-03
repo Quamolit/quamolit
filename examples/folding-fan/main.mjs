@@ -20,17 +20,22 @@ import { ColorRgba } from "../../target/js/folding-fan/quamolit.motion.mjs";
 import { _$n__PCT__$M_ as struct } from "../../target/js/folding-fan/calcit.core.mjs";
 import {
   image_resource,
-  request_resource,
   close_resource,
+  initial_registry,
+  acquire_registry,
+  release_registry,
+  close_registry,
+  find_entry,
+  registry_metrics,
 } from "../../target/js/folding-fan/quamolit.resource-lifecycle.mjs";
 import {
-  apply_image_actions,
-  complete_image_load,
-  enqueue_image_actions,
+  apply_image_registry_actions,
+  complete_image_registry_load,
+  enqueue_image_registry_actions,
   image_descriptor,
   image_resource_metrics,
   initial_image_resource_host,
-  installed_image,
+  installed_image_resource,
   run_image_load_task_$x_,
 } from "../../target/js/folding-fan/quamolit.image-resource-runner.mjs";
 import {
@@ -80,6 +85,9 @@ export function mountDemo() {
     until = 120,
     paints = 0;
   let resourceState = resource_initial(),
+    resourceRegistry = initial_registry(650 * 432 * 4),
+    resourceIdentity = image_resource("lotus", 1),
+    leased = false,
     imageHost = initial_image_resource_host(),
     loadQueue = initial_load_queue(1, 4),
     runtimeGeneration = 1,
@@ -95,7 +103,17 @@ export function mountDemo() {
     scheduler.request(reason);
     scheduler.resume();
   }
-  const resourceTags = init_tags(["actions", "backpressured", "host", "queue", "state", "task", "transition"]);
+  const resourceTags = init_tags([
+    "actions",
+    "backpressured",
+    "entries",
+    "host",
+    "queue",
+    "registry",
+    "state",
+    "task",
+    "transition",
+  ]);
   const eventTimes = (params.get("events") || "").split(",").filter(Boolean).map(Number);
   try {
     for (const at of eventTimes) events = append_event(events, at);
@@ -138,7 +156,7 @@ export function mountDemo() {
       }
     }
     if (resource === "ready") {
-      const image = option_$o_unwrap(installed_image(imageHost));
+      const image = option_$o_unwrap(installed_image_resource(imageHost, resourceIdentity));
       if (grouped)
         draw_display_$x_(
           context,
@@ -220,6 +238,7 @@ export function mountDemo() {
       slices: to_js_data(slices_at(model, time)),
       resource,
       resourceState: to_js_data(resourceState),
+      resourceRegistry: to_js_data(registry_metrics(resourceRegistry)),
       imageMetrics: to_js_data(image_resource_metrics(imageHost)),
       loadQueue: to_js_data(load_queue_metrics(loadQueue)),
       error: [error, resourceError, gpuError].filter(Boolean).join("；"),
@@ -439,13 +458,15 @@ export function mountDemo() {
     if (shouldPump) await pumpImageQueue();
   }
   async function commitResource(transition) {
-    resourceState = transition.get(resourceTags.state);
+    resourceRegistry = transition.get(resourceTags.registry);
+    if (!disposed)
+      resourceState = find_entry(resourceRegistry.get(resourceTags.entries), resourceIdentity).get(resourceTags.state);
     const actions = transition.get(resourceTags.actions);
-    const queued = enqueue_image_actions(loadQueue, runtimeGeneration, actions);
+    const queued = enqueue_image_registry_actions(loadQueue, runtimeGeneration, actions);
     loadQueue = queued.get(resourceTags.queue);
-    imageHost = apply_image_actions(imageHost, actions);
+    imageHost = apply_image_registry_actions(imageHost, actions);
     if (queued.get(resourceTags.backpressured) > 0) resourceError = "图片加载队列已满，请稍后重试";
-    return executeResourceActions(to_js_data(actions));
+    return executeResourceActions(to_js_data(actions).map((wrapped) => wrapped[2]));
   }
   function pumpImageQueue() {
     if (pumpPromise) return pumpPromise;
@@ -463,7 +484,7 @@ export function mountDemo() {
             : new URL("../../assets/lotus.jpg", import.meta.url);
         const descriptor = image_descriptor(identity.id, identity.version, source.href, 650, 432);
         const result = await run_image_load_task_$x_(descriptor, task);
-        const completion = complete_image_load(imageHost, resourceState, loadQueue, result);
+        const completion = complete_image_registry_load(imageHost, resourceRegistry, loadQueue, result);
         loadQueue = completion.get(resourceTags.queue);
         imageHost = completion.get(resourceTags.host);
         await commitResource(completion.get(resourceTags.transition));
@@ -474,7 +495,11 @@ export function mountDemo() {
     return pumpPromise;
   }
   function loadResource(version = 1) {
-    return commitResource(request_resource(resourceState, image_resource("lotus", version)));
+    if (disposed) return Promise.resolve(snapshot());
+    if (leased) resourceRegistry = release_registry(resourceRegistry, resourceIdentity).get(resourceTags.registry);
+    resourceIdentity = image_resource("lotus", version);
+    leased = true;
+    return commitResource(acquire_registry(resourceRegistry, resourceIdentity, 650 * 432 * 4));
   }
   const api = { seek, reset, clickToggle, snapshot, pause: stop, play: start, loadResource, selectBackend };
   window.foldingFanDemo = api;
@@ -493,7 +518,9 @@ export function mountDemo() {
     void closeGpu(previous);
     runtimeGeneration += 1;
     loadQueue = cancel_stale_device_loads(loadQueue, runtimeGeneration);
-    void commitResource(close_resource(resourceState));
+    resourceState = close_resource(resourceState).get(resourceTags.state);
+    leased = false;
+    void commitResource(close_registry(resourceRegistry));
     stop();
     scheduler.dispose();
     listeners.abort();
