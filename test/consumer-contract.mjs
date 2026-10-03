@@ -31,7 +31,7 @@ export function verifyFontConsumer(app, core) {
     assert.equal(plan.get(tags["plan-builds"]), 1);
   }
   plan = app.update_font(plan, 1, app.font_spec("QuamolitChineseFixture", 1));
-  assert.equal(plan.get(tags["plan-builds"]), 2, "同时间 ready 修订不可复用旧计划");
+  assert.equal(plan.get(tags["plan-builds"]), 2, "同时间字体来源换版不可复用旧计划");
   assert.equal(core.to_js_data(plan.get(tags.scene)).nodes[0].content[1].font.version, 1);
   assert.equal(core.to_js_data(before.get(tags.scene)).nodes[0].content[1].font.version, 0);
   return { times: [1, 0, 0.5, 0.25, 1], transformFrames: 1000, buildsBeforeReady: 1, buildsAfterReady: 2 };
@@ -72,7 +72,7 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
         plan = app.update_font(plan, time, spec);
         app.draw_$x_(a, plan);
         b.clearRect(0, 0, 320, 180);
-        b.font = '24px "QuamolitChineseFixture", monospace';
+        b.font = '24px "QuamolitFont:1:QuamolitChineseFixture", monospace';
         b.textBaseline = "middle";
         b.fillStyle = "rgb(255,0,0)";
         b.fillText("图表收入", 20 + 40 * time, 50);

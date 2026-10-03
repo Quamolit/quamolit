@@ -2099,7 +2099,7 @@
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/TextNode
             :features $ #{} :js-ffi
         'font-family-css $ %{} 'CodeEntry
-          :doc "|Calcit产生安全引用的单命名字体和显式通用回退；不解析整个CSS font shorthand，不加载字体。"
+          :doc "|Calcit安全引用版本化宿主别名、原生family与通用回退；默认空family只用fallback，不加载字体。"
           :code $ quote $ defn font-family-css (font)
             let
                 family $ :family font
@@ -2108,9 +2108,15 @@
                   (:sans-serif) |sans-serif
                   (:serif) |serif
               assert |invalid-font-spec $ scene/valid-font? font
-              if (empty? family) fallback $ str "|\""
-                (family .replace |\ |\\) .replace "|\"" "|\\\""
-                , "|\", " fallback
+              if (empty? family) fallback $ let
+                  escaped $
+                    family .replace |\ |\\
+                    , .replace "|\"" "|\\\""
+                  host $
+                      scene/font-host-family font
+                      , .replace |\ |\\
+                    , .replace "|\"" "|\\\""
+                str "|\"" host "|\", \"" escaped "|\", " fallback
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.scene-ir/FontSpec
@@ -2120,7 +2126,7 @@
               assert |default-css $ = (font-family-css font) |monospace
               assert |quoted-family-css $ =
                 font-family-css $ struct-with font $ :family "|UI\"\\Family"
-                , "|\"UI\\\"\\\\Family\", monospace"
+                , "|\"QuamolitFont:0:UI\\\"\\\\Family\", \"UI\\\"\\\\Family\", monospace"
               , &unit
             :tags $ #{} :font :scene
         'raw-draw-instances! $ %{} 'CodeEntry (:doc |)
@@ -8115,7 +8121,7 @@
               try
                 let
                     face $ unsafe-coerce
-                      contract/expect-object |FontFace.load $ js-await $ raw-load! (:family spec) source
+                      contract/expect-object |FontFace.load $ js-await $ raw-load! (scene/font-host-family spec) source
                       , 'quamolit.font-resource/FontFaceHost
                   if
                     = (face :status) |loaded
@@ -16305,7 +16311,7 @@
           :examples $ []
           :schema $ :: 'EnumDef
         'FontSpec $ %{} 'CodeEntry
-          :doc "|一个可选命名字体及通用回退；family空串只使用fallback。version是应用拥有的字体可用性修订，同时间ready变化必须提升版本；不是FontFace句柄或自动loader。"
+          :doc "|单个命名字体及通用回退；family空串只用fallback。version标识字体来源/字形版本，加载与Scene必须一致；ready仅提升组件资源修订，不自动改字体版本。宿主别名隔离同名不同版本，不含FontFace句柄。"
           :code $ quote $ defstruct FontSpec (:family 'String) (:fallback 'quamolit.scene-ir/FontFallback) (:version 'Number)
           :examples $ []
           :schema $ :: 'StructDef
@@ -16451,6 +16457,25 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] $ :: 'List 'quamolit.scene-ir/SceneNode
+        'font-host-family $ %{} 'CodeEntry (:doc "|字体来源版本对应的宿主别名，加载和绘制共用；不含宿主状态，空family仍只用通用回退。")
+          :code $ quote $ defn font-host-family (font)
+            assert |invalid-font-spec $ valid-font? font
+            if
+              empty? $ :family font
+              , | $ str |QuamolitFont: (:version font) |: $ :family font
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.scene-ir/FontSpec
+          :tests $ [] $ %{} 'TestEntry (:name |font-source-version)
+            :code $ quote $ let
+                base $ default-font
+                font-a $ struct-with base (:family "|图表UI") (:version 1)
+                font-b $ struct-with font-a $ :version 2
+              assert |default-has-no-host-alias $ = (font-host-family base) |
+              assert |host-alias $ = (font-host-family font-a) "|QuamolitFont:1:图表UI"
+              assert |versions-isolated $ not= (font-host-family font-a) (font-host-family font-b)
+              , &unit
+            :tags $ #{} :font :scene
         'last-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn last-node (nodes)
             if

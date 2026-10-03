@@ -229,7 +229,7 @@ test("字体版本独立失效，命名字体安全引用且绘制不启动加�
   const font = defaultFont();
   const named = font.assoc(tags.family, '图表"UI\\字体').assoc(tags.version, 1);
   assert.equal(fontFamilyCss(font), "monospace");
-  assert.equal(fontFamilyCss(named), '"图表\\"UI\\\\字体", monospace');
+  assert.equal(fontFamilyCss(named), '"QuamolitFont:1:图表\\"UI\\\\字体", "图表\\"UI\\\\字体", monospace');
   const content = todo.text(0, "中文图表", 18, todo.color(1, 0, 0, 1));
   const text = enumNth(content, 1);
   const changedFont = text.assoc(tags.font, font.assoc(tags.version, 1));
@@ -296,6 +296,7 @@ test("Calcit 字体加载归一化失败，旧版本不安装，释放按确切�
     }
     const result = await fonts.load_font_$x_(spec, "ok");
     const loaded = enumNth(result, 1);
+    assert.equal(loaded.getRequired(tags.face).family, "QuamolitFont:1:ChartFont");
     assert.equal(installed.size, 0, "加载不自动安装或修改可见字体集合");
     assert.equal(fonts.install_font_$x_(loaded, spec.assoc(tags.version, 2)), false);
     assert.equal(reads, 0, "过期结果不访问document.fonts");

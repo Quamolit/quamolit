@@ -22,7 +22,7 @@ calcit query def app.main/update-plan --raw
 
 ## API 调用顺序
 
-字体切片也由本目录的 Calcit 声明：`font-spec` → `load-font!` → 核对当前版本后 `install-font!`，`start-font` / `update-font` 用同一 ComponentPlan 绘制“图表收入”。`load-font!` 在消费方Calcit中构造现有ResourceState/加载队列请求，调用公共`run-font-load-task!`和`complete-font-load`；不是JS loader。移动采用已有 CPU transform，文字节点不随时间重建；字体 ready 时显式提升资源版本，同时间也重声明。结束用 `release-font!` 删除确切 FontFace。加载、失败、安装和释放都调用 Quamolit Calcit 模块，两个平台 inline 随模块编译内嵌，无额外 JS loader。它是隔离门禁中的固定尺寸诊断，不新增导航作品或声称原生排版缓存已完成；临时平台接口待 js-ffi #158 替换。
+字体切片也由本目录的 Calcit 声明：`font-spec` → `load-font!` → 核对当前版本后 `install-font!`，`start-font` / `update-font` 用同一 ComponentPlan 绘制“图表收入”。`load-font!` 在消费方Calcit中构造现有ResourceState/加载队列请求，调用公共`run-font-load-task!`和`complete-font-load`；不是JS loader。移动采用已有 CPU transform，文字节点不随时间重建；字体来源版本变化时显式提升资源版本，同时间也重声明。仅字体 ready 时更新组件可用性修订，Scene 保持与加载请求相同的 FontSpec.version；版本化宿主别名由框架自动处理，下游不拼 CSS。结束用 `release-font!` 删除确切 FontFace。加载、失败、安装和释放都调用 Quamolit Calcit 模块，两个平台 inline 随模块编译内嵌，无额外 JS loader。它是隔离门禁中的固定尺寸诊断，不新增导航作品或声称原生排版缓存已完成；临时平台接口待 js-ffi #158 替换。
 
 `declare` 返回纯 Scene/Motion 声明，`declare-execution` 添加蓝色折线及 CPU 变换提供者，返回 `ExecutionDeclaration`。`request` 构造带完整版本的 `ComponentRequest`，`start` 调用 `build-execution-plan`，`update-plan` 调用 `update-execution-plan`。`draw!` 用 js-ffi 清屏，再调用统一 `draw-plan!`，调用者不选择内部标量/路径计划。
 
