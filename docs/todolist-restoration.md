@@ -2,7 +2,7 @@
 
 推进 #36/#49/#50/#53。历史行为依据为原 `quamolit.app.comp.todolist` / `task`：新增、编辑、完成切换、删除、进入退出位移及列表位置过渡。本示例恢复这些操作，新增置顶/倒序、退出中恢复和终点后的重新进入；不恢复旧门户或绘制中修改状态的 `orphins` 缓存。
 
-入口：`examples/todolist/index.html`，从导航“原有动画”可达。Canvas 占满视口，DOM 仅提供输入、时间与日志浮层。点击行左方块完成、文字编辑、↑ 置顶、× 删除；窄屏可先收起浮层。24 行上限是示例容量，不是框架吞吐承诺；超过 8 行缩小构图。每条最多 28 字符。
+入口：`examples/todolist/index.html`，从导航“原有动画”可达。Canvas 占满视口，DOM 仅提供输入、时间与日志浮层。点击行左方块完成、文字编辑、↑ 置顶、× 删除；窄屏可先收起浮层。24 行上限是示例容量，不是框架吞吐承诺；桌面超过 8 行保留全景缩放，窄屏改用列表视窗、不缩小文字。每条最多 28 字符。
 
 ## 可复用实现与边界
 
@@ -16,6 +16,14 @@
 - `SceneContent :text` 是基础单行、左对齐、中线、monospace 文字；支持位置、字号、颜色及叶节点 alpha，尚无复杂 shaping、字体资源表、文字裁剪或 GPU 字形缓存。diff 把文字/字号/位置视为几何，颜色视为属性。
 - 原生文字使用 js-ffi `0.2.1-alpha.2` 的类型化 `CanvasContextHost.fill-text!`；`draw-text!` 在 Calcit 中设置字体、对齐和颜色，并在异常路径恢复 Canvas 状态。已移除本地 `raw-fill-text!` inline 适配；保留原生 Canvas 像素对照和浏览器回归测试。参见上游 [js-ffi #124](https://github.com/calcit-lang/js-ffi/issues/124)。
 
+## 窄屏布局 #117
+
+CSS 宽度小于720px使用现有示例namespace中的 `compact-document(plan, width, scroll)`：从同次采样的卡片、完成宽度、文字/字体/alpha与变换生成响应式Scene；18px正文分两行，三个操作区域各44×44px，编辑区域52px高。行内容仍在Canvas中，DOM不复制待办列表。原始Model/ComponentPlan/意图不修改；同时间width/scroll变化重新投影并编译公共HitPlan，退出及零alpha行禁交互。桌面保留原计划/原生像素合同。
+
+窄屏长列表通过浮层“列表视窗”滑块或Canvas滚轮浏览，滚动只改视窗，不写入输入日志、不推进动画时间。`compact-scroll-limit`根据实际采样变换计算上限，暂停resize/DPR只更新视窗与backing store。`draw-compact!`沿公共canvas-scene入口安装DPR根变换与视窗裁剪，不以CSS放大低分辨率画布。
+
+复用原Node/Chromium门禁：320/390/600px纯Calcit布局与四类命中，DPR1/2真实touch tap、独立原生全RGBA零差异、长中英文内容、多行视窗、暂停resize及返回桌面Model不变。独立参考按既有采样计划读取动画结果，布局与原生绘制公式独立；动画数值/打断继续由原门禁验收。当前投影会重建展示Scene，不声称布局缓存/性能优化；尚未提取为Finder公共布局辅助，也不提供触屏拖动惯性。宽度低于300px按300px最低构图裁切，是明确未覆盖范围；不提前关闭#117/M3。
+
 ## 时钟与日志
 
 默认播放示范日志：3 次新增、完成切换、删除后打断恢复、置顶后反向重排、编辑和删除。`?t=1.6` 等链接直接暂停在固定时间。自由操作保留初始 3 行；历史时刻新增操作会丢弃未来分支。导出 JSON `{version:1,events:[...]}`，导入先检查字段、容量、顺序和整段状态机合法性；失败不替换当前日志。
@@ -28,4 +36,4 @@
 
 `yarn test:todolist`：严格类型、原生合同、Node 输入日志/乱序时间/打断/重入/100 次装卸/1000 时间帧，以及浏览器交互、空闲停帧、全屏/DPR、文字像素与错误路径。`yarn test:demo-nav` 验证静态产物导航往返。结果与固定时间截图进入 CI artifact。
 
-仍未完成：真实宿主资源释放、通用指针捕获、嵌套父级/子树绘制、同源 WebGPU 和端到端性能测量。窄屏采用 contain，文字和点击目标偏小，由 [#117](https://github.com/Quamolit/quamolit/issues/117) 跟踪响应式布局，不阻塞本次功能恢复。该示例提供 #49 的逻辑生命周期证据，不自动关闭 M1/M2 或全部 11 个示例恢复项。
+仍未完成：真实宿主资源释放、通用指针捕获、嵌套父级/子树绘制、同源 WebGPU 和端到端性能测量。[#117](https://github.com/Quamolit/quamolit/issues/117) 已有窄屏布局切片，公共复用与其余触屏范围仍待验收。该示例提供 #49 的逻辑生命周期证据，不自动关闭 M1/M2 或全部 11 个示例恢复项。
