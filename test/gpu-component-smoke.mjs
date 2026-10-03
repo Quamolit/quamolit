@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as gpu from "../target/js/gpu-component/quamolit.gpu-component.mjs";
 import * as fixture from "../target/js/gpu-component/quamolit.test.retained-component-fixture.mjs";
+import * as core from "../target/js/gpu-component/calcit.core.mjs";
+import * as scene from "../target/js/gpu-component/quamolit.scene-ir.mjs";
+import * as motion from "../target/js/gpu-component/quamolit.motion.mjs";
 import { extreme_plan as extremePlan } from "../target/js/gpu-component/quamolit.test.gpu-component-fixture.mjs";
 import { sample_plan_at as sample } from "../target/js/gpu-component/quamolit.retained-component.mjs";
 import {
@@ -55,6 +58,46 @@ const get = (o, k) => o.get(tags[k]);
 const set = (o, k, v) => o.assoc(tags[k], v);
 const list = (xs) => new CalcitSliceList(xs);
 const base = () => fixture.start(0, 40, false, 100);
+
+test("原生圆弧返回完整图层 fallback 和身份诊断，不静默丢失 (#212)", () => {
+  const arcTags = core.init_tags([
+    "cx",
+    "cy",
+    "radius",
+    "start-angle",
+    "end-angle",
+    "counterclockwise",
+    "width",
+    "stroke",
+    "r",
+    "g",
+    "b",
+    "a",
+    "arc",
+  ]);
+  const record = (type, fields) =>
+    core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([key, value]) => [arcTags[key], value]));
+  const color = record(motion.ColorRgba, { r: 1, g: 0, b: 0, a: 1 });
+  const arc = record(scene.ArcNode, {
+    cx: 50,
+    cy: 50,
+    radius: 20,
+    "start-angle": 5,
+    "end-angle": 1,
+    counterclockwise: false,
+    width: 4,
+    stroke: color,
+  });
+  const p = base(),
+    original = nodes(p).toArray();
+  const node = set(original[0], "content", core._PCT__$o__$o_(scene.SceneContent, arcTags.arc, arc));
+  const candidate = withNodes(p, [node, ...original.slice(1)]);
+  assert.deepEqual(js(gpu.prepare_plan(candidate)), ["fallback", "unsupported-node:arc"]);
+  assert.deepEqual(js(gpu.diagnose_plan(candidate)), [
+    { id: get(node, "id"), key: get(node, "key"), kind: "arc", reason: "unsupported-node:arc" },
+  ]);
+  assert.equal(js(nodes(p).get(0)).content[0], "rect");
+});
 const frame = (p) => {
   const result = gpu.prepare_plan(p);
   assert.equal(js(result)[0], "rects");

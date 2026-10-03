@@ -1,5 +1,161 @@
 import { expect, test } from "@playwright/test";
 
+for (const dpr of [1, 2])
+  test(`公共原生圆弧：方向/跨0/完整圆/零长度/圆头和乱序时间 DPR${dpr} (#212)`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: dpr });
+    const page = await context.newPage();
+    await page.goto("/test/scene-core.html");
+    const results = await page.evaluate(async (dpr) => {
+      const core = await import("/target/js/motion/calcit.core.mjs");
+      const ir = await import("/target/js/motion/quamolit.scene-ir.mjs");
+      const motion = await import("/target/js/motion/quamolit.motion.mjs");
+      const reference = await import("/target/js/motion/quamolit.canvas-reference.mjs");
+      const renderer = await import("/target/js/motion/quamolit.canvas-scene.mjs");
+      const tags = core.init_tags([
+        "cx",
+        "cy",
+        "radius",
+        "start-angle",
+        "end-angle",
+        "counterclockwise",
+        "width",
+        "stroke",
+        "r",
+        "g",
+        "b",
+        "a",
+        "arc",
+        "id",
+        "key",
+        "parent",
+        "content",
+        "bindings",
+        "interaction",
+        "none",
+        "nodes",
+        "group",
+        "transform",
+        "clip",
+        "opacity",
+        "c",
+        "d",
+        "e",
+        "f",
+      ]);
+      const record = (type, fields) =>
+        core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([key, value]) => [tags[key], value]));
+      const color = record(motion.ColorRgba, { r: 1, g: 0, b: 0, a: 0.5 });
+      const makeCanvas = () => {
+        const c = document.createElement("canvas");
+        c.width = c.height = 128 * dpr;
+        c.getContext("2d").scale(dpr, dpr);
+        return c;
+      };
+      const pixelDiff = (a, b) => {
+        const aa = a.getContext("2d").getImageData(0, 0, a.width, a.height).data;
+        const bb = b.getContext("2d").getImageData(0, 0, b.width, b.height).data;
+        return aa.reduce((count, value, i) => count + (value !== bb[i] ? 1 : 0), 0);
+      };
+      const results = [];
+      for (const time of [2.5, 0, 0.5, 2.5])
+        for (const [start, end, ccw, width] of [
+          [0.2, 2.4, false, 4],
+          [5, 1, false, 4],
+          [1, 5, true, 4],
+          [0, 2 * Math.PI, false, 4],
+          [0, -2 * Math.PI, true, 4],
+          [1, 1, false, 4],
+          [0.2, 2.4, false, 0],
+        ]) {
+          const angle = time * 0.7;
+          const fields = {
+            cx: 64,
+            cy: 64,
+            radius: 40,
+            "start-angle": start + angle,
+            "end-angle": end + angle,
+            counterclockwise: ccw,
+            width,
+            stroke: color,
+          };
+          const arc = record(ir.ArcNode, fields);
+          const content = core._PCT__$o__$o_(ir.SceneContent, tags.arc, arc);
+          const node = record(ir.SceneNode, {
+            id: "arc",
+            key: "arc",
+            parent: "",
+            content,
+            bindings: core.arrayToList([]),
+            interaction: core._PCT__$o__$o_(ir.SceneInteraction, tags.none),
+          });
+          const document = record(ir.SceneDocument, { nodes: core.arrayToList([node]) });
+          // Scene uses absolute transforms; DPR belongs in its root, not the caller's context.
+          const root = record(ir.SceneNode, {
+            id: "root",
+            key: "root",
+            parent: "",
+            bindings: core.arrayToList([]),
+            interaction: core._PCT__$o__$o_(ir.SceneInteraction, tags.none),
+            content: core._PCT__$o__$o_(
+              ir.SceneContent,
+              tags.group,
+              record(ir.GroupNode, {
+                transform: record(ir.Matrix2D, { a: dpr, b: 0, c: 0, d: dpr, e: 0, f: 0 }),
+                clip: core._PCT__$o__$o_(ir.ClipSpec, tags.none),
+                opacity: 1,
+              }),
+            ),
+          });
+          const scaledDocument = record(ir.SceneDocument, {
+            nodes: core.arrayToList([root, node.assoc(tags.parent, "root")]),
+          });
+          const actual = makeCanvas(),
+            flat = makeCanvas(),
+            expected = makeCanvas(),
+            wrongDirection = makeCanvas(),
+            wrongCap = makeCanvas();
+          const native = (canvas, counterclockwise, cap) => {
+            if (width === 0) return;
+            const ctx = canvas.getContext("2d");
+            ctx.strokeStyle = "rgba(255,0,0,0.5)";
+            ctx.lineWidth = width;
+            ctx.lineCap = cap;
+            ctx.beginPath();
+            ctx.arc(64, 64, 40, start + angle, end + angle, counterclockwise);
+            ctx.stroke();
+          };
+          renderer.draw_document_$x_(actual.getContext("2d"), scaledDocument, actual.width, actual.height, () => {
+            throw new Error("unexpected image");
+          });
+          reference.draw_reference_$x_(flat.getContext("2d"), document);
+          native(expected, ccw, "round");
+          native(wrongDirection, !ccw, "round");
+          native(wrongCap, ccw, "butt");
+          results.push({
+            time,
+            start,
+            end,
+            width,
+            scene: pixelDiff(actual, expected),
+            flat: pixelDiff(flat, expected),
+            wrongDirection: pixelDiff(wrongDirection, expected),
+            wrongCap: pixelDiff(wrongCap, expected),
+          });
+        }
+      return results;
+    }, dpr);
+    expect(results).toHaveLength(28);
+    for (const result of results) {
+      expect(result.scene).toBe(0);
+      expect(result.flat).toBe(0);
+      if (result.start === 0.2 && result.width === 4) {
+        expect(result.wrongDirection).toBeGreaterThan(0);
+        expect(result.wrongCap).toBeGreaterThan(0);
+      }
+    }
+    await context.close();
+  });
+
 test("Scene IR 任意时间构造、序列化后可绘制准确中间帧", async ({ page }) => {
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));

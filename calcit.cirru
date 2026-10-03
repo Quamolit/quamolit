@@ -283,6 +283,24 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.motion/ColorRgba
+        'draw-arc! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-arc! (context arc)
+            assert |invalid-scene-arc $ scene/valid-arc? arc
+            when
+              > (:width arc) 0
+              context .save!
+              js-set context :stroke-style $ color-css $ :stroke arc
+              js-set context :line-width $ :width arc
+              js-set context :line-cap |round
+              context .begin-path!
+              context .arc! (:cx arc) (:cy arc) (:radius arc) (:start-angle arc) (:end-angle arc) (:counterclockwise arc)
+              context .stroke!
+              context .restore!
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/ArcNode
+            :features $ #{} :js-ffi
         'draw-circle! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-circle! (context circle)
             assert |invalid-scene-circle $ scene/valid-circle? circle
@@ -317,6 +335,7 @@
               (:polygon polygon) (draw-polygon! context polygon)
               (:cubic-path path) (draw-cubic-path! context path)
               (:circle circle) (draw-circle! context circle)
+              (:arc arc) (draw-arc! context arc)
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -436,6 +455,7 @@
                   (:polygon polygon) (raise |polygon-requires-draw-reference)
                   (:cubic-path path) (raise |cubic-path-requires-draw-reference)
                   (:circle circle) (raise |circle-requires-draw-reference)
+                  (:arc arc) (raise |arc-requires-draw-reference)
             , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -539,6 +559,7 @@
                 (:polygon polygon) true
                 (:cubic-path path) true
                 (:circle circle) true
+                (:arc arc) true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -579,6 +600,7 @@
               (:polygon value) true
               (:cubic-path value) true
               (:circle value) true
+              (:arc arc) true
               (:instances value) false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -11228,6 +11250,7 @@
                 (:polygon polygon) (%none)
                 (:cubic-path path) (%none)
                 (:circle circle) (%none)
+                (:arc arc) (%none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.presence/PresenceItem
@@ -14247,6 +14270,7 @@
                     (:polygon polygon) (raise |unsupported-retained-path-scene)
                     (:cubic-path path) (raise |unsupported-retained-path-scene)
                     (:circle circle) (raise |unsupported-retained-path-scene)
+                    (:arc arc) (raise |unsupported-retained-path-scene)
                   context .restore!
             , &unit
           :examples $ []
@@ -14269,6 +14293,7 @@
                 (:polygon polygon) false
                 (:cubic-path path) false
                 (:circle circle) false
+                (:arc arc) false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -14444,6 +14469,7 @@
               (:polygon polygon) (raise |unsupported-polygon-binding)
               (:cubic-path path) (raise |unsupported-cubic-path-binding)
               (:circle circle) (raise |unsupported-circle-binding)
+              (:arc arc) (raise |unsupported-arc-binding)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
             :args $ [] 'quamolit.scene-ir/SceneContent 'quamolit.scene-ir/ScalarTarget 'Number
@@ -14671,6 +14697,7 @@
             :polygon (:: 'List 'quamolit.motion/Vec2) 'Number
             :cubic-path 'quamolit.motion/Vec2 (:: 'List 'quamolit.scene-ir/CubicSegment) 'Number
             :circle 'Number 'Number 'Number 'Number
+            :arc 'Number 'Number 'Number 'Number 'Number 'Bool 'Number
           :examples $ []
           :schema $ :: 'EnumDef
         'IdentitySegment $ %{} 'CodeEntry
@@ -14680,7 +14707,7 @@
           :schema $ :: 'StructDef
         'PropertySignature $ %{} 'CodeEntry
           :doc "|Closed visual-property projection; separate from geometry and resource versions."
-          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba) (:text 'quamolit.motion/ColorRgba) (:image) (:polygon 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba) (:cubic-path 'quamolit.motion/ColorRgba) (:circle 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba)
+          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba) (:text 'quamolit.motion/ColorRgba) (:image) (:polygon 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba) (:cubic-path 'quamolit.motion/ColorRgba) (:circle 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba) (:arc 'quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ :: 'EnumDef
         'ResourceSignature $ %{} 'CodeEntry
@@ -14984,6 +15011,8 @@
                 GeometrySignature :cubic-path (:start path) (:segments path) (:width path)
               (:circle circle)
                 GeometrySignature :circle (:cx circle) (:cy circle) (:radius circle) (:width circle)
+              (:arc arc)
+                GeometrySignature :arc (:cx arc) (:cy arc) (:radius arc) (:start-angle arc) (:end-angle arc) (:counterclockwise arc) (:width arc)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/GeometrySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -15054,6 +15083,8 @@
                 PropertySignature :cubic-path $ :stroke path
               (:circle circle)
                 PropertySignature :circle (:fill circle) (:stroke circle)
+              (:arc arc)
+                PropertySignature :arc $ :stroke arc
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/PropertySignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -15072,6 +15103,7 @@
               (:polygon polygon) (ResourceSignature :none)
               (:cubic-path path) (ResourceSignature :none)
               (:circle circle) (ResourceSignature :none)
+              (:arc arc) (ResourceSignature :none)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-diff/ResourceSignature)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -16094,6 +16126,10 @@
             calcit.test :refer $ is=
     'quamolit.scene-ir $ %{} 'FileEntry
       :defs $ {}
+        'ArcNode $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ArcNode (:cx 'Number) (:cy 'Number) (:radius 'Number) (:start-angle 'Number) (:end-angle 'Number) (:counterclockwise 'Bool) (:width 'Number) (:stroke 'quamolit.motion/ColorRgba)
+          :examples $ []
+          :schema $ :: 'StructDef
         'CircleNode $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct CircleNode (:cx 'Number) (:cy 'Number) (:radius 'Number) (:width 'Number) (:fill 'quamolit.motion/ColorRgba) (:stroke 'quamolit.motion/ColorRgba)
           :examples $ []
@@ -16187,7 +16223,7 @@
           :schema $ :: 'EnumDef
         'SceneContent $ %{} 'CodeEntry
           :doc "|Closed primitive/group/instance-layer union, independent from execution plans."
-          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode) (:text 'quamolit.scene-ir/TextNode) (:image 'quamolit.scene-ir/ImageNode) (:polygon 'quamolit.scene-ir/PolygonNode) (:cubic-path 'quamolit.scene-ir/CubicPathNode) (:circle 'quamolit.scene-ir/CircleNode)
+          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode) (:text 'quamolit.scene-ir/TextNode) (:image 'quamolit.scene-ir/ImageNode) (:polygon 'quamolit.scene-ir/PolygonNode) (:cubic-path 'quamolit.scene-ir/CubicPathNode) (:circle 'quamolit.scene-ir/CircleNode) (:arc 'quamolit.scene-ir/ArcNode)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneDiagnostic $ %{} 'CodeEntry (:doc |)
@@ -16244,6 +16280,7 @@
               (:polygon polygon) |polygon
               (:cubic-path path) |cubic-path
               (:circle circle) |circle
+              (:arc arc) |arc
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.scene-ir/SceneContent
@@ -16350,6 +16387,34 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/ScalarTarget $ :: 'List 'quamolit.scene-ir/ScalarBinding
+        'valid-arc? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-arc? (arc)
+            and
+              finite-number? $ :cx arc
+              finite-number? $ :cy arc
+              finite-number? $ :radius arc
+              > (:radius arc) 0
+              finite-number? $ :start-angle arc
+              finite-number? $ :end-angle arc
+              finite-number? $ :width arc
+              >= (:width arc) 0
+              valid-color? $ :stroke arc
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/ArcNode
+          :tests $ [] $ %{} 'TestEntry (:name |arc-numeric-contract)
+            :code $ quote $ let
+                black $ ColorRgba :r 0 :g 0 :b 0 :a 1
+                arc $ ArcNode :cx 0 :cy 0 :radius 20 :start-angle 5 :end-angle 1 :counterclockwise false :width 4 :stroke black
+              is= true $ valid-arc? arc
+              is= true $ valid-arc? $ struct-with arc (:width 0) (:start-angle 1) (:end-angle 1)
+              is= false $ valid-arc? $ struct-with arc (:radius 0)
+              is= false $ valid-arc? $ struct-with arc (:width -1)
+              is= false $ valid-arc? $ struct-with arc
+                :start-angle $ sqrt -1
+              is= false $ valid-arc? $ struct-with arc
+                :end-angle $ / 1 0
+            :tags $ #{} :scene :unit
         'valid-binding? $ %{} 'CodeEntry
           :doc "|Validate one versioned scalar motion binding and its legal target."
           :code $ quote $ defn valid-binding? (binding content)
@@ -16512,6 +16577,7 @@
               (:polygon polygon) (valid-polygon? polygon)
               (:cubic-path path) (valid-cubic-path? path)
               (:circle circle) (valid-circle? circle)
+              (:arc arc) (valid-arc? arc)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneContent
