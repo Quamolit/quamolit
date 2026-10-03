@@ -17,3 +17,9 @@
 验证命令为 `yarn test:scene-hit`、`yarn test:scene-pointer`、`yarn test:scene-pointer-browser` 与 `yarn test:drag-demo`。覆盖冒泡、画布外捕获、pointer id 隔离、快速目标切换、`up/cancel`、删除/重挂载、嵌套禁用、hover 清理、边界外祖先捕获释放、兄弟不受影响、重入、背后命中和重复协调；1000 个装饰节点的命中仍 `visited=1`。Node 与 Chromium 验证上述宿主捕获/resize 协议。自动 Presence group 退出接线、实际应用的 resize/退出动画组合、cubic-path、instances 和 GPU picking 尚未覆盖，不以本切片关闭 #34。
 
 这些入口均由公共 Calcit namespace 暴露，新增桥接没有 JS 实现文件或测试依赖。`SceneInteraction` 仍是实验协议；下游若穷举匹配原来的 `:none/:target`，需要增加 `:disabled` 分支。稳定 UI-motion 合同不因此扩大。
+
+#202 的[实例命中候选](scene-ir-core.md#实例命中候选34尚未合并)提供带源解析器的 HitPlan 和独立实例索引查询，供既有逻辑节点路由消费；PointerDispatch 与 capture 仍保存逻辑 Scene 节点，不自动捕获单个源索引。位置版本变化不改变逻辑节点身份；查询返回的索引不能充当跨版本的稳定组件 key。
+
+该候选新增公共 Calcit `reconcile-pointer-surface!(surface, plan, state)`。提交协议是先成功编译新计划，再用旧 PointerState 调用此入口，保存返回的 `state` 并公开新计划。它先执行纯逻辑协调，仅在 `capture-released` 时释放该 surface 仍持有的原生 capture；不等待下一次 PointerEvent，也不替其他 surface 释放所有权。重复提交使用返回状态，因此不会重复释放。此入口不安装调度器，不自动管理 hover、Presence 或资源表。
+
+既有 `test:scene-pointer-browser` 复用同一夹具和监听器，在 DPR 1/2 下验证真实按下获得实例逻辑节点捕获、换位置版本保留捕获、其他 pointer 不继承捕获、移出画布继续投递。resize 与退出/卸载在同一页面任务提交，在下一次输入前即释放原生 capture，重复提交幂等，重入可再次捕获。新增 Node mock 则直接检验公共提交入口；独立消费者由自己的 Calcit 定义调用它，验证两个10k计划构建、版本切换保留与卸载恰好一次释放。消费者中的原生 capture 是 mock，不冒充真实浏览器证据；真实事件证据来自前述 Chromium。诊断夹具不证明完整应用/嵌套退出子树已接线，也不关闭 #34。上文“当前覆盖”描述已合并基线，新增覆盖须待 #202 合并。

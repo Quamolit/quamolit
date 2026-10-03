@@ -32,6 +32,8 @@ calcit query def app.main/update-plan --raw
 
 ## 隔离门禁
 
+同一个消费方 Snapshot 还提供 `curve-document(time)`、`curve-hit-plan(time)`、`curve-hit(plan,x,y)` 与 `draw-curve!(context,document)`：只引用 Quamolit 的实验性 Calcit Scene/HitPlan/Canvas API，自己声明绝对时间曲线、90°旋转、2倍缩放和祖先裁剪。既有 `test:consumer` 从安装后搬移的产物执行Node和浏览器验证，保存 `consumer-curve-<time>-{actual,expected}.png`；这不是新页面模式或GPU曲线实现。默认依赖固定到已推送的曲线候选0a7fa89，发布tag后仍须重跑；旧候选可能编译成功但不支持曲线命中，不能作为本切片验收。
+
 页面可在“线性矩形 + 折线”、“位置与尺寸渐变”与“Presence 生命周期”之间切换，后两者也可通过 `?motion=dual` / `?motion=presence` 直接进入。位置与尺寸声明仍由 Calcit 的 `declare-dual` 创建，同一参数供 `start-dual` / `update-dual` 的 Canvas 参考和 GPU 程序使用。切换声明时重建计划，保留当前显式时间/Model，不在旧声明的相同版本上错误复用结构。
 
 Presence 模式的 Scene、稳定 key、协调、任意时间采样、是否继续请求帧、显式结算和 ComponentPlan 都在消费方 Calcit 中。页面 JS 只提交“重排 / 移除 / 重入 / 结算”事件并绘制返回计划。移除后橙色卡片继续淡出但立即停止交互；动画中途重入从当前 alpha 继续；退出终点只有显式结算才返回一次释放通知。隔离 Node 合同另用两个实例节点共享同一 `(id,version)`，让 Calcit 计算引用和释放决定，再由公共实例资源表实际释放：连续 100 次单调版本装卸均回到 live=0。

@@ -60,6 +60,70 @@ for (const dpr of [1, 2])
     }
   });
 
+for (const dpr of [1, 2])
+  for (const action of ["exit", "unload"])
+    test(`实例逻辑捕获：DPR ${dpr} 换版本保留，resize 同次提交 ${action} 立即释放`, async ({ browser }) => {
+      const context = await browser.newContext({ viewport: { width: 1000, height: 700 }, deviceScaleFactor: dpr });
+      const page = await context.newPage();
+      try {
+        await page.goto("http://127.0.0.1:5180/test/scene-pointer-browser.html?instances=1");
+        const canvas = page.locator("#pointer-surface");
+        await expect(canvas).toHaveAttribute("data-ready", "true");
+        await canvas.evaluate((node) => {
+          node.nativeReleases = 0;
+          const release = node.releasePointerCapture.bind(node);
+          node.releasePointerCapture = (id) => {
+            node.nativeReleases++;
+            release(id);
+          };
+        });
+        const box = await canvas.boundingBox();
+        await page.mouse.move(box.x + 80, box.y + 130);
+        await page.mouse.down();
+        await expect(canvas).toHaveAttribute("data-target", "dots-action");
+        await expect(canvas).toHaveAttribute("data-hit-index", "1");
+        expect(await canvas.evaluate((node) => node.hasPointerCapture(1))).toBe(true);
+        // 编程触发提交，不能先 mouseup 再声称是退出清理了捕获。
+        await page.locator("#instance-version").evaluate((node) => node.click());
+        await expect(canvas).toHaveAttribute("data-commit-released", "false");
+        expect(await canvas.evaluate((node) => node.hasPointerCapture(1))).toBe(true);
+        await canvas.dispatchEvent("pointermove", { pointerId: 2, clientX: box.x + 80, clientY: box.y + 130 });
+        await expect(canvas).toHaveAttribute("data-target", "");
+        await expect(canvas).toHaveAttribute("data-captured", "false");
+        await page.mouse.move(box.x + box.width + 100, box.y + box.height + 100);
+        await expect(canvas).toHaveAttribute("data-target", "dots-action");
+        await expect(canvas).toHaveAttribute("data-captured", "true");
+        // resize 和 Scene 退出/卸载在同一个页面任务内提交。
+        await canvas.evaluate((node, nextAction) => {
+          node.style.marginLeft = "180px";
+          node.style.marginTop = "80px";
+          node.style.width = "280px";
+          node.style.height = "210px";
+          document.querySelector(`#instance-${nextAction}`).click();
+        }, action);
+        await expect(canvas).toHaveAttribute("data-commit-released", "true");
+        await expect(canvas).toHaveAttribute("data-capture-cleared", "true");
+        await expect(canvas).toHaveAttribute("data-candidates", "0");
+        expect(await canvas.evaluate((node) => node.hasPointerCapture(1))).toBe(false);
+        expect(await canvas.evaluate((node) => node.nativeReleases)).toBe(1);
+        await page.locator(`#instance-${action}`).evaluate((node) => node.click());
+        await expect(canvas).toHaveAttribute("data-commit-released", "false");
+        expect(await canvas.evaluate((node) => node.nativeReleases)).toBe(1);
+        await page.mouse.up();
+        await page.locator("#instance-restore").evaluate((node) => node.click());
+        const restored = await canvas.boundingBox();
+        await page.mouse.move(restored.x + 80, restored.y + 130);
+        await page.mouse.down();
+        await expect(canvas).toHaveAttribute("data-target", "dots-action");
+        expect(await canvas.evaluate((node) => node.hasPointerCapture(1))).toBe(true);
+        await page.mouse.up();
+        expect(await canvas.evaluate((node) => node.hasPointerCapture(1))).toBe(false);
+        expect(await canvas.evaluate((node) => node.nativeReleases)).toBe(2);
+      } finally {
+        await context.close();
+      }
+    });
+
 test("真实 PointerEvent 在画布外继续投递并恰好释放一次", async ({ page }) => {
   await ready(page);
   const canvas = page.locator("#pointer-surface");

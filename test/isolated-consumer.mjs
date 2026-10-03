@@ -7,7 +7,12 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createServer } from "vite";
 import { chromium } from "@playwright/test";
-import { verifyConsumer, verifyFontConsumer, verifyFontConsumerBrowser } from "./consumer-contract.mjs";
+import {
+  verifyConsumer,
+  verifyFontConsumer,
+  verifyFontConsumerBrowser,
+  verifyCurveConsumer,
+} from "./consumer-contract.mjs";
 import { verifyInstancesConsumer } from "./consumer-instances-contract.mjs";
 import { verifyPresenceConsumer } from "./consumer-presence-contract.mjs";
 import { verifyRecoveryConsumer } from "./consumer-recovery-contract.mjs";
@@ -37,6 +42,7 @@ const harness = {
 };
 for (const name of [
   "examples/retained-consumer/calcit.cirru",
+  "examples/retained-consumer/deps.cirru",
   "examples/retained-consumer/main.mjs",
   "examples/retained-consumer/instances-input.mjs",
   "examples/retained-consumer/index.html",
@@ -148,6 +154,13 @@ try {
     /AssertionError/,
     "反例：停掉字体文字时间/资源更新必须失败",
   );
+  const curveCounts = verifyCurveConsumer(app, core);
+  const curveMiss = app.curve_hit(app.curve_hit_plan(0), 1000, 1000);
+  assert.throws(
+    () => verifyCurveConsumer({ ...app, curve_hit: () => curveMiss }, core),
+    /AssertionError/,
+    "反例：下游曲线命中失效必须被检出",
+  );
   const instancesCounts = verifyInstancesConsumer(app, core);
   const presenceCounts = verifyPresenceConsumer(app, core);
   const recoveryCounts = verifyRecoveryConsumer(app, core);
@@ -186,6 +199,16 @@ try {
     "反例：伪造实例计数必须失败",
   );
   assert.throws(
+    () => verifyInstancesConsumer({ ...app, instances_hit_index: () => core._PCT_none() }, core),
+    /AssertionError/,
+    "反例：实例命中始终返回none必须失败",
+  );
+  assert.throws(
+    () => verifyInstancesConsumer({ ...app, exercise_instance_capture_$x_: () => {} }, core),
+    /AssertionError/,
+    "反例：跳过下游Calcit捕获/提交协调必须失败",
+  );
+  assert.throws(
     () => verifyPresenceConsumer({ ...app, presence_resource_plan: (_model, previous) => previous }, core),
     /AssertionError/,
     "反例：停掉 Presence 资源同步必须失败",
@@ -214,6 +237,105 @@ try {
   const fontBrowser = await verifyFontConsumerBrowser(page, artifacts);
   await page.locator("#consumer-font-evidence").screenshot({ path: join(artifacts, "font-chinese-fallback.png") });
   await page.evaluate(() => document.querySelector("#consumer-font-evidence").remove());
+  const curveBrowser = await page.evaluate(async () => {
+    const app = await import("./target/js/app/app.main.mjs");
+    const core = await import("./target/js/app/calcit.core.mjs");
+    const frames = [];
+    for (const time of [0, 0.5, 3]) {
+      const actual = document.createElement("canvas"),
+        expected = document.createElement("canvas");
+      actual.width = expected.width = 320;
+      actual.height = expected.height = 180;
+      const a = actual.getContext("2d", { willReadFrequently: true });
+      const e = expected.getContext("2d", { willReadFrequently: true });
+      app.draw_curve_$x_(a, app.curve_document(time));
+      // 独立原生隔离group参考，不读取消费者/框架生成的Scene或控制点。
+      // GPU-backed Offscreen与直接CPU Canvas的边缘另报，不放宽阈值。
+      const offset = 10 * time;
+      const drawReference = (context) => {
+        context.transform(0, 2, -2, 0, 240, 0);
+        context.beginPath();
+        context.rect(0, 0, 100, 80);
+        context.clip();
+        context.beginPath();
+        context.moveTo(20 + offset, 70);
+        context.bezierCurveTo(20 + offset, 10, 80 + offset, 10, 80 + offset, 70);
+        context.lineWidth = 20;
+        context.lineCap = "butt";
+        context.lineJoin = "miter";
+        context.miterLimit = 10;
+        context.strokeStyle = "#ff0000";
+        context.stroke();
+      };
+      const isolated =
+        typeof OffscreenCanvas === "function" ? new OffscreenCanvas(320, 180) : document.createElement("canvas");
+      isolated.width = 320;
+      isolated.height = 180;
+      drawReference(isolated.getContext("2d"));
+      e.drawImage(isolated, 0, 0);
+      const direct = document.createElement("canvas");
+      direct.width = 320;
+      direct.height = 180;
+      const d = direct.getContext("2d", { willReadFrequently: true });
+      drawReference(d);
+      const left = a.getImageData(0, 0, 320, 180).data;
+      const right = e.getImageData(0, 0, 320, 180).data;
+      const directPixels = d.getImageData(0, 0, 320, 180).data;
+      let differingChannels = 0,
+        blankDifferingChannels = 0,
+        directDifferingChannels = 0;
+      for (let index = 0; index < left.length; index++) {
+        if (left[index] !== right[index]) differingChannels++;
+        if (right[index] !== 0) blankDifferingChannels++;
+        if (left[index] !== directPixels[index]) directDifferingChannels++;
+      }
+      const diff = document.createElement("canvas");
+      diff.width = 320;
+      diff.height = 180;
+      const diffContext = diff.getContext("2d"),
+        diffImage = diffContext.createImageData(320, 180);
+      for (let index = 0; index < left.length; index += 4) {
+        const maximum = Math.max(
+          ...[0, 1, 2, 3].map((channel) => Math.abs(left[index + channel] - directPixels[index + channel])),
+        );
+        diffImage.data[index] = diffImage.data[index + 2] = maximum;
+        diffImage.data[index + 3] = maximum ? 255 : 0;
+      }
+      diffContext.putImageData(diffImage, 0, 0);
+      const plan = app.curve_hit_plan(time);
+      frames.push({
+        time,
+        differingChannels,
+        blankDifferingChannels,
+        directDifferingChannels,
+        hit: core.to_js_data(app.curve_hit(plan, 180, 100 + 20 * time)),
+        clipped: core.to_js_data(app.curve_hit(plan, 120, 220)),
+        actualPng: actual.toDataURL(),
+        expectedPng: expected.toDataURL(),
+        directPng: direct.toDataURL(),
+        directDiffPng: diff.toDataURL(),
+      });
+    }
+    return {
+      frames,
+      channelsPerFrame: 320 * 180 * 4,
+      directReferenceStatus: "DIAGNOSTIC_ONLY_CONTRACT_144",
+      scope:
+        "搬移后的Calcit曲线声明/Canvas绘制/命中；独立原生隔离group全RGBA参考，直接CPU Canvas差异单列，非GPU曲线/性能验收",
+    };
+  });
+  for (const frame of curveBrowser.frames) {
+    for (const kind of ["actual", "expected", "direct", "directDiff"]) {
+      const key = `${kind}Png`,
+        name = `consumer-curve-${frame.time}-${kind}.png`;
+      await writeFile(join(artifacts, name), Buffer.from(frame[key].split(",")[1], "base64"));
+      frame[key] = name;
+    }
+    assert.equal(frame.differingChannels, 0, JSON.stringify(frame));
+    assert.ok(frame.blankDifferingChannels > 1000, "空绘制负例必须与参考不同");
+    assert.deepEqual(frame.hit, ["hit", { "node-id": "consumer-curve", target: "curve-action", visited: 1 }]);
+    assert.deepEqual(frame.clipped, ["miss", 1]);
+  }
   for (const [time, x] of [
     [1, 120],
     [0, 80],
@@ -503,6 +625,8 @@ try {
     counts,
     fontCounts,
     fontBrowser,
+    curveCounts,
+    curveBrowser,
     instancesCounts,
     independentInstances: {
       frames: independentFrames,
@@ -523,10 +647,13 @@ try {
     ffiRecompile,
     negativeControl: [
       "停止 CPU 时间采样被断言检出",
+      "下游曲线命中失效被断言检出；空绘制与独立参考不同",
       "停止 GPU uniform 写入被断言检出",
       "停止双轴 CPU 参考更新被断言检出",
       "停止 alpha CPU 参考更新被断言检出",
       "伪造实例计数被断言检出",
+      "实例命中始终返回none被断言检出",
+      "跳过下游Calcit实例逻辑捕获/提交协调被断言检出",
       "停止 Presence 资源同步被断言检出",
       "停止 device loss 转移被断言检出",
     ],

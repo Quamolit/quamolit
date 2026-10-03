@@ -1942,12 +1942,16 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneContent
             :features $ #{} :js-ffi
-        'draw-cubic-path! $ %{} 'CodeEntry (:doc |)
+        'draw-cubic-path! $ %{} 'CodeEntry
+          :doc "|确定的原生路径端点/接头：butt、miter、miterLimit=10，不继承调用方端点/接头设置；调用完成后恢复这些状态。几何仍由 Canvas 原生绘制，不承诺完整宿主状态隔离。"
           :code $ quote $ defn draw-cubic-path! (context path)
             assert |invalid-scene-cubic-path $ scene/valid-cubic-path? path
             context .save!
             js-set context :stroke-style $ color-css $ :stroke path
             js-set context :line-width $ :width path
+            js-set context :line-cap |butt
+            js-set context :line-join |miter
+            js-set context :miter-limit 10
             context .begin-path!
             let
                 start $ :start path
@@ -1988,13 +1992,17 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/InstanceNode 'js-ffi.typed-arrays/Float32ArrayHost
             :features $ #{} :js-ffi
-        'draw-polygon! $ %{} 'CodeEntry (:doc |)
+        'draw-polygon! $ %{} 'CodeEntry
+          :doc "|确定的原生路径端点/接头：butt、miter、miterLimit=10，不继承调用方端点/接头设置；调用完成后恢复这些状态。几何仍由 Canvas 原生绘制，不承诺完整宿主状态隔离。"
           :code $ quote $ defn draw-polygon! (context polygon)
             assert |invalid-scene-polygon $ scene/valid-polygon? polygon
             context .save!
             js-set context :fill-style $ color-css $ :fill polygon
             js-set context :stroke-style $ color-css $ :stroke polygon
             js-set context :line-width $ :width polygon
+            js-set context :line-cap |butt
+            js-set context :line-join |miter
+            js-set context :miter-limit 10
             context .begin-path!
             let
                 start $ &list:nth (:points polygon) 0
@@ -10100,6 +10108,21 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.instance-resource/InstanceTableHost)
             :args $ []
             :features $ #{} :js-ffi
+        'hit-source $ %{} 'CodeEntry
+          :doc "|从版本化资源表构造纯 Calcit 实例命中快照；原生数组读取暂用局部 inline，js-ffi #112 评论5962743181 发布类型化内嵌接口后替换。只在命中计划构建时调用，热查询不读取宿主。"
+          :code $ quote $ defn hit-source (table source)
+            let
+                positions $ unsafe-coerce (resolve table source) JsObject
+              hit/InstanceHitSource :source source :points $ map
+                range $ :count source
+                fn (index)
+                  motion/Vec2 :x
+                    raw-hit-coordinate positions $ * index 2
+                    , :y $ raw-hit-coordinate positions $ inc (* index 2)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/InstanceHitSource)
+            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-ir/InstanceSource
+            :features $ #{} :js-ffi
         'live-count $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn live-count (table) (.live-count table)
           :examples $ []
@@ -10127,6 +10150,14 @@
             :js $ {} $ :file |src/host/instance-resource-table.mjs
           :schema $ :: 'Fn $ {} (:return 'JsObject)
             :args $ []
+            :features $ #{} :js-ffi
+        'raw-hit-coordinate $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-hit-coordinate (positions index) (raise |js-only-hit-coordinate)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(positions, index) => { if (!(positions instanceof Float32Array) || !Number.isSafeInteger(index) || index < 0 || index >= positions.length || !Number.isFinite(positions[index])) throw new TypeError('invalid-instance-hit-coordinate'); return positions[index]; }"
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'JsObject 'Number
             :features $ #{} :js-ffi
         'register! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn register! (table source positions)
@@ -10158,7 +10189,7 @@
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.instance-resource
-          :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
+          :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract) (quamolit.scene-hit :as hit) (quamolit.motion :as motion)
     'quamolit.layers $ %{} 'FileEntry
       :defs $ {}
         'LayerBackend $ %{} 'CodeEntry (:doc |)
@@ -15900,6 +15931,17 @@
             calcit.test :refer $ is= is-throws
     'quamolit.scene-hit $ %{} 'FileEntry
       :defs $ {}
+        'CubicStrokePart $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct CubicStrokePart (:start 'quamolit.motion/Vec2) (:previous-guide 'quamolit.motion/Vec2) (:first-guide 'quamolit.motion/Vec2) (:width 'Number)
+            :points $ :: 'List 'quamolit.motion/Vec2
+          :examples $ []
+          :schema $ :: 'StructDef
+        'HitCandidate $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct HitCandidate (:node 'quamolit.scene-ir/SceneNode)
+            :curve-parts $ :: 'List 'quamolit.scene-hit/CubicStrokePart
+            :instance-points $ :: 'List 'quamolit.motion/Vec2
+          :examples $ []
+          :schema $ :: 'StructDef
         'HitOutcome $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum HitOutcome (:miss 'Number) (:hit 'quamolit.scene-hit/HitResult)
           :examples $ []
@@ -15908,23 +15950,259 @@
           :doc "|预编译的独立命中计划：保留完整 Scene 节点和逆绘制顺序的交互候选，可在同一 Scene 的多次指针查询间复用。"
           :code $ quote $ defstruct HitPlan
             :nodes $ :: 'List 'quamolit.scene-ir/SceneNode
-            :candidates $ :: 'List 'quamolit.scene-ir/SceneNode
+            :candidates $ :: 'List 'quamolit.scene-hit/HitCandidate
           :examples $ []
           :schema $ :: 'StructDef
         'HitResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct HitResult (:target 'String) (:node-id 'String) (:visited 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'InstanceHitSource $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct InstanceHitSource (:source 'quamolit.scene-ir/InstanceSource)
+            :points $ :: 'List 'quamolit.motion/Vec2
+          :examples $ []
+          :schema $ :: 'StructDef
         'PointProjection $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum PointProjection (:singular) (:point 'Number 'Number)
           :examples $ []
           :schema $ :: 'EnumDef
+        'butt-segment-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn butt-segment-hit? (from to width x y)
+            let
+                dx $ - (:x to) (:x from)
+                dy $ - (:y to) (:y from)
+                length-squared $ + (* dx dx) (* dy dy)
+              if
+                or (<= width 0) (= length-squared 0)
+                , false $ let
+                    projection $ +
+                      *
+                        - x $ :x from
+                        , dx
+                      *
+                        - y $ :y from
+                        , dy
+                    cross $ -
+                      * dx $ - y $ :y from
+                      * dy $ - x $ :x from
+                  and (>= projection 0) (<= projection length-squared)
+                    <= (* cross cross)
+                      * (/ width 2) (/ width 2) length-squared
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number 'Number 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |butt-is-not-round)
+            :code $ quote $ do
+              is= true $ butt-segment-hit? (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 80 :y 20) 20 30 28
+              is= false $ butt-segment-hit? (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 80 :y 20) 20 15 20
+              is= false $ butt-segment-hit? (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 20 :y 20) 20 20 20
+            :tags $ #{} :scene-hit
         'candidate-count $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn candidate-count (plan)
             count $ :candidates plan
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.scene-hit/HitPlan
+        'candidate-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn candidate-hit? (nodes candidate x y)
+            let
+                node $ :node candidate
+              and
+                inside-ancestor-clips? nodes (:parent node) x y
+                match
+                  inverse-point
+                    world-for-parent nodes $ :parent node
+                    , x y
+                  (:singular) false
+                  (:point local-x local-y)
+                    match (:content node)
+                      (:instances instances)
+                        match
+                          instance-index-local (:instance-points candidate)
+                            -
+                              count $ :instance-points candidate
+                              , 1
+                            :width instances
+                            :height instances
+                            , local-x local-y
+                          (:some _) true
+                          (:none) false
+                      (:cubic-path _)
+                        compiled-cubic-hit? (:curve-parts candidate) local-x local-y
+                      _ $ local-hit? (:content node) local-x local-y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-hit/HitCandidate 'Number 'Number
+        'candidate-instance-index $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn candidate-instance-index (nodes candidate x y)
+            let
+                node $ :node candidate
+              if
+                inside-ancestor-clips? nodes (:parent node) x y
+                match
+                  inverse-point
+                    world-for-parent nodes $ :parent node
+                    , x y
+                  (:singular) (Option :none)
+                  (:point local-x local-y)
+                    match (:content node)
+                      (:instances instances)
+                        instance-index-local (:instance-points candidate)
+                          -
+                            count $ :instance-points candidate
+                            , 1
+                          :width instances
+                          :height instances
+                          , local-x local-y
+                      _ $ Option :none
+                Option :none
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-hit/HitCandidate 'Number 'Number
+            :return $ :: 'Option 'Number
+        'closed-stroke-hit? $ %{} 'CodeEntry
+          :doc "|闭合多边形描边几何：butt线段、miter接头和miterLimit=10，超过限制退为bevel；去除相邻重复点及重复闭合端点，零宽/全重合不命中。保持原填充命中策略，不处理dash或cubic细分。"
+          :code $ quote $ defn closed-stroke-hit? (points width x y)
+            let
+                compact $ compact-stroke-points points
+              if
+                or (<= width 0)
+                  < (count compact) 2
+                , false $ closed-stroke-scan? compact (last-point compact) (first-point compact) width x y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.motion/Vec2) 'Number 'Number 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |closed-miter-and-degenerate)
+            :code $ quote $ let
+                square $ [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 80 :y 20) (motion/Vec2 :x 80 :y 80) (motion/Vec2 :x 20 :y 80)
+                duplicate $ [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 80 :y 20) (motion/Vec2 :x 80 :y 80) (motion/Vec2 :x 20 :y 80) (motion/Vec2 :x 20 :y 20)
+              is= true $ closed-stroke-hit? square 20 12 50
+              is= true $ closed-stroke-hit? square 20 12 12
+              is= false $ closed-stroke-hit? square 20 9 50
+              is= false $ closed-stroke-hit? square 0 20 50
+              is= true $ closed-stroke-hit? duplicate 20 12 12
+              is= false $ closed-stroke-hit?
+                [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 20 :y 20)
+                , 20 20 20
+            :tags $ #{} :scene-hit
+        'closed-stroke-scan? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn closed-stroke-scan? (remaining previous first-vertex width x y)
+            if (empty? remaining) false $ let
+                vertex $ first-point remaining
+                tail $ rest remaining
+                next $ if (empty? tail) first-vertex $ first-point tail
+              or (butt-segment-hit? vertex next width x y) (miter-join-hit? previous vertex next width x y) (recur tail vertex first-vertex width x y)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.motion/Vec2) 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number 'Number 'Number
+        'collinear-cubic-ends $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn collinear-cubic-ends (start control-1 control-2 end)
+            let
+                guide $ cubic-start-guide start control-1 control-2 end
+                dx $ - (:x guide) (:x start)
+                dy $ - (:y guide) (:y start)
+                use-x? $ >= (* dx dx) (* dy dy)
+                p0 $ if use-x? (:x start) (:y start)
+                p1 $ if use-x? (:x control-1) (:y control-1)
+                p2 $ if use-x? (:x control-2) (:y control-2)
+                p3 $ if use-x? (:x end) (:y end)
+                a $ + (- 0 p0) (* 3 p1) (* -3 p2) p3
+                b $ * 2 $ + p0 (* -2 p1) p2
+                c $ - p1 p0
+                discriminant $ - (* b b) (* 4 a c)
+                root1 $ if (= a 0)
+                  if (= b 0) 0 $ / (- 0 c) b
+                  if (< discriminant 0) 0 $ /
+                    + (- 0 b) (sqrt discriminant)
+                    * 2 a
+                root2 $ if
+                  or (= a 0) (< discriminant 0)
+                  , 0 $ /
+                    - (- 0 b) (sqrt discriminant)
+                    * 2 a
+                valid1? $ and (> root1 0) (< root1 1)
+                valid2? $ and (> root2 0) (< root2 1) (not= root1 root2)
+              if valid1?
+                if valid2?
+                  if (< root1 root2)
+                    [] (cubic-point start control-1 control-2 end root1) (cubic-point start control-1 control-2 end root2) end
+                    [] (cubic-point start control-1 control-2 end root2) (cubic-point start control-1 control-2 end root1) end
+                  [] (cubic-point start control-1 control-2 end root1) end
+                if valid2?
+                  [] (cubic-point start control-1 control-2 end root2) end
+                  [] end
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'collinear-cubic? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn collinear-cubic? (start control-1 control-2 end)
+            let
+                guide $ cubic-start-guide start control-1 control-2 end
+                dx $ - (:x guide) (:x start)
+                dy $ - (:y guide) (:y start)
+              and
+                =
+                  * dx $ - (:y control-1) (:y start)
+                  * dy $ - (:x control-1) (:x start)
+                =
+                  * dx $ - (:y control-2) (:y start)
+                  * dy $ - (:x control-2) (:x start)
+                =
+                  * dx $ - (:y end) (:y start)
+                  * dy $ - (:x end) (:x start)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2
+        'compact-stroke-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-stroke-points (points)
+            let
+                compact $ foldl points (slice points 0 0)
+                  fn (result point)
+                    if
+                      and
+                        not $ empty? result
+                        = (last-point result) point
+                      , result $ append result point
+              if
+                and
+                  > (count compact) 1
+                  = (first-point compact) (last-point compact)
+                butlast compact
+                , compact
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] $ :: 'List 'quamolit.motion/Vec2
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'compile-cubic-parts $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compile-cubic-parts (remaining start previous-guide width result)
+            if (empty? remaining) result $ let
+                segment $ -> (first remaining) (.unwrap)
+                control-1 $ :control-1 segment
+                control-2 $ :control-2 segment
+                end $ :end segment
+                first-guide $ cubic-start-guide start control-1 control-2 end
+                last-guide $ cubic-end-guide start control-1 control-2 end
+                ends $ flatten-cubic-ends start control-1 control-2 end width 20 true true
+                part $ CubicStrokePart :start start :previous-guide previous-guide :first-guide first-guide :width width :points $ concat ([] start) ends
+              recur (rest remaining) end
+                if (= last-guide end) previous-guide last-guide
+                , width $ append result part
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.scene-ir/CubicSegment) 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number $ :: 'List 'quamolit.scene-hit/CubicStrokePart
+            :return $ :: 'List 'quamolit.scene-hit/CubicStrokePart
+        'compile-hit-candidate $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compile-hit-candidate (node)
+            HitCandidate :node node :curve-parts
+              match (:content node)
+                (:cubic-path path)
+                  compile-cubic-parts (:segments path) (:start path) (:start path) (:width path) (empty-cubic-parts)
+                _ $ empty-cubic-parts
+              , :instance-points $ empty-hit-points
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitCandidate)
+            :args $ [] 'quamolit.scene-ir/SceneNode
         'compile-hit-plan $ %{} 'CodeEntry
           :doc "|校验 Scene 并排除无 target 或暂不支持的叶图元，生成可缓存候选索引；Scene 改变后必须重新编译。"
           :code $ quote $ defn compile-hit-plan (document)
@@ -15932,11 +16210,13 @@
               assert |invalid-scene-hit-document $ scene/validate-scene document
               let
                   nodes $ :nodes document
-                  candidates $ filter (reverse nodes)
-                    fn (node)
-                      and
-                        supported-leaf? $ :content node
-                        not $ empty? $ effective-target nodes node
+                  candidates $ map
+                    filter (reverse nodes)
+                      fn (node)
+                        and
+                          supported-leaf? $ :content node
+                          not $ empty? $ effective-target nodes node
+                    , compile-hit-candidate
                 HitPlan :nodes nodes :candidates candidates
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
@@ -15955,6 +16235,99 @@
                   is= 1 $ :visited result
                 (:miss _) (is= |hit |miss)
             :tags $ #{} :scene-hit
+        'compile-hit-plan-with-positions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compile-hit-plan-with-positions (document lookup)
+            do
+              assert |invalid-scene-hit-document $ scene/validate-scene document
+              let
+                  nodes $ :nodes document
+                  candidates $ map
+                    filter (reverse nodes)
+                      fn (node)
+                        and
+                          or
+                            supported-leaf? $ :content node
+                            match (:content node)
+                              (:instances _) true
+                              _ false
+                          not $ empty? $ effective-target nodes node
+                    fn (node) (compile-resolved-hit-candidate node lookup)
+                HitPlan :nodes nodes :candidates candidates
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'quamolit.scene-ir/SceneDocument $ :: 'Fn
+              {} (:return 'quamolit.scene-hit/InstanceHitSource)
+                :args $ [] 'quamolit.scene-ir/InstanceSource
+        'compile-resolved-hit-candidate $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compile-resolved-hit-candidate (node lookup)
+            match (:content node)
+              (:instances instances)
+                HitCandidate :node node :curve-parts (empty-cubic-parts) :instance-points $ resolve-instance-hit-points (:source instances) lookup
+              _ $ compile-hit-candidate node
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitCandidate)
+            :args $ [] 'quamolit.scene-ir/SceneNode $ :: 'Fn
+              {} (:return 'quamolit.scene-hit/InstanceHitSource)
+                :args $ [] 'quamolit.scene-ir/InstanceSource
+        'compiled-cubic-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compiled-cubic-hit? (parts x y)
+            if (empty? parts) false $ let
+                part $ -> (first parts) (.unwrap)
+              or
+                open-stroke-scan? (:points part) (:start part) (:width part) x y
+                miter-join-hit? (:previous-guide part) (:start part) (:first-guide part) (:width part) x y
+                recur (rest parts) x y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.scene-hit/CubicStrokePart) 'Number 'Number
+        'cubic-end-guide $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cubic-end-guide (start control-1 control-2 end)
+            if
+              not $ = end control-2
+              , control-2 $ if
+                not $ = end control-1
+                , control-1 start
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2
+        'cubic-path-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cubic-path-hit? (path x y)
+            if
+              <= (:width path) 0
+              , false $ compiled-cubic-hit?
+                compile-cubic-parts (:segments path) (:start path) (:start path) (:width path) (empty-cubic-parts)
+                , x y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/CubicPathNode 'Number 'Number
+        'cubic-point $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cubic-point (start control-1 control-2 end t)
+            let
+                u $ - 1 t
+              motion/Vec2 :x
+                +
+                  * (* u u u) (:x start)
+                  * 3 u u t $ :x control-1
+                  * 3 u t t $ :x control-2
+                  * t t t $ :x end
+                , :y $ +
+                  * (* u u u) (:y start)
+                  * 3 u u t $ :y control-1
+                  * 3 u t t $ :y control-2
+                  * t t t $ :y end
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number
+        'cubic-start-guide $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cubic-start-guide (start control-1 control-2 end)
+            if
+              not $ = start control-1
+              , control-1 $ if
+                not $ = start control-2
+                , control-2 end
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2
         'effective-target $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn effective-target (nodes node)
             if (interaction-enabled? nodes node)
@@ -15969,12 +16342,99 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-ir/SceneNode
+        'empty-cubic-parts $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-cubic-parts () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.scene-hit/CubicStrokePart
+        'empty-hit-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn empty-hit-points () ([])
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+            :return $ :: 'List 'quamolit.motion/Vec2
         'first-point $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn first-point (points)
             -> (first points) (.unwrap)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
             :args $ [] $ :: 'List 'quamolit.motion/Vec2
+        'flat-cubic? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flat-cubic? (start control-1 control-2 end width first? last?)
+            if
+              and (= start control-1) (= start control-2) (= start end)
+              , true $ let
+                  diameter $ * 2 $ stroke-tolerance width
+                and
+                  segment-hit? start end diameter (:x control-1) (:y control-1)
+                  segment-hit? start end diameter (:x control-2) (:y control-2)
+                  flat-stroke-direction? start control-1 start end width false
+                  flat-stroke-direction? control-1 control-2 start end width false
+                  flat-stroke-direction? control-2 end start end width false
+                  or (not first?)
+                    flat-stroke-direction? start (cubic-start-guide start control-1 control-2 end) start end width true
+                  or (not last?)
+                    flat-stroke-direction? (cubic-end-guide start control-1 control-2 end) end start end width true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number 'Bool 'Bool
+        'flat-stroke-direction? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flat-stroke-direction? (from to start end width endpoint?)
+            let
+                dx $ - (:x to) (:x from)
+                dy $ - (:y to) (:y from)
+                cx $ - (:x end) (:x start)
+                cy $ - (:y end) (:y start)
+                edge-length $ sqrt $ + (* dx dx) (* dy dy)
+                chord-length $ sqrt $ + (* cx cx) (* cy cy)
+                radius $ / width 2
+                tolerance $ stroke-tolerance width
+              if (= edge-length 0) true $ if (= chord-length 0) false $ let
+                  dot $ + (* dx cx) (* dy cy)
+                  limit $ if endpoint?
+                    - 1 $ / (* tolerance tolerance) (* 2 radius radius)
+                    / radius $ + radius tolerance
+                and (>= dot 0)
+                  >=
+                    / dot $ * edge-length chord-length
+                    , limit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number 'Bool
+        'flatten-cubic-ends $ %{} 'CodeEntry
+          :doc "|纯Cal cit命中参考的de Casteljau细分：中心线和方向分别受stroke-tolerance限制，原始端点额外约束butt方向；仅返回新增端点。不改原生绘制，不宣称缓存。最多20层，不足精度时明确诊断；共线往返用导数极值直接得到描边范围。"
+          :code $ quote $ defn flatten-cubic-ends (start control-1 control-2 end width budget first? last?)
+            if (collinear-cubic? start control-1 control-2 end) (collinear-cubic-ends start control-1 control-2 end)
+              if (flat-cubic? start control-1 control-2 end width first? last?) ([] end)
+                do
+                  assert |cubic-hit-precision-exhausted $ > budget 0
+                  let
+                      a $ hit-midpoint start control-1
+                      b $ hit-midpoint control-1 control-2
+                      c $ hit-midpoint control-2 end
+                      d $ hit-midpoint a b
+                      e $ hit-midpoint b c
+                      middle $ hit-midpoint d e
+                    concat
+                      flatten-cubic-ends start a d middle width (- budget 1) first? false
+                      flatten-cubic-ends middle e c end width (- budget 1) false last?
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number 'Number 'Bool 'Bool
+            :return $ :: 'List 'quamolit.motion/Vec2
+        'hit-midpoint $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-midpoint (a b)
+            motion/Vec2 :x
+              /
+                + (:x a) (:x b)
+                , 2
+              , :y $ /
+                + (:y a) (:y b)
+                , 2
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2
         'hit-test $ %{} 'CodeEntry
           :doc "|一次性编译并查询 Scene 的便利入口；高频指针事件应改用 compile-hit-plan 与 hit-test-plan。"
           :code $ quote $ defn hit-test (document x y)
@@ -16042,6 +16502,37 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'String 'Number 'Number
+        'instance-hit-index $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-hit-index (plan node-id x y)
+            do
+              assert |invalid-hit-coordinate $ and (motion/finite-number? x) (motion/finite-number? y)
+              foldl (:candidates plan) (Option :none)
+                fn (result candidate)
+                  if
+                    = node-id $ :id $ :node candidate
+                    candidate-instance-index (:nodes plan) candidate x y
+                    , result
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-hit/HitPlan 'String 'Number 'Number
+            :return $ :: 'Option 'Number
+        'instance-index-local $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-index-local (points index width height x y)
+            if (empty? points) (Option :none)
+              let
+                  point $ first-point points
+                if
+                  and
+                    >= x $ :x point
+                    >= y $ :y point
+                    <= x $ + (:x point) width
+                    <= y $ + (:y point) height
+                  Option :some index
+                  recur (rest points) (- index 1) width height x y
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.motion/Vec2) 'Number 'Number 'Number 'Number 'Number
+            :return $ :: 'Option 'Number
         'interaction-enabled? $ %{} 'CodeEntry
           :doc "|查询已验证Scene的节点及整条父链；任意祖先标为disabled时返回false，不按视觉opacity隐式禁用。"
           :code $ quote $ defn interaction-enabled? (nodes node)
@@ -16119,7 +16610,8 @@
               (:polygon polygon)
                 or
                   polygon-hit? (:points polygon) x y
-                  polyline-hit? (:points polygon) (:width polygon) x y
+                  closed-stroke-hit? (:points polygon) (:width polygon) x y
+              (:cubic-path path) (cubic-path-hit? path x y)
               _ false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -16139,6 +16631,48 @@
               :code $ quote $ is= -1
                 :c $ matrix 0 1 -1 0 100 100
               :tags $ #{} :scene-hit
+        'miter-join-hit? $ %{} 'CodeEntry
+          :doc "|检查折角外侧的miter/bevel区域，外边法线交点按miterLimit=10截断；内侧由线段矩形覆盖。共线/零长边不增加接头面积。"
+          :code $ quote $ defn miter-join-hit? (from vertex to width x y)
+            let
+                dx0 $ - (:x vertex) (:x from)
+                dy0 $ - (:y vertex) (:y from)
+                dx1 $ - (:x to) (:x vertex)
+                dy1 $ - (:y to) (:y vertex)
+                len0 $ sqrt $ + (* dx0 dx0) (* dy0 dy0)
+                len1 $ sqrt $ + (* dx1 dx1) (* dy1 dy1)
+                turn $ - (* dx0 dy1) (* dy0 dx1)
+              if
+                or (<= width 0) (= len0 0) (= len1 0) (= turn 0)
+                , false $ let
+                    side $ if (> turn 0) -1 1
+                    radius $ * side $ / width 2
+                    nx0 $ / (- 0 dy0) len0
+                    ny0 $ / dx0 len0
+                    nx1 $ / (- 0 dy1) len1
+                    ny1 $ / dx1 len1
+                    denominator $ + 1 (* nx0 nx1) (* ny0 ny1)
+                    a $ motion/Vec2 :x
+                      + (:x vertex) (* radius nx0)
+                      , :y $ + (:y vertex) (* radius ny0)
+                    b $ motion/Vec2 :x
+                      + (:x vertex) (* radius nx1)
+                      , :y $ + (:y vertex) (* radius ny1)
+                  if (< denominator 0.02) (triangle-hit? vertex a b x y)
+                    let
+                        tip $ motion/Vec2 :x
+                          + (:x vertex)
+                            /
+                              * radius $ + nx0 nx1
+                              , denominator
+                          , :y $ + (:y vertex)
+                            /
+                              * radius $ + ny0 ny1
+                              , denominator
+                      or (triangle-hit? vertex a tip x y) (triangle-hit? vertex tip b x y)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number 'Number 'Number
         'multiply-matrix $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn multiply-matrix (parent child-matrix)
             let
@@ -16178,6 +16712,30 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'quamolit.scene-ir/SceneNode 'Number 'Number
+        'open-stroke-scan? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn open-stroke-scan? (points previous width x y)
+            if
+              or (empty? points)
+                empty? $ rest points
+              , false $ let
+                  vertex $ first-point points
+                  tail $ rest points
+                  next $ first-point tail
+                  dx0 $ - (:x vertex) (:x previous)
+                  dy0 $ - (:y vertex) (:y previous)
+                  dx1 $ - (:x next) (:x vertex)
+                  dy1 $ - (:y next) (:y vertex)
+                or (butt-segment-hit? vertex next width x y) (miter-join-hit? previous vertex next width x y)
+                  and
+                    <
+                      + (* dx0 dx1) (* dy0 dy1)
+                      , 0
+                    = (* dx0 dy1) (* dy0 dx1)
+                    segment-hit? vertex vertex width x y
+                  recur tail vertex width x y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] (:: 'List 'quamolit.motion/Vec2) 'quamolit.motion/Vec2 'Number 'Number 'Number
         'point-in-rect? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn point-in-rect? (x y left top width height)
             and (>= x left)
@@ -16237,24 +16795,48 @@
               is= true $ polyline-hit? points 4 5 1
               is= false $ polyline-hit? points 4 5 3
             :tags $ #{} :scene-hit
+        'resolve-instance-hit-points $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn resolve-instance-hit-points (source lookup)
+            let
+                resolved $ lookup source
+                points $ :points resolved
+              assert |invalid-instance-hit-source $ and
+                = source $ :source resolved
+                = (:count source) (count points)
+                foldl points true $ fn (valid? point)
+                  and valid?
+                    motion/finite-number? $ :x point
+                    motion/finite-number? $ :y point
+              reverse points
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.scene-ir/InstanceSource $ :: 'Fn
+              {} (:return 'quamolit.scene-hit/InstanceHitSource)
+                :args $ [] 'quamolit.scene-ir/InstanceSource
+            :return $ :: 'List 'quamolit.motion/Vec2
         'scan-candidates $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scan-candidates (nodes candidates visited x y)
             if (empty? candidates) (HitOutcome :miss visited)
               let
-                  node $ scene/first-node candidates
+                  candidate $ -> (first candidates) (.unwrap)
+                  node $ :node candidate
                   target $ effective-target nodes node
                 if
                   or (empty? target)
-                    not $ supported-leaf? $ :content node
+                    not $ or
+                      supported-leaf? $ :content node
+                      match (:content node)
+                        (:instances _) true
+                        _ false
                   recur nodes (rest candidates) visited x y
                   let
                       next-visited $ inc visited
-                    if (node-hit? nodes node x y)
+                    if (candidate-hit? nodes candidate x y)
                       HitOutcome :hit $ HitResult :target target :node-id (:id node) :visited next-visited
                       recur nodes (rest candidates) next-visited x y
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitOutcome)
-            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) (:: 'List 'quamolit.scene-ir/SceneNode) 'Number 'Number 'Number
+            :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) (:: 'List 'quamolit.scene-hit/HitCandidate) 'Number 'Number 'Number
         'segment-hit? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn segment-hit? (from to width x y)
             let
@@ -16278,6 +16860,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number 'Number 'Number
+        'stroke-tolerance $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn stroke-tolerance (width)
+            if (< width 1) (* width 0.0009765625) 0.0009765625
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
         'supported-leaf? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn supported-leaf? (content)
             match content
@@ -16287,10 +16875,49 @@
               (:image _) true
               (:polyline _) true
               (:polygon _) true
+              (:cubic-path _) true
               _ false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneContent
+        'triangle-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn triangle-hit? (a b c x y)
+            let
+                ab $ -
+                  *
+                    - (:x b) (:x a)
+                    - y $ :y a
+                  *
+                    - (:y b) (:y a)
+                    - x $ :x a
+                bc $ -
+                  *
+                    - (:x c) (:x b)
+                    - y $ :y b
+                  *
+                    - (:y c) (:y b)
+                    - x $ :x b
+                ca $ -
+                  *
+                    - (:x a) (:x c)
+                    - y $ :y c
+                  *
+                    - (:y a) (:y c)
+                    - x $ :x c
+              and
+                not $ = 0 $ -
+                  *
+                    - (:x b) (:x a)
+                    - (:y c) (:y a)
+                  *
+                    - (:y b) (:y a)
+                    - (:x c) (:x a)
+                or
+                  and (>= ab 0) (>= bc 0) (>= ca 0)
+                  and (<= ab 0) (<= bc 0) (<= ca 0)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'quamolit.motion/Vec2 'Number 'Number
         'world-for-parent $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn world-for-parent (nodes parent-id)
             if (empty? parent-id) (identity-matrix)
@@ -18694,6 +19321,46 @@
             quamolit.scene-binding :as binding
     'quamolit.test.scene-hit-fixture $ %{} 'FileEntry
       :defs $ {}
+        'cubic-stroke-content $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cubic-stroke-content ()
+            scene/SceneContent :cubic-path $ scene/CubicPathNode :start (motion/Vec2 :x 20 :y 70) :segments
+              []
+                scene/CubicSegment :control-1 (motion/Vec2 :x 40 :y 70) :control-2 (motion/Vec2 :x 60 :y 70) :end $ motion/Vec2 :x 80 :y 70
+                scene/CubicSegment :control-1 (motion/Vec2 :x 80 :y 50) :control-2 (motion/Vec2 :x 80 :y 30) :end $ motion/Vec2 :x 80 :y 10
+              , :width 20 :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ []
+        'cubic-stroke-profile $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cubic-stroke-profile (profile)
+            scene/SceneContent :cubic-path $ scene/CubicPathNode :start (motion/Vec2 :x 20 :y 70) :segments
+              case-default profile
+                [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 20 :y 10) :control-2 (motion/Vec2 :x 80 :y 10) :end $ motion/Vec2 :x 80 :y 70
+                |straight $ [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 40 :y 70) :control-2 (motion/Vec2 :x 60 :y 70) :end (motion/Vec2 :x 80 :y 70)
+                |elbow $ []
+                  scene/CubicSegment :control-1 (motion/Vec2 :x 40 :y 70) :control-2 (motion/Vec2 :x 60 :y 70) :end $ motion/Vec2 :x 80 :y 70
+                  scene/CubicSegment :control-1 (motion/Vec2 :x 80 :y 50) :control-2 (motion/Vec2 :x 80 :y 30) :end $ motion/Vec2 :x 80 :y 10
+                |s-curve $ [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 100 :y 10) :control-2 (motion/Vec2 :x -20 :y 10) :end (motion/Vec2 :x 80 :y 70)
+                |loop $ [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 110 :y 10) :control-2 (motion/Vec2 :x -10 :y 10) :end (motion/Vec2 :x 20 :y 70)
+                |tangent-zero $ [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 20 :y 70) :control-2 (motion/Vec2 :x 80 :y 10) :end (motion/Vec2 :x 80 :y 70)
+                |reverse-line $ [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 100 :y 70) :control-2 (motion/Vec2 :x -60 :y 70) :end (motion/Vec2 :x 20 :y 70)
+                |collapsed $ [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 20 :y 70) :control-2 (motion/Vec2 :x 20 :y 70) :end (motion/Vec2 :x 20 :y 70)
+                |zero-segment $ []
+                  scene/CubicSegment :control-1 (motion/Vec2 :x 40 :y 70) :control-2 (motion/Vec2 :x 60 :y 70) :end $ motion/Vec2 :x 80 :y 70
+                  scene/CubicSegment :control-1 (motion/Vec2 :x 80 :y 70) :control-2 (motion/Vec2 :x 80 :y 70) :end $ motion/Vec2 :x 80 :y 70
+                  scene/CubicSegment :control-1 (motion/Vec2 :x 80 :y 50) :control-2 (motion/Vec2 :x 80 :y 30) :end $ motion/Vec2 :x 80 :y 10
+              , :width
+                if (= profile |thin) 0.1 20
+                , :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ [] 'String
+        'cubic-stroke-scene $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cubic-stroke-scene (profile)
+            scene/SceneDocument :nodes $ [] $ scene/SceneNode :id |curve :key |curve :parent | :bindings ([]) :interaction (scene/SceneInteraction :target |curve-action) :content (cubic-stroke-profile profile)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'String
         'decoration-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decoration-nodes (amount)
             loop
@@ -18709,6 +19376,28 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'instance-hit-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-hit-document (version)
+            scene/SceneDocument :nodes $ []
+              scene/SceneNode :id |instance-root :parent | :key |instance-root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group $ scene/GroupNode :transform (hit/matrix 0 2 -2 0 100 100) :clip
+                scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 20 :height 20
+                , :opacity 1
+              scene/SceneNode :id |dots :parent |instance-root :key |dots :bindings ([]) :interaction (scene/SceneInteraction :target |dots-action) :content $ scene/SceneContent :instances $ scene/InstanceNode :source (scene/InstanceSource :id |dots :version version :count 2) :width 20 :height 20 :fill
+                motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+        'instance-hit-source $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-hit-source (source)
+            let
+                offset $ if
+                  = (:version source) 1
+                  , 0 40
+              hit/InstanceHitSource :source source :points $ [] (motion/Vec2 :x offset :y 0)
+                motion/Vec2 :x (+ offset 8) :y 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/InstanceHitSource)
+            :args $ [] 'quamolit.scene-ir/InstanceSource
         'large-decoration-scene $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn large-decoration-scene (amount)
             let
@@ -18725,6 +19414,35 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerInput)
             :args $ [] 'Number 'quamolit.scene-pointer/PointerPhase 'Number 'Number
+        'polygon-stroke-content $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn polygon-stroke-content ()
+            scene/SceneContent :polygon $ scene/PolygonNode :points
+              [] (motion/Vec2 :x 20 :y 70) (motion/Vec2 :x 80 :y 70) (motion/Vec2 :x 80 :y 10)
+              , :width 20 :fill
+                motion/ColorRgba :r 1 :g 0 :b 0 :a 0
+                , :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ []
+        'polygon-stroke-profile $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn polygon-stroke-profile (profile)
+            scene/SceneContent :polygon $ scene/PolygonNode :points
+              case-default profile
+                [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 80 :y 20) (motion/Vec2 :x 80 :y 80) (motion/Vec2 :x 20 :y 80)
+                |clockwise $ [] (motion/Vec2 :x 20 :y 80) (motion/Vec2 :x 80 :y 80) (motion/Vec2 :x 80 :y 20) (motion/Vec2 :x 20 :y 20)
+                |acute-miter $ [] (motion/Vec2 :x 20 :y 70) (motion/Vec2 :x 80 :y 70) (motion/Vec2 :x 20 :y 55)
+                |acute-bevel $ [] (motion/Vec2 :x 20 :y 70) (motion/Vec2 :x 80 :y 70) (motion/Vec2 :x 20 :y 65)
+                |duplicates $ [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 80 :y 20) (motion/Vec2 :x 80 :y 80) (motion/Vec2 :x 20 :y 80) (motion/Vec2 :x 20 :y 20)
+                |collapsed $ [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 20 :y 20)
+                |collinear $ [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 50 :y 20) (motion/Vec2 :x 80 :y 20)
+              , :width
+                if (= profile |zero-width) 0 20
+                , :fill
+                  motion/ColorRgba :r 1 :g 0 :b 0 :a 0
+                  , :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ [] 'String
         'rotated-scene $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn rotated-scene ()
             let
@@ -18885,6 +19603,63 @@
                       is= |behind $ :node-id result
                       is= |behind-action $ :target result
                   (:miss _) (is= |hit |miss)
+              :tags $ #{} :scene-hit
+            %{} 'TestEntry (:name |polygon-closed-stroke)
+              :code $ quote $ do
+                is= true $ hit/local-hit? (polygon-stroke-profile |square) 12 50
+                is= true $ hit/local-hit? (polygon-stroke-profile |square) 12 12
+                is= false $ hit/local-hit? (polygon-stroke-profile |square) 9 50
+                is= false $ hit/local-hit? (polygon-stroke-profile |collapsed) 20 20
+              :tags $ #{} :scene-hit
+            %{} 'TestEntry (:name |polygon-stroke-transform-clip)
+              :code $ quote $ let
+                  root $ scene/SceneNode :id |root :parent | :key |root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group
+                    scene/GroupNode :transform (hit/matrix 0 2 -2 0 100 100) :clip
+                      scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 40 :height 70
+                      , :opacity 1
+                  leaf $ scene/SceneNode :id |polygon :parent |root :key |polygon :bindings ([]) :interaction (scene/SceneInteraction :target |polygon-action) :content $ polygon-stroke-profile |square
+                  plan $ hit/compile-hit-plan $ scene/SceneDocument :nodes ([] root leaf)
+                is= 1 $ hit/candidate-count plan
+                match (hit/hit-test-plan plan 0 124)
+                  (:hit result)
+                    is= |polygon-action $ :target result
+                  (:miss _) (is= |hit |miss)
+                match (hit/hit-test-plan plan 76 124)
+                  (:hit result)
+                    is= |polygon $ :node-id result
+                  (:miss _) (is= |hit |miss)
+                match (hit/hit-test-plan plan -50 124)
+                  (:miss visited) (is= 1 visited)
+                  (:hit _) (is= |miss |hit)
+              :tags $ #{} :scene-hit
+            %{} 'TestEntry (:name |cubic-stroke-caps-cusp-and-collapse)
+              :code $ quote $ do
+                is= true $ hit/local-hit? (cubic-stroke-profile |arch) 50 30
+                is= false $ hit/local-hit? (cubic-stroke-profile |straight) 11 70
+                is= false $ hit/local-hit? (cubic-stroke-profile |collapsed) 20 70
+                is= true $ hit/local-hit? (cubic-stroke-profile |reverse-line) -5.37 60.71
+                is= false $ hit/local-hit? (cubic-stroke-profile |reverse-line) 100 70
+              :tags $ #{} :scene-hit
+            %{} 'TestEntry (:name |cubic-stroke-transform-clip)
+              :code $ quote $ let
+                  root $ scene/SceneNode :id |root :parent | :key |root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group
+                    scene/GroupNode :transform (hit/matrix 0 2 -2 0 100 100) :clip
+                      scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 40 :height 80
+                      , :opacity 1
+                  leaf $ scene/SceneNode :id |curve :parent |root :key |curve :bindings ([]) :interaction (scene/SceneInteraction :target |curve-action) :content $ cubic-stroke-profile |straight
+                  plan $ hit/compile-hit-plan $ scene/SceneDocument :nodes ([] root leaf)
+                is= 1 $ hit/candidate-count plan
+                match (hit/hit-test-plan plan -40 160)
+                  (:hit result)
+                    is= |curve-action $ :target result
+                  (:miss _) (is= |hit |miss)
+                match (hit/hit-test-plan plan -40 142)
+                  (:hit result)
+                    is= |curve $ :node-id result
+                  (:miss _) (is= |hit |miss)
+                match (hit/hit-test-plan plan -40 200)
+                  (:miss visited) (is= 1 visited)
+                  (:hit _) (is= |miss |hit)
               :tags $ #{} :scene-hit
         'verify-pointer-routing $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn verify-pointer-routing () true
@@ -19186,9 +19961,18 @@
             :features $ #{} :js-ffi
         'install-browser-capture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-browser-capture! (element)
+            do
+              install-browser-plan! element $ hit/compile-hit-plan $ fixture/routing-scene-subtree false
+              , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.browser/DomElementHost
+            :features $ #{} :js-ffi
+        'install-browser-plan! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn install-browser-plan! (element initial-plan)
             let
                 surface $ browser/pointer-surface-host element
-                plan* $ atom $ hit/compile-hit-plan (fixture/routing-scene-subtree false)
+                plan* $ atom initial-plan
                 state* $ atom $ pointer/initial-pointer-state
                 count* $ atom 0
                 handle! $ fn (phase event)
@@ -19206,6 +19990,13 @@
                     dom/element-set-attribute! element |data-captured $ str $ dispatch-captured? (:dispatch routed)
                     dom/element-set-attribute! element |data-released $ str $ :capture-released routed
                     dom/element-set-attribute! element |data-count $ str @count*
+                    dom/element-set-attribute! element |data-hit-index $ match (:dispatch routed)
+                      (:routed route)
+                        match
+                          hit/instance-hit-index @plan* (:source-node route) (:x input) (:y input)
+                          (:some index) (str index)
+                          (:none) |
+                      _ |
                 handle-lost! $ fn (event)
                   let
                       reconciled $ pointer/lose-pointer-capture @state* $ browser/pointer-id-from-event event
@@ -19251,11 +20042,44 @@
               dom/add-event-listener! |quamolit-subtree-exit $ fn (_event) (set-disabled! true)
               dom/add-event-listener! |quamolit-subtree-enter $ fn (_event) (set-disabled! false)
               dom/element-set-attribute! element |data-ready |true
-              , &unit
+              fn (next-plan)
+                hint-fn $ {}
+                  :args $ [] 'quamolit.scene-hit/HitPlan
+                  :return 'Unit
+                  :features $ #{} :js-ffi
+                let
+                    before @state*
+                    reconciled $ browser/reconcile-pointer-surface! surface next-plan before
+                  reset! plan* next-plan
+                  reset! state* $ :state reconciled
+                  dom/element-set-attribute! element |data-commit-released $ str $ :capture-released reconciled
+                  dom/element-set-attribute! element |data-capture-cleared $ str $ capture-cleared? (:state reconciled)
+                  dom/element-set-attribute! element |data-candidates $ str $ hit/candidate-count next-plan
+                  , &unit
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.browser/DomElementHost
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'js-ffi.browser/DomElementHost 'quamolit.scene-hit/HitPlan
             :features $ #{} :js-ffi
+            :return $ :: 'Fn $ {} (:return 'Unit)
+              :args $ [] 'quamolit.scene-hit/HitPlan
+              :features $ #{} :js-ffi
+        'instance-pointer-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn instance-pointer-plan (version interactive? mounted?)
+            if mounted?
+              let
+                  document $ fixture/instance-hit-document version
+                  next-document $ scene/SceneDocument :nodes $ map (:nodes document)
+                    fn (node)
+                      if
+                        and (not interactive?)
+                          = (:id node) |dots
+                        struct-with node $ :interaction $ scene/SceneInteraction :none
+                        , node
+                hit/compile-hit-plan-with-positions next-document fixture/instance-hit-source
+              hit/compile-hit-plan $ scene/SceneDocument :nodes $ []
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'Number 'Bool 'Bool
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
             match (dom/query-selector |#pointer-surface)
@@ -19266,7 +20090,7 @@
             :args $ []
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.scene-pointer-browser-fixture
-          :require (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as browser) (quamolit.test.scene-hit-fixture :as fixture) (js-ffi.browser :as dom)
+          :require (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as browser) (quamolit.test.scene-hit-fixture :as fixture) (js-ffi.browser :as dom) (quamolit.scene-ir :as scene)
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")

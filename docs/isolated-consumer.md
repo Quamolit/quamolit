@@ -30,6 +30,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | 字体 Calcit 消费 | 消费方 FontSpec / 中文文字声明 / transform / 资源修订；1000 移动帧共享文字节点，同时间版本变化计划构建1→2。真实 FontFace 不自动安装，过期版本拒绝，精确句柄释放且重复释放为false；中文五个乱序帧与独立原生全RGBA参考零差异，缺失首选字体走原生monospace回退。每个汉字非空且区别缺字字形；不是字体文件覆盖分析，也不是原生排版缓存证据。inline 不增加下游 npm 或原始 JS 文件请求，复用原安装/搬移门禁与artifact |
 | 声明与版本行为 | 消费者独立 Calcit 声明；时间 `[1,0,0.5,0.25,1]` 对应 x `[120,80,100,90,120]`；同时间 Model/资源/视口分别更新 y/颜色/宽度 |
 | 保留执行 | Node 连续 1000 帧，声明/计划构建各 1，绑定与变换采样分别 1001；静态矩形、局部折线与编译槽位身份不变；旧帧不受影响 |
+| 下游曲线绘制与命中 | 消费方 Calcit `curve-document` 声明绝对时间曲线、90°旋转/2倍缩放/祖先clip；公共 `compile-hit-plan` / `hit-test-plan` 验证乱序/重复时间、butt端点、空洞和裁剪。Node 6次计划构建/21次查询；搬移后的Chromium t=0/0.5/3通过公共Canvas入口绘制，每帧230400通道与独立原生隔离group参考零差异；直接CPU Canvas另报（Apple/Metal-3三帧分别626/542/372通道不同，见#144），不扩大阈值；命中失效与空绘制负例被检出。不是GPU路径或性能验收 |
 | 反例 | 刻意停止时间采样，合同必须失败；NaN/±Infinity 请求必须抛错 |
 | Presence 生命周期 | 消费方 Calcit 声明两张卡片并调用公共协调/采样/保留计划；稳定 key 重排不重启 alpha，退出 0.25/0.5/0.75 为 0.84375/0.5/0.15625，退出立即禁交互，中途重入连续，结算后只释放一次并停止请求帧 |
 | Presence 真实资源释放 | 两个逻辑实例共享一个版本化源；退出期间 2 引用，第一项终点后 1 引用且不释放，最后引用终点后 Calcit 产生一个释放决定。公共实例资源表执行决定，100 次单调版本装卸产生 100 次释放且最终 live=0；停掉资源同步的反例被检出 |
@@ -43,6 +44,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | GPU 浏览器专项 | 搬移后的同一矩形声明在非软件 adapter 比较 8 帧 × 230400 通道，默认精确像素；覆盖乱序/重复及同时间三类失效和上传量。无 GPU/软件 adapter 明确 SKIP，单独写入报告 |
 | 画面 | 实际画布 320×180、DPR=1；矩形内部粉色/绿色、静态横条灰色、变换折线蓝色与外部透明像素精确比较；另保存 Presence 退出中间帧与结算后画面 |
 | 公共 10k 动态实例 | 消费者 Calcit `instance-frame-at` 在绝对时间生成一个实例位置；`register-patch!` 仅复制 8 B。Node 连续 100 次更新、释放旧公开版本后 live 恒为 1，最终卸载为 0。页面 Canvas/GPU 模式保留同一 `(id,version)` 源、单 Canvas 舞台和可见的 GPU 不可用回退 |
+| 版本化实例命中与逻辑捕获候选 #202 | 下游Calcit `instances-hit-plan` 从公共资源表解析并复制10k位置，调用 `compile-hit-plan-with-positions`；`instances-hit-index` 返回Option索引。既有Node合同检查3次命中计划构建/版本1、2、3：重叠最高索引9999、移动实例5050、旧计划不受补丁/源释放影响、已释放版本不能创建新计划。消费者另经公共薄桥构建2次计划，换版本保留逻辑节点capture，卸载提交恰好释放一次；原生宿主是mock，不算真实PointerEvent。恒定none与跳过Calcit捕获/协调的反例必须失败。不包含单个源索引的稳定capture、GPU picking或吞吐验收，实际安装/搬移结果以candidate/harness报告为准 |
 | 独立 10k 三路径 | 同一 Calcit 源驱动 Canvas / CPU→GPU / GPU 时间采样。Node 核对全部 CPU 坐标与 20000 个 GPU 参数；参数常驻的 1000 帧只写 uniform 16000 B，records/parameters 不上传，1 pipeline/3 buffers；非法数量、重复身份、精度域及伪造程序在上传前拒绝。页面复用已有 generation 恢复协议。硬件专项对 3 个索引 × 5 个乱序时间共读回 120 B，使用实际 WGSL、独立公式和既定 `1e-5+1e-5*abs(expected)`；两条 GPU 完整帧和 Canvas 整数端点零差异。Canvas 中间帧单列差异图/统计及 #144 待验收状态；无硬件单独 SKIP。未验收完整跨后端画质合同或正式性能 |
 | 真实 GPU 动态画面 | Apple/Metal-3 上独立消费者的像素对齐 10k 源，初始/补丁/同版本/跳版本位置上传为 80000/8/0/80000 B；四个时间点采样像素和终点整幅 320×180 RGBA 均与 Canvas 参考精确一致，差异图全零。headless 无 adapter 单独 SKIP |
 

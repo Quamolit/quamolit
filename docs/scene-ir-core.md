@@ -8,9 +8,21 @@
 
 绘制按文档中的深度优先预序遍历：group 打开 transform、clip 与隔离 opacity 作用域，子节点按声明顺序绘制，不得为合批改变半透明层序。命中按相反的叶节点绘制顺序检查；先应用逆变换与祖先裁剪，再解析 `SceneInteraction :target` 的几何区域。`:none` 仍允许继承祖先 target，`:disabled` 则屏蔽整个子树（不改变绘制），子节点 target 不能绕过它。group target 取受支持后代图元的几何并集；完全透明不自动禁用命中；奇异变换下无法逆映射的子树不命中。实例层内部绘制顺序为资源索引升序，未来命中应相反；它依旧只占一个逻辑 Scene 节点，当前 HitPlan 尚不支持 instances。
 
-`quamolit.scene-hit` 现已提供不依赖 Canvas 的第一版正确性内核。`compile-hit-plan` 先完整校验 Scene，再只收集能解析到 target 的受支持叶图元，并按逆绘制顺序固化为可缓存 `HitPlan`；`hit-test-plan` 的事件热路径只扫描候选，不遍历无交互装饰节点。1000 个装饰节点的门禁确认编译后候选数和一次命中的访问数均为 1，但计划编译仍包含全量校验，不能把这个结果外推为 Scene 构建性能。命中支持累计仿射逆变换、全部祖先矩形裁剪、rect/circle/text/image/polygon/polyline，group target 通过后代叶图元自然形成几何并集；`hit-test` 是一次性编译与查询的便利入口。文字区域使用当前 monospace 左对齐/中线约定的确定性近似宽度。纯 Calcit 的冒泡、指针捕获、子树禁用、Scene 提交时即时协调与真实 DOM capture 接线见 [Scene 指针路由](scene-pointer.md)。浏览器夹具已覆盖 DPR 1/2 的 resize/禁用并发；完整 Presence group 退出动画、cubic-path 与 instances 命中仍待实现，不得把这些切片视为 #34 完成。Canvas2D 的嵌套裁剪与隔离绘制已有参考实现，WebGPU 对等语义仍待后续验收。
+`quamolit.scene-hit` 现已提供不依赖 Canvas 的第一版正确性内核。`compile-hit-plan` 先完整校验 Scene，再只收集能解析到 target 的受支持叶图元，并按逆绘制顺序固化为可缓存 `HitPlan`；`hit-test-plan` 的事件热路径只扫描候选，不遍历无交互装饰节点。1000 个装饰节点的门禁确认编译后候选数和一次命中的访问数均为 1，但计划编译仍包含全量校验，不能把这个结果外推为 Scene 构建性能。命中支持累计仿射逆变换、全部祖先矩形裁剪、rect/circle/text/image/polygon/polyline，group target 通过后代叶图元自然形成几何并集；`hit-test` 是一次性编译与查询的便利入口。文字区域使用当前 monospace 左对齐/中线约定的确定性近似宽度。纯 Calcit 的冒泡、指针捕获、子树禁用、Scene 提交时即时协调与真实 DOM capture 接线见 [Scene 指针路由](scene-pointer.md)。浏览器夹具已覆盖 DPR 1/2 的 resize/禁用并发；完整 Presence group 退出动画与 instances 命中仍待实现；cubic-path 候选见下文，不得把这些切片视为 #34 完成。Canvas2D 的嵌套裁剪与隔离绘制已有参考实现，WebGPU 对等语义仍待后续验收。
 
 序列化边界只包含标量、封闭 Enum/Struct、逻辑事件目标、Motion ID/version 和实例源 `{id, version, count}`；原始 typed array、回调和宿主句柄不入 Scene。外部实例数据按 `(id, version)` 定位，同一版本必须视为不可变；任何原地修改都必须递增版本或通过将来显式的脏范围协议通知，否则框架可合法复用旧上传。后端可在逻辑路径、图元类型和几何签名不变时复用几何，在资源 `(id, version)` 不变时复用上传；属性或时间变化只失效相应参数。实际 buffer 槽位可迁移，不能反过来决定逻辑身份。
+
+多边形的描边命中包含闭合边与 miter 接头（miterLimit=10，超限 bevel），不再复用开放圆头折线。纯 Calcit 几何去除相邻重复点及重复闭合端点；零宽、全重合不增加描边区域。填充命中与透明度不自动禁交互的规则保持不变。`test:scene-hit` 覆盖闭合边、外角、退化及旋转/缩放/clip 的公共 HitPlan；`test:curve-demo` 在DPR1/2对8类夹具各3321点进行原生路径对照并检出旧算法。
+
+本分支另加入 cubic-path 描边命中候选：`HitPlan.candidates` 保存 `HitCandidate`（原节点及预编译曲线段），自适应几何、真实端点切线、共线极值/尖点均由 Calcit 处理；每次查询不重新细分，绘制仍使用原生贝塞尔。这个实验性内部结构变化不要求消费者构造候选，继续调用 `compile-hit-plan` / `hit-test-plan`。上方“未实现”指已合并基线，不包括本候选；自交填充规则、病态曲线精度域与完整指针链路计数仍未验收。几何参考与默认原生近似差异详见[路径合同](curve-restoration.md#三次曲线命中候选34尚未合并)，不能将高精度点比较当作默认Canvas或GPU全画质完成。
+
+### 实例命中候选（#34，尚未合并）
+
+有交互的矩形实例层使用 `compile-hit-plan-with-positions(document, lookup)`；`lookup` 是类型化 Calcit 函数，从 `InstanceSource` 返回 `InstanceHitSource { source, points: List<Vec2> }`。编译时严格验证完整 id/version/count、位置数量和有限坐标，再把不可变位置倒序保留在计划中。Scene 仍只含源身份，不加入 typed array 或宿主句柄。原 `compile-hit-plan` 不接收源解析器，继续忽略 instances；两种入口不可混淆。
+
+后续调用 `hit-test-plan` 得到原有逻辑节点/target；调用 `instance-hit-index(plan, node-id, x, y)` 得到 `Option<Number>`，重叠处选择最高源索引。两者均应用祖先逆变换和全部矩形 clip，坐标为 CSS px，不乘 DPR；不存在的节点或裁剪外返回 none。一个实例层仍是一个逻辑节点，索引不是独立 Scene ID，也不自动成为 PointerDispatch 字段。零透明度不自动禁交互，继续由 interaction 控制。
+
+位置变化须提供新版本并重新构建计划；新计划不修改旧快照，热查询不再次调用 lookup。当前按倒序线性扫描位置，不声称空间索引或性能优化已经完成。纯 Calcit 原生用例检查重叠索引、旋转/缩放/clip与旧版本拒绝；沿用 `test:curve-demo` 的 Node 门禁检查1000次查询不重读源、错误身份/数量/非有限位置，Chromium在DPR1/2对两个版本各154点与独立原生Path2D比较，并对公共 `draw-instances!` 完整RGBA比较。测试宿主显式安装父级transform/clip；这不表示 `canvas-scene/draw-document!` 已支持嵌套实例。已有独立消费者的 `instances-hit-plan` 在Calcit中解析公共资源表、一次复制位置并转换成类型化Vec2；`test:consumer` 检查10k重叠最高索引、三个版本、移动索引5050和源释放后的旧计划，并检出始终返回none的负例。逻辑节点捕获、换版本保留及退出/卸载提交的原生释放沿既有薄桥验证，见[指针提交协议](scene-pointer.md)；不自动提供单个源索引的跨版本稳定捕获身份。安装/搬移是否通过以当前candidate/harness报告为准；完整应用接线与GPU picking仍未验收。
 
 编译后的 [场景夹具](../test/scene-core.html) 在 `t=[1,0,0.5,0.25,1]` 逐次构造并校验相同结构的 Scene IR。`quamolit.canvas-reference/draw-reference-rects!` 在 Calcit 中按原顺序读取 `SceneDocument` 的矩形节点，使用 `js-ffi.canvas-batches/fill-solid-rect!` 绘制；测试 JS 只准备白色画布、核对 JSON/像素和状态，不再解释矩形绘制。该窄参考路径暂不执行 group 变换、裁剪、隔离透明度或实例图层，不能算完整 Canvas2D 后端。独立的 [实例数据夹具](../test/instance-sources.html) 用 [版本化宿主边界](instance-sources.md) 登记并绘制 10k 个位置，检查同一时间的版本切换。`yarn test:scene-core` 验证严格公共类型、Calcit 原生反例以及编译后 JS 的 JSON 往返；`yarn test:motion-browser` 验证 Chromium 中间帧、像素、背景、样式恢复和刷新重放。架构 scaffold 见 [scene-ir-core.cirru](architectures/scene-ir-core.cirru)，Snapshot `calcit.cirru` 由 Calcit CLI 维护。
 

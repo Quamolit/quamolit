@@ -63,6 +63,8 @@ WebGPU texture 基础 API 缺口已上报 [js-ffi #151](https://github.com/calci
 
 ## PR 退出检查
 
+实例命中消费时发现 `js-ffi.typed-arrays` 的当前快照入口仍生成 `@calcit/js-ffi/typed-arrays.mjs` 整包import，干净消费者仅安装标准runtime时失败。已在[上游 #112](https://github.com/calcit-lang/js-ffi/issues/112#issuecomment-5962743181)记录0.28.0/alpha.11最小复现；本仓库 `instance-resource/hit-source` 暂用一个有界原生数组读取inline，快照构造、版本与命中仍为Calcit。不得因此放行额外npm或源码路径；上游发布类型化内嵌读取后替换局部原语并复测。这个局部适配不表示通用数组快照API已迁移完成。
+
 `quamolit.webgpu-images` 的 Scene 支持判定、完整图层后端选择、全资源预检、矩阵合成、源裁剪归一化与绘制顺序位于 Calcit。`raw-create!` 的 `:file` 嵌入 `src/host/webgpu-image-layer-create.js` 单函数表达式，宿主只接收 texture 和 24 个数字（20 个几何参数与 4 个窗口边界），不解释 Scene/Motion；shader、WebGPU 命令编码与可变 bind group 缓存仍是宿主工作。用户只导入 Calcit 模块，不另行复制 renderer JS。
 
 1. 新增接口先说明是否可跨项目复用、公共 Calcit 类型、必要的 JS 实现及所属仓库；评审是否让 Quamolit Scene/Motion 业务决策进入通用包，不用 JS 行数作为单独否决标准。

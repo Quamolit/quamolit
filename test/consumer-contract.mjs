@@ -147,6 +147,52 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
   return evidence;
 }
 
+// 声明、变换、裁剪、计划和查询均由独立消费者的 Calcit 调用公共模块。
+export function verifyCurveConsumer(app, core) {
+  let builds = 0,
+    queries = 0;
+  const sample = (time) => {
+    const plan = app.curve_hit_plan(time);
+    builds++;
+    const hit = (x, y) => {
+      queries++;
+      return core.to_js_data(app.curve_hit(plan, x, y));
+    };
+    assert.deepEqual(hit(180, 100 + 20 * time), [
+      "hit",
+      {
+        "node-id": "consumer-curve",
+        target: "curve-action",
+        visited: 1,
+      },
+    ]);
+    assert.deepEqual(hit(140, 100 + 20 * time), ["miss", 1], "曲线内部空洞不应当作填充");
+    assert.deepEqual(hit(78, 40 + 20 * time), ["miss", 1], "butt端点不扩张");
+    assert.deepEqual(hit(160, 220), ["miss", 1], "祖先裁剪仍独立于绘制");
+    return core.to_js_data(app.curve_document(time));
+  };
+  let previous;
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    const scene = sample(time);
+    assert.equal(scene.nodes[1].content[1].start.x, 20 + 10 * time);
+    if (time === 1 && previous) assert.deepEqual(scene, previous);
+    if (time === 1) previous = scene;
+  }
+  // time=3时末段确实在clip外，不能用未覆盖到该处的曲线冒充裁剪负例。
+  const clipped = app.curve_hit_plan(3);
+  builds++;
+  assert.deepEqual(core.to_js_data(app.curve_hit(clipped, 120, 220)), ["miss", 1]);
+  queries++;
+  for (const bad of [NaN, Infinity, -Infinity])
+    assert.throws(() => app.curve_hit_plan(bad), /invalid-consumer-curve-time/);
+  return {
+    builds,
+    queries,
+    times: [1, 0, 0.5, 0.25, 1],
+    scope: "下游Calcit声明、旋转2x、clip、butt、空洞与乱序时间；不是性能测量",
+  };
+}
+
 // 摘要只读取现有报告；不执行测试，也不将 mock/缺失结果记为 GPU 通过。
 export function formatConsumerSummary(report) {
   assert.ok(["PASS", "FAIL", "RUNNING", "NOT_RUN"].includes(report.result), "未知消费者结果");

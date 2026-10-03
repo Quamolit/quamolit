@@ -29,7 +29,7 @@
 
 `yarn check:api-inventory` 核对 [API 稳定性清单](api-contract.md)：全部项目 namespace 显式分类、文档表格同步、说明链接存在、稳定 UI 构件 Fn 签名和 Struct/Enum 字段合同。负例覆盖新/已移除 namespace、重复分类、未知状态、旧入口无迁移去向、消费者内部/未分类导入，以及稳定签名/类型变更。它不代替严格类型/动画语义门禁；`yarn test:ui-motion` 继续负责后者。独立 `yarn audit:consumer-api` 当前会报告实验 API 依赖并失败，尚非必需 CI，不宣称 #176 完成。
 
-`yarn test:scene-hit` 检查 [Scene 独立命中内核](scene-ir-core.md)：严格公共类型、90° 旋转逆投影、祖先矩形裁剪、完全透明 group 仍可交互、重叠节点逆绘制层序、group target 后备、奇异矩阵拒绝、多边形填充与折线 stroke，以及编译后的候选计划排除非交互装饰节点。1000 个非交互装饰节点加 1 个 target 的夹具在编译后只保留 1 个候选，命中热路径 `visited=1`；该数字证明事件查询不再全树扫描，不代表当前全量 Scene 校验或计划编译已经优化。测试完全不依赖 Canvas，`HitPlan` 可跨同一 Scene 的多次指针查询复用；便利入口 `hit-test` 每次都会重新编译，实时宿主应缓存计划。该门禁尚不覆盖 cubic-path、instances、指针捕获/冒泡、节点卸载、resize/DPR 或浏览器事件桥，不能据此关闭 #34。
+`yarn test:scene-hit` 检查 [Scene 独立命中内核](scene-ir-core.md)：严格公共类型、90° 旋转逆投影、祖先矩形裁剪、完全透明 group 仍可交互、重叠节点逆绘制层序、group target 后备、奇异矩阵拒绝、多边形填充与折线 stroke，以及编译后的候选计划排除非交互装饰节点。1000 个非交互装饰节点加 1 个 target 的夹具在编译后只保留 1 个候选，命中热路径 `visited=1`；该数字证明事件查询不再全树扫描，不代表当前全量 Scene 校验或计划编译已经优化。测试完全不依赖 Canvas，`HitPlan` 可跨同一 Scene 的多次指针查询复用；便利入口 `hit-test` 每次都会重新编译，实时宿主应缓存计划。本候选增加 cubic 描边端点、退化、共线尖点及旋转/缩放/祖先clip；自适应几何、查询复用与原生参考差异见 [路径合同](curve-restoration.md)。该门禁尚不覆盖 instances、指针捕获/冒泡、节点卸载、resize/DPR 或浏览器事件桥，不能据此关闭 #34。
 
 `yarn test:scene-pointer` 检查 [Scene 指针路由](scene-pointer.md)：严格公共类型、冒泡、画布外捕获、pointer id 隔离、释放、源节点删除/重挂载，以及 `SceneInteraction :disabled` 屏蔽多层子树、清理 hover/capture、边界外祖先捕获释放、兄弟隔离、叶节点不能继承祖先 target 与重入。`yarn test:scene-hit` 补充屏蔽子树不遮挡背后命中和 1000 个装饰节点 `visited=1`。这些是纯 Calcit 协议，不调用 DOM，不证明完整 Presence group 退出或 cubic-path/instances 命中，仍不能关闭 #34。
 
