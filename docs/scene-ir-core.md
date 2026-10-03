@@ -48,7 +48,7 @@ Presence 文字可复用同一共享入口：`presence-font-references(model)` �
 
 `sync-font-leases(registry, previous, next, budget)` 对一个所有者的前后唯一引用列表同步：先释放消失项，再获取新增项，返回既有 `RegistryTransition`，没有另一套资源表。重复提交不改变引用数；不同所有者各持一个 lease。两个列表必须只含唯一合法 font identity，预算是固定的正数逻辑单位。调用方成功后保存 next，执行现有宿主动作并驱动加载队列；容量失败保留旧 registry/previous，不执行宿主副作用。来源变化必须升级 version，不能在同 identity 下换 source。离线乱序重放只查询引用，不向实时所有者重复同步；截图需要独立所有权状态。
 
-现有独立消费者的 `shared-font-cycle!` 改为从真实 Calcit 文字声明构造 Presence，验证退出中间帧仍持有、快速重入不重载、两个所有者逐一释放，以及同一实际 FontFace 的100次 Presence 出入后 idle 重用，最终 close 使 accepted=released=1/live=0。Node 补不同 fallback/内置字体/换版本驱逐/非法与重复引用。加载完成的同时间资源修订仍由应用推进；这不是看板退出、resize与原生 capture 的完整组合，也不证明字体布局缓存或 GPU glyph 支持。
+现有独立消费者的 `shared-font-cycle!` 改为从真实 Calcit 文字声明构造 Presence，验证退出中间帧仍持有、快速重入不重载、两个所有者逐一释放，以及同一实际 FontFace 的100次 Presence 出入后 idle 重用，最终 close 使 accepted=released=1/live=0。Node 补不同 fallback/内置字体/换版本驱逐/非法与重复引用。循环使用同步具名消费者辅助函数，绕过正式0.28中外层async覆盖局部`:async false`的[已上报问题Calcit #1713](https://github.com/calcit-lang/calcit/issues/1713)；上游虽已关闭，当前固定CLI仍复现，升级后重测再考虑内联，不放宽foldl或引入Dynamic。加载完成的同时间资源修订仍由应用推进；这不是看板退出、resize与原生 capture 的完整组合，也不证明字体布局缓存或 GPU glyph 支持。
 
 字体namespace隔离异步宿主与纯Scene/绘制模块，不能放入image runner或绘制循环。两个原生:inline仅创建/加载FontFace和读取document.fonts；临时类型化Trait关联[js-ffi #158](https://github.com/calcit-lang/js-ffi/issues/158)，上游交付后替换并删除局部平台声明。下游只引用Calcit模块，不手工导入JS。既有TodoList门禁增加纯FontSpec校验、Node失败/过期/释放合同，以及真实Chromium本地Arial/Liberation Sans加载、损坏字体失败、缺失首选字体回退和全RGBA原生参考。独立消费者声明“图表收入”，沿现有组件/transform链路验证乱序时间、1000次移动共享文字节点、同时间字体修订重声明，以及本地CJK加载、构造失败、过期安装拒绝、原生回退、非空与缺字字形差异；固定帧进入原消费者artifact。macOS用实际PostScript名PingFangSC-Regular，Linux依赖既有Playwright安装的WenQuanYi Zen Hei，缺失时失败不跳过。字形诊断验证浏览器最终绘制不是缺字，不等于解析字体文件证明全部字符覆盖。Node替身不算浏览器字体证据；精确文字命中及仅移动时不重排的原生布局/字形缓存计数仍未完成，旧monospace近似命中不能外推命名字体。
 
