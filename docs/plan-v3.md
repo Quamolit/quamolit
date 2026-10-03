@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | [M0](https://github.com/Quamolit/quamolit/milestone/4) | 开放；[Canvas 参考与测量协议](performance-m0.md)已有基线，新路径另见消费者报告 | #39 的同环境 baseline 比较、供电记录、协议负例及阶段展示；旧 Canvas 数字不能替代新架构 |
 | [M1](https://github.com/Quamolit/quamolit/milestone/1) | 已关闭；[下方阶段验收](#m1-阶段验收与展示)列出直接时间、固定 tick、声明、逻辑身份/释放及 TodoList 展示；材料随[已合并 #188](https://github.com/Quamolit/quamolit/pull/188)交付 | 不外推真实资源、一般指针捕获、GPU 全画质或稳定 tag 完成 |
-| [M2](https://github.com/Quamolit/quamolit/milestone/2) | 开放；公共 Calcit 组件/保留计划、干净消费者、资源/恢复、受限 GPU 三路径已运行；[正式报告](consumer-performance.md#2026-10-0210k-独立动画正式时长报告)记录真实负载 | #144 栅格化合同、#175 完整性能判定、#104 发布 tag 重跑、#176 全公共边界、#177 分层决策、#178 阶段展示、#179 门禁成本；不能只按上传量关闭 |
+| [M2](https://github.com/Quamolit/quamolit/milestone/2) | 开放；公共 Calcit 组件/保留计划、干净消费者、资源/恢复、受限 GPU 三路径已运行；0.0.18-alpha.3 的[发布后干净消费与Metal专项](isolated-consumer.md#未完成验收与下一步)已重跑；[正式报告](consumer-performance.md#2026-10-0210k-独立动画正式时长报告)记录真实负载 | #144 栅格化合同、#175 完整性能判定、#104 后续能力发布验收与稳定消费、#176 全公共边界、#177 分层决策、#178 阶段展示、#179 门禁成本；不能只按上传量关闭 |
 | [M3](https://github.com/Quamolit/quamolit/milestone/3) | 开放；[11 个原有示例](demo-restoration.md)、图表作品、统一全屏画布、基础绘制与 Drag 路由已有可运行切片 | #36 真实发布入口已随 #201 接通、#34 完整交互、#53 文字/路径合同与缓存计数、#37 视觉矩阵及窄屏限制；原有入口齐全不等于全部出口验收 |
 | [M4](https://github.com/Quamolit/quamolit/milestone/5) | 开放；可消费 M2 的受限硬件证据，但没有一般 GPU 历史模拟或跨设备发布验收 | #54 的 tick/seed/checkpoint/device recovery、#41 的后端/Use.GPU ADR 与发布材料；其余设备未验证，不以结论替代实现依赖 |
 

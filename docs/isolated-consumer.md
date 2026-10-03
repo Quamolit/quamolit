@@ -8,6 +8,8 @@
 yarn test:consumer
 # 默认安装当前 HEAD；尚未推送时可先指定已发布/已推送的前置产物：
 QUAMOLIT_CONSUMER_REF=12edc27020adf7f9ed55a4ad7adaa7d9e4c123fb yarn test:consumer
+# 发布后的验收使用已发布 tag，不用新候选的 fixture 混测旧版本：
+QUAMOLIT_CONSUMER_REF=0.0.18-alpha.3 yarn test:consumer
 # 桌面硬件专项：出现 SKIP 也会失败，不可用普通 PASS 替代真实 GPU 证据。
 QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 ```
@@ -62,9 +64,9 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 线性/双轴专项各比较 8 帧完整画面；位置与尺寸专项另在 .37/.81/.4999999/-.1/1.1/0/1 读回 WGSL x/y/width/height，遵循 `1e-5+1e-5*abs(expected)`，不外推整个精度域。GPU 合同使用白底，Canvas 参考合成相同白底，不修改几何或像素阈值。历史审查基线：[线性](evidence/isolated-consumer-gpu.json)、[双轴](evidence/isolated-consumer-dual-gpu.json)；当前结果以 `test-results/consumer/report.json` 的 candidate/harness、adapter 与各专项状态为准，候选库和测试源码版本不得混淆。读回 probe 仅在测试中，消费者运行时无新增文件依赖。Actions 摘要分别列出四项 GPU 专项的 PASS、SKIP 原因与未执行；mock、缺失报告和 Canvas 中间帧诊断都不记为硬件画质通过。
 
-- #104 已接入生命周期、实际资源释放、device loss 重建、`:file/:inline` JS-only 显式重编译和独立运动三路径；两档尺寸正式时长报告见[同源帧测量](consumer-performance.md)。发布tag重跑、跨后端中间帧合同、基线比较和完整目标判定仍未验收。
+- #104 已接入生命周期、实际资源释放、device loss 重建、`:file/:inline` JS-only 显式重编译和独立运动三路径；两档尺寸正式时长报告见[同源帧测量](consumer-performance.md)。2026-10-04 已对发布 tag `0.0.18-alpha.3`（b419897）完成干净重跑：测试源码为干净3b21548，与tag仅有部署workflow/verification文档差异，生产与消费源码相同，不混入新候选。Calcit/runtime0.28.0、js-ffi0.2.1-alpha.11、Node24.19.0、Chromium153.0.8010.12；37模块安装/编译/搬移与inline/file重编译PASS，1000帧声明/构建各1，100次装卸及恢复live=0，15个嵌套Canvas帧零差异。普通headless专项SKIP；追加 `QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1` 后真实Apple/Metal-3四项均PASS。原始报告在忽略的test-results/consumer/，复现与验收记录见[#104](https://github.com/Quamolit/quamolit/issues/104)。跨后端小数中间帧合同、基线比较和完整目标判定仍未验收；未运行性能基准。
 - 重编译门禁验证显式编译，不声称watch、热更新或任意构建缓存行为已经验证；inline释放使用原生句柄mock，不冒充GPU硬件测试。没有修改caps的共享不可变缓存。
 - 本例仍需页面提供原生 Canvas context；统一的挂载/调度/卸载入口仍属于后续公共 API 工作。它不需要框架内部 JS，却不等于完整应用迁移已经完成。
-- 后续应把通用纹理/字体/图片和多图层共享资源接到 device loss/rebuild 协议，并补发布 tag；当前保留模型/拓扑变化时整体重声明的合同。
+- 后续应把通用纹理/字体/图片和多图层共享资源接到 device loss/rebuild 协议；新能力合并与发布后重新跑对应tag，历史发布验收不外推新候选。当前保留模型/拓扑变化时整体重声明的合同。
 
 本切片展示安装可用性与固定时间画面，未关闭任何 milestone；M2 结束仍需阶段验收矩阵、资源/回退/恢复及命名真实 GPU 的画面与性能证据。
