@@ -1,5 +1,107 @@
 import { expect, test } from "@playwright/test";
 
+for (const dpr of [1, 2]) {
+  test(`图表换类型保留旧图退出与新图进入，快速切回连续 DPR ${dpr}`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 720 },
+      deviceScaleFactor: dpr,
+      reducedMotion: "reduce",
+    });
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    try {
+      await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+      const point = await page.locator("canvas").evaluate((canvas) => {
+        const b = canvas.getBoundingClientRect();
+        return {
+          x: b.left + ((canvas.width / 2 - 208) * b.width) / canvas.width,
+          y: b.top + ((canvas.height / 2 + 140) * b.height) / canvas.height,
+        };
+      });
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.down();
+      expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).captured).not.toBeNull();
+      const start = await page.evaluate(() => window.layeredDashboardDemo.setChartVariant(true));
+      expect(start).toMatchObject({ nodeCount: 29, captured: null, lineChart: true });
+      await page.mouse.up();
+      const bars = (state) => state.scene.nodes.filter((node) => /\/5:bar-[1-7]$/.test(node.id));
+      expect(new Set(start.scene.nodes.map((node) => node.id)).size).toBe(29);
+      expect(
+        bars(start)
+          .filter((node) => node.content[0] === "rect")
+          .every((node) => node.interaction[0] === "disabled"),
+      ).toBe(true);
+      const middle = await page.evaluate(() => window.layeredDashboardDemo.seek(1.3));
+      expect(bars(middle)).toHaveLength(8);
+      bars(middle).forEach((node) =>
+        expect((node.content[0] === "rect" ? node.content[1].fill : node.content[1].stroke).a).toBeCloseTo(0.5, 12),
+      );
+      await page.screenshot({ path: testInfo.outputPath(`chart-type-mid-dpr${dpr}.png`) });
+      const interrupted = await page.evaluate(() => {
+        const before = document.querySelector("canvas").toDataURL();
+        window.layeredDashboardDemo.setChartVariant(false);
+        return {
+          samePixels: before === document.querySelector("canvas").toDataURL(),
+          ...window.layeredDashboardDemo.snapshot(),
+        };
+      });
+      expect(interrupted.samePixels).toBe(true);
+      expect(interrupted.nodeCount).toBe(29);
+      expect((await page.evaluate(() => window.layeredDashboardDemo.seek(1.9))).nodeCount).toBe(28);
+      await page.getByRole("button", { name: "切换折线图", exact: true }).click();
+      const line = await page.evaluate(() => window.layeredDashboardDemo.seek(2.6));
+      expect(line.nodeCount).toBe(22);
+      expect(bars(line).map((node) => node.content[0])).toEqual(["polyline"]);
+      expect(line).toMatchObject({ playing: false, pending: false });
+      const replay = await page.evaluate(() => {
+        window.layeredDashboardDemo.seek(1.3);
+        window.layeredDashboardDemo.seek(2.6);
+        return window.layeredDashboardDemo.snapshot().scene;
+      });
+      expect(replay).toEqual(line.scene);
+      const protocol = await page.evaluate(async () => {
+        const base = "/target/js/layered-dashboard/";
+        const app = await import(`${base}quamolit.examples.layered-dashboard.mjs`);
+        const core = await import(`${base}calcit.core.mjs`);
+        let events = app.record_chart_variant(app.empty_events(), 1, true);
+        events = app.record_chart_variant(events, 1.3, false);
+        events = app.record_chart_variant(events, 1.9, true);
+        let model = app.initial(),
+          previous = 0;
+        const equivalent = [0, 1, 1.3, 1.6, 1.9, 2.2, 2.6].map((time) => {
+          model = app.advance(model, events, previous, time);
+          previous = time;
+          return (
+            JSON.stringify(core.to_js_data(model)) === JSON.stringify(core.to_js_data(app.replay_events(events, time)))
+          );
+        });
+        model = app.initial();
+        const counts = [];
+        for (let index = 0; index < 100; index++) {
+          const time = index * 2 + 1;
+          model = app.set_layout_variant(model, true, true, true, time);
+          model = app.advance(model, app.empty_events(), time, time + 0.7);
+          counts.push(core.to_js_data(model).items.length);
+          model = app.set_layout_variant(model, true, true, false, time + 1);
+          model = app.advance(model, app.empty_events(), time + 1, time + 1.7);
+          counts.push(core.to_js_data(model).items.length);
+        }
+        return { equivalent, counts };
+      });
+      expect(protocol.equivalent).toEqual(Array(7).fill(true));
+      expect(protocol.counts).toEqual(Array.from({ length: 200 }, (_, index) => (index % 2 ? 28 : 22)));
+      await page.getByRole("button", { name: "隐藏图表", exact: true }).click();
+      expect((await page.evaluate(() => window.layeredDashboardDemo.seek(3.3))).nodeCount).toBe(19);
+      await page.getByRole("button", { name: "恢复图表", exact: true }).click();
+      expect((await page.evaluate(() => window.layeredDashboardDemo.seek(4))).nodeCount).toBe(22);
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
 test("不透明无裁剪组零离屏分配，透明或裁剪组仍隔离", async ({ page }) => {
   await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
   const counts = await page.evaluate(async () => {
@@ -63,6 +165,73 @@ test("不透明无裁剪组零离屏分配，透明或裁剪组仍隔离", async
     }
   });
   expect(counts).toEqual({ opaque: 0, alpha: 1, clipped: 1 });
+});
+
+test("类型化隔离层覆盖离屏与 DOM 回退，合成像素和目标状态不变", async ({ page }) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const results = await page.evaluate(async () => {
+    const renderer = await import("/target/js/layered-dashboard/quamolit.canvas-scene.mjs");
+    const Original = window.OffscreenCanvas;
+    const results = [];
+    try {
+      for (const fallback of [false, true]) {
+        window.OffscreenCanvas = fallback ? undefined : Original;
+        const layer = renderer.layer_create_$x_(16, 12);
+        const context = renderer.layer_context_$x_(layer);
+        context.fillStyle = "#248abc";
+        context.fillRect(2, 3, 8, 6);
+        const makeTarget = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 16;
+          canvas.height = 12;
+          const target = canvas.getContext("2d");
+          target.setTransform(2, 0, 0, 2, 3, 4);
+          target.globalAlpha = 0.75;
+          return target;
+        };
+        const actual = makeTarget();
+        renderer.composite_layer_$x_(actual, layer, 0.5);
+        const expected = makeTarget();
+        expected.save();
+        expected.setTransform(1, 0, 0, 1, 0, 0);
+        expected.globalAlpha = 0.5;
+        expected.drawImage(layer, 0, 0);
+        expected.restore();
+        const pixels = actual.getImageData(0, 0, 16, 12).data;
+        const reference = expected.getImageData(0, 0, 16, 12).data;
+        results.push({
+          kind: layer instanceof HTMLCanvasElement ? "dom" : "offscreen",
+          size: [layer.width, layer.height],
+          differentBytes: pixels.filter((value, index) => value !== reference[index]).length,
+          visiblePixels: pixels.filter((_, index) => index % 4 === 3 && pixels[index] > 0).length,
+          alpha: actual.globalAlpha,
+          transform: [...actual.getTransform().toFloat64Array()],
+        });
+      }
+      for (const [width, height] of [
+        [0, 12],
+        [16, -1],
+        [NaN, 12],
+        [16, Infinity],
+      ]) {
+        let rejected = false;
+        try {
+          renderer.layer_create_$x_(width, height);
+        } catch {
+          rejected = true;
+        }
+        if (!rejected) throw new Error(`invalid surface accepted: ${width},${height}`);
+      }
+    } finally {
+      window.OffscreenCanvas = Original;
+    }
+    return results;
+  });
+  expect(results.map((result) => result.kind)).toEqual(["offscreen", "dom"]);
+  for (const result of results) {
+    expect(result).toMatchObject({ size: [16, 12], differentBytes: 0, visiblePixels: 48, alpha: 0.75 });
+    expect(result.transform).toEqual([2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 3, 4, 0, 1]);
+  }
 });
 
 test("首个rAF早于播放启动时间不倒退Model，终点仍停帧", async ({ page }) => {
@@ -138,12 +307,196 @@ test("显隐按钮、事件重放和一百次往返沿用实际看板组件", as
   expect(result.unordered.map((frame) => frame.count)).toEqual(Array(5).fill(28));
   result.unordered.forEach((frame, index) => expect(frame.opacity).toBeCloseTo([1, 0.5, 0, 5 / 6, 1][index], 12));
   expect(result.branch).toEqual([
-    { time: 1, visible: false },
-    { time: 1.1, visible: true },
+    { time: 1, visible: false, "chart-visible": true, "line-chart": false },
+    { time: 1.1, visible: true, "chart-visible": true, "line-chart": false },
   ]);
   expect(result.counts).toEqual(Array.from({ length: 200 }, (_, index) => (index % 2 === 0 ? 1 : 28)));
   expect(result.needsFrame).toBe(false);
 });
+
+test("嵌套淡化显式合并同一意图，独立子动画与原declare-tree叠加合同保留", async ({ page }) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const result = await page.evaluate(async () => {
+    const base = "/target/js/layered-dashboard/";
+    const app = await import(`${base}quamolit.examples.layered-dashboard.mjs`);
+    const component = await import(`${base}quamolit.presence-component.mjs`);
+    const binding = await import(`${base}quamolit.scene-binding.mjs`);
+    const core = await import(`${base}calcit.core.mjs`);
+    const tags = core.init_tags(["scene", "motions"]);
+    const owners = core.arrayToList(["dashboard", "chart"]);
+    const sample = (model, time, coalesced) => {
+      const declared = (coalesced ? component.declare_tree_coalesced : component.declare_tree)(
+        model,
+        binding.empty_descriptors(),
+        owners,
+      );
+      const data = core.to_js_data(binding.resolve_scene(declared.get(tags.scene), declared.get(tags.motions), time));
+      return {
+        opacities: ["dashboard", "chart", "overlap"].map(
+          (id) => data.nodes.find((node) => node.id.endsWith(`/${id.length}:${id}`))?.content[1].opacity,
+        ),
+        motions: core.to_js_data(declared.get(tags.motions)).length,
+      };
+    };
+    const parent = app.set_layout(app.initial(), false, true, 1);
+    const parentBefore = JSON.stringify(core.to_js_data(parent));
+    const child = app.set_layout(app.initial(), true, false, 1);
+    const independent = app.set_layout(child, false, false, 1.3);
+    let events = app.record_chart_visibility(app.empty_events(), 1, false);
+    events = app.record_visibility(events, 1.3, false);
+    events = app.record_visibility(events, 1.6, true);
+    events = app.record_chart_visibility(events, 1.9, true);
+    let model = app.initial(),
+      previous = 0;
+    const equivalent = [0, 1, 1.1, 1.3, 1.6, 1.9, 2.2, 2.6].map((time) => {
+      model = app.advance(model, events, previous, time);
+      previous = time;
+      return (
+        JSON.stringify(core.to_js_data(model)) === JSON.stringify(core.to_js_data(app.replay_events(events, time)))
+      );
+    });
+    const branch = app.record_chart_visibility(events, 1.4, true);
+    const counts = [];
+    model = app.initial();
+    for (let index = 0; index < 100; index++) {
+      const time = 1 + index * 2;
+      model = app.set_layout(model, true, false, time);
+      model = app.advance(model, app.empty_events(), time, time + 0.7);
+      counts.push(core.to_js_data(model).items.length);
+      model = app.set_layout(model, true, true, time + 1);
+      model = app.advance(model, app.empty_events(), time + 1, time + 1.7);
+      counts.push(core.to_js_data(model).items.length);
+    }
+    return {
+      parent: sample(parent, 1.3, true),
+      deliberate: sample(parent, 1.3, false),
+      child: sample(child, 1.3, true),
+      independent: sample(independent, 1.6, true),
+      siblingMotions: core.to_js_data(
+        component
+          .declare_tree_coalesced(parent, binding.empty_descriptors(), core.arrayToList(["metric-a", "metric-b"]))
+          .get(tags.motions),
+      ).length,
+      immutable: JSON.stringify(core.to_js_data(parent)) === parentBefore,
+      equivalent,
+      branch: core.to_js_data(branch),
+      counts,
+    };
+  });
+  expect(result.parent.motions).toBe(1);
+  expect(result.deliberate.motions).toBe(2);
+  expect(result.siblingMotions).toBe(2);
+  expect(result.immutable).toBe(true);
+  for (const [actual, expected] of [
+    [result.parent.opacities, [0.5, 1, 0.55]],
+    [result.deliberate.opacities, [0.5, 0.5, 0.55]],
+    [result.child.opacities, [1, 0.5, 0.55]],
+    [result.independent.opacities, [0.5, 0, 0.55]],
+  ])
+    actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index], 12));
+  expect(result.equivalent).toEqual(Array(8).fill(true));
+  expect(result.branch).toEqual([
+    { time: 1, visible: true, "chart-visible": false, "line-chart": false },
+    { time: 1.3, visible: false, "chart-visible": false, "line-chart": false },
+    { time: 1.4, visible: false, "chart-visible": true, "line-chart": false },
+  ]);
+  expect(result.counts).toEqual(Array.from({ length: 200 }, (_, index) => (index % 2 === 0 ? 19 : 28)));
+});
+
+for (const dpr of [1, 2]) {
+  test(`图表子组件退出与resize释放捕获，重入连续、父级退出不重复淡化 DPR${dpr}`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 720 },
+      deviceScaleFactor: dpr,
+      reducedMotion: "reduce",
+    });
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    try {
+      await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+      await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+      await page.evaluate(() => {
+        const canvas = document.querySelector("canvas");
+        window.chartCaptureCounts = { set: 0, release: 0 };
+        for (const [method, key] of [
+          ["setPointerCapture", "set"],
+          ["releasePointerCapture", "release"],
+        ]) {
+          const original = canvas[method].bind(canvas);
+          canvas[method] = (id) => {
+            window.chartCaptureCounts[key]++;
+            return original(id);
+          };
+        }
+      });
+      const point = await page.locator("canvas").evaluate((canvas) => {
+        const bounds = canvas.getBoundingClientRect();
+        return {
+          x: bounds.left + ((canvas.width / 2 - 208) * bounds.width) / canvas.width,
+          y: bounds.top + ((canvas.height / 2 + 140) * bounds.height) / canvas.height,
+        };
+      });
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.down();
+      expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).pointer.capture[2]).toBe("chart");
+      const exiting = await page.evaluate(() => {
+        document.querySelector("canvas").style.width = "calc(100vw - 80px)";
+        window.layeredDashboardDemo.setChartVisible(false);
+        return { ...window.layeredDashboardDemo.snapshot(), counts: window.chartCaptureCounts };
+      });
+      expect(exiting).toMatchObject({
+        visible: true,
+        chartVisible: false,
+        captured: null,
+        nodeCount: 28,
+        width: 1200 * dpr,
+        counts: { set: 1, release: 1 },
+      });
+      const groups = (state) =>
+        ["dashboard", "chart", "overlap"].map(
+          (id) => state.scene.nodes.find((node) => node.id.endsWith(`/${id.length}:${id}`))?.content[1].opacity,
+        );
+      const middle = await page.evaluate(() => window.layeredDashboardDemo.seek(1.3));
+      groups(middle).forEach((value, index) => expect(value).toBeCloseTo([1, 0.5, 0.55][index], 12));
+      await page.screenshot({ path: testInfo.outputPath(`nested-chart-mid-dpr${dpr}.png`) });
+      const revived = await page.evaluate(() => {
+        const before = Object.fromEntries(
+          window.layeredDashboardDemo.snapshot().scene.nodes.map((node) => [node.id, node.content]),
+        );
+        const pixels = document.querySelector("canvas").toDataURL();
+        window.layeredDashboardDemo.setChartVisible(true);
+        return {
+          before,
+          samePixels: pixels === document.querySelector("canvas").toDataURL(),
+          ...window.layeredDashboardDemo.snapshot(),
+        };
+      });
+      expect(Object.fromEntries(revived.scene.nodes.map((node) => [node.id, node.content]))).toEqual(revived.before);
+      expect(revived.samePixels).toBe(true);
+      expect(revived.captured).toBeNull();
+      await page.mouse.up();
+      await page.evaluate(() => window.layeredDashboardDemo.seek(1.9));
+      await page.getByRole("button", { name: "隐藏图表", exact: true }).click();
+      const removed = await page.evaluate(() => window.layeredDashboardDemo.seek(2.6));
+      expect(removed.nodeCount).toBe(19);
+      expect(removed.visible).toBe(true);
+      await page.getByRole("button", { name: "恢复图表", exact: true }).click();
+      await page.evaluate(() => window.layeredDashboardDemo.seek(3.3));
+      expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).nodeCount).toBe(28);
+      const parentStart = (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).time;
+      await page.getByRole("button", { name: "隐藏看板", exact: true }).click();
+      const parent = await page.evaluate((time) => window.layeredDashboardDemo.seek(time + 0.3), parentStart);
+      groups(parent).forEach((value, index) => expect(value).toBeCloseTo([0.5, 1, 0.55][index], 12));
+      await page.evaluate(() => window.layeredDashboardDemo.seek(4));
+      expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).nodeCount).toBe(1);
+      await expect.poll(() => page.evaluate(() => window.layeredDashboardDemo.snapshot().pending)).toBe(false);
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+}
 
 test("嵌套换父保留新旧逻辑身份，退出叶不能借活跃祖先命中", async ({ page }) => {
   await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");

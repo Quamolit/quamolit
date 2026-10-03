@@ -31,6 +31,7 @@ yarn audit:api-types
 | `raw-create-table!` / `InstanceTableHost.patch-info` | 唯一创建片段返回 JsObject；Trait 的原始补丁 DTO 是局部 JsObject，进入 Calcit 后校验字段并转换 | 仍为必要 ABI；不新增 JS 包装对象，不迁往 js-ffi，不宣称整个 Trait 无开放类型 |
 | 历史六个 `instance-resource/raw-*` 操作转发 | 裸 JsObject 平行入口，Calcit 引用查询和仓库调用方检查均无使用 | 已移除；[迁移对照](instance-resource-table.md)，历史 tag 不改写，不保证未知外部调用方无需迁移 |
 | GPU scalar/component renderer | 创建返回 `RectRendererHost`，公共提交/安装/绘制/释放使用同一专属句柄；裸 JsObject 只留在原始 ABI 与 Canvas 创建参数 | [边界合同](gpu-component-plan.md)；静态类型不验证任意伪造 JS 对象，仍为实验，不因命中数减少就标为稳定 |
+| `canvas-scene` 隔离层 | `layer-create!` 返回 `CanvasLayerHost`，上下文/合成入口消费此类型；Scene 遍历不传裸 JsObject | 保留三个 inline 原始 ABI；js-ffi #147 提供平台能力后替换本地临时类型。已有看板门禁覆盖 OffscreenCanvas/DOM 回退、整图 RGBA 零差异、目标状态恢复及非法尺寸拒绝，不外推两类宿主的边缘栅格化一致 |
 | `quamolit.motion-cpu/CpuFunctionRegistry` | Struct 的 samplers 是 `Map<String, Fn<I, Number → O>>`，保留输入/输出泛型关系 | 继续保留泛型，不能为了兼容 JS 回调改为 Dynamic |
 
 - 原生 DOM/Canvas/WebGPU 对象、Promise 或 TypedArray 搬运可在宿主 ABI 边界出现 JsObject；平台类型优先由 js-ffi 暴露 Calcit 定义。Quamolit 的资源/renderer 专用句柄仍留在本项目，不为减少命中计数把专属逻辑搬到 js-ffi。
