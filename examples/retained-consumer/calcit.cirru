@@ -639,7 +639,7 @@
                 exiting $ :model $ presence/reconcile-presence initial-model
                   scene/SceneDocument :nodes $ scene/empty-scene-nodes
                   , 0 1 (motion/Easing :linear)
-                declaration $ presence-component/declare-tree exiting (binding/empty-descriptors) ([] |panel)
+                declaration $ presence-component/declare-tree-coalesced exiting (binding/empty-descriptors) ([] |panel |plot)
               binding/resolve-scene (:scene declaration) (:motions declaration) time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)

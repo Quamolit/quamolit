@@ -18,7 +18,7 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 
 `yarn test:layered-dashboard` 沿既有门禁验证8项Chromium用例：DPR1/2下resize与退出同次提交，在无新PointerEvent时释放恰好一次；渐出仍有28节点，中间帧截图、重入连续、新按下再次捕获、重复卸载后无监听/待执行帧；原有像素与全屏浮层断言不变。纯协议同时检查日志增量/乱序等价、100次1↔28节点往返、换父新旧身份共存、嵌套子项仍在原父组裁剪/层序，以及整组渐出的独立一次合成参考。首个rAF允许早于播放注册时间，宿主保证推进时间不倒退，回归检查终点停帧和两秒空闲。截图和报告仍在忽略的test-results/CI artifact，不入库。
 
-本批未优化时间帧Scene/绑定分配或全ID访问；现有文字使用内置monospace，不证明#51的外部字体/图片资源租约与退出并发。WebGPU一般组不支持，硬件及性能结论未新增；#34/#53/M3不能因此关闭。
+本批未优化时间帧Scene/绑定分配或全ID访问；默认文字仍使用内置monospace，可选外部字体的联合验收见下节，图片联合仍未覆盖。WebGPU一般组不支持，硬件及性能结论未新增；#34/#53/M3不能因此关闭。
 
 ## 字体租约与真实退出联合提交
 
@@ -27,6 +27,16 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 先生成实际 Scene 并编译/提交 HitPlan 协调捕获，再同步同一展示 Model 的租约。退出开始立刻禁交互、释放原生捕获，文字与租约仍留到0.6秒退出终点；终点归零后资源进入 idle，不冒充已销毁。中途重入与 idle 重入复用一次加载；页面卸载关闭自己的 registry、取消队列并精确删除 FontFace。异步完成总是交给最新 Calcit 状态判定；关闭后的迟到结果不能安装或触发重绘。
 
 现有看板浏览器门禁在 DPR1/2 组合真实 FontFace、按住柱图、退出与 resize、0.5 alpha 中间帧、快速重入、终点归还与 idle 复用及重复卸载。另在真实字体加载等待期间卸载，验证迟到完成后 accepted=0、live=0、running=0，画面计数不变。静态发布导航再验证同一Canvas的两次挂载：旧加载未完成时持有原生capture，导航卸载释放一次；新看板成功安装同名字体后再放行旧完成，新状态/画面计数完全不变、旧结果不误删新FontFace，最终返回目录使FontFaceSet回到基线。该竞态在DPR1/2连续三轮验证，先结算新挂载正常ResizeObserver/DPR通知，不删绘制计数断言。原全帧隔离组像素和原入场效果回归保留。字体可用性 revision 只在接纳时增加；当前页面全量重绘，不声称已接保留布局缓存。该连接只管理一种可选字体，失败保留通用回退，尚无版本切换/自动重试 UI、图片联合或 GPU fence/recovery；#34/#51/M2/M3仍开放。
+
+## 图表子组件的独立出入
+
+同一浮层新增“隐藏图表／恢复图表”，不另建demo。它只改变chart子树的声明，标题、指标与信号块保持可见；默认柱图0.6秒淡出期间仍有28节点，终点结算后剩19节点，重入恢复28节点。`VisibilityEvent` 同时保存visible/chart-visible/line-chart，各操作保留其他意图；增量播放、乱序seek与历史分支使用同一Calcit日志，不在JS维护另一套动画状态。`setChartVisible`是对应的页面入口，重置恢复全部内容。
+
+组件使用显式的 `declare-tree-coalesced`，所有者配置为dashboard/chart及七个bar逻辑ID：整组卸载产生相同phase/tween时只由父级承担淡化；子图表单独退出时由chart承担。已有独立子动画不会被父级删除重启或抹掉，例如图表t=1开始退出、看板t=1.3退出，图表仍在t=1.6到终点，父级在t=1.9结束。旧 `declare-tree` 的有意双乘行为保留，规则与限制见[组件合同](presence-component.md)。直接采样未结算小数终点使用已合并#217的精确tween端点修复，不放宽Scene校验。
+
+“切换折线图／切换柱状图”声明真正的类型替换：七个rect退出、沿用bar-1逻辑key的polyline进入，29节点过渡至22节点。完整kind/path生成不同渲染身份，旧rect继续绘制但立即disabled，其原生捕获随Scene提交释放。视口投影只替换同类型内容，不能用当前rect覆盖尚在Model中的polyline。应用明确折线叠在柱图之上，正反打断均保持该声明层序；这不是renderer为合批重排任意透明节点。DPR1/2验证0.5中间帧、快速切回整Canvas像素完全相等、终点停帧、乱序重放及折线隐藏/恢复；完整类型/重排矩阵仍未验收。
+
+真实DPR1/2门禁新增子图表capture中的resize+退出同次提交、捕获立即释放一次、退出终点停帧、快速重入的稳定身份/内容与整Canvas像素不变。子树消失后不能恢复旧capture，但其余看板目标继续有效；不把父级背景交互误称为图表仍可命中。100次19↔28节点往返、父子意图组合与原有整看板RGBA零差异回归保留，生成截图仍放忽略artifact。与主线字体租约合并后，视口投影保留逻辑文字的font，不能只加载资源却绘制默认字体；DPR1/2检查柱图/折线切换、子图表隐藏/恢复、重置与父级退出的实际Scene字体和一次加载。图片联合、完整换类型/重排矩阵、GPU及性能仍未因此验收。
 
 ## Scene 能力与完整预检
 
@@ -51,3 +61,5 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 同一消费者的 `primitive-document(time)` 用 Calcit 声明8种 document 支持图元的真实 payload（group/rect/polyline/text/image/polygon/cubic-path/circle）；`draw-primitives!` 通过公共模块绘制，与图表共用一个纯 Calcit 布局函数。现有无GPU浏览器门禁在同一Canvas上检查5个乱序时间、固定尺寸与全屏DPR1/2，逐通道比较独立原生参考，不从Scene数据生成参考；绘制前后声明不变。JS测试只创建8×8图片宿主和期望画面，不是库的实现或新增demo。图片缺失/尺寸不符的Node反例使用不可访问Canvas替身，要求零宿主调用；instances仍明确拒绝。结果位于原报告的 `layeredCanvas.primitives` 与各fullscreen记录的 `primitives`，截图仍为忽略artifact。这补齐合法图元实际绘制证据，不把种类查询当资源验证，不外推到任意路径/字体排版或GPU完整语义。
 
 像素参考独立计算动画、矩阵、裁剪和组合成，但与实际后端采用同类隔离 surface（可用时 OffscreenCanvas，否则 DOM Canvas），最终绘制到 DOM Canvas。Chromium 上以 scale=3.125、clip 顶边 y=343.75 原生复现，边界像素 DOM Canvas 为 `[255,0,0,16]`、OffscreenCanvas 为 `[0,0,0,0]`；因此不能混用 surface 类型再用宽松阈值掩盖差异。门禁保持整帧零差异，不证明两类原生 Canvas 边缘栅格化相同，也不外推到 #144 的 Canvas/GPU 合同。
+
+隔离 surface 在 Calcit 遍历中使用 `CanvasLayerHost`，通过 `layer-create!` 检查有限正尺寸后创建；`layer-context!`/`composite-layer!` 只在三个原始 inline ABI 处转换 JsObject。不新增宿主文件或依赖，下游安装模块并编译即可携带片段。此类型是 js-ffi #147 的局部过渡方案，上游发布类型化平台入口后替换。既有浏览器门禁分别核验离屏与 DOM 回退的原生合成 RGBA 零差异、非空图像、transform/globalAlpha 恢复及非法尺寸拒绝。

@@ -487,90 +487,110 @@ export async function verifyLayeredCanvasConsumer(page, artifacts) {
     await page.click('[data-mode="layered"]');
     await page.evaluate(() => window.consumer.set({ model: 40, ready: false, viewport: 100 }));
     const frames = [];
-    for (const time of [1, 0, 0.5, 0.25, 1]) {
-      const result = await page.evaluate((time) => {
-        const state = window.consumer.set({ time });
-        const canvas = document.querySelector("canvas"),
-          actual = canvas.getContext("2d");
-        const width = canvas.width,
-          height = canvas.height,
-          scale = Math.min(width / 320, height / 180);
-        const x = width / 2 - 144 * scale,
-          y = height / 2 - 74 * scale;
-        const progress = Math.max(0, Math.min(1, time));
-        const fade = progress * progress * (3 - 2 * progress);
-        // 对照独立原生绘制，不调用库；隔离 surface 类型必须与声明的后端一致。
-        // Chromium 的 DOM/Offscreen 分数 clip 边缘并非像素等价。
-        const surface = (isolated = true) => {
-          const c =
-            isolated && typeof OffscreenCanvas === "function"
-              ? new OffscreenCanvas(width, height)
-              : document.createElement("canvas");
-          c.width = width;
-          c.height = height;
-          return c;
-        };
-        const expected = surface(false),
-          panel = surface(),
-          plot = surface();
-        const p = panel.getContext("2d"),
-          q = plot.getContext("2d"),
-          e = expected.getContext("2d");
-        p.setTransform(scale, 0, 0, scale, x, y);
-        p.beginPath();
-        p.rect(0, 0, 288, 148);
-        p.clip();
-        p.font = "12px monospace";
-        p.textBaseline = "middle";
-        p.fillStyle = "rgb(33,51,77)";
-        p.fillText("渠道转化", 8, 18);
-        q.setTransform(scale, 0, 0, scale, x + 8 * scale, y + 40 * scale);
-        q.beginPath();
-        q.rect(0, 0, 120, 64);
-        q.clip();
-        q.fillStyle = "red";
-        q.fillRect(0, 0, 120 * fade, 32);
-        q.fillStyle = "blue";
-        q.fillRect(48, 16, 104, 32);
-        p.setTransform(1, 0, 0, 1, 0, 0);
-        p.globalAlpha = 0.5;
-        p.drawImage(plot, 0, 0);
-        e.globalAlpha = fade;
-        e.drawImage(panel, 0, 0);
-        const a = actual.getImageData(0, 0, width, height).data;
-        const b = e.getImageData(0, 0, width, height).data;
-        let differences = 0;
-        for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) differences++;
-        const pixel = (px, py) => Array.from(actual.getImageData(x + px * scale, y + py * scale, 1, 1).data);
-        return {
-          time,
-          width,
-          height,
-          differences,
-          gpuAvailable: navigator.gpu !== undefined,
-          mode: state.mode,
-          overlap: pixel(69, 64),
-          clipped: pixel(134, 64),
-          opacity: state.scene.nodes[0].content[1].opacity,
-        };
-      }, time);
-      assert.equal(result.mode, "layered");
-      assert.equal(result.gpuAvailable, false, "同一组场景在强制无 WebGPU 下仍必须完整绘制");
-      assert.equal(result.differences, 0, "Calcit 组/裁剪/透明度须与独立原生 Canvas 全像素一致");
-      assert.deepEqual(result.clipped, [0, 0, 0, 0]);
-      if (time === 1) {
-        assert.deepEqual(result.overlap, [0, 0, 255, 128]);
-        assert.notDeepEqual(result.overlap, [85, 0, 170, 191], "不能把隔离透明度改成逐子节点透明度");
+    const nestedFrames = [];
+    for (const nested of [false, true]) {
+      for (const time of [1, 0, 0.5, 0.25, 1]) {
+        const result = await page.evaluate(
+          async ({ time, nested }) => {
+            const state = window.consumer.set({ time });
+            const canvas = document.querySelector("canvas"),
+              actual = canvas.getContext("2d");
+            const width = canvas.width,
+              height = canvas.height,
+              scale = Math.min(width / 320, height / 180);
+            const x = width / 2 - 144 * scale,
+              y = height / 2 - 74 * scale;
+            const progress = Math.max(0, Math.min(1, time));
+            const fade = progress * progress * (3 - 2 * progress);
+            if (nested) {
+              const app = await import(new URL("./target/js/app/app.main.mjs", location.href).href);
+              actual.clearRect(0, 0, width, height);
+              app.draw_document_$x_(
+                actual,
+                app.fit_layered_document(app.nested_presence_at(time), width, height),
+                width,
+                height,
+              );
+            }
+            // 对照独立原生绘制，不调用库；隔离 surface 类型必须与声明的后端一致。
+            // Chromium 的 DOM/Offscreen 分数 clip 边缘并非像素等价。
+            const surface = (isolated = true) => {
+              const c =
+                isolated && typeof OffscreenCanvas === "function"
+                  ? new OffscreenCanvas(width, height)
+                  : document.createElement("canvas");
+              c.width = width;
+              c.height = height;
+              return c;
+            };
+            const expected = surface(false),
+              panel = surface(),
+              plot = surface();
+            const p = panel.getContext("2d"),
+              q = plot.getContext("2d"),
+              e = expected.getContext("2d");
+            p.setTransform(scale, 0, 0, scale, x, y);
+            p.beginPath();
+            p.rect(0, 0, 288, 148);
+            p.clip();
+            p.font = "12px monospace";
+            p.textBaseline = "middle";
+            p.fillStyle = "rgb(33,51,77)";
+            p.fillText("渠道转化", 8, 18);
+            q.setTransform(scale, 0, 0, scale, x + 8 * scale, y + 40 * scale);
+            q.beginPath();
+            q.rect(0, 0, 120, 64);
+            q.clip();
+            q.fillStyle = "red";
+            q.fillRect(0, 0, 120 * (nested ? 1 : fade), 32);
+            q.fillStyle = "blue";
+            q.fillRect(48, 16, 104, 32);
+            p.setTransform(1, 0, 0, 1, 0, 0);
+            p.globalAlpha = 0.5;
+            p.drawImage(plot, 0, 0);
+            e.globalAlpha = nested ? 1 - time : fade;
+            e.drawImage(panel, 0, 0);
+            const a = actual.getImageData(0, 0, width, height).data;
+            const b = e.getImageData(0, 0, width, height).data;
+            let differences = 0;
+            for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) differences++;
+            const pixel = (px, py) => Array.from(actual.getImageData(x + px * scale, y + py * scale, 1, 1).data);
+            return {
+              time,
+              width,
+              height,
+              differences,
+              gpuAvailable: navigator.gpu !== undefined,
+              mode: state.mode,
+              overlap: pixel(69, 64),
+              clipped: pixel(134, 64),
+              opacity: nested ? 1 - time : state.scene.nodes[0].content[1].opacity,
+            };
+          },
+          { time, nested },
+        );
+        assert.equal(result.mode, "layered");
+        assert.equal(result.gpuAvailable, false, "同一组场景在强制无 WebGPU 下仍必须完整绘制");
+        assert.equal(result.differences, 0, "Calcit 组/裁剪/透明度须与独立原生 Canvas 全像素一致");
+        assert.deepEqual(result.clipped, [0, 0, 0, 0]);
+        if ((!nested && time === 1) || (nested && time === 0)) {
+          assert.deepEqual(result.overlap, [0, 0, 255, 128]);
+          assert.notDeepEqual(result.overlap, [85, 0, 170, 191], "不能把隔离透明度改成逐子节点透明度");
+        }
+        (nested ? nestedFrames : frames).push(result);
+        if ([0, 0.5, 1].includes(time))
+          await page.screenshot({
+            path: `${artifacts}/${nested ? "nested-presence" : "layered"}-frame-${time}.png`,
+            fullPage: true,
+          });
       }
-      frames.push(result);
-      if ([0, 0.5, 1].includes(time))
-        await page.screenshot({ path: `${artifacts}/layered-frame-${time}.png`, fullPage: true });
     }
     const primitives = await verifyPrimitiveCanvasConsumer(page, artifacts);
     await page.click('[data-mode="mixed"]');
     return {
       result: "PASS",
       frames,
+      nestedPresence: { result: "PASS", frames: nestedFrames },
       primitives,
       scope: "强制无 WebGPU 的嵌套组/裁剪/隔离透明度 Calcit 下游 Canvas 路径；非 GPU 性能证据",
     };

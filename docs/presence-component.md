@@ -19,15 +19,19 @@
 
 `declare-tree(model, descriptors, fade-ids)` 同样返回普通 `ComponentDeclaration`，但保留逻辑父路径，并支持 group 的 `opacity` 生命周期绑定。`fade-ids` 是原始 Scene 节点 ID 列表，显式指定哪些节点承担淡化：整组出入只选择父 group，后代保留原始 alpha；选择父子两项意味着有意叠加两项局部动画，不自动猜测或去重。未选择的节点仍遵守逻辑进入/退出/结算，但不新增淡化绑定。静态后代可包含其他合法 Scene 图元；淡化目标当前限 group/rect/polyline/text，已有对应 alpha/opacity 绑定会明确报错。
 
+`declare-tree-coalesced(model, descriptors, fade-ids)` 是显式选择的组合入口，旧 `declare-tree` 的有意叠加合同不变。选择父子作为潜在动画所有者时，若选中的严格祖先具有**完全相同的 phase 和 ScalarTween（from/to/start/duration/easing）**，后代不再增加该次生命周期绑定，整组移除只合成一次。只比较完整逻辑路径，不按物理 ID 或当前采样值判断；同值但不同开始时间/目标/阶段不会被合并。子节点原始颜色/组透明度、非生命周期绑定仍保留；既有 alpha/opacity 绑定冲突继续拒绝。不同路径的兄弟不会互相消掉淡化，Model/Scene 数据不被修改。
+
+已有独立子动画与随后发生的父动画继续相乘：子图表 t=1 开始退出、父级 t=1.3 才退出时，子图表仍在自己的 t=1.6 完成，不因父级删除重新计时。只在组件声明时决定所有权；时间采样不重新猜测。此入口是保留相同意图的组合策略，不是“所有父子透明度只能相乘一次”的普遍规则，也不证明GPU/性能。
+
 渲染 ID/key 按完整逻辑 path 的 kind/key 长度编码，不使用物理节点 ID；父引用也由父路径生成。同 key 换父/换类型的新旧节点可共存，不与 `declare-flat` 的历史 ID 混用。声明将退出项归回各自父组，保持合法前序树、裁剪和组内层序；不能沿用平面模型的全局尾部退出排列，导致旧子项跑出父组。重复渲染 ID、缺父或不连通路径明确拒绝。所有退出节点使用 `SceneInteraction :disabled`，阻止子树内目标及祖先目标后备；资源释放仍等显式结算。时间采样不结算，也不改变 Model。
 
 嵌套声明可通过普通计划采样 Scene；绘制需使用支持组隔离的 `canvas-scene/draw-document!`，不能把既有平面 `draw-plan!` 参考入口当作嵌套 renderer。`fade-ids` 应属于应用声明配置，不随时间逐帧猜测；非淡化节点如果单独出入，应用须为其明确选择额外的淡化目标或其他动画，否则只是保留到结算。
 
-Layered Signals 的 `presence-scene-at` 使用该声明，整组只选择 `dashboard`；页面显隐、重放与真实指针接线见[看板说明](layered-dashboard.md#显隐生命周期与捕获)。既有 `test:layered-dashboard` 在真实28节点 Scene 上验证乱序时间、隔离合成像素、原始0.55子组透明度、25/50/75%重入、27项终点释放与重复结算；还检查实际DPR1/2捕获中的resize/退出、重入和幂等卸载、100次往返、换父共存与嵌套子项退出归序。没有新demo、renderer或测试命令。
+Layered Signals 的 `presence-scene-at` 使用组合入口，选 `dashboard/chart`：整个看板删除的相同意图只由dashboard淡化，图表独立删除则由chart淡化。页面显隐、重放与真实指针接线见[看板说明](layered-dashboard.md#显隐生命周期与捕获)。既有 `test:layered-dashboard` 保留原28节点整帧像素/0.55隔离组/重入/释放/换父回归，新增图表19↔28节点的100次往返、父子独立日志增量/乱序/历史分支、旧入口有意双乘与新入口合并、DPR1/2子组件退出+resize立即释放捕获、重入当帧全Canvas像素不变。没有新demo、renderer或测试命令。
 
 这不证明资源租约、GPU组语义、所有换类型/病态路径组合或完整#34已验收。实现是CPU正确性路径，节点归序/ID核对可有二次复杂度，不声称指针全路由扫描或时间帧分配已优化；旧叶节点的1000帧保留计数也不能外推到这个应用。
 
-既有独立消费者的 `nested-presence-at` 由Calcit代码直接调用公共 `declare-tree`，使用自己的5节点图表、显式panel淡化目标和公共绑定解析；`test:consumer` 在候选干净安装/编译/产物搬移后检查乱序alpha、子组0.5透明度、退出禁用和ID唯一性。不需要下游导入框架内部JS或本仓库demo。
+既有独立消费者的 `nested-presence-at` 由Calcit代码直接调用公共 `declare-tree-coalesced`，使用自己的5节点图表，同时选择panel/plot淡化目标和公共绑定解析。共同退出时panel承接生命周期，plot原始0.5透明度不再乘一次生命周期；`test:consumer` 在候选干净安装/编译/产物搬移后检查乱序alpha、子组0.5透明度、退出禁用和ID唯一性，并保留原生Canvas参考的完整RGBA比较。不需要下游导入框架内部JS或本仓库demo。
 
 ## 既有叶节点验证
 
