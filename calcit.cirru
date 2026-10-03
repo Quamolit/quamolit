@@ -5068,10 +5068,15 @@
             :args $ [] 'Number
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context cells selected)
-            reference/draw-reference! context $ scene-at cells selected
+            draw-scene! context $ scene-at cells selected
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost (:: 'List 'String) 'Number
+        'draw-scene! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-scene! (context document) (reference/draw-reference! context document)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument
         'empty-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-nodes () ([])
           :examples $ []
@@ -5080,11 +5085,31 @@
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'hit-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hit-at (x y)
-            assert |invalid-table-point $ and (motion/finite-number? x) (motion/finite-number? y)
-            scan-hit x y 0
+            hit-with-plan
+              hit-plan $ scene-at (initial) -1
+              , x y
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number 'Number
+        'hit-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-plan (document) (hit/compile-hit-plan document)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'quamolit.scene-ir/SceneDocument
+        'hit-with-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-with-plan (plan x y)
+            assert |invalid-table-point $ and (motion/finite-number? x) (motion/finite-number? y)
+            match (hit/hit-test-plan plan x y)
+              (:miss visited) -1
+              (:hit result)
+                ->
+                  find (range 9)
+                    fn (index)
+                      = (:target result) (str |cell- index)
+                  .unwrap-or -1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.scene-hit/HitPlan 'Number 'Number
         'initial $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initial ()
             [] "|第一格" | | | | | | | |
@@ -5102,20 +5127,6 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
-        'scan-hit $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn scan-hit (x y index)
-            if (>= index 9) -1 $ if
-              and
-                <=
-                  abs $ - x $ cell-x index
-                  , 90
-                <=
-                  abs $ - y $ cell-y index
-                  , 52
-              , index $ recur x y (inc index)
-          :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Number)
-            :args $ [] 'Number 'Number 'Number
         'scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scene-at (cells selected)
             assert |invalid-table-size $ = 9 $ count cells
@@ -5135,7 +5146,7 @@
             :return $ :: 'List 'String
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.table
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference) (quamolit.scene-hit :as hit)
     'quamolit.examples.tidal-bloom $ %{} 'FileEntry
       :defs $ {}
         'ChartSeriesModel $ %{} 'CodeEntry (:doc |)
