@@ -1,5 +1,107 @@
 import { expect, test } from "@playwright/test";
 
+for (const dpr of [1, 2]) {
+  test(`图表换类型保留旧图退出与新图进入，快速切回连续 DPR ${dpr}`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 720 },
+      deviceScaleFactor: dpr,
+      reducedMotion: "reduce",
+    });
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    try {
+      await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+      const point = await page.locator("canvas").evaluate((canvas) => {
+        const b = canvas.getBoundingClientRect();
+        return {
+          x: b.left + ((canvas.width / 2 - 208) * b.width) / canvas.width,
+          y: b.top + ((canvas.height / 2 + 140) * b.height) / canvas.height,
+        };
+      });
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.down();
+      expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).captured).not.toBeNull();
+      const start = await page.evaluate(() => window.layeredDashboardDemo.setChartVariant(true));
+      expect(start).toMatchObject({ nodeCount: 29, captured: null, lineChart: true });
+      await page.mouse.up();
+      const bars = (state) => state.scene.nodes.filter((node) => /\/5:bar-[1-7]$/.test(node.id));
+      expect(new Set(start.scene.nodes.map((node) => node.id)).size).toBe(29);
+      expect(
+        bars(start)
+          .filter((node) => node.content[0] === "rect")
+          .every((node) => node.interaction[0] === "disabled"),
+      ).toBe(true);
+      const middle = await page.evaluate(() => window.layeredDashboardDemo.seek(1.3));
+      expect(bars(middle)).toHaveLength(8);
+      bars(middle).forEach((node) =>
+        expect((node.content[0] === "rect" ? node.content[1].fill : node.content[1].stroke).a).toBeCloseTo(0.5, 12),
+      );
+      await page.screenshot({ path: testInfo.outputPath(`chart-type-mid-dpr${dpr}.png`) });
+      const interrupted = await page.evaluate(() => {
+        const before = document.querySelector("canvas").toDataURL();
+        window.layeredDashboardDemo.setChartVariant(false);
+        return {
+          samePixels: before === document.querySelector("canvas").toDataURL(),
+          ...window.layeredDashboardDemo.snapshot(),
+        };
+      });
+      expect(interrupted.samePixels).toBe(true);
+      expect(interrupted.nodeCount).toBe(29);
+      expect((await page.evaluate(() => window.layeredDashboardDemo.seek(1.9))).nodeCount).toBe(28);
+      await page.getByRole("button", { name: "切换折线图", exact: true }).click();
+      const line = await page.evaluate(() => window.layeredDashboardDemo.seek(2.6));
+      expect(line.nodeCount).toBe(22);
+      expect(bars(line).map((node) => node.content[0])).toEqual(["polyline"]);
+      expect(line).toMatchObject({ playing: false, pending: false });
+      const replay = await page.evaluate(() => {
+        window.layeredDashboardDemo.seek(1.3);
+        window.layeredDashboardDemo.seek(2.6);
+        return window.layeredDashboardDemo.snapshot().scene;
+      });
+      expect(replay).toEqual(line.scene);
+      const protocol = await page.evaluate(async () => {
+        const base = "/target/js/layered-dashboard/";
+        const app = await import(`${base}quamolit.examples.layered-dashboard.mjs`);
+        const core = await import(`${base}calcit.core.mjs`);
+        let events = app.record_chart_variant(app.empty_events(), 1, true);
+        events = app.record_chart_variant(events, 1.3, false);
+        events = app.record_chart_variant(events, 1.9, true);
+        let model = app.initial(),
+          previous = 0;
+        const equivalent = [0, 1, 1.3, 1.6, 1.9, 2.2, 2.6].map((time) => {
+          model = app.advance(model, events, previous, time);
+          previous = time;
+          return (
+            JSON.stringify(core.to_js_data(model)) === JSON.stringify(core.to_js_data(app.replay_events(events, time)))
+          );
+        });
+        model = app.initial();
+        const counts = [];
+        for (let index = 0; index < 100; index++) {
+          const time = index * 2 + 1;
+          model = app.set_layout_variant(model, true, true, true, time);
+          model = app.advance(model, app.empty_events(), time, time + 0.7);
+          counts.push(core.to_js_data(model).items.length);
+          model = app.set_layout_variant(model, true, true, false, time + 1);
+          model = app.advance(model, app.empty_events(), time + 1, time + 1.7);
+          counts.push(core.to_js_data(model).items.length);
+        }
+        return { equivalent, counts };
+      });
+      expect(protocol.equivalent).toEqual(Array(7).fill(true));
+      expect(protocol.counts).toEqual(Array.from({ length: 200 }, (_, index) => (index % 2 ? 28 : 22)));
+      await page.getByRole("button", { name: "隐藏图表", exact: true }).click();
+      expect((await page.evaluate(() => window.layeredDashboardDemo.seek(3.3))).nodeCount).toBe(19);
+      await page.getByRole("button", { name: "恢复图表", exact: true }).click();
+      expect((await page.evaluate(() => window.layeredDashboardDemo.seek(4))).nodeCount).toBe(22);
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
 test("不透明无裁剪组零离屏分配，透明或裁剪组仍隔离", async ({ page }) => {
   await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
   const counts = await page.evaluate(async () => {
@@ -138,8 +240,8 @@ test("显隐按钮、事件重放和一百次往返沿用实际看板组件", as
   expect(result.unordered.map((frame) => frame.count)).toEqual(Array(5).fill(28));
   result.unordered.forEach((frame, index) => expect(frame.opacity).toBeCloseTo([1, 0.5, 0, 5 / 6, 1][index], 12));
   expect(result.branch).toEqual([
-    { time: 1, visible: false, "chart-visible": true },
-    { time: 1.1, visible: true, "chart-visible": true },
+    { time: 1, visible: false, "chart-visible": true, "line-chart": false },
+    { time: 1.1, visible: true, "chart-visible": true, "line-chart": false },
   ]);
   expect(result.counts).toEqual(Array.from({ length: 200 }, (_, index) => (index % 2 === 0 ? 1 : 28)));
   expect(result.needsFrame).toBe(false);
@@ -227,9 +329,9 @@ test("嵌套淡化显式合并同一意图，独立子动画与原declare-tree�
     actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index], 12));
   expect(result.equivalent).toEqual(Array(8).fill(true));
   expect(result.branch).toEqual([
-    { time: 1, visible: true, "chart-visible": false },
-    { time: 1.3, visible: false, "chart-visible": false },
-    { time: 1.4, visible: false, "chart-visible": true },
+    { time: 1, visible: true, "chart-visible": false, "line-chart": false },
+    { time: 1.3, visible: false, "chart-visible": false, "line-chart": false },
+    { time: 1.4, visible: false, "chart-visible": true, "line-chart": false },
   ]);
   expect(result.counts).toEqual(Array.from({ length: 200 }, (_, index) => (index % 2 === 0 ? 19 : 28)));
 });

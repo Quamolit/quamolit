@@ -4426,7 +4426,7 @@
           :code $ quote $ defatom *dashboard-pointer (pointer/initial-pointer-state)
           :examples $ []
         'VisibilityEvent $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct VisibilityEvent (:time 'Number) (:visible 'Bool) (:chart-visible 'Bool)
+          :code $ quote $ defstruct VisibilityEvent (:time 'Number) (:visible 'Bool) (:chart-visible 'Bool) (:line-chart 'Bool)
           :examples $ []
           :schema $ :: 'StructDef
         'advance $ %{} 'CodeEntry (:doc |)
@@ -4439,7 +4439,7 @@
                     > (:time event) from-time
                     <= (:time event) time
                 , model $ fn (current event)
-                  set-layout current (:visible event) (:chart-visible event) (:time event)
+                  set-layout-variant current (:visible event) (:chart-visible event) (:line-chart event) (:time event)
               , time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
@@ -4462,6 +4462,23 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.presence/PresenceModel
+        'chart-variant $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn chart-variant (document line-chart)
+            if line-chart
+              struct-with document $ :nodes $ map
+                filter (:nodes document)
+                  fn (node)
+                    not $ includes? ([] |bar-2 |bar-3 |bar-4 |bar-5 |bar-6 |bar-7) (:id node)
+                fn (node)
+                  if
+                    = (:id node) |bar-1
+                    struct-with node $ :content $ scene/SceneContent :polyline
+                      scene/PolylineNode :width 4 :stroke (color 0.24 0.91 0.75 1) :points $ [] (motion/Vec2 :x -208 :y 102) (motion/Vec2 :x -140 :y 58) (motion/Vec2 :x -72 :y 84) (motion/Vec2 :x -4 :y 18) (motion/Vec2 :x 64 :y 45) (motion/Vec2 :x 132 :y -2) (motion/Vec2 :x 200 :y 34)
+                    , node
+              , document
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'Bool
         'color $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn color (r g b a)
             motion/ColorRgba :r r :g g :b b :a a
@@ -4551,10 +4568,27 @@
                     fn (item)
                       let
                           entry $ :entry item
-                          replacement $ scene/node-for-id (:nodes current)
-                            :id $ :node entry
-                        struct-with item $ :entry $ struct-with entry (:node replacement)
-              presence-scene-at display-model time
+                          node $ :node entry
+                          replacement $ scene/node-for-id (:nodes current) (:id node)
+                        struct-with item $ :entry $ struct-with entry
+                          :node $ if
+                            =
+                              scene/content-kind $ :content node
+                              scene/content-kind $ :content replacement
+                            , replacement node
+              presence-scene-at
+                struct-with display-model $ :items $ concat
+                  filter (:items display-model)
+                    fn (item)
+                      not=
+                        scene/content-kind $ :content $ :node (:entry item)
+                        , |polyline
+                  filter (:items display-model)
+                    fn (item)
+                      =
+                        scene/content-kind $ :content $ :node (:entry item)
+                        , |polyline
+                , time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'quamolit.presence/PresenceModel 'Number 'Number 'Number
@@ -4656,7 +4690,8 @@
             :args $ [] 'Number 'Number 'Number
         'layout-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn layout-at (events time)
-            foldl events (VisibilityEvent :time 0 :visible true :chart-visible true)
+            foldl events
+              VisibilityEvent :time 0 :visible true :chart-visible true :line-chart false
               fn (current event)
                 if
                   <= (:time event) time
@@ -4681,11 +4716,25 @@
         'presence-scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-scene-at (model time)
             let
-                declaration $ presence-component/declare-tree-coalesced model (binding/empty-descriptors) ([] |dashboard |chart)
+                declaration $ presence-component/declare-tree-coalesced model (binding/empty-descriptors)
+                  [] |dashboard |chart |bar-1 |bar-2 |bar-3 |bar-4 |bar-5 |bar-6 |bar-7
               binding/resolve-scene (:scene declaration) (:motions declaration) time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'quamolit.presence/PresenceModel 'Number
+        'record-chart-variant $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn record-chart-variant (events time line-chart)
+            assert |invalid-dashboard-time $ motion/finite-number? time
+            conj
+              filter events $ fn (event)
+                <= (:time event) time
+              struct-with (layout-at events time) (:time time) (:line-chart line-chart)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+              :: 'List 'quamolit.examples.layered-dashboard/VisibilityEvent
+              , 'Number 'Bool
+            :return $ :: 'List 'quamolit.examples.layered-dashboard/VisibilityEvent
         'record-chart-visibility $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn record-chart-visibility (events time visible)
             assert |invalid-dashboard-time $ motion/finite-number? time
@@ -4745,7 +4794,7 @@
                   filter events $ fn (event)
                     <= (:time event) time
                   , seed $ fn (current event)
-                    set-layout current (:visible event) (:chart-visible event) (:time event)
+                    set-layout-variant current (:visible event) (:chart-visible event) (:line-chart event) (:time event)
                 , time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
@@ -4803,6 +4852,14 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
             :args $ [] 'quamolit.presence/PresenceModel 'Bool 'Bool 'Number
+        'set-layout-variant $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn set-layout-variant (model visible chart-visible line-chart time)
+            :model $ presence/reconcile-presence model
+              chart-variant (desired-layout visible chart-visible) line-chart
+              , time 0.6 $ motion/Easing :linear
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ [] 'quamolit.presence/PresenceModel 'Bool 'Bool 'Bool 'Number
         'set-visible $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn set-visible (model visible time)
             :model $ presence/reconcile-presence model (desired-scene visible) time 0.6 $ motion/Easing :linear

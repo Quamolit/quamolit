@@ -46,7 +46,7 @@
       "path": "examples/layered-dashboard/index.html",
       "title": "Layered Signals · 分层数据看板",
       "group": "art",
-      "summary": "嵌套裁剪揭示柱图，隔离透明度合成重叠色块；看板与图表子组件可独立出入和重入，相同意图不重复淡化，退出立即释放捕获。",
+      "summary": "柱图／折线新旧图元交叉渐变，快速切回连续；看板与图表子组件可独立出入，相同意图不重复淡化，退出立即释放捕获。",
       "status": "嵌套生命周期与捕获 · Canvas",
       "docs": "docs/layered-dashboard.md",
       "compile": "compile:layered-dashboard"

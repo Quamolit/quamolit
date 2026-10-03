@@ -54,6 +54,9 @@ export function mountDemo() {
     const chartButton = document.querySelector("#chart-toggle");
     chartButton.textContent = state.chartVisible ? "隐藏图表" : "恢复图表";
     chartButton.ariaPressed = String(!state.chartVisible);
+    const variantButton = document.querySelector("#chart-variant");
+    variantButton.textContent = state.lineChart ? "切换柱状图" : "切换折线图";
+    variantButton.ariaPressed = String(state.lineChart);
     status.textContent = `t=${time.toFixed(2)} · ${width}×${height} · ${state.nodeCount} 节点 · 捕获 ${state.captured ?? "无"}`;
     status.dataset.result = "pass";
   }
@@ -98,27 +101,27 @@ export function mountDemo() {
     const pointer = to_js_data(dashboard.current_pointer());
     const capture = pointer.capture;
     return { time, width: canvas.width, height: canvas.height, nodeCount: data.nodes.length, playing, paints, pending: scheduler.pending,
-      visible: prior?.visible ?? true, chartVisible: prior?.["chart-visible"] ?? true, events: log, scene: data, pointer,
+      visible: prior?.visible ?? true, chartVisible: prior?.["chart-visible"] ?? true, lineChart: prior?.["line-chart"] ?? false, events: log, scene: data, pointer,
       captured: capture[0] === "captured" ? capture[1] : null };
   }
 
-  function setVisible(visible) {
+  function commitEvents(next) {
     stop();
-    events = dashboard.record_visibility(events, time, visible);
+    events = next;
     model = dashboard.replay_events(events, time);
     horizon = Math.max(1, time, dashboard.animation_end(model));
     draw(); // 新 Scene 立即协调捕获，不能等待下一次 PointerEvent 或动画终点。
     if (time < horizon && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();
     return snapshot();
   }
+  function setVisible(visible) {
+    return commitEvents(dashboard.record_visibility(events, time, visible));
+  }
   function setChartVisible(visible) {
-    stop();
-    events = dashboard.record_chart_visibility(events, time, visible);
-    model = dashboard.replay_events(events, time);
-    horizon = Math.max(1, time, dashboard.animation_end(model));
-    draw();
-    if (time < horizon && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();
-    return snapshot();
+    return commitEvents(dashboard.record_chart_visibility(events, time, visible));
+  }
+  function setChartVariant(lineChart) {
+    return commitEvents(dashboard.record_chart_variant(events, time, lineChart));
   }
   function reset() {
     stop(); events = dashboard.empty_events(); horizon = 1; time = 0;
@@ -131,6 +134,7 @@ export function mountDemo() {
   document.querySelector("#reset").onclick = reset;
   document.querySelector("#presence-toggle").onclick = () => setVisible(!snapshot().visible);
   document.querySelector("#chart-toggle").onclick = () => setChartVisible(!snapshot().chartVisible);
+  document.querySelector("#chart-variant").onclick = () => setChartVariant(!snapshot().lineChart);
   document.querySelector("#panel-toggle").onclick = (event) => {
     const panel = document.querySelector("#panel");
     panel.hidden = !panel.hidden;
@@ -161,7 +165,7 @@ export function mountDemo() {
     resolution?.removeEventListener("change", watchDpr);
     if (window.layeredDashboardDemo === api) delete window.layeredDashboardDemo;
   }
-  const api = { seek, play, pause: stop, snapshot, setVisible, setChartVisible, reset, dispose };
+  const api = { seek, play, pause: stop, snapshot, setVisible, setChartVisible, setChartVariant, reset, dispose };
   window.layeredDashboardDemo = api;
   draw();
   if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();

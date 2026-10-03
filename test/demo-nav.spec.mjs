@@ -365,6 +365,16 @@ test("静态发布看板可独立切换图表子组件并从同页导航卸载",
   expect(removed.nodeCount).toBe(19);
   await page.getByRole("button", { name: "恢复图表", exact: true }).click();
   expect((await page.evaluate(() => window.layeredDashboardDemo.seek(2.2))).nodeCount).toBe(28);
+  await page.getByRole("button", { name: "切换折线图", exact: true }).click();
+  expect(
+    (await page.evaluate(() => window.layeredDashboardDemo.seek(Number(document.querySelector("#time").max))))
+      .nodeCount,
+  ).toBe(22);
+  await page.getByRole("button", { name: "切换柱状图", exact: true }).click();
+  expect(
+    (await page.evaluate(() => window.layeredDashboardDemo.seek(Number(document.querySelector("#time").max))))
+      .nodeCount,
+  ).toBe(28);
   await page
     .getByRole("navigation", { name: "演示导航" })
     .getByRole("button", { name: /所有演示/ })
