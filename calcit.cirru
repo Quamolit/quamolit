@@ -2085,7 +2085,7 @@
               context .save!
               try
                 do
-                  js-set context :font $ str (:size text) "|px monospace"
+                  js-set context :font $ str (:size text) "|px " $ font-family-css (:font text)
                   js-set context :text-align |left
                   js-set context :text-baseline |middle
                   js-set context :direction |ltr
@@ -2098,6 +2098,37 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/TextNode
             :features $ #{} :js-ffi
+        'font-family-css $ %{} 'CodeEntry
+          :doc "|Calcit安全引用版本化宿主别名、原生family与通用回退；默认空family只用fallback，不加载字体。"
+          :code $ quote $ defn font-family-css (font)
+            let
+                family $ :family font
+                fallback $ match (:fallback font)
+                  (:monospace) |monospace
+                  (:sans-serif) |sans-serif
+                  (:serif) |serif
+              assert |invalid-font-spec $ scene/valid-font? font
+              if (empty? family) fallback $ let
+                  escaped $
+                    family .replace |\ |\\
+                    , .replace "|\"" "|\\\""
+                  host $
+                      scene/font-host-family font
+                      , .replace |\ |\\
+                    , .replace "|\"" "|\\\""
+                str "|\"" host "|\", \"" escaped "|\", " fallback
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.scene-ir/FontSpec
+          :tests $ [] $ %{} 'TestEntry (:name |safe-font-family)
+            :code $ quote $ let
+                font $ scene/default-font
+              assert |default-css $ = (font-family-css font) |monospace
+              assert |quoted-family-css $ =
+                font-family-css $ struct-with font $ :family "|UI\"\\Family"
+                , "|\"QuamolitFont:0:UI\\\"\\\\Family\", \"UI\\\"\\\\Family\", monospace"
+              , &unit
+            :tags $ #{} :font :scene
         'raw-draw-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-draw-instances! (context positions start amount width height fill-style alpha) (raise |js-only-canvas-instances)
           :examples $ []
@@ -4299,7 +4330,7 @@
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'text-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text-node (id label x y size fill)
-            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill :font (scene/default-font)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
@@ -4801,6 +4832,7 @@
           :code $ quote $ defn text-node (id label x y)
             scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size 18 :text label :fill
               motion/ColorRgba :r 0.93 :g 0.95 :b 1 :a 1
+              , :font (scene/default-font)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'Number 'Number
@@ -5361,6 +5393,7 @@
           :code $ quote $ defn text-node (id label x y size alpha)
             scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill
               motion/ColorRgba :r 0.93 :g 0.96 :b 1 :a alpha
+              , :font (scene/default-font)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'Number 'Number 'Number 'Number
@@ -5387,7 +5420,7 @@
                 color $ motion/ColorRgba :r 0.75 :g 0.9 :b 0.94 :a 1
                 group $ scene/GroupNode :transform view :clip (scene/ClipSpec :none) :opacity 1
                 root $ scene/SceneNode :id |fan-notes :key |fan-notes :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group group
-                text $ scene/TextNode :x -150 :y -65 :size 18 :text "|FOLDING FAN / 24 SLICES" :fill color
+                text $ scene/TextNode :x -150 :y -65 :size 18 :text "|FOLDING FAN / 24 SLICES" :fill color :font $ scene/default-font
                 line $ scene/PolylineNode :points
                   [] (motion/Vec2 :x -150 :y -95) (motion/Vec2 :x 150 :y -95)
                   , :width 2 :stroke color
@@ -5789,6 +5822,7 @@
           :code $ quote $ defn text-node (id value y alpha)
             scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x -138 :y y :size 42 :text value :fill
               motion/ColorRgba :r 0.9 :g 0.96 :b 1 :a alpha
+              , :font (scene/default-font)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'Number 'Number
@@ -6012,7 +6046,7 @@
             :args $ [] 'Number 'Number 'Number
         'text-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text-node (id parent label x y size fill)
-            scene/SceneNode :id id :key id :parent parent :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill
+            scene/SceneNode :id id :key id :parent parent :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill :font (scene/default-font)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
@@ -6388,7 +6422,7 @@
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'text-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text-node (id label x y size fill)
-            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill :font (scene/default-font)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
@@ -6543,7 +6577,9 @@
                 text-id $ str id |/label
                 label $ cell-text cells index
                 text $ scene/SceneNode :id text-id :key text-id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text
-                  scene/TextNode :x (- x 76) :y (+ y 8) :size 22 :text label :fill $ motion/ColorRgba :r 0.91 :g 0.95 :b 1 :a 1
+                  scene/TextNode :x (- x 76) :y (+ y 8) :size 22 :text label :fill
+                    motion/ColorRgba :r 0.91 :g 0.95 :b 1 :a 1
+                    , :font $ scene/default-font
               conj (conj acc rect) text
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -7189,7 +7225,7 @@
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
         'text-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text-node (id label x y size fill)
-            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill
+            scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill :font (scene/default-font)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
@@ -7808,7 +7844,7 @@
             :args $ [] 'quamolit.examples.todolist/Model 'Number
         'text $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text (x value size fill)
-            scene/SceneContent :text $ scene/TextNode :x x :y 0 :size size :text value :fill fill
+            scene/SceneContent :text $ scene/TextNode :x x :y 0 :size size :text value :fill fill :font $ scene/default-font
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
             :args $ [] 'Number 'String 'Number 'quamolit.motion/ColorRgba
@@ -7977,6 +8013,172 @@
           :require
             quamolit.motion :refer $ finite-number?
             calcit.test :refer $ is= is-throws
+    'quamolit.font-resource $ %{} 'FileEntry
+      :defs $ {}
+        'FontFaceHost $ %{} 'CodeEntry
+          :doc "|可信FontFace的原生只读字段；临时平台声明见js-ffi#158，不保证任意JS对象形状。"
+          :code $ quote $ deftrait FontFaceHost (:family 'String) (:status 'String)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+            :names $ {} (:family |family) (:status |status)
+          :schema $ :: 'Trait
+        'FontLoadCompletion $ %{} 'CodeEntry
+          :doc "|只有当前任务与loading资源都接受结果时loaded为some；调用方消费ResourceAction后安装并提升Scene资源修订。未保存长期宿主缓存。"
+          :code $ quote $ defstruct FontLoadCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue) (:transition 'quamolit.resource-lifecycle/ResourceTransition)
+            :loaded $ :: 'Option 'quamolit.font-resource/LoadedFont
+          :examples $ []
+          :schema $ :: 'StructDef
+        'FontLoadOutcome $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum FontLoadOutcome (:ready 'quamolit.font-resource/LoadedFont) (:failed 'String)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'FontSetHost $ %{} 'CodeEntry
+          :doc "|document.fonts原生集合薄桥；不是Quamolit资源表或排版器，js-ffi#158交付后替换。"
+          :code $ quote $ deftrait FontSetHost
+            .add! $ :: 'Fn $ {}
+              :args $ [] 'quamolit.font-resource/FontSetHost 'quamolit.font-resource/FontFaceHost
+              :return 'quamolit.font-resource/FontSetHost
+              :features $ #{} :js-ffi
+            .delete! $ :: 'Fn $ {}
+              :args $ [] 'quamolit.font-resource/FontSetHost 'quamolit.font-resource/FontFaceHost
+              :return 'Bool
+              :features $ #{} :js-ffi
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+            :names $ {} (:add! |add) (:delete! |delete)
+          :schema $ :: 'Trait
+        'LoadedFont $ %{} 'CodeEntry (:doc "|Scene之外的字体加载结果；显式携带申请时版本，安装时与当前Model描述核对。")
+          :code $ quote $ defstruct LoadedFont (:spec 'quamolit.scene-ir/FontSpec) (:face 'quamolit.font-resource/FontFaceHost)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'QueuedFontLoadResult $ %{} 'CodeEntry
+          :doc "|带完整任务身份的字体加载结果；加载不安装，任务完成后必须先经过complete-font-load。"
+          :code $ quote $ defstruct QueuedFontLoadResult (:task 'quamolit.resource-load-queue/ResourceLoadTask) (:outcome 'quamolit.font-resource/FontLoadOutcome)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'complete-font-load $ %{} 'CodeEntry
+          :doc "|纯Calcit双重接受：先结算队列token，再核对资源identity/generation/loading。取消/unknown/关闭/被替换的结果不安装、不改变当前资源，也不发wake-frame。返回none会丢弃未安装句柄引用；长期已安装字体由调用方按ResourceAction显式释放。"
+          :code $ quote $ defn complete-font-load (state queue result)
+            let
+                finished $ load-queue/finish-load queue $ :token (:task result)
+              match (:outcome finished)
+                (:accepted task)
+                  do
+                    assert |font-completion-task-mismatch $ = task $ :task result
+                    if
+                      and
+                        = (:identity state) (:identity task)
+                        = (:generation state) (:resource-generation task)
+                        = (:phase state) (resource/ResourcePhase :loading)
+                      match (:outcome result)
+                        (:ready loaded)
+                          do
+                            assert |font-completion-version-mismatch $ =
+                              :version $ :spec loaded
+                              :version $ :identity task
+                            FontLoadCompletion :queue (:queue finished) :transition
+                              resource/resource-ready state $ :resource-generation task
+                              , :loaded $ Option :some loaded
+                        (:failed message)
+                          FontLoadCompletion :queue (:queue finished) :transition
+                            resource/resource-failed state (:resource-generation task) message
+                            , :loaded $ Option :none
+                      FontLoadCompletion :queue (:queue finished) :transition
+                        resource/transition state $ resource/empty-actions
+                        , :loaded $ Option :none
+                _ $ FontLoadCompletion :queue (:queue finished) :transition
+                  resource/transition state $ resource/empty-actions
+                  , :loaded $ Option :none
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.font-resource/FontLoadCompletion)
+            :args $ [] 'quamolit.resource-lifecycle/ResourceState 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.font-resource/QueuedFontLoadResult
+        'install-font! $ %{} 'CodeEntry
+          :doc "|只安装与当前Model描述完全一致的已加载结果；旧版本返回false且不触碰document.fonts。没有自动动画调度或资源队列。"
+          :code $ quote $ defn install-font! (loaded expected)
+            if
+              = (:spec loaded) expected
+              let
+                  set $ unsafe-coerce (raw-font-set) 'quamolit.font-resource/FontSetHost
+                set .add! $ :face loaded
+                , true
+              , false
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.font-resource/LoadedFont 'quamolit.scene-ir/FontSpec
+            :features $ #{} :js-ffi
+        'load-font! $ %{} 'CodeEntry
+          :doc "|显式异步加载，不安装、不绘制、不修改Model；失败返回封闭枚举。调用方按版本处理结果并提升字体可用性修订。"
+          :code $ quote $ defn load-font! (spec source)
+            hint-fn $ {}
+              :args $ [] 'quamolit.scene-ir/FontSpec 'String
+              :return 'quamolit.font-resource/FontLoadOutcome
+              :async true
+              :features $ #{} :js-ffi
+            if
+              and (scene/valid-font? spec)
+                not $ empty? $ :family spec
+                not $ empty? source
+              try
+                let
+                    face $ unsafe-coerce
+                      contract/expect-object |FontFace.load $ js-await $ raw-load! (scene/font-host-family spec) source
+                      , 'quamolit.font-resource/FontFaceHost
+                  if
+                    = (face :status) |loaded
+                    FontLoadOutcome :ready $ LoadedFont :spec spec :face face
+                    FontLoadOutcome :failed |font-not-loaded
+                fn (error)
+                  FontLoadOutcome :failed $ :message $ shared/normalize-error error
+              FontLoadOutcome :failed |invalid-font-load-request
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.font-resource/FontLoadOutcome)
+            :args $ [] 'quamolit.scene-ir/FontSpec 'String
+            :features $ #{} :js-ffi
+        'raw-font-set $ %{} 'CodeEntry (:doc "|仅读取原生document.fonts；无平台时明确失败。")
+          :code $ quote $ defn raw-font-set () (raise |js-only-font-set)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|()=>{if(typeof document==='undefined'||!document.fonts)throw new Error('font-set-unavailable');return document.fonts;}"
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ []
+            :features $ #{} :js-ffi
+        'raw-load! $ %{} 'CodeEntry
+          :doc "|仅原生创建和load；构造异常和异步失败都作为Promise拒绝，由Calcit js-await处理。"
+          :code $ quote $ defn raw-load! (family source) (raise |js-only-font-load)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(family,source)=>Promise.resolve().then(()=>new FontFace(family,source).load())"
+          :schema $ :: 'Fn $ {} (:return 'JsObject)
+            :args $ [] 'String 'String
+            :features $ #{} :js-ffi
+        'release-font! $ %{} 'CodeEntry (:doc "|删除该确切原生FontFace；重复删除返回false，不按family误删新版本。")
+          :code $ quote $ defn release-font! (loaded)
+            let
+                set $ unsafe-coerce (raw-font-set) 'quamolit.font-resource/FontSetHost
+              set .delete! $ :face loaded
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.font-resource/LoadedFont
+            :features $ #{} :js-ffi
+        'run-font-load-task! $ %{} 'CodeEntry
+          :doc "|复用通用加载队列的完整任务与token；平台Promise不能强制中断，完成后由当前queue/state决定是否接受。无自动安装。"
+          :code $ quote $ defn run-font-load-task! (spec source task)
+            hint-fn $ {} (:async true)
+              :args $ [] 'quamolit.scene-ir/FontSpec 'String 'quamolit.resource-load-queue/ResourceLoadTask
+              :return 'quamolit.font-resource/QueuedFontLoadResult
+              :features $ #{} :js-ffi
+            assert |non-font-resource-in-font-loader $ = (resource/ResourceKind :font)
+              :kind $ :identity task
+            assert |font-load-task-version-mismatch $ = (:version spec)
+              :version $ :identity task
+            QueuedFontLoadResult :task task :outcome $ js-await $ load-font! spec source
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.font-resource/QueuedFontLoadResult)
+            :args $ [] 'quamolit.scene-ir/FontSpec 'String 'quamolit.resource-load-queue/ResourceLoadTask
+            :features $ #{} :js-ffi
+      :ns $ %{} 'NsEntry (:doc |)
+        :code $ quote $ ns quamolit.font-resource
+          :require (quamolit.scene-ir :as scene) (js-ffi.contract :as contract) (js-ffi.shared :as shared) (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as load-queue)
     'quamolit.frame-clock $ %{} 'FileEntry
       :defs $ {}
         'FrameSample $ %{} 'CodeEntry
@@ -15296,7 +15498,7 @@
           :schema $ :: 'EnumDef
         'ResourceSignature $ %{} 'CodeEntry
           :doc "|Versioned external instance source, or none for non-resource nodes."
-          :code $ quote $ defenum ResourceSignature (:none) (:instances 'quamolit.scene-ir/InstanceSource) (:image 'quamolit.scene-ir/ImageSource)
+          :code $ quote $ defenum ResourceSignature (:none) (:instances 'quamolit.scene-ir/InstanceSource) (:image 'quamolit.scene-ir/ImageSource) (:font 'quamolit.scene-ir/FontSpec)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneChange $ %{} 'CodeEntry
@@ -15676,7 +15878,8 @@
               (:instances instances)
                 ResourceSignature :instances $ :source instances
               (:polyline path) (ResourceSignature :none)
-              (:text text) (ResourceSignature :none)
+              (:text text)
+                ResourceSignature :font $ :font text
               (:image image)
                 ResourceSignature :image $ :source image
               (:polygon polygon) (ResourceSignature :none)
@@ -16132,6 +16335,15 @@
           :code $ quote $ defstruct CubicSegment (:control-1 'quamolit.motion/Vec2) (:control-2 'quamolit.motion/Vec2) (:end 'quamolit.motion/Vec2)
           :examples $ []
           :schema $ :: 'StructDef
+        'FontFallback $ %{} 'CodeEntry (:doc "|明确的通用字体回退，不携带DOM句柄。")
+          :code $ quote $ defenum FontFallback (:monospace) (:sans-serif) (:serif)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        'FontSpec $ %{} 'CodeEntry
+          :doc "|单个命名字体及通用回退；family空串只用fallback。version标识字体来源/字形版本，加载与Scene必须一致；ready仅提升组件资源修订，不自动改字体版本。宿主别名隔离同名不同版本，不含FontFace句柄。"
+          :code $ quote $ defstruct FontSpec (:family 'String) (:fallback 'quamolit.scene-ir/FontFallback) (:version 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
         'GroupNode $ %{} 'CodeEntry
           :doc "|Group transform, clip and isolated opacity declaration."
           :code $ quote $ defstruct GroupNode (:transform 'quamolit.scene-ir/Matrix2D) (:clip 'quamolit.scene-ir/ClipSpec) (:opacity 'Number)
@@ -16214,7 +16426,7 @@
           :examples $ []
           :schema $ :: 'StructDef
         'TextNode $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct TextNode (:x 'Number) (:y 'Number) (:size 'Number) (:text 'String) (:fill 'quamolit.motion/ColorRgba)
+          :code $ quote $ defstruct TextNode (:x 'Number) (:y 'Number) (:size 'Number) (:text 'String) (:fill 'quamolit.motion/ColorRgba) (:font 'quamolit.scene-ir/FontSpec)
           :examples $ []
           :schema $ :: 'StructDef
         'conflicts-with-earlier? $ %{} 'CodeEntry
@@ -16248,6 +16460,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.scene-ir/SceneContent
+        'default-font $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn default-font ()
+            FontSpec :family | :fallback (FontFallback :monospace) :version 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/FontSpec)
+            :args $ []
         'empty-scene-nodes $ %{} 'CodeEntry (:doc "|Typed empty node prefix.")
           :code $ quote $ defn empty-scene-nodes () ([])
           :examples $ []
@@ -16268,6 +16486,25 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] $ :: 'List 'quamolit.scene-ir/SceneNode
+        'font-host-family $ %{} 'CodeEntry (:doc "|字体来源版本对应的宿主别名，加载和绘制共用；不含宿主状态，空family仍只用通用回退。")
+          :code $ quote $ defn font-host-family (font)
+            assert |invalid-font-spec $ valid-font? font
+            if
+              empty? $ :family font
+              , | $ str |QuamolitFont: (:version font) |: $ :family font
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.scene-ir/FontSpec
+          :tests $ [] $ %{} 'TestEntry (:name |font-source-version)
+            :code $ quote $ let
+                base $ default-font
+                font-a $ struct-with base (:family "|图表UI") (:version 1)
+                font-b $ struct-with font-a $ :version 2
+              assert |default-has-no-host-alias $ = (font-host-family base) |
+              assert |host-alias $ = (font-host-family font-a) "|QuamolitFont:1:图表UI"
+              assert |versions-isolated $ not= (font-host-family font-a) (font-host-family font-b)
+              , &unit
+            :tags $ #{} :font :scene
         'last-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn last-node (nodes)
             if
@@ -16452,6 +16689,7 @@
                   finite-number? $ :size text
                   > (:size text) 0
                   valid-color? $ :fill text
+                  valid-font? $ :font text
               (:image image)
                 let
                     source $ :source image
@@ -16511,6 +16749,37 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/CubicSegment
+        'valid-font? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn valid-font? (font)
+            let
+                family $ :family font
+                version $ :version font
+              and (finite-number? version) (>= version 0)
+                = version $ floor version
+                = family $ family .trim
+                every? (family .split |)
+                  fn (char)
+                    and
+                      >= (char .get-char-code) 32
+                      not= (char .get-char-code) 127
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/FontSpec
+          :tests $ [] $ %{} 'TestEntry (:name |font-contract)
+            :code $ quote $ let
+                base $ default-font
+              assert |default-font-valid $ valid-font? base
+              assert |unicode-family-valid $ valid-font? $ struct-with base (:family "|中文图表") (:version 2)
+              assert |reject-space-family $ not $ valid-font?
+                struct-with base $ :family "| bad "
+              assert |reject-control-family $ not $ valid-font?
+                struct-with base $ :family "|bad\tfont"
+              assert |reject-negative-version $ not $ valid-font?
+                struct-with base $ :version -1
+              assert |reject-fraction-version $ not $ valid-font?
+                struct-with base $ :version 0.5
+              , &unit
+            :tags $ #{} :font :scene
         'valid-node? $ %{} 'CodeEntry
           :doc "|Check local numeric, resource, binding and interaction invariants."
           :code $ quote $ defn valid-node? (node)

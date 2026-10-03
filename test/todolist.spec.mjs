@@ -1,5 +1,242 @@
 import { test, expect } from "@playwright/test";
 
+test("公共 Calcit 字体薄桥：真实加载、失败、过期拒绝与原生回退像素", async ({ page }) => {
+  await page.goto("/demos/index.html?demo=todolist&t=0");
+  const evidence = await page.evaluate(async () => {
+    const [font, scene, core, todo, canvas, resource, loadQueue] = await Promise.all([
+      import("/target/js/todolist/quamolit.font-resource.mjs"),
+      import("/target/js/todolist/quamolit.scene-ir.mjs"),
+      import("/target/js/todolist/calcit.core.mjs"),
+      import("/target/js/todolist/quamolit.examples.todolist.mjs"),
+      import("/target/js/todolist/quamolit.canvas-reference.mjs"),
+      import("/target/js/todolist/quamolit.resource-lifecycle.mjs"),
+      import("/target/js/todolist/quamolit.resource-load-queue.mjs"),
+    ]);
+    const tags = core.init_tags([
+      "font",
+      "family",
+      "version",
+      "face",
+      "queue",
+      "task",
+      "state",
+      "loaded",
+      "outcome",
+      "transition",
+      "actions",
+      "interactive",
+    ]);
+    const spec = scene.default_font().assoc(tags.family, "QuamolitFontFixture").assoc(tags.version, 1);
+    const identity = resource.resource(core._PCT__$o__$o_(resource.ResourceKind, tags.font), "ui-font", 1);
+    const begin = () => {
+      const state = resource.request_resource(resource.initial_state(identity), identity).get(tags.state);
+      const enqueued = loadQueue.enqueue_load(
+        loadQueue.initial_load_queue(1, 4),
+        1,
+        identity,
+        1,
+        core._PCT__$o__$o_(loadQueue.ResourceLoadPriority, tags.interactive),
+      );
+      const taken = loadQueue.take_load(enqueued.get(tags.queue));
+      return { state, queue: taken.get(tags.queue), task: core.option_$o_unwrap(taken.get(tags.task)) };
+    };
+    const source = "local('Arial'), local('Liberation Sans')";
+    const active = begin();
+    const queued = await font.run_font_load_task_$x_(spec, source, active.task);
+    const result = queued.get(tags.outcome);
+    const kind = core.to_js_data(result.get(0));
+    if (kind !== "ready") return { kind, error: result.get(1) };
+    const completed = font.complete_font_load(active.state, active.queue, queued);
+    const loaded = core.option_$o_unwrap(completed.get(tags.loaded)),
+      face = loaded.getRequired(tags.face);
+    const queueState = core.to_js_data(completed.get(tags.transition).get(tags.state)).phase[0];
+    const cancelled = begin();
+    const latePending = font.run_font_load_task_$x_(spec, source, cancelled.task);
+    cancelled.queue = loadQueue.cancel_resource_loads(cancelled.queue, identity);
+    const lateResult = await latePending;
+    const lateFace = lateResult.get(tags.outcome).get(1).getRequired(tags.face);
+    const ignored = font.complete_font_load(cancelled.state, cancelled.queue, lateResult);
+    const late = {
+      delivered: core.to_js_data(ignored.get(tags.loaded))[0],
+      installed: document.fonts.has(lateFace),
+      actions: core.to_js_data(ignored.get(tags.transition).get(tags.actions)),
+    };
+    const autoInstalled = document.fonts.has(face);
+    const stale = font.install_font_$x_(loaded, spec.assoc(tags.version, 2));
+    const afterStale = document.fonts.has(face);
+    font.install_font_$x_(loaded, spec);
+    let failure,
+      differences = 0,
+      fallbackDifferences = 0,
+      blankDifferences = 0;
+    try {
+      failure = await font.load_font_$x_(spec, "url(data:font/woff2;base64,AA==)");
+      const actual = document.createElement("canvas"),
+        reference = document.createElement("canvas");
+      actual.width = reference.width = 320;
+      actual.height = reference.height = 100;
+      const a = actual.getContext("2d"),
+        b = reference.getContext("2d");
+      a.translate(0, 50);
+      b.translate(0, 50);
+      const content = todo.text(20, "Chart UI / 2026", 24, todo.color(1, 0, 0, 1));
+      canvas.draw_text_$x_(a, content.get(1).assoc(tags.font, spec));
+      b.font = '24px "QuamolitFont:1:QuamolitFontFixture", monospace';
+      b.textBaseline = "middle";
+      b.fillStyle = "rgb(255,0,0)";
+      b.fillText("Chart UI / 2026", 20, 0);
+      const av = a.getImageData(0, 0, 320, 100).data,
+        bv = b.getImageData(0, 0, 320, 100).data;
+      for (let i = 0; i < av.length; i++) {
+        if (av[i] !== bv[i]) differences++;
+        if (bv[i] !== 0) blankDifferences++;
+      }
+      a.clearRect(0, -50, 320, 100);
+      b.clearRect(0, -50, 320, 100);
+      const missing = spec.assoc(tags.family, "QuamolitMissingFontFixtureNeverInstalled");
+      canvas.draw_text_$x_(a, content.get(1).assoc(tags.font, missing));
+      b.font = "24px monospace";
+      b.fillText("Chart UI / 2026", 20, 0);
+      const fallbackActual = a.getImageData(0, 0, 320, 100).data;
+      const fallbackReference = b.getImageData(0, 0, 320, 100).data;
+      for (let i = 0; i < fallbackActual.length; i++)
+        if (fallbackActual[i] !== fallbackReference[i]) fallbackDifferences++;
+    } finally {
+      font.release_font_$x_(loaded);
+    }
+    return {
+      kind,
+      autoInstalled,
+      stale,
+      afterStale,
+      status: face.status,
+      failure: core.to_js_data(failure),
+      differences,
+      fallbackDifferences,
+      blankDifferences,
+      retained: document.fonts.has(face),
+      repeatedRelease: font.release_font_$x_(loaded),
+      queueState,
+      late,
+    };
+  });
+  expect(evidence).toMatchObject({
+    kind: "ready",
+    status: "loaded",
+    autoInstalled: false,
+    stale: false,
+    afterStale: false,
+    differences: 0,
+    fallbackDifferences: 0,
+    retained: false,
+    repeatedRelease: false,
+    queueState: "ready",
+    late: { delivered: "none", installed: false, actions: [] },
+  });
+  expect(evidence.failure[0]).toBe("failed");
+  expect(evidence.failure[1].length).toBeGreaterThan(0);
+  expect(evidence.blankDifferences).toBeGreaterThan(0);
+});
+
+test("同名字体不同来源版本共存，安装顺序和释放旧版不改变新版字形", async ({ page }) => {
+  await page.goto("/demos/index.html?demo=todolist&t=0");
+  const evidence = await page.evaluate(async () => {
+    const [font, scene, core, todo, canvas] = await Promise.all([
+      import("/target/js/todolist/quamolit.font-resource.mjs"),
+      import("/target/js/todolist/quamolit.scene-ir.mjs"),
+      import("/target/js/todolist/calcit.core.mjs"),
+      import("/target/js/todolist/quamolit.examples.todolist.mjs"),
+      import("/target/js/todolist/quamolit.canvas-reference.mjs"),
+    ]);
+    const tags = core.init_tags(["family", "version", "font", "face"]);
+    const sources = ["local('Arial'), local('Liberation Sans')", "local('Courier New'), local('Liberation Mono')"];
+    const specs = [1, 2].map((version) =>
+      scene.default_font().assoc(tags.family, "QuamolitVersionFixture").assoc(tags.version, version),
+    );
+    const loaded = [];
+    const references = [];
+    const actual = document.createElement("canvas"),
+      reference = document.createElement("canvas");
+    actual.width = reference.width = 320;
+    actual.height = reference.height = 100;
+    const a = actual.getContext("2d"),
+      b = reference.getContext("2d");
+    const text = todo.text(20, "WWWWiiii2026", 24, todo.color(1, 0, 0, 1)).get(1);
+    const pixels = (index) => {
+      a.clearRect(0, 0, 320, 100);
+      b.clearRect(0, 0, 320, 100);
+      a.save();
+      a.translate(0, 50);
+      canvas.draw_text_$x_(a, text.assoc(tags.font, specs[index]));
+      a.restore();
+      b.font = `24px "QuamolitVersionReference${index}", monospace`;
+      b.textBaseline = "middle";
+      b.fillStyle = "rgb(255,0,0)";
+      b.fillText("WWWWiiii2026", 20, 50);
+      const av = Array.from(a.getImageData(0, 0, 320, 100).data);
+      const bv = b.getImageData(0, 0, 320, 100).data;
+      return { differences: av.filter((value, i) => value !== bv[i]).length, av };
+    };
+    try {
+      for (let i = 0; i < 2; i++) {
+        const result = await font.load_font_$x_(specs[i], sources[i]);
+        if (core.to_js_data(result.get(0)) !== "ready") throw Error(JSON.stringify(core.to_js_data(result)));
+        loaded.push(result.get(1));
+        const ref = await new FontFace(`QuamolitVersionReference${i}`, sources[i]).load();
+        references.push(ref);
+        document.fonts.add(ref);
+      }
+      // 旧选择方式的独立反例：FontFaceSet 不知道逻辑 version，后加入的同名字体会改变选择。
+      const collision = [];
+      for (const source of sources) {
+        const face = await new FontFace("QuamolitNativeCollision", source).load();
+        collision.push(face);
+        references.push(face);
+      }
+      b.font = '24px "QuamolitNativeCollision", monospace';
+      document.fonts.add(collision[0]);
+      const nativeBefore = b.measureText("WWWWiiii2026").width;
+      document.fonts.add(collision[1]);
+      const nativeBoth = b.measureText("WWWWiiii2026").width;
+      for (const item of collision) document.fonts.delete(item);
+      const checks = [];
+      let distinctPixels = 0;
+      for (const order of [
+        [0, 1],
+        [1, 0],
+      ]) {
+        for (const item of loaded) font.release_font_$x_(item);
+        for (const index of order) font.install_font_$x_(loaded[index], specs[index]);
+        const first = pixels(0),
+          second = pixels(1);
+        checks.push(first.differences, second.differences);
+        distinctPixels = first.av.filter((value, i) => value !== second.av[i]).length;
+        font.release_font_$x_(loaded[0]);
+        checks.push(pixels(1).differences);
+      }
+      return {
+        checks,
+        distinctPixels,
+        nativeCollision: nativeBefore !== nativeBoth,
+        families: loaded.map((item) => item.getRequired(tags.face).family),
+        newVersionInstalled: document.fonts.has(loaded[1].getRequired(tags.face)),
+      };
+    } finally {
+      for (const item of loaded) font.release_font_$x_(item);
+      for (const item of references) document.fonts.delete(item);
+    }
+  });
+  expect(evidence.checks).toEqual([0, 0, 0, 0, 0, 0]);
+  expect(evidence.distinctPixels).toBeGreaterThan(0);
+  expect(evidence.nativeCollision).toBe(true);
+  // FontFace.family 是 CSSOM 序列化结果，包含别名中的冒号时 Chromium 会加引号。
+  expect(evidence.families).toEqual([
+    '"QuamolitFont:1:QuamolitVersionFixture"',
+    '"QuamolitFont:2:QuamolitVersionFixture"',
+  ]);
+  expect(evidence.newVersionInstalled).toBe(true);
+});
+
 test("未来日志按 deadline 唤醒，暂停/卸载取消，resize 不推迟事件", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

@@ -230,6 +230,13 @@
       "replacement": null
     },
     {
+      "namespace": "quamolit.font-resource",
+      "status": "experimental",
+      "purpose": "显式字体加载、失败与按版本安装/释放；临时原生薄桥关联 js-ffi #158",
+      "doc": "docs/scene-ir-core.md",
+      "replacement": null
+    },
+    {
       "namespace": "quamolit.image-resource-runner",
       "status": "experimental",
       "purpose": "Canvas 图片异步加载执行器",

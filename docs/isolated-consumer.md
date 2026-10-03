@@ -27,6 +27,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 | 检验 | 本切片证据 |
 | --- | --- |
+| 字体 Calcit 消费 | 消费方 FontSpec / 中文文字声明 / transform / 资源修订；1000 移动帧共享文字节点，同时间版本变化计划构建1→2。真实 FontFace 不自动安装，过期版本拒绝，精确句柄释放且重复释放为false；中文五个乱序帧与独立原生全RGBA参考零差异，缺失首选字体走原生monospace回退。每个汉字非空且区别缺字字形；不是字体文件覆盖分析，也不是原生排版缓存证据。inline 不增加下游 npm 或原始 JS 文件请求，复用原安装/搬移门禁与artifact |
 | 声明与版本行为 | 消费者独立 Calcit 声明；时间 `[1,0,0.5,0.25,1]` 对应 x `[120,80,100,90,120]`；同时间 Model/资源/视口分别更新 y/颜色/宽度 |
 | 保留执行 | Node 连续 1000 帧，声明/计划构建各 1，绑定与变换采样分别 1001；静态矩形、局部折线与编译槽位身份不变；旧帧不受影响 |
 | 反例 | 刻意停止时间采样，合同必须失败；NaN/±Infinity 请求必须抛错 |
@@ -45,7 +46,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | 独立 10k 三路径 | 同一 Calcit 源驱动 Canvas / CPU→GPU / GPU 时间采样。Node 核对全部 CPU 坐标与 20000 个 GPU 参数；参数常驻的 1000 帧只写 uniform 16000 B，records/parameters 不上传，1 pipeline/3 buffers；非法数量、重复身份、精度域及伪造程序在上传前拒绝。页面复用已有 generation 恢复协议。硬件专项对 3 个索引 × 5 个乱序时间共读回 120 B，使用实际 WGSL、独立公式和既定 `1e-5+1e-5*abs(expected)`；两条 GPU 完整帧和 Canvas 整数端点零差异。Canvas 中间帧单列差异图/统计及 #144 待验收状态；无硬件单独 SKIP。未验收完整跨后端画质合同或正式性能 |
 | 真实 GPU 动态画面 | Apple/Metal-3 上独立消费者的像素对齐 10k 源，初始/补丁/同版本/跳版本位置上传为 80000/8/0/80000 B；四个时间点采样像素和终点整幅 320×180 RGBA 均与 Canvas 参考精确一致，差异图全零。headless 无 adapter 单独 SKIP |
 
-历史首次通过环境：Node 24.19.0、Calcit 0.22.0、Chromium 153.0.8010.12。当前切片使用 Calcit 0.28.0，搬移后的入口可达编译闭包29个模块；唯一npm直接依赖是Calcit runtime。不声称这是最小体积，namespace级依赖仍可能引入未使用的函数。
+当前切片使用 Calcit 0.28.0；搬移后的可达编译闭包按每次报告的 `modules` 列表核对，不沿用旧候选的数量。唯一 npm 直接依赖是 Calcit runtime。不声称这是最小体积，namespace 级依赖仍可能引入未使用的函数。
 
 当前 10k 独立源在 Apple/Metal-3、320×180/DPR 1：两条 GPU 路径 `[1,0,0.5,0.25,1]` 的整帧均为零差异；Canvas 的整数端点也是零差异。读回参考显式使用 `willReadFrequently: true`，避免不同读回顺序影响参考统计。t=0.5/0.25 相对该 Canvas 参考分别有 32299/31249 个差异像素，最大通道差 210/205、平均通道差 12.8672/14.2957（0–255），非白覆盖像素差 -9772/-7599。这不是 sampler 数值失败，也不是可忽略的 1 LSB；中间帧仍按 #144 等待合同决策，不设新容差。`independent-frame-<序号>-{scalarPng,cpuGpuPng,canvasPng,diffPng}.png` 与全部统计复用同一忽略报告/CI artifact。
 

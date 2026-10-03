@@ -23,4 +23,4 @@
 
 `yarn test:presence-resources` 覆盖三种资源种类的优先级、FIFO、去重提升、pending 背压、运行中替换、显式取消、device 切换、accepted 安装和 discarded 孤儿清理。`yarn test:folding-fan` 另验证同一队列驱动真实 Canvas 图片解码、失败、尺寸不符、runtime generation 取消和 100 次装卸。`yarn test:webgpu-instances` 再验证 texture 上传、迟到销毁、两代 device 像素读回与 100 次 rebuild。
 
-当前实际 loader 包括 Presence buffer、Canvas `ImageHost` 和 WebGPU texture。font/glyph、geometry 与 pipeline 仍需类型化描述和宿主创建器；已提交 GPU 工作的 fence-safe 释放仍需 `queue.onSubmittedWorkDone` 或等价策略。队列不冒充这些能力已经完成。
+当前实际 loader 包括 Presence buffer、Canvas `ImageHost`、WebGPU texture，以及[字体任务切片](scene-ir-core.md#文字基础语义)。字体加载/完成复用同一队列和资源状态，接受结果后由消费方显式安装、释放与提升Scene修订；未完成长期字体缓存/共享registry，glyph、geometry与pipeline仍需宿主创建器。已提交 GPU 工作的 fence-safe 释放仍需 `queue.onSubmittedWorkDone` 或等价策略。队列不冒充这些能力已经完成。

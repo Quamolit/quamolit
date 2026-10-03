@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createServer } from "vite";
 import { chromium } from "@playwright/test";
-import { verifyConsumer } from "./consumer-contract.mjs";
+import { verifyConsumer, verifyFontConsumer, verifyFontConsumerBrowser } from "./consumer-contract.mjs";
 import { verifyInstancesConsumer } from "./consumer-instances-contract.mjs";
 import { verifyPresenceConsumer } from "./consumer-presence-contract.mjs";
 import { verifyRecoveryConsumer } from "./consumer-recovery-contract.mjs";
@@ -41,6 +41,7 @@ for (const name of [
   "examples/retained-consumer/instances-input.mjs",
   "examples/retained-consumer/index.html",
   "test/isolated-consumer.mjs",
+  "test/consumer-contract.mjs",
   "test/consumer-gpu-contract.mjs",
   "test/consumer-gpu-browser.mjs",
   "test/consumer-instances-contract.mjs",
@@ -141,6 +142,12 @@ try {
   const app = await import(moduleUrl("app.main.mjs")),
     core = await import(moduleUrl("calcit.core.mjs"));
   const counts = verifyConsumer(app, core);
+  const fontCounts = verifyFontConsumer(app, core);
+  assert.throws(
+    () => verifyFontConsumer({ ...app, update_font: (plan) => plan }, core),
+    /AssertionError/,
+    "反例：停掉字体文字时间/资源更新必须失败",
+  );
   const instancesCounts = verifyInstancesConsumer(app, core);
   const presenceCounts = verifyPresenceConsumer(app, core);
   const recoveryCounts = verifyRecoveryConsumer(app, core);
@@ -204,6 +211,9 @@ try {
   page.on("request", (request) => requests.push(request.url()));
   await page.goto(`${url}?fixture=1`);
   await page.waitForFunction(() => window.consumer);
+  const fontBrowser = await verifyFontConsumerBrowser(page, artifacts);
+  await page.locator("#consumer-font-evidence").screenshot({ path: join(artifacts, "font-chinese-fallback.png") });
+  await page.evaluate(() => document.querySelector("#consumer-font-evidence").remove());
   for (const [time, x] of [
     [1, 120],
     [0, 80],
@@ -491,6 +501,8 @@ try {
     resolvedModule,
     modules: [...modules].sort(),
     counts,
+    fontCounts,
+    fontBrowser,
     instancesCounts,
     independentInstances: {
       frames: independentFrames,

@@ -157,6 +157,23 @@
           :schema $ :: 'Fn $ {}
             :return 'quamolit.retained-component/ExecutionDeclaration
             :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'declare-font $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-font (props model input spec viewport)
+            retained/ExecutionDeclaration :component
+              component/ComponentDeclaration :scene
+                scene/SceneDocument :nodes $ [] $ scene/SceneNode :id |font-label :parent | :key |font-label :interaction (scene/SceneInteraction :none) :bindings ([]) :content
+                  scene/SceneContent :text $ scene/TextNode :x 20 :y 50 :size 24 :text "|图表收入" :fill
+                    motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+                    , :font spec
+                , :motions $ []
+              , :transforms $ retained/TransformSampler :cpu $ fn (time)
+                [] $ scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e
+                  * 40 $ if (<= time 0) 0 $ if (>= time 1) 1 time
+                  , :f 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.retained-component/ExecutionDeclaration
+            :args $ [] 'Number 'Number 'Number 'quamolit.scene-ir/FontSpec 'Number
         'declare-mirror $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-mirror (props model input ready viewport)
             assoc (declare props model input ready viewport) :motions $ [] $ motion/ScalarDescriptor :id |x :version 1 :motion
@@ -222,6 +239,21 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/InstanceResourcePlan)
             :args $ []
+        'font-request $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn font-request (time spec)
+            component/ComponentRequest :id |consumer-font :time time :versions
+              direct/FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources (:version spec) :viewport 0
+              , :props 0 :model 0 :input 0 :resources spec :viewport 320
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'quamolit.scene-ir/FontSpec
+            :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'Number 'Number 'quamolit.scene-ir/FontSpec 'Number
+        'font-spec $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn font-spec (family version)
+            scene/FontSpec :family family :version version :fallback $ scene/FontFallback :monospace
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/FontSpec)
+            :args $ [] 'String 'Number
         'gpu-recovery-close $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-close (state) (recovery/close-recovery state)
           :examples $ []
@@ -317,6 +349,12 @@
           :schema $ :: 'Fn $ {}
             :args $ [] (:: 'List 'quamolit.motion/Vec2Descriptor) 'Number
             :return $ :: 'List 'Number
+        'install-font! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn install-font! (loaded spec) (font/install-font! loaded spec)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.font-resource/LoadedFont 'quamolit.scene-ir/FontSpec
+            :features $ #{} :js-ffi
         'install-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-gpu! (host program) (gpu/install-program! host program)
           :examples $ []
@@ -354,6 +392,27 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.instance-resource/InstanceTableHost
+            :features $ #{} :js-ffi
+        'load-font! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn load-font! (spec source)
+            hint-fn $ {} (:async true)
+              :args $ [] 'quamolit.scene-ir/FontSpec 'String
+              :return 'quamolit.font-resource/FontLoadOutcome
+              :features $ #{} :js-ffi
+            let
+                resource-id $ lifecycle/resource (lifecycle/ResourceKind :font) |consumer-font $ :version spec
+                state $ :state $ lifecycle/request-resource (lifecycle/initial-state resource-id) resource-id
+                enqueued $ load-queue/enqueue-load (load-queue/initial-load-queue 1 4) 1 resource-id (:generation state) (load-queue/ResourceLoadPriority :interactive)
+                taken $ load-queue/take-load $ :queue enqueued
+                task $ -> (:task taken) .unwrap
+                result $ js-await $ font/run-font-load-task! spec source task
+                completed $ font/complete-font-load state (:queue taken) result
+              match (:loaded completed)
+                (:some loaded) (font/FontLoadOutcome :ready loaded)
+                (:none) (:outcome result)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.font-resource/FontLoadOutcome)
+            :args $ [] 'quamolit.scene-ir/FontSpec 'String
             :features $ #{} :js-ffi
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () &unit
@@ -471,6 +530,12 @@
           :schema $ :: 'Fn $ {} (:return 'js-ffi.typed-arrays/Float32ArrayHost)
             :args $ [] 'quamolit.instance-resource/InstanceTableHost 'Number 'js-ffi.typed-arrays/Float32ArrayHost
             :features $ #{} :js-ffi
+        'release-font! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-font! (loaded) (font/release-font! loaded)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.font-resource/LoadedFont
+            :features $ #{} :js-ffi
         'release-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-instances! (table version)
             resource/release! table $ :source $ instances-for-version version
@@ -541,6 +606,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'start-font $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-font (time spec)
+            retained/build-execution-plan (font-request time spec) declare-font
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number 'quamolit.scene-ir/FontSpec
         'start-mirror $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-mirror (time model ready viewport)
             retained/build-component-plan (request time model ready viewport) declare-mirror
@@ -577,6 +648,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+        'update-font $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-font (plan time spec)
+            retained/update-execution-plan plan (font-request time spec) declare-font
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'quamolit.scene-ir/FontSpec
         'update-mirror $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-mirror (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare-mirror
@@ -597,4 +674,4 @@
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.main
-          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery)
+          :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as lifecycle) (quamolit.resource-load-queue :as load-queue)

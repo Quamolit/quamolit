@@ -20,7 +20,15 @@ Scene 标量绑定已有 [CPU 参考解析器](scene-binding.md)。实例 typed-
 
 以下扩展修订上方初始切片的支持集：当前还包括开放折线、闭合多边形、原生三次贝塞尔路径、原生圆体、基础单行文字和图片；矩形、折线、文字均允许叶节点 `:alpha` 标量绑定（乘原颜色 alpha），不是组隔离透明度。`canvas-reference` 参考入口绘制顶层 rect/polyline/polygon/cubic-path/circle/text；图片须调用单独的 `canvas-images/draw-document!`，group、instances、子节点仍明确拒绝。
 
-`SceneContent :text` 保存 `TextNode { x, y, size, text, fill }`，字号必须有限且大于零。位置、字号、内容是几何签名，颜色是属性签名；没有字体资源引用。支持 monospace、左对齐、中线绘制，尚无 shaping、字体加载或 GPU 字形缓存。实现与验证见 [TodoList 恢复](todolist-restoration.md)。
+`SceneContent :text` 保存 `TextNode { x, y, size, text, fill, font }`，字号必须有限且大于零。位置、字号、内容是几何签名，颜色是属性签名；`FontSpec { family, fallback, version }` 进入资源签名。family 是单个命名字体，不是完整 CSS font shorthand；空串只使用 `FontFallback :monospace/:sans-serif/:serif`。非空名称由 Calcit 引用并转义，拒绝首尾空白/控制字符；version 是有限非负整数，标识字体来源/字形版本。同时间字体可用性变化须更新组件资源修订，不能仅靠 time 相等复用旧布局，也不应随意改变已经加载的字体版本。TextNode 仍是实验接口：已有10个示例构造点迁移到 `scene/default-font`，下游新增构造也需显式传 `:font`。默认画面保持 monospace、左对齐、中线绘制；尚无 shaping、布局缓存或 GPU 字形缓存。实现与验证见 [TodoList 恢复](todolist-restoration.md)。
+
+`quamolit.font-resource` 提供显式 `load-font!(spec, source)`，返回 `FontLoadOutcome :ready LoadedFont / :failed String`。它只加载，不自动安装、绘制或修改Model；构造异常及Promise拒绝统一在Calcit处理。`install-font!(loaded, expected-spec)` 只安装与当前请求描述完全一致的结果，过期版本返回false且不访问document.fonts；`release-font!` 删除确切FontFace，重复删除返回false，不按family误删新版本。调用方先核对当前请求再安装，随后更新供Scene采样的可用性修订并触发重绘；资源队列/generation、Model和释放仍由调用方显式管理，不声称已接通一般字体资源缓存。
+
+加载和绘制共用纯 Calcit `scene/font-host-family` 生成的版本化宿主别名。字体来源/字形改变须提升 `FontSpec.version`，同一 family/version 必须对应同一来源；仅 loading→ready 时提升组件资源修订，保持加载与 Scene 的字体版本一致。Canvas 按“版本别名 → 原生 family → 通用 fallback”选择，不要求先加载系统字体；默认空 family 仍只有 monospace 等通用回退。别名属于实现细节，下游不自行构造 CSS 或访问 FontFace.family。否则同名字体即使逻辑版本不同，原生 FontFaceSet 仍无法按 version 选字形。既有浏览器门禁用两种不同字体来源验证双版本同时安装、两种安装顺序和释放旧版本后的新版全 RGBA 参考；共享缓存接入前必须保持这些语义。宿主 family 使用 `QuamolitFont:` 保留前缀，应用不要将它作为自定义原生字体名。
+
+队列接入复用 `ResourceLoadQueue` 与 `ResourceState`：`run-font-load-task!(spec,source,task)` 核对 font kind/版本并返回完整任务身份，`complete-font-load(state,queue,result)` 先结算token，再核对当前identity/generation/loading。仅两道检查通过才交付 `Option :some LoadedFont` 与既有install/wake-frame动作；失败返回资源error，取消、运行时generation替换、资源关闭/换版与unknown结果返回none，既不安装也不复活状态。消费方按动作安装/释放并更新Scene资源修订；结算函数纯Calcit，不含DOM调用。未安装FontFace没有destroy方法，丢弃意味着不交付长期引用，不冒充物理内存立即释放。重复完成不重复交付；token匹配但完整任务被伪造时拒绝。现有Node宿主替身覆盖这些竞态与100次显式装卸，真实Chromium另验证取消中的原生加载结果不安装。独立消费者的加载封装也由自身Calcit构造队列/资源请求并消费completion，不要求调用方写JS loader。长期缓存、共享引用与registry自动执行仍未完成；没有另建字体任务队列或宿主资源表。
+
+新增namespace用于隔离异步字体宿主与纯Scene/绘制模块，不能放入image runner或绘制循环。两个原生:inline仅创建/加载FontFace和读取document.fonts；临时类型化Trait关联[js-ffi #158](https://github.com/calcit-lang/js-ffi/issues/158)，上游交付后替换并删除局部平台声明。下游只引用Calcit模块，不手工导入JS。既有TodoList门禁增加纯FontSpec校验、Node失败/过期/释放合同，以及真实Chromium本地Arial/Liberation Sans加载、损坏字体失败、缺失首选字体回退和全RGBA原生参考。独立消费者另声明“图表收入”，沿现有组件/transform链路验证乱序时间、1000次移动共享文字节点、同时间字体修订重声明，以及本地CJK加载、构造失败、过期安装拒绝、原生回退、非空与缺字字形差异；固定帧进入原消费者artifact。macOS用实际PostScript名PingFangSC-Regular，Linux依赖既有Playwright安装的WenQuanYi Zen Hei，缺失时失败不跳过。字形诊断验证浏览器最终绘制不是缺字，不等于解析字体文件证明全部字符覆盖。Node替身不算浏览器字体证据；精确文字命中、共享registry字体宿主与仅移动时不重排的原生布局/字形缓存计数仍未完成，旧monospace近似命中不能外推命名字体。
 
 ## #53 路径前置：正式开放折线
 
