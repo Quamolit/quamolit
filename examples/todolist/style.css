@@ -5,3 +5,4 @@
 #message { color: #efb784; min-height: 1.5em; margin: 6px 0; }
 .import { display: block; font-size: 13px; }
 .import input { font: inherit; max-width: 240px; }
+#list-viewport[hidden] { display: none; }

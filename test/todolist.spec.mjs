@@ -434,6 +434,8 @@ for (const dpr of [1, 2])
       const page = await context.newPage();
       await ready(page, 1);
       await page.locator("#live").click();
+      await expect(page.locator("#list-viewport")).toHaveAttribute("hidden", "");
+      await expect(page.locator("#list-viewport")).toHaveCSS("display", "none");
       await page.locator("#panel-toggle").click();
       const before = await page.evaluate(() => window.todoDemo.snapshot());
       expect(before.hitCandidates).toBe(3);
@@ -499,6 +501,153 @@ for (const dpr of [1, 2])
         await page.locator("#panel-toggle").click();
         expect((await page.evaluate(() => window.todoDemo.snapshot())).events).toEqual(original.events);
       }
+    } finally {
+      await context.close();
+    }
+  });
+
+for (const dpr of [1, 2])
+  test(`窄屏 DPR ${dpr}：18px 文字、44px 操作、原生参考与长列表视窗`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      deviceScaleFactor: dpr,
+      hasTouch: true,
+    });
+    try {
+      const page = await context.newPage();
+      await ready(page, 1);
+      await page.locator("#live").click();
+      await page.locator("#panel-toggle").click();
+      const original = await page.evaluate(() => window.todoDemo.snapshot());
+      expect(original.compact).toBe(true);
+      expect(original.scrollLimit).toBe(0);
+      await expect(page.locator("#list-viewport")).toHaveAttribute("hidden", "");
+      await expect(page.locator("#list-viewport")).toHaveCSS("display", "none");
+      expect(original.view.scale).toBe(dpr);
+      const pixels = await page.evaluate(() => {
+        const s = window.todoDemo.snapshot(),
+          canvas = document.querySelector("canvas");
+        const layer = new OffscreenCanvas(canvas.width, canvas.height),
+          c = layer.getContext("2d");
+        const ratio = devicePixelRatio,
+          cssWidth = canvas.width / ratio;
+        c.setTransform(ratio, 0, 0, ratio, canvas.width / 2, 0);
+        c.beginPath();
+        c.rect(-cssWidth / 2, 0, cssWidth, canvas.height / ratio);
+        c.clip();
+        const color = (value) =>
+          `rgba(${Math.round(value.r * 255)},${Math.round(value.g * 255)},${Math.round(value.b * 255)},${value.a})`;
+        const half = (cssWidth - 24) / 2;
+        for (let index = 0; index < s.scene.nodes.length; index++) {
+          if (!s.scene.nodes[index].id.endsWith("/card")) continue;
+          const source = s.scene.nodes.slice(index, index + 6),
+            matrix = s.transforms[index];
+          c.save();
+          c.translate(matrix.e, 116 + ((matrix.f + 160) * 132) / 64 - s.scroll);
+          c.fillStyle = color(source[0].content[1].fill);
+          c.fillRect(-half, -46, half * 2, 112);
+          for (const offset of [1, 2]) {
+            c.fillStyle = color(source[offset].content[1].fill);
+            c.fillRect(-half + 12, 25, source[offset].content[1].width, 28);
+          }
+          c.textAlign = "left";
+          c.textBaseline = "middle";
+          c.direction = "ltr";
+          const label = source[3].content[1],
+            cut = Math.min(Math.floor((cssWidth - 48) / 18), label.text.length);
+          c.font = "18px monospace";
+          c.fillStyle = color(label.fill);
+          c.fillText(label.text.slice(0, cut), -half + 12, -26);
+          c.fillText(label.text.slice(cut), -half + 12, -3);
+          c.font = "24px monospace";
+          c.fillStyle = color(source[4].content[1].fill);
+          c.fillText("↑", half - 104, 39);
+          c.font = "26px monospace";
+          c.fillStyle = color(source[5].content[1].fill);
+          c.fillText("×", half - 48, 39);
+          c.restore();
+        }
+        const expected = document.createElement("canvas");
+        expected.width = canvas.width;
+        expected.height = canvas.height;
+        expected.getContext("2d").drawImage(layer, 0, 0);
+        const a = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+        const b = expected.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+        let differences = 0,
+          covered = 0;
+        for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) differences++;
+        for (let i = 3; i < a.length; i += 4) if (a[i]) covered++;
+        expected.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+        expected.getContext("2d").drawImage(layer, 1, 0);
+        const wrong = expected.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+        let shiftedDifferences = 0;
+        for (let i = 0; i < a.length; i++) if (a[i] !== wrong[i]) shiftedDifferences++;
+        return { differences, covered, shiftedDifferences };
+      });
+      expect(pixels.differences).toBe(0);
+      expect(pixels.covered).toBeGreaterThan(0);
+      expect(pixels.shiftedDifferences).toBeGreaterThan(0);
+      const buttons = original.presentation.nodes.filter((n) => n.id.includes("/tap-") && !n.id.endsWith("tap-edit"));
+      expect(buttons).toHaveLength(9);
+      expect(buttons.every((n) => n.content[1].width === 44 && n.content[1].height === 44)).toBe(true);
+      await page.touchscreen.tap(46, 155);
+      await page.evaluate(() => window.todoDemo.pause());
+      expect((await page.evaluate(() => window.todoDemo.snapshot())).model.rows.find((r) => r.id === "3").done).toBe(
+        true,
+      );
+      await page.evaluate(() => {
+        const s = window.todoDemo;
+        s.send("edit", "3", "中文长内容验证保持完整二十八字符和操作区域正常可用");
+        s.pause();
+        for (let i = 0; i < 15; i++) {
+          s.send("add", "", `Long English item number ${i}`);
+          s.pause();
+        }
+        s.seek(10);
+      });
+      const long = await page.evaluate(() => window.todoDemo.snapshot());
+      expect(long.scrollLimit).toBeGreaterThan(0);
+      await expect(page.locator("#list-viewport")).not.toHaveAttribute("hidden", "");
+      await expect(page.locator("#list-viewport")).toHaveCSS("display", "grid");
+      for (const row of long.model.rows) {
+        const first = long.presentation.nodes.find((n) => n.id.endsWith(`/${row.id}/edit`));
+        const second = long.presentation.nodes.find((n) => n.id.endsWith(`/${row.id}/edit/line-2`));
+        expect(first.content[1].text + second.content[1].text).toBe(row.text);
+      }
+      const scrolled = await page.evaluate(() => window.todoDemo.setScroll(100000));
+      expect(scrolled.scroll).toBe(scrolled.scrollLimit);
+      expect(scrolled.model).toEqual(long.model);
+      expect(scrolled.time).toBe(long.time);
+      const rejected = await page.evaluate(() => {
+        const before = window.todoDemo.snapshot();
+        const failures = [];
+        for (const value of [NaN, Infinity, -Infinity]) {
+          try {
+            window.todoDemo.setScroll(value);
+          } catch (error) {
+            failures.push(error.message);
+          }
+        }
+        return { before, after: window.todoDemo.snapshot(), failures };
+      });
+      expect(rejected.failures).toHaveLength(3);
+      expect(rejected.after).toEqual(rejected.before);
+      await page.screenshot({ path: testInfo.outputPath(`compact-list-dpr${dpr}.png`) });
+      // 独立布局公式：末行下边缘182，完成按钮中心155，滚到末尾后中心应在height-27。
+      const lastRow = long.model.rows.at(-1);
+      await page.touchscreen.tap(46, 844 - 27);
+      await page.evaluate(() => window.todoDemo.pause());
+      const tapped = await page.evaluate(() => window.todoDemo.snapshot());
+      expect(tapped.model.rows.find((row) => row.id === lastRow.id).done).toBe(!lastRow.done);
+      expect(tapped.events).toHaveLength(long.events.length + 1);
+      await page.setViewportSize({ width: 320, height: 640 });
+      await expect.poll(() => page.evaluate(() => window.todoDemo.snapshot().width)).toBe(320 * dpr);
+      expect((await page.evaluate(() => window.todoDemo.snapshot())).model).toEqual(tapped.model);
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await expect.poll(() => page.evaluate(() => window.todoDemo.snapshot().compact)).toBe(false);
+      expect((await page.evaluate(() => window.todoDemo.snapshot())).model).toEqual(tapped.model);
+      await expect(page.locator("#list-viewport")).toHaveAttribute("hidden", "");
+      await expect(page.locator("#list-viewport")).toHaveCSS("display", "none");
     } finally {
       await context.close();
     }

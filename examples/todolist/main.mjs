@@ -9,7 +9,9 @@ const canvas = document.querySelector("#scene"), ctx = canvas.getContext("2d");
 const panel = document.querySelector("#panel"), toggle = document.querySelector("#panel-toggle");
 const status = document.querySelector("#status"), message = document.querySelector("#message"), slider = document.querySelector("#time");
 const play = document.querySelector("#play"), draft = document.querySelector("#draft");
-let log = todo.demo_log(), session = todo.initial_session(), plan, interactionPlan, time = 0;
+let log = todo.demo_log(), session = todo.initial_session(), plan, interactionPlan, compactScene, time = 0;
+let compact = false, scroll = 0, scrollLimit = 0;
+const scrollControl = document.querySelector("#list-scroll");
 let playing = false, disposed = false, anchor = 0, started = 0, paints = 0, editId = "";
 const scheduler = new DemandFrameScheduler({
   requestFrame: callback => requestAnimationFrame(callback),
@@ -27,17 +29,30 @@ const data = () => { const value=model(); if(value!==cachedModel){cachedModel=va
 function draw() {
   if (disposed || !plan) return;
   // 命中由本次实际采样的 Scene/变换生成，与绘制一起提交；事件不重建动画声明。
-  interactionPlan = todo.hit_plan(plan);
   const bounds = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   const width = Math.max(1, Math.round(bounds.width*dpr)), height = Math.max(1, Math.round(bounds.height*dpr));
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
-  // 8 行以内固定构图；更长列表适配为全景，不改变 Calcit 逻辑坐标。
+  compact = bounds.width < 720;
+  scrollLimit = compact ? todo.compact_scroll_limit(plan, bounds.height) : 0;
+  scroll = Math.max(0,Math.min(scroll,scrollLimit));
+  scrollControl.max = String(scrollLimit); scrollControl.value = String(scroll);
+  document.querySelector("#list-viewport").hidden = !compact || scrollLimit === 0;
+  // 桌面保留历史构图；窄屏使用 CSS px 的 Calcit 布局，backing store 仍按 DPR。
   const count = data().rows.length, stageHeight = Math.max(760, count*64+240);
   view = {scale:Math.min(width/900,height/stageHeight), x:width/2, y:height/2};
   view.y -= Math.max(0,(count-6)*32)*view.scale;
   ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,width,height);
-  ctx.setTransform(view.scale,0,0,view.scale,view.x,view.y);
-  draw_plan_$x_(ctx,plan); paints++;
+  if (compact) {
+    view = {scale:dpr,x:width/2,y:0};
+    compactScene = todo.compact_document(plan,Math.max(300,bounds.width),scroll);
+    interactionPlan = todo.compact_hit_plan(compactScene);
+    todo.draw_compact_$x_(ctx,compactScene,width,height,dpr);
+  } else {
+    compactScene = null; interactionPlan = todo.hit_plan(plan);
+    ctx.setTransform(view.scale,0,0,view.scale,view.x,view.y);
+    draw_plan_$x_(ctx,plan);
+  }
+  paints++;
   slider.max = String(Math.max(5,time)); slider.value = String(time);
   const snapshot = data();
   status.textContent = `t = ${time.toFixed(2)} s · ${playing ? "播放" : "暂停"}\n${snapshot.rows.filter(r=>r.present).length} 行 / ${snapshot.rows.length} 保留行\n计划构建 ${plan.get(tags["plan-builds"])} · 绘制 ${paints}\n逻辑释放 ${snapshot.released} · 日志 ${to_js_data(log).length} 条`;
@@ -85,7 +100,7 @@ function send(kind,id="",label="") {
 }
 function safely(action) { try { message.textContent = ""; return action(); } catch(error) { stop(); message.textContent = error.message; } }
 function snapshot() {
-  return {time,playing,paints,pending:scheduler.pending,waiting:scheduler.waiting,disposed,model:data(),events:to_js_data(log),scene:to_js_data(plan.get(tags.scene)),transforms:to_js_data(plan.get(tags.transforms)),hitCandidates:to_js_data(interactionPlan).candidates.length,builds:plan.get(tags["plan-builds"]),width:canvas.width,height:canvas.height,view:{...view}};
+  return {time,playing,paints,pending:scheduler.pending,waiting:scheduler.waiting,disposed,model:data(),events:to_js_data(log),scene:to_js_data(plan.get(tags.scene)),presentation:compactScene?to_js_data(compactScene):null,compact,scroll,scrollLimit,transforms:to_js_data(plan.get(tags.transforms)),hitCandidates:to_js_data(interactionPlan).candidates.length,builds:plan.get(tags["plan-builds"]),width:canvas.width,height:canvas.height,view:{...view}};
 }
 document.querySelector("#entry-form").onsubmit = event => { event.preventDefault(); safely(()=>{send(editId?"edit":"add",editId,draft.value);cancelEdit();draft.value="";}); };
 document.querySelector("#cancel-edit").onclick = cancelEdit;
@@ -99,11 +114,18 @@ canvas.onclick=event=>safely(()=>{
   const bounds=canvas.getBoundingClientRect();
   const x=((event.clientX-bounds.left)*canvas.width/bounds.width-view.x)/view.scale;
   const y=((event.clientY-bounds.top)*canvas.height/bounds.height-view.y)/view.scale;
-  const hit=to_js_data(todo.hit_with_plan(model(),interactionPlan,x,y));
+  const hit=to_js_data(compact?todo.hit_compact_with_plan(model(),interactionPlan,x,y):todo.hit_with_plan(model(),interactionPlan,x,y));
   if (!hit.id) return;
   if(hit.action==="edit") {stop();editId=hit.id;draft.value=hit.text;panel.hidden=false;toggle.setAttribute("aria-expanded","true");toggle.textContent="收起面板";document.querySelector("#submit").textContent="保存";document.querySelector("#cancel-edit").hidden=false;draft.focus();}
   else send(hit.action,hit.id);
 });
+function setScroll(value) {
+  const next=Number(value);
+  if(!Number.isFinite(next))throw new RangeError("列表视窗位置必须是有限数值");
+  scroll=Math.max(0,Math.min(next,scrollLimit)); draw(); return snapshot();
+}
+scrollControl.oninput=()=>safely(()=>setScroll(scrollControl.value));
+canvas.onwheel=event=>{if(compact&&scrollLimit>0){event.preventDefault();safely(()=>setScroll(scroll+event.deltaY));}};
 toggle.onclick=()=>{panel.hidden=!panel.hidden;toggle.setAttribute("aria-expanded",String(!panel.hidden));toggle.textContent=panel.hidden?"展开面板":"收起面板";};
 document.querySelector("#export").onclick=()=>{
   const blob=new Blob([JSON.stringify({version:1,events:to_js_data(log)},null,2)],{type:"application/json"});
@@ -131,11 +153,11 @@ watchDpr();
 const listeners = new AbortController();
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stop();},{signal:listeners.signal});
 window.addEventListener("pagehide",stop,{signal:listeners.signal});
-const api={seek,snapshot,send,pause:stop,play:start,importEvents};
+const api={seek,snapshot,send,pause:stop,play:start,importEvents,setScroll};
 window.todoDemo=api;
 const params=new URLSearchParams(location.search),requested=Number(params.get("t")||0);
 sample(Number.isFinite(requested)&&requested>=0?requested:0,true);
 if(!params.has("t")&&!matchMedia("(prefers-reduced-motion: reduce)").matches)start();
-return ()=>{disposed=true;stop();scheduler.dispose();canvas.onclick=null;listeners.abort();observer.disconnect();resolution?.removeEventListener("change",watchDpr);if(window.todoDemo===api)delete window.todoDemo;};
+return ()=>{disposed=true;stop();scheduler.dispose();canvas.onclick=null;canvas.onwheel=null;scrollControl.oninput=null;listeners.abort();observer.disconnect();resolution?.removeEventListener("change",watchDpr);if(window.todoDemo===api)delete window.todoDemo;};
 }
 if(location.pathname.endsWith("/examples/todolist/index.html"))mountDemo();

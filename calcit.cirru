@@ -6364,6 +6364,159 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Model)
             :args $ [] 'quamolit.examples.todolist/Model (:: 'List 'quamolit.examples.todolist/Row) 'Number
+        'compact-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-document (plan width scroll)
+            assert |invalid-todo-compact-width $ and (motion/finite-number? width) (>= width 300)
+            assert |invalid-todo-compact-scroll $ and (motion/finite-number? scroll) (>= scroll 0)
+            let
+                nodes $ :nodes $ :scene plan
+              assert |invalid-todo-compact-transforms $ = (count nodes)
+                count $ :transforms plan
+              scene/SceneDocument :nodes $ foldl
+                range $ count nodes
+                scene/empty-scene-nodes
+                fn (out index)
+                  hint-fn $ {}
+                    :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) 'Number
+                    :return $ :: 'List 'quamolit.scene-ir/SceneNode
+                  if
+                    ends-with?
+                      :id $ &list:nth nodes index
+                      , |/card
+                    concat out $ compact-row plan index width scroll
+                    , out
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number
+        'compact-hit-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-hit-plan (document) (hit/compile-hit-plan document)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'quamolit.scene-ir/SceneDocument
+        'compact-row $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-row (plan index width scroll)
+            let
+                nodes $ :nodes $ :scene plan
+                card $ &list:nth nodes index
+                matrix $ &list:nth (:transforms plan) index
+                group $ str |compact/ $ :id card
+                half $ / (- width 24) 2
+                original-label $ &list:nth nodes $ + index 3
+                label $ match (:content original-label)
+                  (:text glyph) glyph
+                  _ $ raise |invalid-todo-compact-label
+                capacity $ floor $ / (- width 48) 18
+                cut-count $ if
+                  < capacity $ count $ :text label
+                  , capacity $ count (:text label)
+                alpha $ match (:content card)
+                  (:rect body)
+                    :a $ :fill body
+                  _ $ raise |invalid-todo-compact-card
+                enabled? $ and (> alpha 0)
+                  match (:interaction card)
+                    (:target target) true
+                    _ false
+                logical-target $ match (:interaction card)
+                  (:target target) target
+                  _ |
+                projected $ map ([] 0 1 2 3 4 5)
+                  fn (offset)
+                    let
+                        source $ &list:nth nodes $ + index offset
+                        content $ match (:content source)
+                          (:rect body)
+                            scene/SceneContent :rect $ if (= offset 0)
+                              struct-with body
+                                :x $ negate half
+                                :y -46
+                                :width $ * half 2
+                                :height 112
+                              struct-with body
+                                :x $ + (negate half) 12
+                                :y 25
+                          (:text glyph)
+                            scene/SceneContent :text $ cond
+                                = offset 3
+                                struct-with glyph
+                                  :x $ + (negate half) 12
+                                  :y -26
+                                  :size 18
+                                  :text $ slice (:text glyph) 0 cut-count
+                              (= offset 4)
+                                struct-with glyph
+                                  :x $ - half 104
+                                  :y 39
+                                  :size 24
+                              true $ struct-with glyph
+                                :x $ - half 48
+                                :y 39
+                                :size 26
+                          _ $ raise |unsupported-todo-compact-content
+                      struct-with source (:parent group) (:content content)
+                        :bindings $ []
+                        :interaction $ scene/SceneInteraction :none
+                targets $ map ([] |toggle |edit |front |remove)
+                  fn (action)
+                    let
+                        id $ str (:id card) |/tap- action
+                        x $ cond
+                            = action |toggle
+                            + (negate half) 4
+                          (= action |edit)
+                            + (negate half) 4
+                          (= action |front) (- half 116)
+                          true $ - half 60
+                      scene/SceneNode :id id :key id :parent group :bindings ([]) :interaction
+                        if enabled?
+                          scene/SceneInteraction :target $ str logical-target |/ action
+                          scene/SceneInteraction :disabled
+                        , :content $ rect x
+                          if (= action |edit) -42 17
+                          if (= action |edit)
+                            - (* half 2) 8
+                            , 44
+                          if (= action |edit) 52 44
+                          color 0 0 0 0
+              concat
+                [] $ scene/SceneNode :id group :key group :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group
+                  scene/GroupNode :opacity 1 :clip (scene/ClipSpec :none) :transform $ struct-with matrix $ :f
+                    -
+                      + 116 $ *
+                        + (:f matrix) 160
+                        / 132 64
+                      , scroll
+                , projected
+                  [] $ struct-with original-label
+                    :id $ str (:id original-label) |/line-2
+                    :key $ str (:key original-label) |/line-2
+                    :parent group
+                    :bindings $ []
+                    :interaction $ scene/SceneInteraction :none
+                    :content $ scene/SceneContent :text $ struct-with label
+                      :x $ + (negate half) 12
+                      :y -3
+                      :size 18
+                      :text $ slice (:text label) cut-count
+                  , targets
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Number
+            :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'compact-scroll-limit $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn compact-scroll-limit (plan height)
+            assert |invalid-todo-compact-height $ and (motion/finite-number? height) (> height 0)
+            let
+                bottom $ foldl (:transforms plan) 0 $ fn (previous matrix)
+                  let
+                      current $ + 182 $ *
+                        + (:f matrix) 160
+                        / 132 64
+                    if (> current previous) current previous
+              if (> bottom height) (- bottom height) 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
         'declare-execution $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-execution (props model input resources viewport)
             let
@@ -6505,6 +6658,29 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Model)
             :args $ [] 'quamolit.examples.todolist/Model 'Number 'String 'String 'String
+        'draw-compact! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn draw-compact! (context document width height dpr)
+            assert |invalid-todo-compact-dpr $ and (motion/finite-number? dpr) (> dpr 0)
+            let
+                root $ scene/SceneNode :id |compact-root :key |compact-root :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group
+                  scene/GroupNode :opacity 1 :transform
+                    scene/Matrix2D :a dpr :b 0 :c 0 :d dpr :e (/ width 2) :f 0
+                    , :clip $ scene/ClipSpec :rect $ scene/ClipRect :x
+                      negate $ / width $ * 2 dpr
+                      , :y 0 :width (/ width dpr) :height (/ height dpr)
+                children $ map (:nodes document)
+                  fn (child)
+                    if
+                      = (:parent child) |
+                      struct-with child $ :parent |compact-root
+                      , child
+              canvas-scene/draw-document! context
+                scene/SceneDocument :nodes $ concat ([] root) children
+                , width height $ fn (id version) (raise |todo-compact-has-no-images)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument 'Number 'Number 'Number
+            :features $ #{} :js-ffi
         'empty-events $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-events () ([])
           :examples $ []
@@ -6554,6 +6730,28 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Hit)
             :args $ [] 'quamolit.examples.todolist/Model 'Number 'Number 'Number
+        'hit-compact-with-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn hit-compact-with-plan (model plan x y)
+            match (hit/hit-test-plan plan x y)
+              (:miss visited) (empty-hit)
+              (:hit result)
+                match
+                  find ([] |toggle |edit |front |remove)
+                    fn (action)
+                      ends-with? (:target result) (str |/ action)
+                  (:none) (empty-hit)
+                  (:some action)
+                    match
+                      find (:rows model)
+                        fn (row)
+                          = (:target result)
+                            str (:id row) |/card/ action
+                      (:none) (raise |missing-todo-compact-row)
+                      (:some row)
+                        Hit :id (:id row) :text (:text row) :action action
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Hit)
+            :args $ [] 'quamolit.examples.todolist/Model 'quamolit.scene-hit/HitPlan 'Number 'Number
         'hit-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hit-plan (plan)
             let
@@ -6909,6 +7107,7 @@
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.transition :as transition) (quamolit.presence :as presence) (quamolit.presence-component :as lifecycle) (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.retained-component :as retained)
             calcit.test :refer $ is= is-throws
             quamolit.scene-hit :as hit
+            quamolit.canvas-scene :as canvas-scene
     'quamolit.fixed-step $ %{} 'FileEntry
       :defs $ {}
         'SimulationState $ %{} 'CodeEntry

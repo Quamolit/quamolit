@@ -13,10 +13,11 @@
     <div class="buttons"><button id="restore">恢复最近删除</button><button id="reverse">倒序重排</button><button id="clear">清空</button></div>
     <div class="buttons"><button id="play">播放</button><button id="reset">重放示范</button><button id="live">自由操作</button></div>
     <label>日志时间（秒） <input id="time" type="range" min="0" max="5" step="0.01" value="0"></label>
+    <label id="list-viewport" hidden>列表视窗 <input id="list-scroll" type="range" min="0" max="0" step="1" value="0" aria-label="滚动待办列表"></label>
     <div class="buttons"><button data-time="0.25">进入 0.25 s</button><button data-time="1.6">退出 1.6 s</button><button data-time="2.6">重排 2.6 s</button><button data-time="4">终点 4 s</button></div>
     <div class="buttons"><button id="export">导出输入日志</button><label class="import">导入日志 <input id="import" type="file" accept="application/json,.json"></label></div>
     <output id="status" aria-live="off"></output><p id="message" role="status"></p>
-    <p class="note">支持最多 24 行、每条 28 字符；多行自动缩小构图。空闲停止绘制，拖动时间可从日志恢复任意帧。Canvas 基础文字暂用 monospace；WebGPU、复杂字形排版与通用指针捕获仍待后续。</p>
+    <p class="note">支持最多 24 行、每条 28 字符；窄屏保留 18px 文字和 44px 操作区，长列表可用列表视窗或滚轮浏览。桌面保持原构图。空闲停止绘制，拖动时间可从日志恢复任意帧。Canvas 基础文字暂用 monospace；WebGPU、复杂字形排版与通用指针捕获仍待后续。</p>
     <a href="https://github.com/Quamolit/quamolit/blob/main/docs/todolist-restoration.md">行为依据与检验规则</a>
   </aside>
   <script type="module" src="./main.mjs"></script>

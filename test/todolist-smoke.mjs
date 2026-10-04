@@ -82,6 +82,38 @@ const rows = (m) => js(m).rows;
 const live = () => todo.replay(todo.events_through(todo.demo_log(), 0), 1);
 const scene = (p) => js(field(p, "scene"));
 
+test("窄屏 Calcit Scene 保留文字、44px 操作和同次采样命中；视口变化不修改动画意图", () => {
+  const model = live(),
+    plan = todo.start_plan(model, 1),
+    before = js(plan);
+  for (const width of [320, 390, 600]) {
+    const declaration = todo.compact_document(plan, width, 0);
+    const value = js(declaration),
+      hits = todo.compact_hit_plan(declaration);
+    const labels = value.nodes.filter((node) => node.id.endsWith("/edit") || node.id.endsWith("/line-2"));
+    assert.equal(labels.length, 6);
+    assert.ok(labels.every((node) => node.content[1].size === 18));
+    const buttons = value.nodes.filter((node) => node.id.includes("/tap-") && !node.id.endsWith("tap-edit"));
+    assert.equal(buttons.length, 9);
+    assert.ok(buttons.every((node) => node.content[1].width === 44 && node.content[1].height === 44));
+    const left = -(width - 24) / 2;
+    assert.equal(js(todo.hit_compact_with_plan(model, hits, left + 26, 155)).action, "toggle");
+    assert.equal(js(todo.hit_compact_with_plan(model, hits, 0, 90)).action, "edit");
+    assert.equal(js(todo.hit_compact_with_plan(model, hits, (width - 24) / 2 - 94, 155)).action, "front");
+    assert.equal(js(todo.hit_compact_with_plan(model, hits, (width - 24) / 2 - 38, 155)).action, "remove");
+    assert.equal(js(todo.hit_compact_with_plan(model, hits, left - 10, 155)).action, "");
+    assert.deepEqual(js(plan), before);
+  }
+  const shifted = todo.compact_hit_plan(todo.compact_document(plan, 390, 80));
+  assert.equal(js(todo.hit_compact_with_plan(model, shifted, -150, 75)).action, "toggle");
+  const exiting = todo.dispatch(model, 1, "remove", "3", "");
+  const exitScene = todo.compact_document(todo.start_plan(exiting, 1), 390, 0);
+  assert.equal(js(todo.hit_compact_with_plan(exiting, todo.compact_hit_plan(exitScene), -150, 155)).action, "");
+  assert.throws(() => todo.compact_document(plan, NaN, 0), /invalid-todo-compact-width/);
+  assert.throws(() => todo.compact_document(plan, 390, -1), /invalid-todo-compact-scroll/);
+  assert.throws(() => todo.compact_scroll_limit(plan, Infinity), /invalid-todo-compact-height/);
+});
+
 test("实际采样 Scene 命中对照历史按钮范围，乱序、重排和退出均一致", () => {
   const oracle = (model, time, x, y) => {
     const source = field(model, "rows");
