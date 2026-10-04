@@ -8995,6 +8995,12 @@
           :code $ quote $ defenum ImageLoadOutcome (:ready 'Number) (:failed 'String)
           :examples $ []
           :schema $ :: 'EnumDef
+        'ImageRegistryCompletion $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct ImageRegistryCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
+            :host 'quamolit.image-resource-runner/ImageResourceHost
+            :transition 'quamolit.resource-lifecycle/RegistryTransition
+          :examples $ []
+          :schema $ :: 'StructDef
         'ImageResourceDescriptor $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ImageResourceDescriptor (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:url 'String) (:width 'Number) (:height 'Number)
           :examples $ []
@@ -9034,6 +9040,25 @@
           :schema $ :: 'Fn $ {}
             :return 'quamolit.image-resource-runner/ImageResourceHost
             :args $ [] 'quamolit.image-resource-runner/ImageResourceHost $ :: 'List 'quamolit.resource-lifecycle/ResourceAction
+        'apply-image-registry-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn apply-image-registry-actions (host actions)
+            foldl actions host $ fn (current wrapped)
+              match wrapped $
+                :resource resource-id action
+                if
+                  = (:kind resource-id) (resource/ResourceKind :image)
+                  match action
+                    (:release generation) (release-image-resource current resource-id generation)
+                    (:install generation descriptor)
+                      do
+                        assert |image-install-identity-mismatch $ = resource-id descriptor
+                        install-image-generation current generation resource-id
+                    _ current
+                  , current
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageResourceHost
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
         'complete-image-load $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn complete-image-load (host state queue result)
             let
@@ -9067,6 +9092,49 @@
           :schema $ :: 'Fn $ {}
             :return 'quamolit.image-resource-runner/ImageLoadCompletion
             :args $ [] 'quamolit.image-resource-runner/ImageResourceHost 'quamolit.resource-lifecycle/ResourceState 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.image-resource-runner/QueuedImageLoadResult
+        'complete-image-registry-load $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn complete-image-registry-load (host registry queue result)
+            let
+                handle $ :handle result
+                resource-id $ :identity handle
+                generation $ :resource-generation handle
+                settled $ load-queue/finish-load queue $ :token result
+              assert |image-registry-kind-mismatch $ = (:kind resource-id) (resource/ResourceKind :image)
+              match (:outcome settled)
+                (:accepted task)
+                  do
+                    assert |image-load-identity-mismatch $ = (:identity task) resource-id
+                    assert |image-load-generation-mismatch $ = (:resource-generation task) generation
+                    let
+                        tracked $ track-image-result host result
+                        transition $ match (:outcome result)
+                          (:ready _) (resource/ready-registry registry resource-id generation)
+                          (:failed message) (resource/failed-registry registry resource-id generation message)
+                      ImageRegistryCompletion :queue (:queue settled) :transition transition :host $ apply-image-registry-actions tracked $ :actions transition
+                _ $ ImageRegistryCompletion :queue (:queue settled) :host (discard-image-result host result) :transition $ resource/registry-transition registry (resource/empty-registry-actions)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageRegistryCompletion
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.image-resource-runner/QueuedImageLoadResult
+        'discard-image-result $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn discard-image-result (host result)
+            if
+              any? (:handles host)
+                fn (handle)
+                  identical? (:image handle)
+                    :image $ :handle result
+              , host $ let
+                  bytes $ match (:outcome result)
+                    (:ready value) value
+                    (:failed _) 0
+                struct-with host
+                  :created $ inc $ :created host
+                  :released $ inc $ :released host
+                  :decoded-bytes $ + (:decoded-bytes host) bytes
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageResourceHost
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost 'quamolit.image-resource-runner/QueuedImageLoadResult
         'enqueue-image-actions $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn enqueue-image-actions (queue runtime-generation actions)
             if (empty? actions) (ImageActionQueueResult :queue queue :backpressured 0)
@@ -9089,6 +9157,22 @@
           :schema $ :: 'Fn $ {}
             :return 'quamolit.image-resource-runner/ImageActionQueueResult
             :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue 'Number $ :: 'List 'quamolit.resource-lifecycle/ResourceAction
+        'enqueue-image-registry-actions $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn enqueue-image-registry-actions (queue runtime-generation actions)
+            foldl actions (ImageActionQueueResult :queue queue :backpressured 0)
+              fn (current wrapped)
+                match wrapped $
+                  :resource resource-id action
+                  if
+                    = (:kind resource-id) (resource/ResourceKind :image)
+                    let
+                        next $ enqueue-image-actions (:queue current) runtime-generation $ [] action
+                      ImageActionQueueResult :queue (:queue next) :backpressured $ + (:backpressured current) (:backpressured next)
+                    , current
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageActionQueueResult
+            :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue 'Number $ :: 'List 'quamolit.resource-lifecycle/RegistryAction
         'image-descriptor $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn image-descriptor (id version url width height)
             assert |invalid-image-resource-width $ and (number? width) (> width 0)
@@ -9098,6 +9182,14 @@
           :schema $ :: 'Fn $ {}
             :return 'quamolit.image-resource-runner/ImageResourceDescriptor
             :args $ [] 'String 'Number 'String 'Number 'Number
+        'image-handle-matches? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn image-handle-matches? (handle resource-id generation)
+            and
+              = (:identity handle) resource-id
+              = (:resource-generation handle) generation
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHandle 'quamolit.resource-lifecycle/ResourceIdentity 'Number
         'image-resource-metrics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn image-resource-metrics (host)
             ImageResourceMetrics :created (:created host) :released (:released host) :live
@@ -9116,19 +9208,14 @@
             :args $ []
         'install-image-generation $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-image-generation (host generation descriptor)
-            let
-                found? $ any? (:handles host)
-                  fn (handle)
-                    and
-                      = generation $ :resource-generation handle
-                      = descriptor $ :identity handle
-                handles $ map (:handles host)
-                  fn (handle)
-                    ImageResourceHandle :identity (:identity handle) :resource-generation (:resource-generation handle) :image (:image handle) :installed? $ and
-                      = generation $ :resource-generation handle
-                      = descriptor $ :identity handle
-              assert |missing-image-resource-generation found?
-              ImageResourceHost :handles handles :created (:created host) :released (:released host) :decoded-bytes $ :decoded-bytes host
+            assert |missing-image-resource-generation $ any? (:handles host)
+              fn (handle) (image-handle-matches? handle descriptor generation)
+            struct-with host $ :handles $ map (:handles host)
+              fn (handle)
+                if
+                  = (:identity handle) descriptor
+                  struct-with handle $ :installed? $ = (:resource-generation handle) generation
+                  , handle
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.image-resource-runner/ImageResourceHost
@@ -9143,6 +9230,19 @@
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.image-resource-runner/ImageResourceHost
+            :return $ :: 'Option 'js-ffi.browser/ImageHost
+        'installed-image-resource $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn installed-image-resource (host resource-id)
+            let
+                installed $ filter (:handles host)
+                  fn (handle)
+                    and (:installed? handle)
+                      = (:identity handle) resource-id
+              if (empty? installed) (%none)
+                %some $ :image $ -> installed first .unwrap
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost 'quamolit.resource-lifecycle/ResourceIdentity
             :return $ :: 'Option 'js-ffi.browser/ImageHost
         'release-image-generation $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-image-generation (host generation)
@@ -9160,6 +9260,21 @@
           :schema $ :: 'Fn $ {}
             :return 'quamolit.image-resource-runner/ImageResourceHost
             :args $ [] 'quamolit.image-resource-runner/ImageResourceHost 'Number
+        'release-image-resource $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn release-image-resource (host resource-id generation)
+            let
+                kept $ filter (:handles host)
+                  fn (handle)
+                    not $ image-handle-matches? handle resource-id generation
+              struct-with host (:handles kept)
+                :released $ + (:released host)
+                  -
+                    count $ :handles host
+                    count kept
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.image-resource-runner/ImageResourceHost
+            :args $ [] 'quamolit.image-resource-runner/ImageResourceHost 'quamolit.resource-lifecycle/ResourceIdentity 'Number
         'run-image-load-task! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn run-image-load-task! (descriptor task)
             hint-fn $ {} (:async true)
@@ -9195,10 +9310,9 @@
           :code $ quote $ defn track-image-result (host result)
             let
                 handle $ :handle result
-                generation $ :resource-generation handle
                 duplicate? $ any? (:handles host)
                   fn (candidate)
-                    = generation $ :resource-generation candidate
+                    image-handle-matches? candidate (:identity handle) (:resource-generation handle)
                 bytes $ match (:outcome result)
                   (:ready value) value
                   (:failed _) 0
