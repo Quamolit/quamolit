@@ -221,7 +221,7 @@ test("嵌套换父保留新旧逻辑身份，退出叶不能借活跃祖先命�
 });
 
 for (const dpr of [1, 2]) {
-  test(`真实看板退出与resize同次提交立即释放捕获，快速重入和卸载 DPR${dpr}`, async ({ browser }, testInfo) => {
+  test(`真实看板退出、resize、捕获与字体租约联合提交 DPR${dpr}`, async ({ browser }, testInfo) => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: dpr });
     const page = await context.newPage();
     try {
@@ -229,6 +229,17 @@ for (const dpr of [1, 2]) {
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
       await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+      const nativeBefore = await page.evaluate(() => document.fonts.size);
+      const loaded = await page.evaluate(() => window.layeredDashboardDemo.enableFont());
+      expect(loaded.fonts.references).toHaveLength(1);
+      expect(loaded.fonts.registry.loads).toBe(1);
+      expect(loaded.fonts.host.accepted).toBe(1);
+      expect(loaded.fonts.host.handles).toHaveLength(1);
+      expect(loaded.fonts.host.handles[0]["installed?"]).toBe(true);
+      expect(loaded.fonts.revision).toBe(1);
+      expect(loaded.time).toBe(1);
+      expect(loaded.events).toEqual([]);
+      expect(await page.evaluate(() => document.fonts.size)).toBe(nativeBefore + 1);
       await page.evaluate(() => {
         const canvas = document.querySelector("canvas");
         window.captureCounts = { set: 0, release: 0 };
@@ -269,9 +280,12 @@ for (const dpr of [1, 2]) {
       expect(exiting.counts).toEqual({ set: 1, release: 1 });
       expect(exiting.width).toBe(1200 * dpr);
       expect(exiting.nodeCount).toBe(28); // 退出仍可见，不能用立刻删除替代。
+      expect(exiting.fonts.references).toHaveLength(1);
+      expect(exiting.fonts.host.handles).toHaveLength(1);
       expect(exiting.scene.nodes.slice(1).every((node) => node.interaction[0] === "disabled")).toBe(true);
       await page.evaluate(() => window.layeredDashboardDemo.seek(1.3));
       expect((await read()).scene.nodes[1].content[1].opacity).toBeCloseTo(0.5, 12);
+      expect((await read()).fonts.registry.entries[0].references).toBe(1);
       await page.screenshot({ path: testInfo.outputPath(`dashboard-exit-dpr${dpr}.png`) });
       const reentered = await page.evaluate(() => {
         window.layeredDashboardDemo.setVisible(false); // 重复提交不重新计时，也不再次释放。
@@ -283,7 +297,25 @@ for (const dpr of [1, 2]) {
       expect(reentered.scene.nodes.map((node) => node.content)).toEqual(reentered.before);
       expect(reentered.captured).toBeNull();
       expect(reentered.counts.release).toBe(1);
+      expect(reentered.fonts.registry.loads).toBe(1);
       await page.mouse.up();
+      const settled = await page.evaluate(() => {
+        const api = window.layeredDashboardDemo;
+        api.setVisible(false);
+        api.seek(api.snapshot().time + 0.6);
+        const idle = api.snapshot();
+        api.setVisible(true);
+        api.seek(api.snapshot().time + 0.6);
+        return { idle, resumed: api.snapshot() };
+      });
+      expect(settled.idle.nodeCount).toBe(1);
+      expect(settled.idle.fonts.references).toEqual([]);
+      expect(settled.idle.fonts.registry.entries[0].references).toBe(0);
+      expect(settled.idle.fonts.host.handles).toHaveLength(1); // idle不是物理释放。
+      expect(settled.resumed.nodeCount).toBe(28);
+      expect(settled.resumed.fonts.registry.loads).toBe(1);
+      expect(settled.resumed.fonts.host.accepted).toBe(1);
+      expect(settled.resumed.fonts.registry.entries[0].references).toBe(1);
       position = await point();
       await page.mouse.move(position.x, position.y);
       await page.mouse.down();
@@ -302,12 +334,56 @@ for (const dpr of [1, 2]) {
       expect(unmounted.state.pointer["hover-node"]).toBe("");
       expect(unmounted.counts).toEqual({ set: 2, release: 2 });
       expect(unmounted.state.pending).toBe(false);
+      expect(unmounted.state.fonts["closed?"]).toBe(true);
+      expect(unmounted.state.fonts.host.handles).toEqual([]);
+      expect(unmounted.state.fonts.host.released).toBe(1);
+      expect(await page.evaluate(() => document.fonts.size)).toBe(nativeBefore);
       expect(errors).toEqual([]);
     } finally {
       await context.close();
     }
   });
 }
+
+test("真实 FontFace 等待期间卸载：迟到完成不安装、不重绘，重复关闭幂等", async ({ page }) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const result = await page.evaluate(async () => {
+    const api = window.layeredDashboardDemo;
+    const Original = FontFace;
+    const nativeBefore = document.fonts.size;
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    window.FontFace = class extends Original {
+      load() {
+        return super.load().then((face) => gate.then(() => face));
+      }
+    };
+    try {
+      const pending = api.enableFont();
+      const during = api.snapshot();
+      api.dispose();
+      api.dispose();
+      const closed = api.snapshot();
+      release();
+      await pending;
+      return { during, closed, after: api.snapshot(), nativeBefore, nativeAfter: document.fonts.size };
+    } finally {
+      window.FontFace = Original;
+      release();
+    }
+  });
+  expect(result.during.fonts.queue.running).toHaveLength(1);
+  expect(result.closed.fonts["closed?"]).toBe(true);
+  expect(result.after.fonts.queue.running).toEqual([]);
+  expect(result.after.fonts.host.accepted).toBe(0);
+  expect(result.after.fonts.host.handles).toEqual([]);
+  expect(result.after.fonts.revision).toBe(0);
+  expect(result.after.paints).toBe(result.closed.paints);
+  expect(result.after.pending).toBe(false);
+  expect(result.nativeAfter).toBe(result.nativeBefore);
+});
 
 test("真实嵌套看板整组退出只合成一次 alpha，乱序采样与重入连续", async ({ page }, testInfo) => {
   await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
