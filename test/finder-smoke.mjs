@@ -2,8 +2,162 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { to_js_data as data } from "../target/js/finder/calcit.core.mjs";
 import * as finder from "../target/js/finder/quamolit.examples.finder.mjs";
+import { CalcitSliceList, newTag } from "@calcit/procs";
+
+const tags = Object.fromEntries(
+  ["nodes", "candidates", "content", "id", "interaction", "x", "y", "width", "height"].map((name) => [
+    name,
+    newTag(name),
+  ]),
+);
+
+test("同次采样 Scene 命中保留原操作政策，乱序/打断与卡片禁用不修改声明", () => {
+  const initial = finder.initial();
+  const models = [initial];
+  for (let folder = 0; folder < 5; folder++) {
+    const open = finder.select_folder(initial, folder, 0);
+    const focus = finder.select_card(open, 0, 0.42);
+    models.push(open, focus, finder.back(focus, 0.6), finder.back(open, 0.21));
+  }
+  let queries = 0;
+  for (const model of models)
+    for (const time of [0.75, 0, 0.01, 0.21, 0.42, 0.6, 0.75, 1]) {
+      const document = finder.scene_at(model, time),
+        before = data(document);
+      const plan = finder.hit_plan(model, time, document);
+      for (const node of before.nodes.filter((node) => node.content[0] === "rect")) {
+        const rect = node.content[1];
+        for (const x of [
+          rect.x - 1,
+          rect.x + 1,
+          rect.x + rect.width / 2,
+          rect.x + rect.width - 1,
+          rect.x + rect.width + 1,
+        ])
+          for (const y of [rect.y - 1, rect.y + rect.height / 2, rect.y + rect.height + 1]) {
+            assert.deepEqual(
+              data(finder.hit_with_plan(model, time, plan, x, y)),
+              data(finder.hit_at(model, time, x, y)),
+            );
+            queries++;
+          }
+      }
+      assert.deepEqual(data(document), before);
+    }
+  assert.ok(queries > 10000);
+  for (const bad of [NaN, Infinity, -Infinity]) {
+    assert.throws(() => finder.hit_plan(initial, bad, finder.scene_at(initial, 0)), /invalid-finder-hit-time/);
+    assert.throws(
+      () => finder.hit_with_plan(initial, 0, finder.hit_plan(initial, 0, finder.scene_at(initial, 0)), bad, 0),
+      /invalid-finder-hit/,
+    );
+  }
+});
+
+test("命中读取移动/缩小后的实际 Scene，不按 Model 初始几何猜测", () => {
+  const model = finder.initial(),
+    document = finder.scene_at(model, 0);
+  const nodes = document.get(tags.nodes);
+  const moved = finder.rect_node("folder-0", 550, 350, 50, 44, 0.2, 0.3, 0.4, 1);
+  const changed = document.assoc(
+    tags.nodes,
+    new CalcitSliceList(Array.from({ length: nodes.len() }, (_, i) => (i === 0 ? moved : nodes.get(i)))),
+  );
+  const plan = finder.hit_plan(model, 0, changed);
+  assert.equal(plan.get(tags.candidates).len(), 5);
+  assert.deepEqual(data(finder.hit_with_plan(model, 0, plan, 550, 350)), { kind: "folder", folder: 0, card: -1 });
+  assert.equal(data(finder.hit_with_plan(model, 0, plan, -340, -20)).kind, "none");
+  assert.equal(data(finder.hit_with_plan(model, 0, plan, 576, 350)).kind, "none");
+  assert.equal(data(finder.hit_at(model, 0, 550, 350)).kind, "none");
+});
 
 const scene = (model, time) => data(finder.scene_at(model, time)).nodes;
+
+test("窄屏五组和18张卡片保留可读字号、44px目标及父级缩放边界", () => {
+  for (const [width, height] of [
+    [320, 640],
+    [390, 844],
+    [600, 800],
+  ])
+    for (let folder = 0; folder < 5; folder++) {
+      const initial = finder.initial(),
+        opened = finder.select_folder(initial, folder, 0);
+      const source = finder.scene_at(opened, 0.42),
+        original = data(source);
+      const projected = finder.compact_document(source, width, height),
+        nodes = data(projected).nodes;
+      const plan = finder.hit_plan(opened, 0.42, projected);
+      for (let index = 0; index < data(finder.cards_for(folder)).length; index++) {
+        const rect = nodes.find((node) => node.id === `card-${folder}/${index}`).content[1];
+        const label = nodes.find((node) => node.id === `card-${folder}/${index}/label`).content[1];
+        assert.ok(rect.width >= 44 && rect.height >= 44);
+        assert.ok(label.size >= 18);
+        assert.equal(
+          data(finder.hit_with_plan(opened, 0.42, plan, rect.x + rect.width / 2, rect.y + rect.height / 2)).card,
+          index,
+        );
+        const focused = finder.select_card(opened, index, 0.42),
+          closing = finder.back(focused, 0.6);
+        for (const [model, time] of [
+          [opened, 0.1],
+          [opened, 0.21],
+          [focused, 0.51],
+          [focused, 0.78],
+          [closing, 0.6],
+          [closing, 0.72],
+          [closing, 0.96],
+        ]) {
+          const view = data(finder.compact_document(finder.scene_at(model, time), width, height)).nodes;
+          const parent = view.find((node) => node.id === `folder-${folder}`).content[1];
+          for (const card of view.filter(
+            (node) => node.id.startsWith(`card-${folder}/`) && !node.id.endsWith("/label"),
+          )) {
+            const r = card.content[1],
+              text = view.find((node) => node.id === `${card.id}/label`).content[1],
+              epsilon = 1e-8;
+            assert.ok(r.x >= parent.x - epsilon && r.x + r.width <= parent.x + parent.width + epsilon);
+            assert.ok(r.y >= parent.y - epsilon && r.y + r.height <= parent.y + parent.height + epsilon);
+            assert.ok(text.x >= r.x && text.x + text.text.length * text.size <= r.x + r.width + epsilon);
+            assert.ok(text.y - text.size / 2 >= r.y && text.y + text.size / 2 <= r.y + r.height);
+          }
+        }
+      }
+      assert.deepEqual(data(source), original);
+      const home = finder.compact_document(finder.scene_at(initial, 0), width, height),
+        homePlan = finder.hit_plan(initial, 0, home);
+      for (let index = 0; index < 5; index++) {
+        const r = data(home).nodes.find((node) => node.id === `folder-${index}`).content[1];
+        assert.ok(r.width >= 44 && r.height >= 44);
+        assert.equal(
+          data(finder.hit_with_plan(initial, 0, homePlan, r.x + r.width / 2, r.y + r.height / 2)).folder,
+          index,
+        );
+      }
+    }
+  const source = finder.scene_at(finder.initial(), 0);
+  for (const [width, height] of [
+    [NaN, 844],
+    [390, Infinity],
+    [299, 844],
+    [390, 0],
+  ])
+    assert.throws(() => finder.compact_document(source, width, height), /invalid-finder-compact-viewport/);
+});
+
+test("短视口保持600px逻辑舞台，滚动边界与根逆变换有独立期望", () => {
+  for (const height of [200, 390, 599, 600, 844]) {
+    const stage = Math.max(height, 600),
+      limit = stage - height;
+    assert.equal(finder.compact_stage_height(height), stage);
+    assert.equal(finder.compact_scroll_limit(height), limit);
+    assert.equal(finder.compact_view_y(height, 0), stage / 2);
+    assert.equal(finder.compact_view_y(height, limit), stage / 2 - limit);
+  }
+  for (const value of [NaN, Infinity, 0, -1])
+    assert.throws(() => finder.compact_stage_height(value), /invalid-finder-compact-height/);
+  for (const scroll of [NaN, Infinity, -1, 201])
+    assert.throws(() => finder.compact_view_y(400, scroll), /invalid-finder-compact-scroll/);
+});
 
 test("五个旧文件夹及中文植物卡片，展开/聚焦/返回具有稳定身份", () => {
   const start = finder.initial();
