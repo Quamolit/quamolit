@@ -280,7 +280,7 @@ export function verifyLayeredConsumer(app, core) {
   const kinds = Object.keys(core.to_js_data(prototype.prototype)).sort();
   assert.deepEqual(
     kinds,
-    ["circle", "cubic-path", "group", "image", "instances", "polygon", "polyline", "rect", "text"],
+    ["arc", "circle", "cubic-path", "group", "image", "instances", "polygon", "polyline", "rect", "text"],
     "新增 Scene 种类必须同步能力表和门禁",
   );
   // 这里只测种类分类，不以空 payload 声称图元数据合法或已经绘制。
@@ -437,6 +437,14 @@ async function verifyPrimitiveCanvasConsumer(page, artifacts) {
       c.closePath();
       c.fill();
       c.stroke();
+      c.save();
+      c.strokeStyle = "rgba(0,0,255,0.5)";
+      c.lineWidth = 4;
+      c.lineCap = "round";
+      c.beginPath();
+      c.arc(112, 112, 18, 0.2, 2.4, false);
+      c.stroke();
+      c.restore();
       const expected = document.createElement("canvas");
       expected.width = width;
       expected.height = height;
@@ -461,13 +469,13 @@ async function verifyPrimitiveCanvasConsumer(page, artifacts) {
     }, time);
     assert.equal(result.gpuAvailable, false);
     assert.equal(result.unchanged, true, "布局与绘制不修改 Calcit 声明");
-    assert.equal(result.differences, 0, "八种合法 Canvas document 图元须实际绘制，不能缺失或简化");
+    assert.equal(result.differences, 0, "九种合法 Canvas document 图元须实际绘制，不能缺失或简化");
     assert.equal(result.covered === 0, time === 0);
     frames.push(result);
     if ([0, 0.5, 1].includes(time))
       await page.screenshot({ path: `${artifacts}/primitives-frame-${time}.png`, fullPage: true });
   }
-  return { result: "PASS", frames, scope: "八种 document 图元，无 GPU，独立原生 Canvas 全图参考" };
+  return { result: "PASS", frames, scope: "九种 document 图元，无 GPU，独立原生 Canvas 全图参考" };
 }
 
 export async function verifyLayeredCanvasConsumer(page, artifacts) {

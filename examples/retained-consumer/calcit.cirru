@@ -786,6 +786,9 @@
                   motion/ColorRgba :r 0 :g 1 :b 1 :a 1
                   , :stroke $ motion/ColorRgba :r 0 :g 0 :b 0 :a 1
                 , :bindings ([]) :interaction $ scene/SceneInteraction :none
+              scene/SceneNode :id |primitive-arc :key |primitive-arc :parent |primitives :content
+                scene/SceneContent :arc $ scene/ArcNode :cx 112 :cy 112 :radius 18 :start-angle 0.2 :end-angle 2.4 :counterclockwise false :width 4 :stroke $ motion/ColorRgba :r 0 :g 0 :b 1 :a 0.5
+                , :bindings ([]) :interaction $ scene/SceneInteraction :none
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number
