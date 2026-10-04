@@ -569,6 +569,12 @@
           :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
     'quamolit.canvas-scene $ %{} 'FileEntry
       :defs $ {}
+        'CanvasLayerHost $ %{} 'CodeEntry
+          :doc "|临时隔离 Canvas surface 类型，兼容 OffscreenCanvas 与 HTMLCanvasElement；只由 layer-create! 创建。js-ffi #147 提供平台类型后替换，不承诺任意 JS 对象有效。"
+          :code $ quote $ deftrait CanvasLayerHost (:width 'Number) (:height 'Number)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+          :schema $ :: 'Trait
         'clip-group! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn clip-group! (context clip)
             match clip
@@ -584,10 +590,10 @@
             :features $ #{} :js-ffi
         'composite-layer! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn composite-layer! (context surface opacity)
-            raw-composite-layer! (unsafe-coerce context JsObject) surface opacity
+            raw-composite-layer! (unsafe-coerce context JsObject) (unsafe-coerce surface JsObject) opacity
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'JsObject 'Number
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.canvas-scene/CanvasLayerHost 'Number
             :features $ #{} :js-ffi
         'content-supported? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn content-supported? (content)
@@ -667,7 +673,7 @@
                       , unclipped? $ not raster-sensitive?
                     draw-children! context nodes (:id node) transform width height lookup
                     let
-                        layer $ raw-layer-create! width height
+                        layer $ layer-create! width height
                         layer-context $ layer-context! layer
                       layer-context .save!
                       set-transform! layer-context transform
@@ -694,10 +700,20 @@
             :args $ []
         'layer-context! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn layer-context! (surface)
-            unsafe-coerce (raw-layer-context! surface) js-ffi.canvas-batches/CanvasContextHost
+            unsafe-coerce
+              raw-layer-context! $ unsafe-coerce surface JsObject
+              , js-ffi.canvas-batches/CanvasContextHost
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'js-ffi.canvas-batches/CanvasContextHost)
-            :args $ [] 'JsObject
+            :args $ [] 'quamolit.canvas-scene/CanvasLayerHost
+            :features $ #{} :js-ffi
+        'layer-create! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn layer-create! (width height)
+            assert |invalid-canvas-scene-size $ and (motion/finite-number? width) (motion/finite-number? height) (> width 0) (> height 0)
+            unsafe-coerce (raw-layer-create! width height) CanvasLayerHost
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-scene/CanvasLayerHost)
+            :args $ [] 'Number 'Number
             :features $ #{} :js-ffi
         'lookup-image! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn lookup-image! (image lookup)
@@ -4675,7 +4691,7 @@
           :examples $ []
           :schema $ :: 'StructDef
         'VisibilityEvent $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct VisibilityEvent (:time 'Number) (:visible 'Bool)
+          :code $ quote $ defstruct VisibilityEvent (:time 'Number) (:visible 'Bool) (:chart-visible 'Bool) (:line-chart 'Bool)
           :examples $ []
           :schema $ :: 'StructDef
         'advance $ %{} 'CodeEntry (:doc |)
@@ -4688,10 +4704,7 @@
                     > (:time event) from-time
                     <= (:time event) time
                 , model $ fn (current event)
-                  hint-fn $ {}
-                    :args $ [] 'quamolit.presence/PresenceModel 'quamolit.examples.layered-dashboard/VisibilityEvent
-                    :return 'quamolit.presence/PresenceModel
-                  set-visible current (:visible event) (:time event)
+                  set-layout-variant current (:visible event) (:chart-visible event) (:line-chart event) (:time event)
               , time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
@@ -4714,6 +4727,23 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.presence/PresenceModel
+        'chart-variant $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn chart-variant (document line-chart)
+            if line-chart
+              struct-with document $ :nodes $ map
+                filter (:nodes document)
+                  fn (node)
+                    not $ includes? ([] |bar-2 |bar-3 |bar-4 |bar-5 |bar-6 |bar-7) (:id node)
+                fn (node)
+                  if
+                    = (:id node) |bar-1
+                    struct-with node $ :content $ scene/SceneContent :polyline
+                      scene/PolylineNode :width 4 :stroke (color 0.24 0.91 0.75 1) :points $ [] (motion/Vec2 :x -208 :y 102) (motion/Vec2 :x -140 :y 58) (motion/Vec2 :x -72 :y 84) (motion/Vec2 :x -4 :y 18) (motion/Vec2 :x 64 :y 45) (motion/Vec2 :x 132 :y -2) (motion/Vec2 :x 200 :y 34)
+                    , node
+              , document
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'quamolit.scene-ir/SceneDocument 'Bool
         'close-fonts! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn close-fonts! (state)
             if (:closed? state) state $ let
@@ -4794,6 +4824,19 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/FontSpec)
             :args $ []
+        'desired-layout $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn desired-layout (visible chart-visible)
+            let
+                document $ desired-scene visible
+              if chart-visible document $ struct-with document $ :nodes
+                filter (:nodes document)
+                  fn (node)
+                    and
+                      not= (:id node) |chart
+                      not= (:parent node) |chart
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Bool 'Bool
         'desired-scene $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn desired-scene (visible)
             let
@@ -4845,10 +4888,35 @@
                     fn (item)
                       let
                           entry $ :entry item
-                          replacement $ scene/node-for-id (:nodes current)
-                            :id $ :node entry
-                        struct-with item $ :entry $ struct-with entry (:node replacement)
-              presence-scene-at display-model time
+                          node $ :node entry
+                          replacement $ scene/node-for-id (:nodes current) (:id node)
+                        struct-with item $ :entry $ struct-with entry
+                          :node $ if
+                            =
+                              scene/content-kind $ :content node
+                              scene/content-kind $ :content replacement
+                            match (:content node)
+                              (:text text)
+                                match (:content replacement)
+                                  (:text projected)
+                                    struct-with replacement $ :content $ scene/SceneContent :text
+                                      struct-with projected $ :font $ :font text
+                                  _ replacement
+                              _ replacement
+                            , node
+              presence-scene-at
+                struct-with display-model $ :items $ concat
+                  filter (:items display-model)
+                    fn (item)
+                      not=
+                        scene/content-kind $ :content $ :node (:entry item)
+                        , |polyline
+                  filter (:items display-model)
+                    fn (item)
+                      =
+                        scene/content-kind $ :content $ :node (:entry item)
+                        , |polyline
+                , time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'quamolit.presence/PresenceModel 'Number 'Number 'Number
@@ -4955,6 +5023,20 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number 'Number 'Number
+        'layout-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn layout-at (events time)
+            foldl events
+              VisibilityEvent :time 0 :visible true :chart-visible true :line-chart false
+              fn (current event)
+                if
+                  <= (:time event) time
+                  , event current
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.examples.layered-dashboard/VisibilityEvent
+            :args $ []
+              :: 'List 'quamolit.examples.layered-dashboard/VisibilityEvent
+              , 'Number
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () &unit
           :examples $ []
@@ -4969,18 +5051,45 @@
         'presence-scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-scene-at (model time)
             let
-                declaration $ presence-component/declare-tree model (binding/empty-descriptors) ([] |dashboard)
+                declaration $ presence-component/declare-tree-coalesced model (binding/empty-descriptors)
+                  [] |dashboard |chart |bar-1 |bar-2 |bar-3 |bar-4 |bar-5 |bar-6 |bar-7
               binding/resolve-scene (:scene declaration) (:motions declaration) time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'quamolit.presence/PresenceModel 'Number
+        'record-chart-variant $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn record-chart-variant (events time line-chart)
+            assert |invalid-dashboard-time $ motion/finite-number? time
+            conj
+              filter events $ fn (event)
+                <= (:time event) time
+              struct-with (layout-at events time) (:time time) (:line-chart line-chart)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+              :: 'List 'quamolit.examples.layered-dashboard/VisibilityEvent
+              , 'Number 'Bool
+            :return $ :: 'List 'quamolit.examples.layered-dashboard/VisibilityEvent
+        'record-chart-visibility $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn record-chart-visibility (events time visible)
+            assert |invalid-dashboard-time $ motion/finite-number? time
+            conj
+              filter events $ fn (event)
+                <= (:time event) time
+              struct-with (layout-at events time) (:time time) (:chart-visible visible)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+              :: 'List 'quamolit.examples.layered-dashboard/VisibilityEvent
+              , 'Number 'Bool
+            :return $ :: 'List 'quamolit.examples.layered-dashboard/VisibilityEvent
         'record-visibility $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn record-visibility (events time visible)
             assert |invalid-dashboard-time $ motion/finite-number? time
             conj
               filter events $ fn (event)
                 <= (:time event) time
-              VisibilityEvent :time time :visible visible
+              struct-with (layout-at events time) (:time time) (:visible visible)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ []
@@ -5019,11 +5128,8 @@
                 foldl
                   filter events $ fn (event)
                     <= (:time event) time
-                  , seed $ fn (model event)
-                    hint-fn $ {}
-                      :args $ [] 'quamolit.presence/PresenceModel 'quamolit.examples.layered-dashboard/VisibilityEvent
-                      :return 'quamolit.presence/PresenceModel
-                    set-visible model (:visible event) (:time event)
+                  , seed $ fn (current event)
+                    set-layout-variant current (:visible event) (:chart-visible event) (:line-chart event) (:time event)
                 , time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
@@ -5086,6 +5192,20 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number 'Number 'Number
+        'set-layout $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn set-layout (model visible chart-visible time)
+            :model $ presence/reconcile-presence model (desired-layout visible chart-visible) time 0.6 $ motion/Easing :linear
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ [] 'quamolit.presence/PresenceModel 'Bool 'Bool 'Number
+        'set-layout-variant $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn set-layout-variant (model visible chart-visible line-chart time)
+            :model $ presence/reconcile-presence model
+              chart-variant (desired-layout visible chart-visible) line-chart
+              , time 0.6 $ motion/Easing :linear
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ [] 'quamolit.presence/PresenceModel 'Bool 'Bool 'Bool 'Number
         'set-visible $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn set-visible (model visible time)
             :model $ presence/reconcile-presence model (desired-scene visible) time 0.6 $ motion/Easing :linear
@@ -12272,12 +12392,30 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'quamolit.presence/PresenceModel $ :: 'List 'quamolit.motion/ScalarDescriptor
         'declare-tree $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn declare-tree (model descriptors fade-ids)
+          :code $ quote $ defn declare-tree (model descriptors fade-ids) (declare-tree-owned model descriptors fade-ids false)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'quamolit.presence/PresenceModel (:: 'List 'quamolit.motion/ScalarDescriptor) (:: 'List 'String)
+        'declare-tree-coalesced $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-tree-coalesced (model descriptors fade-ids) (declare-tree-owned model descriptors fade-ids true)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'quamolit.presence/PresenceModel (:: 'List 'quamolit.motion/ScalarDescriptor) (:: 'List 'String)
+        'declare-tree-owned $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-tree-owned (model descriptors fade-ids coalesce?)
             assert |invalid-presence-fade-owner $ every? fade-ids $ fn (id)
               not $ empty? id
             let
                 nodes $ map (:items model)
-                  fn (item) (tree-node item fade-ids)
+                  fn (item)
+                    let
+                        node $ tree-node item fade-ids
+                      if
+                        and (tree-fades? item fade-ids)
+                          not $ tree-fade-owned? model item fade-ids coalesce?
+                        struct-with node $ :bindings $ :bindings
+                          :node $ :entry item
+                        , node
               assert |duplicate-presence-tree-id $ every? nodes $ fn (item)
                 = 1 $ count $ filter nodes
                   fn (other)
@@ -12287,7 +12425,7 @@
                   document $ scene/SceneDocument :nodes ordered
                   motions $ concat descriptors $ map
                     filter (:items model)
-                      fn (item) (tree-fades? item fade-ids)
+                      fn (item) (tree-fade-owned? model item fade-ids coalesce?)
                     , tree-motion
                 assert |missing-presence-tree-parent $ = (count nodes) (count ordered)
                 scene/validate-scene document
@@ -12295,7 +12433,7 @@
                 component/ComponentDeclaration :scene document :motions motions
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
-            :args $ [] 'quamolit.presence/PresenceModel (:: 'List 'quamolit.motion/ScalarDescriptor) (:: 'List 'String)
+            :args $ [] 'quamolit.presence/PresenceModel (:: 'List 'quamolit.motion/ScalarDescriptor) (:: 'List 'String) 'Bool
         'item-id $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn item-id (item)
             let
@@ -12359,6 +12497,25 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.scene-ir/SceneContent
+        'tree-fade-owned? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn tree-fade-owned? (model item fade-ids coalesce?)
+            and (tree-fades? item fade-ids)
+              if coalesce?
+                not $ any? (:items model)
+                  fn (ancestor)
+                    let
+                        path $ :path $ :entry item
+                        ancestor-path $ :path $ :entry ancestor
+                      and
+                        includes? fade-ids $ :id $ :node (:entry ancestor)
+                        < (count ancestor-path) (count path)
+                        = ancestor-path $ slice path 0 $ count ancestor-path
+                        = (:phase ancestor) (:phase item)
+                        = (:alpha ancestor) (:alpha item)
+                , true
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.presence/PresenceModel 'quamolit.presence/PresenceItem (:: 'List 'String) 'Bool
         'tree-fades? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn tree-fades? (item fade-ids)
             and (animated-alpha? item)

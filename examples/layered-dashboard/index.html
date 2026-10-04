@@ -17,9 +17,12 @@
       <label>逻辑时间 <output id="time-output">0.00</output></label>
       <input id="time" type="range" min="0" max="1" step="0.01" value="0" />
       <div class="actions"><button id="play">播放</button><button id="reset">重置</button></div>
-      <div class="actions"><button id="presence-toggle" aria-pressed="false">隐藏看板</button></div>
       <div class="actions"><button id="font-enable">启用字体资源</button></div>
       <p>字体资源由 Calcit 管理：退出开始释放捕获，文字渐出到终点才归还租约；恢复可复用，离开页面清理。</p>
+      <div class="actions"><button id="presence-toggle" aria-pressed="false">隐藏看板</button><button id="chart-toggle" aria-pressed="false">隐藏图表</button></div>
+      <div class="actions"><button id="chart-variant" aria-pressed="false">切换折线图</button></div>
+      <p>图表子组件可独立渐出和重入；隐藏整个看板时，相同生命周期只淡化一次，已有独立子动画继续组合。</p>
+      <p>柱图与折线沿用相同逻辑 key；类型变化时新旧图元并存渐变，快速切回从当前透明度继续。</p>
       <p id="status">准备中</p>
     </aside>
     <script type="module" src="./main.mjs"></script>
