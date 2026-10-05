@@ -221,7 +221,10 @@ M0 记录初始基线，M2 对 10k 实例比较 CPU 上传与 GPU 采样，M4 �
 同仓库 PR 的 Upload workflow 在既有编译/测试成功后，把 `dist/` 发布到主站的
 `pr/<PR编号>/` 子路径（`https://repo.tiye.me/Quamolit/quamolit/pr/<PR编号>/`），
 Actions summary 给出本次入口。不同 PR 不覆盖主站或彼此；同 PR 新提交更新同一入口。
-站点以相对 base 构建，既有 `test:demo-nav` 在非根子路径验证资源、分享与导航。
+既有 `test:demo-nav` 继续以相对 base 在非根子路径验证资源、分享与导航。
+Upload 在原检查通过后用 CDN base 重建同一 `dist/`，由 COS Action `v1.2.0`
+内置校验逐文件公开访问；PR 资源前缀为 `Quamolit/quamolit/pr/<编号>/<run>/<attempt>/`。
+页面仍通过原 rsync 路径提供，生产仅 `workflow_dispatch` 发布；main push 不部署。
 外部 fork 不使用部署密钥、不发布；测试 artifact 照常保留。
 PR 描述应提供对应预览链接。预览不是正式发版或全部视觉/GPU验收，关闭后暂不自动删除。
 
