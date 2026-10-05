@@ -43,6 +43,12 @@ yarn demo
 
 M1 动画与组件逻辑合同已验收；M2 的保留执行与 WebGPU、M3 的完整绘制/交互、M4 的性能发布仍在推进。当前状态与下一项只在[计划 v3](docs/plan-v3.md)维护；编码前读 [AGENTS.md](AGENTS.md)。暂不扩展性能优化，复用现有公共入口、消费者与门禁。
 
+## 前端部署
+
+Upload 保留原来的手动生产部署与 `repo.tiye.me/Quamolit/quamolit/` 路径；main push 只检查和构建，不自动发布生产。相同仓库 PR 发布到 `pr/<编号>/`，fork 只检查、不使用部署密钥。
+
+前端 `dist/` 使用 COS Action `v1.2.0` 上传，并以 `public-base-url` 启用内置逐文件校验，不另建验证脚本。Vite 的 JS/CSS 资源 base 指向 `https://cos-sh.tiye.me/Quamolit/quamolit/`；PR 使用 `pr/<编号>/<run>/<attempt>/` 隔离资源。页面与相对导航仍由原 rsync 入口提供；库源码、服务端和编译缓存不上传。现有相对 base 的发布/导航门禁不变，校验上传不等于浏览器或 GPU 验收。
+
 ## English
 
 Quamolit is a declarative animation library written in Calcit. Components describe the scene; explicit models and time determine animation values. Stateless motion supports direct seeking and deterministic frames; stateful simulation uses fixed ticks.
