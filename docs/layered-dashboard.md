@@ -64,7 +64,10 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 | polygon | 填充及声明的描边 | 矩形批次拒绝，整层 Canvas |
 | cubic-path | 声明的三次曲线描边 | 矩形批次拒绝，整层 Canvas |
 | circle | 圆形填充及声明的描边 | 矩形批次拒绝，整层 Canvas |
+| arc | 原生方向/跨零/圆头圆弧描边 | 矩形批次拒绝，整层 Canvas |
 | instances | 此 document 入口明确拒绝；另用版本化实例入口 | 独立实例图层另有支持合同，不自动插入任意嵌套 Scene |
+
+矩形、图片、instances三种专用GPU入口的逐种类准入集中于[可执行能力矩阵](layer-composition.md#专用入口的种类矩阵)，由原有`test:layers`对照真实Scene枚举及四条能力/决策入口校验；本表保留Canvas语义说明，不把GPU各子集拼成通用renderer。
 
 `content-supported?` 是纯 Calcit 种类查询，不验证图元数值或资源 ready。`unsupported-nodes(document)` 返回有序 `List<quamolit.scene-ir/SceneDiagnostic>`（id/key/kind/reason），目前 instances 的原因是 `unsupported-canvas-scene-instances`；GPU 的 `diagnose-plan(plan)` 使用同一个类型，保留自己的后端原因。调用者可展示诊断或选择完整实例层入口，不丢弃节点继续绘制。`preflight!` 先检查尺寸、完整 Scene 合法性和全部不支持种类，再解析图片资源，任何失败发生在第一次 Canvas 操作之前。图片丢失或尺寸不匹配仍使用已有资源错误，不把资源状态伪装为种类不支持。原候选的 CanvasDiagnostic 尚未发布，在同一 PR 收敛为共享类型，不保留重复别名。
 
