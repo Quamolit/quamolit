@@ -32,9 +32,11 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 
 “启用图片资源”将两个信号块投影成真实荷花缩略卡片，几何/逻辑key/父级隔离透明度不变，两个ImageNode共用`dashboard-cover/version=1`的一份租约。URL/预期尺寸仅在`ImageResourceDescriptor`，Scene没有URL或宿主句柄；`with-images`与`image-references`由Calcit定义。原`DashboardFonts`连接状态归并为`DashboardMedia`，同一个registry/queue协调font与image，分别复用FontResourceHost/ImageResourceHost。完成、缓存驱逐和关闭动作均同时应用到两类宿主，不在JS实现资源状态机。
 
-默认不启用图片，保留原画面；解码等待/失败仍显示原卡片与可见错误。共享队列一次运行一个任务，JS仅驱动Promise与DOM；每次完成交给最新Calcit状态，再领取下一项，resize/绘制不能吞掉已领取任务。关闭后迟到图片计入created/released且不重绘、不复活字体；HTMLImageElement没有destroy，释放只表示框架删除强引用，不声称物理内存同步回收。snapshot的历史`fonts`字段现在含整个媒体状态（含images），没有另一套资源运行时。
+默认不启用图片，保留原画面；解码等待/失败仍显示原卡片与可见错误。共享队列有两个并发槽，取消但尚未返回的decode仍占槽，维持有界背压；JS仅保存Promise/任务句柄并驱动DOM，引用/generation/当前任务判定均在Calcit。领取后以`consume-media-task`清空交付字段，每项只启动一次，resize/绘制不能吞掉它。操作的Promise只等待仍被当前Model引用且generation匹配的任务，不被旧版本拖住；旧任务最终仍结算释放。关闭后迟到图片计入created/released且不重绘、不复活字体；HTMLImageElement没有destroy，释放只表示框架删除强引用，不声称物理内存同步回收。snapshot的历史`fonts`字段现在含整个媒体状态（含images），没有另一套资源运行时。
 
-既有`test:layered-dashboard`加入1项原生语义与4项浏览器用例，合计20项浏览器回归：DPR1/2的独立原生Canvas图片/隔离alpha参考、捕获中的父级退出、暂停resize、100次独立reset/退出/重入、idle复用、重复关闭、真实解码等待期间卸载与图片失败不影响字体。参考与实际采用相同物理画布尺寸和默认图片平滑，区域逐通道零差异；不使用宽容差掩盖不同尺寸的采样差异。像素与resize先在完整尺寸验证；计数链路使用固定800×600物理尺寸和独立短日志，不作为吞吐测量。预览：`?demo=layered-dashboard&t=1`→启用字体/图片→隐藏→时间条1.3/1.6→恢复；截图仍为忽略artifact。版本切换/失败就地重试UI、glyph缓存、GPU文字及fence-safe回收仍未实现，#34/#51/#53/M2/M3不关闭。
+“重试图片”只对当前image的error开放，以release/acquire创建新resource-generation，identity/version不变、引用仍为1，不关闭字体或重置动画。“刷新图片（新版本）”和`setImageSource(url)`由Calcit递增descriptor.version，Scene与lookup同时使用新identity；不在同identity下偷偷换URL。切换中的旧图片继续由队列跟踪，迟到的旧identity/generation不能安装、不能替换新画面。等待时显示原卡片，字体保持就绪；仅字体失败不能启用图片重试按钮。
+
+既有`test:layered-dashboard`含2项原生语义与22项浏览器回归：DPR1/2的独立原生Canvas图片/隔离alpha参考、捕获中的父级退出、暂停resize、100次独立reset/退出/重入、idle复用、重复关闭、真实解码等待期间卸载与失败不影响字体；新增同identity重试和新蓝图先就绪/旧红图后到，断言版本、帧计数、像素与释放不被污染。参考与实际采用相同物理画布尺寸和默认图片平滑，区域逐通道零差异；不使用宽容差掩盖不同尺寸的采样差异。像素与resize先在完整尺寸验证；计数链路使用固定800×600物理尺寸和独立短日志，不作为吞吐测量。预览：`?demo=layered-dashboard&t=1`→启用字体/图片→刷新新版本→隐藏→时间条1.3/1.6→恢复；截图仍为忽略artifact。通用多图版本UI、glyph缓存、GPU文字及fence-safe回收仍未实现，#34/#51/#53/M2/M3不关闭。
 
 ## 图表子组件的独立出入
 
