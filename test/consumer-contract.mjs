@@ -800,9 +800,15 @@ export function verifyTransformConsumer(app, core) {
   check(changed, 1.1, 41, 200);
   assert.equal(changed.get(tags.declarations), 2);
   assert.equal(core.to_js_data(changed.get(tags.scene)).nodes[1].content[1].fill.g, 0.7);
-  assert.deepEqual(core.to_js_data(app.prepare_gpu(changed)), ["fallback", "standard-transform-kernel-not-supported"]);
+  assert.equal(app.prepare_gpu(changed).tag.value, "ready", "标准TRS已进入参数准备，实际GPU由硬件专项验证");
   assert.deepEqual(core.to_js_data(original), before);
-  return { frames: 1000, declarations: 1, builds: 1, transformSamples: 1001, gpu: "明确回退，尚未实现" };
+  return {
+    frames: 1000,
+    declarations: 1,
+    builds: 1,
+    transformSamples: 1001,
+    gpu: "参数准备通过；硬件见专项，不以mock代替",
+  };
 }
 
 export function verifyConsumer(app, core) {

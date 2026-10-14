@@ -12,7 +12,7 @@ function nativeDevice() {
   const device = {
     limits: { maxBufferSize: 1e7, maxStorageBufferBindingSize: 1e7 },
     createShaderModule({ code }) {
-      assert.ok(code.includes("sampleMotion(motions[instance*5u]"));
+      assert.ok(code.includes("sampleMotion(motions[instance*16u]"));
       return {};
     },
     createRenderPipeline() {
@@ -124,7 +124,7 @@ export function verifyIndependentGpuConsumer(app, core) {
     assert.throws(() => app.draw_independent_gpu_$x_(host, program, 0), /not-installed/);
     app.install_independent_gpu_$x_(host, program, 0);
     assert.equal(host.uploadedBytes, 640000);
-    assert.equal(host.parameterBytes, 2240000);
+    assert.equal(host.parameterBytes, 5760000);
     const cold = m.writes.length;
     for (let index = 0; index < 1000; index++)
       app.draw_independent_gpu_$x_(host, program, [1, 0, 0.5, 0.25, 1][index % 5]);
@@ -133,7 +133,7 @@ export function verifyIndependentGpuConsumer(app, core) {
     assert.ok(hot.every((w) => w.bytes === 16 && w.label === "Quamolit component viewport"));
     assert.deepEqual(m.draws.at(-1), [6, 10000]);
     assert.equal(host.uploadedBytes, 640000);
-    assert.equal(host.parameterBytes, 2240000);
+    assert.equal(host.parameterBytes, 5760000);
     const before = m.writes.length;
     const beforeTime = host.viewScratch[2],
       beforeDraws = m.draws.length;
@@ -158,7 +158,7 @@ export function verifyIndependentGpuConsumer(app, core) {
     instances: 10000,
     parameters: 20000,
     coldRecordBytes: 640000,
-    coldParameterBytes: 2240000,
+    coldParameterBytes: 5760000,
     hotFrames: 1000,
     hotPositionBytes: 0,
     hotUniformBytes: 16000,
@@ -172,7 +172,7 @@ export function verifyGpuConsumer(app, core, mode = false) {
     mirror = mode === "mirror";
   assert.deepEqual(
     core.to_js_data(app.prepare_gpu(app.start(0, 40, false, 100))),
-    ["fallback", "standard-transform-kernel-not-supported"],
+    ["fallback", "unsupported-node:polyline"],
     "混合场景不能为通过 GPU 验收静默漏画折线",
   );
   const source = (mirror ? app.start_mirror : alpha ? app.start_alpha : app.start_rects)(0, 40, false, 100);
@@ -202,7 +202,7 @@ export function verifyGpuConsumer(app, core, mode = false) {
     app.install_gpu_$x_(host, program);
     const coldWrites = m.writes.length;
     assert.equal(host.uploadedBytes, 128);
-    assert.equal(host.parameterBytes, 352);
+    assert.equal(host.parameterBytes, 1056);
     for (let frame = 0; frame < 1000; frame++) {
       // 无逐帧 update_rects/CPU sampler；只传已安装 program 和绝对时间。
       app.draw_gpu_$x_(host, program, mirror ? (frame % 501) / 100 - 2.5 : (frame % 101) / 100);
@@ -211,7 +211,7 @@ export function verifyGpuConsumer(app, core, mode = false) {
     assert.equal(hotWrites.length, 1000);
     assert.ok(hotWrites.every((w) => w.bytes === 16 && w.label === "Quamolit component viewport"));
     assert.equal(host.uploadedBytes, 128);
-    assert.equal(host.parameterBytes, 352);
+    assert.equal(host.parameterBytes, 1056);
     assert.equal(m.buffers.length, 3);
     assert.equal(m.counts().pipelines, 1);
     assert.equal(m.draws.length, 1001);
@@ -258,7 +258,7 @@ export function verifyGpuConsumer(app, core, mode = false) {
     backend: "native-device-mock",
     frames: 1000,
     coldRecordsBytes: 128,
-    coldParametersBytes: 352,
+    coldParametersBytes: 1056,
     hotRecordsBytes: 0,
     hotParametersBytes: 0,
     hotUniformBytes: 16000,
@@ -288,14 +288,14 @@ export function verifyDualGpuConsumer(app, core) {
     assert.deepEqual(
       parameters.map((p) => [p.offset, p.values]),
       [
-        [160, [80, 144, 0, 1, 1, 1, 0, 0]],
-        [192, [62, 94, 0, 1, 1, 1, 0, 0]],
-        [256, [40, 104, 0, 1, 1, 1, 0, 0]],
-        [288, [20, 52, 0, 1, 1, 1, 0, 0]],
+        [512, [80, 144, 0, 1, 1, 1, 0, 0]],
+        [544, [62, 94, 0, 1, 1, 1, 0, 0]],
+        [608, [40, 104, 0, 1, 1, 1, 0, 0]],
+        [640, [20, 52, 0, 1, 1, 1, 0, 0]],
       ],
       "x/y/width/height 使用独立参数槽，不覆盖 alpha 槽",
     );
-    assert.equal(host.parameterBytes, 448);
+    assert.equal(host.parameterBytes, 1152);
     const coldWrites = m.writes.length;
     for (let i = 0; i < 1000; i++) app.draw_gpu_$x_(host, program, (i % 101) / 100);
     assert.equal(m.writes.length - coldWrites, 1000);
@@ -331,7 +331,7 @@ export function verifyDualGpuConsumer(app, core) {
     backend: "native-device-mock",
     mode: "smoothstep-xy-size",
     frames: 1000,
-    coldParametersBytes: 448,
+    coldParametersBytes: 1152,
     hotParametersBytes: 0,
     hotUniformBytes: 16000,
     buffers: 3,

@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { readScalarSample } from "./host/gpu-scalar-readback.mjs";
+import { writeFile } from "node:fs/promises";
 
 test("公共计划的整层 Canvas 回退与原参考一致", async ({ page }, info) => {
   await page.goto("/test/retained-component.html");
@@ -151,4 +153,139 @@ test("公共标准动画在非软件 GPU 采样，时间帧不上传记录或参
   await page.getByRole("button", { name: "验证当前像素", exact: true }).click();
   await expect(page.locator("#gpu-pixels")).toHaveAttribute("data-result", "pass");
   await page.screenshot({ path: info.outputPath("gpu-scalar-program.png"), fullPage: true });
+});
+
+test("标准TRS真实GPU：同源shader世界坐标、乱序帧、镜像及参数常驻", async ({ page }, info) => {
+  await page.goto("/test/retained-component.html");
+  await page.addScriptTag({ content: `globalThis.__quamolitTrsProbe=${readScalarSample.toString()}` });
+  const report = await page.evaluate(async () => {
+    const adapter = await navigator.gpu?.requestAdapter();
+    if (!adapter) return { result: "SKIP", reason: "adapter-unavailable" };
+    const identity = {
+      vendor: adapter.info.vendor,
+      architecture: adapter.info.architecture,
+      device: adapter.info.device,
+      description: adapter.info.description,
+    };
+    if (
+      adapter.isFallbackAdapter ||
+      adapter.info.isFallbackAdapter ||
+      /swiftshader|software|llvmpipe/i.test(Object.values(identity).join(" "))
+    )
+      return { result: "SKIP", reason: "software-adapter", adapter: identity };
+    const fixture = await import("/target/js/retained-component/quamolit.test.retained-component-fixture.mjs");
+    const api = await import("/target/js/retained-component/quamolit.gpu-scalar-program.mjs");
+    const gpu = await import("/target/js/retained-component/quamolit.gpu-component.mjs");
+    const core = await import("/target/js/retained-component/calcit.core.mjs");
+    const fields = core.init_tags(["frame", "records", "parameters"]),
+      device = await adapter.requestDevice(),
+      errors = [],
+      samples = [],
+      frames = [];
+    device.addEventListener("uncapturederror", (event) => errors.push(event.error.message));
+    device.pushErrorScope("validation");
+    const canvas = document.createElement("canvas"),
+      capture = document.createElement("canvas");
+    for (const target of [canvas, capture]) {
+      target.width = 320;
+      target.height = 180;
+    }
+    const context = capture.getContext("2d");
+    let host;
+    try {
+      host = api.create_renderer_$x_(canvas, device, navigator.gpu.getPreferredCanvasFormat(), 65);
+      for (const scaleEnd of [1.05, -1, 0]) {
+        const prepared = api.prepare_program(fixture.start_transform(0, 0.4, 100, scaleEnd));
+        if (prepared.tag.value !== "ready") throw Error(`unexpected-trs-fallback:${prepared.extra[0]}`);
+        const program = prepared.extra[0],
+          envelope = core.to_js_data(
+            api.trs_precision(
+              program.get(fields.frame).get(fields.records).get(64),
+              program.get(fields.parameters),
+              64,
+            ),
+          );
+        api.install_program_$x_(host, program);
+        const coldRecords = host.uploadedBytes,
+          coldParameters = host.parameterBytes;
+        for (let frame = 0; frame < 1000; frame++) api.draw_at_$x_(host, program, (frame % 101) / 100);
+        if (host.uploadedBytes !== coldRecords || host.parameterBytes !== coldParameters)
+          throw Error("trs-hot-parameter-upload");
+        for (const time of [1, 0, 0.5, 0.25, 1, 0.37, 0.81, -0.1, 1.1]) {
+          api.draw_at_$x_(host, program, time);
+          const t = Math.max(0, Math.min(1, time)),
+            s = t * t * (3 - 2 * t),
+            x = 80 + 40 * t,
+            y = 62;
+          const scale = 0.7 + (scaleEnd - 0.7) * s,
+            angle = -0.4 + 0.8 * s,
+            pivot = [100, 72];
+          const expectedPoint = ([px, py]) => {
+            const dx = (px - pivot[0]) * scale,
+              dy = (py - pivot[1]) * scale;
+            return [
+              32 * s + pivot[0] + Math.cos(angle) * dx - Math.sin(angle) * dy,
+              -12 * s + pivot[1] + Math.sin(angle) * dx + Math.cos(angle) * dy,
+            ];
+          };
+          const bitmap = await createImageBitmap(canvas);
+          context.clearRect(0, 0, 320, 180);
+          context.drawImage(bitmap, 0, 0);
+          bitmap.close();
+          if (scaleEnd === 1.05) {
+            const [cx, cy] = expectedPoint([x + 5, y + 10]);
+            const pixel = [...context.getImageData(Math.floor(cx), Math.floor(cy), 1, 1).data];
+            if (pixel.join(",") !== "235,71,153,255") throw Error(`trs-center-pixel:${time}:${pixel}`);
+            frames.push({ time, pixel, png: capture.toDataURL() });
+          }
+          const bound = 0.125 * (envelope.x + envelope.y * Math.abs(time));
+          if (!(bound > 0 && bound <= 0.125)) throw Error(`trs-error-budget:${bound}`);
+          for (const point of [
+            [x, y],
+            [x + 10, y],
+            [x, y + 20],
+            [x + 10, y + 20],
+            [x + 5, y + 10],
+          ]) {
+            const actual = await window.__quamolitTrsProbe(host, 64, time, 0, point),
+              expected = expectedPoint(point);
+            for (let axis = 0; axis < 2; axis++)
+              if (Math.abs(actual[axis] - expected[axis]) > bound)
+                throw Error(`trs-world-error:${JSON.stringify({ time, scaleEnd, point, actual, expected, bound })}`);
+            if (Math.abs(actual[0] + 1 - expected[0]) <= bound) throw Error("trs-translation-negative-control");
+            samples.push({ time, scaleEnd, point, actual, expected, bound });
+          }
+        }
+      }
+      const validation = await device.popErrorScope();
+      if (validation) errors.push(validation.message);
+      return {
+        result: "PASS",
+        adapter: identity,
+        errors,
+        samples,
+        frames,
+        scope: "世界坐标传播预算与实色内区；旋转边缘完整栅格合同仍归#144",
+      };
+    } finally {
+      if (host) gpu.dispose_renderer_$x_(host);
+      device.destroy();
+    }
+  });
+  if (report.result === "SKIP") {
+    if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") expect(report.result, JSON.stringify(report)).toBe("PASS");
+    test.skip(true, report.reason);
+    return;
+  }
+  expect(report.errors).toEqual([]);
+  expect(report.samples).toHaveLength(135);
+  expect(report.frames).toHaveLength(9);
+  for (const [index, frame] of report.frames.entries()) {
+    const path = info.outputPath(`trs-${index}-gpu.png`);
+    await writeFile(path, Buffer.from(frame.png.split(",")[1], "base64"));
+    frame.png = path;
+  }
+  const reportPath = info.outputPath("trs-report.json");
+  await writeFile(reportPath, JSON.stringify(report, null, 2));
+  await info.attach("TRS世界坐标与固定帧", { path: reportPath, contentType: "application/json" });
 });

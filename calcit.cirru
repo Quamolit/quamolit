@@ -9100,6 +9100,21 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.retained-component/BoundScalar
+        'axis-parameter $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn axis-parameter (parameters index axis original)
+            foldl parameters (constant-parameter index axis original)
+              fn (acc p)
+                hint-fn $ {}
+                  :args $ [] 'quamolit.gpu-scalar-program/ScalarParameter 'quamolit.gpu-scalar-program/ScalarParameter
+                  :return 'quamolit.gpu-scalar-program/ScalarParameter
+                if
+                  and
+                    = (:index p) index
+                    = (:axis p) axis
+                  , p acc
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ScalarParameter)
+            :args $ [] (:: 'List 'quamolit.gpu-scalar-program/ScalarParameter) 'Number 'Number 'Number
         'bounded? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn bounded? (value)
             and (f32/finite-f32? value)
@@ -9158,6 +9173,76 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
             :args $ [] (:: 'List 'quamolit.retained-component/BoundScalar) 'quamolit.retained-component/ComponentPlan 'quamolit.gpu-component/RectFrame $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
+        'collect-transforms $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn collect-transforms (descriptions index plan parameters)
+            if (empty? descriptions) (InstanceParametersResult :ready parameters)
+              match (&list:nth descriptions 0)
+                (:constant _)
+                  recur (rest descriptions) (+ index 1) plan parameters
+                (:trs trs)
+                  match
+                    collect-trs-fields
+                      [] (:x trs) (:y trs) (:rotation trs) (:scale-x trs) (:scale-y trs)
+                      , index 8 parameters
+                    (:fallback reason)
+                      InstanceParametersResult :fallback $ str reason |;key=
+                        :key $ &list:nth
+                          :nodes $ :scene plan
+                          , index
+                        , |;target=transform
+                    (:ready values)
+                      recur (rest descriptions) (+ index 1) plan $ concat values $ []
+                        constant-parameter index 13 $ :x $ :pivot trs
+                        constant-parameter index 14 $ :y $ :pivot trs
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.gpu-scalar-program/InstanceParametersResult
+            :args $ [] (:: 'List 'quamolit.retained-component/TransformMotion) 'Number 'quamolit.retained-component/ComponentPlan $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
+        'collect-trs-fields $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn collect-trs-fields (descriptors index axis parameters)
+            if (empty? descriptors) (InstanceParametersResult :ready parameters)
+              match
+                prepare-descriptor index axis $ &list:nth descriptors 0
+                (:fallback reason)
+                  InstanceParametersResult :fallback $ str reason |;axis= axis
+                (:ready parameter)
+                  if
+                    and (= axis 10)
+                      >
+                        max-absolute $ [] (:from parameter) (:to parameter)
+                        , 3
+                    InstanceParametersResult :fallback |trs-angle-domain
+                    recur (rest descriptors) index (+ axis 1) (append parameters parameter)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.gpu-scalar-program/InstanceParametersResult
+            :args $ [] (:: 'List 'quamolit.motion/ScalarDescriptor) 'Number 'Number $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
+        'constant-parameter $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn constant-parameter (index axis value)
+            ScalarParameter :index index :axis axis :start 0 :duration 0 :from value :to value :easing 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ScalarParameter)
+            :args $ [] 'Number 'Number 'Number
+        'corner-distance $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn corner-distance (position size pivot)
+            max-absolute $ []
+              - (:from position) pivot
+              - (:to position) pivot
+              -
+                + (:from position) (:from size)
+                , pivot
+              -
+                + (:from position) (:to size)
+                , pivot
+              -
+                + (:to position) (:from size)
+                , pivot
+              -
+                + (:to position) (:to size)
+                , pivot
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.gpu-scalar-program/ScalarParameter 'quamolit.gpu-scalar-program/ScalarParameter 'Number
         'create-renderer! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-renderer! (canvas device format capacity)
             unsafe-coerce
@@ -9196,7 +9281,7 @@
         'finish-program $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn finish-program (plan frame parameters)
             let
-                precision $ precision-envelope parameters
+                precision $ program-precision frame parameters
                 program $ ScalarProgram :source plan :frame frame :parameters parameters :precision-base (:x precision) :precision-slope $ :y precision
               if
                 time-supported? program $ :time plan
@@ -9254,7 +9339,7 @@
           :code $ quote $ defn make-axis-parameter (index axis tween)
             assert |invalid-scalar-instance-index $ and (motion/finite-number? index) (>= index 0)
               = index $ floor index
-            assert |invalid-scalar-instance-axis $ or (= axis 0) (= axis 1) (= axis 2) (= axis 3) (= axis 4)
+            assert |invalid-scalar-instance-axis $ or (= axis 0) (= axis 1) (= axis 2) (= axis 3) (= axis 4) (= axis 8) (= axis 9) (= axis 10) (= axis 11) (= axis 12) (= axis 13) (= axis 14)
             if
               and (= axis 2)
                 not $ and
@@ -9292,6 +9377,47 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ParameterResult)
             :args $ [] 'quamolit.retained-component/BoundScalar 'quamolit.motion/ScalarTween
+        'max-absolute $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn max-absolute (values)
+            foldl values 0 $ fn (acc value)
+              if
+                > (abs value) acc
+                abs value
+                , acc
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] $ :: 'List 'Number
+        'parameter-error $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn parameter-error (p)
+            let
+                from $ :from p
+                to $ :to p
+                duration $ :duration p
+                scale $ * 1.1920928955078125e-7 $ if
+                  >= (:easing p) 2
+                  , 16 8
+              if
+                and (= duration 0) (not= from to)
+                motion/Vec2 :x 1e30 :y 0
+                let
+                    speed $ if (= from to) 0 $ *
+                      if
+                        or
+                          = (:easing p) 1
+                          = (:easing p) 3
+                        , 1.5 1
+                      /
+                        abs $ - to from
+                        , duration
+                  motion/Vec2 :x
+                    * scale $ + (abs from) (abs to)
+                      * speed $ +
+                        abs $ :start p
+                        , duration
+                    , :y $ * scale speed
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.gpu-scalar-program/ScalarParameter
         'parameter-precision $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn parameter-precision (p)
             let
@@ -9372,6 +9498,41 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'Number 'Number 'Number
+        'prepare-descriptor $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn prepare-descriptor (index axis descriptor)
+            match (lowering/lower-scalar descriptor)
+              (:unsupported reason) (ParameterResult :fallback reason)
+              (:supported candidate)
+                match (:kernel candidate)
+                  (:constant value)
+                    make-axis-parameter index axis $ motion/ScalarTween :start 0 :duration 0 :from value :to value :easing $ motion/Easing :linear
+                  (:tween tween) (make-axis-parameter index axis tween)
+                  (:keyframes track)
+                    if
+                      and
+                        = 2 $ count $ :frames track
+                        or
+                          = (:loop track) (motion/TrackLoop :clamp)
+                          = (:loop track) (motion/TrackLoop :mirror)
+                      let
+                          initial $ motion/first-keyframe $ :frames track
+                          final $ motion/last-keyframe $ :frames track
+                          duration $ - (:at final) (:at initial)
+                          mirror? $ = (:loop track) (motion/TrackLoop :mirror)
+                        match
+                          make-axis-parameter index axis $ motion/ScalarTween :start (:at initial) :duration duration :from (:value initial) :to (:value final) :easing $ :easing initial
+                          (:ready parameter)
+                            ParameterResult :ready $ if mirror?
+                              assoc
+                                assoc parameter :easing $ + (:easing parameter) 2
+                                , :from $ if (= duration 0) (:to parameter) (:from parameter)
+                              , parameter
+                          (:fallback reason) (ParameterResult :fallback reason)
+                      ParameterResult :fallback |scalar-kernel-not-supported
+                  _ $ ParameterResult :fallback |scalar-kernel-not-supported
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ParameterResult)
+            :args $ [] 'Number 'Number 'quamolit.motion/ScalarDescriptor
         'prepare-instance-axis $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn prepare-instance-axis (index axis descriptor)
             match (lowering/lower-vec2 descriptor)
@@ -9434,15 +9595,19 @@
             :args $ [] 'quamolit.scene-ir/InstanceNode (:: 'List 'quamolit.motion/Vec2Descriptor) 'Number
         'prepare-program $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn prepare-program (plan)
-            if
-              retained/transform-active? $ :transform-sampler plan
-              ProgramResult :fallback $ match (:transform-sampler plan)
-                (:motions _) |standard-transform-kernel-not-supported
-                _ |cpu-transform-required
-              match (gpu/prepare-plan plan)
+            match (:transform-sampler plan)
+              (:cpu _) (ProgramResult :fallback |cpu-transform-required)
+              _ $ match (gpu/prepare-plan plan)
                 (:fallback reason) (ProgramResult :fallback reason)
                 (:rects frame)
-                  collect-parameters (:slots plan) plan frame $ empty-parameters
+                  match (:transform-sampler plan)
+                    (:motions descriptions)
+                      match
+                        collect-transforms descriptions 0 plan $ empty-parameters
+                        (:fallback reason) (ProgramResult :fallback reason)
+                        (:ready parameters)
+                          collect-parameters (:slots plan) plan (transform-frame frame descriptions) parameters
+                    _ $ collect-parameters (:slots plan) plan frame $ empty-parameters
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
             :args $ [] 'quamolit.retained-component/ComponentPlan
@@ -9451,40 +9616,40 @@
             if
               < (axis-of slot) 0
               ParameterResult :fallback |scalar-target-not-supported
-              match
-                lowering/lower-scalar $ :descriptor slot
-                (:unsupported reason) (ParameterResult :fallback reason)
-                (:supported candidate)
-                  match (:kernel candidate)
-                    (:constant value)
-                      make-parameter slot $ motion/ScalarTween :start 0 :duration 0 :from value :to value :easing $ motion/Easing :linear
-                    (:tween tween) (make-parameter slot tween)
-                    (:keyframes track)
-                      if
-                        and
-                          = 2 $ count $ :frames track
-                          or
-                            = (:loop track) (motion/TrackLoop :clamp)
-                            = (:loop track) (motion/TrackLoop :mirror)
-                        let
-                            initial $ motion/first-keyframe $ :frames track
-                            final $ motion/last-keyframe $ :frames track
-                            duration $ - (:at final) (:at initial)
-                            mirror? $ = (:loop track) (motion/TrackLoop :mirror)
-                          match
-                            make-parameter slot $ motion/ScalarTween :start (:at initial) :duration duration :from (:value initial) :to (:value final) :easing $ :easing initial
-                            (:ready parameter)
-                              ParameterResult :ready $ if mirror?
-                                assoc
-                                  assoc parameter :easing $ + (:easing parameter) 2
-                                  , :from $ if (= duration 0) (:to parameter) (:from parameter)
-                                , parameter
-                            (:fallback reason) (ParameterResult :fallback reason)
-                        ParameterResult :fallback |scalar-kernel-not-supported
-                    _ $ ParameterResult :fallback |scalar-kernel-not-supported
+              prepare-descriptor (:index slot) (axis-of slot) (:descriptor slot)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ParameterResult)
             :args $ [] 'quamolit.retained-component/BoundScalar
+        'program-precision $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn program-precision (frame parameters)
+            let
+                scalar $ precision-envelope $ filter parameters
+                  fn (p)
+                    < (:axis p) 8
+              foldl
+                filter parameters $ fn (p)
+                  = (:axis p) 8
+                , scalar $ fn (acc transform)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.motion/Vec2 'quamolit.gpu-scalar-program/ScalarParameter
+                    :return 'quamolit.motion/Vec2
+                  let
+                      index $ :index transform
+                      cost $ trs-precision
+                        &list:nth (:records frame) index
+                        , parameters index
+                    motion/Vec2 :x
+                      if
+                        > (:x acc) (:x cost)
+                        :x acc
+                        :x cost
+                      , :y $ if
+                        > (:y acc) (:y cost)
+                        :y acc
+                        :y cost
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.gpu-component/RectFrame $ :: 'List 'quamolit.gpu-scalar-program/ScalarParameter
         'raw-create! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-create! (canvas device format capacity scalar) (raise |js-only-gpu-scalar)
           :examples $ []
@@ -9497,7 +9662,7 @@
           :code $ quote $ defn raw-parameter! (host index axis start duration from to easing) &unit
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,index,axis,start,duration,from,to,easing)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(index)||index<0||index>=h.scalarCount||(axis!==0&&axis!==1&&axis!==2&&axis!==3&&axis!==4))throw Error('gpu-scalar-index');\n h.scalarScratch.set([from,to,start,duration,1,easing,0,0]);\n h.device.queue.writeBuffer(h.motions,index*160+axis*32,h.scalarScratch);h.parameterBytes+=32;\n}"
+            :js $ {} $ :inline "|(h,index,axis,start,duration,from,to,easing)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(index)||index<0||index>=h.scalarCount||!Number.isSafeInteger(axis)||!((axis>=0&&axis<=4)||(axis>=8&&axis<=14)))throw Error('gpu-scalar-index');\n h.scalarScratch.set([from,to,start,duration,1,easing,0,0]);\n h.device.queue.writeBuffer(h.motions,index*512+axis*32,h.scalarScratch);h.parameterBytes+=32;\n}"
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'Number 'Number 'Number 'Number 'Number 'Number 'Number
             :features $ #{} :js-ffi
@@ -9513,7 +9678,7 @@
           :code $ quote $ defn raw-reset! (host instances time) &unit
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,count,time)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-scalar-capacity');\n h.scalarReady=false;h.scalarProgram=null;h.scalarCount=count;h.viewScratch[2]=time;\n if(count>0){h.device.queue.writeBuffer(h.motions,0,new Float32Array(count*40));h.parameterBytes+=count*160;}\n}"
+            :js $ {} $ :inline "|(h,count,time)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-scalar-capacity');\n h.scalarReady=false;h.scalarProgram=null;h.scalarCount=count;h.viewScratch[2]=time;\n if(count>0){h.device.queue.writeBuffer(h.motions,0,new Float32Array(count*128));h.parameterBytes+=count*512;}\n}"
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'Number 'Number
             :features $ #{} :js-ffi
@@ -9538,12 +9703,96 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.gpu-scalar-program/ScalarProgram 'quamolit.retained-component/ComponentPlan
+        'scale-error $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn scale-error (error factor)
+            motion/Vec2 :x
+              * (:x error) factor
+              , :y $ * (:y error) factor
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.motion/Vec2 'Number
+        'sum-error $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sum-error (a b)
+            motion/Vec2 :x
+              + (:x a) (:x b)
+              , :y $ + (:y a) (:y b)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2
         'time-supported? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn time-supported? (program time)
             precision-time-supported? (:precision-base program) (:precision-slope program) time
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.gpu-scalar-program/ScalarProgram 'Number
+        'transform-frame $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn transform-frame (frame descriptions)
+            gpu/RectFrame :records $ map
+              range $ count $ :records frame
+              fn (index)
+                let
+                    record $ &list:nth (:records frame) index
+                  match (&list:nth descriptions index)
+                    (:constant _) record
+                    (:trs _)
+                      assoc record :matrix $ quamolit.scene-ir/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectFrame)
+            :args $ [] 'quamolit.gpu-component/RectFrame $ :: 'List 'quamolit.retained-component/TransformMotion
+        'trs-precision $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn trs-precision (record parameters index)
+            let
+                rect $ :rect record
+                x $ axis-parameter parameters index 0 $ :x rect
+                y $ axis-parameter parameters index 1 $ :y rect
+                width $ axis-parameter parameters index 3 $ :width rect
+                height $ axis-parameter parameters index 4 $ :height rect
+                tx $ axis-parameter parameters index 8 0
+                ty $ axis-parameter parameters index 9 0
+                angle $ axis-parameter parameters index 10 0
+                sx $ axis-parameter parameters index 11 1
+                sy $ axis-parameter parameters index 12 1
+                px $ axis-parameter parameters index 13 0
+                py $ axis-parameter parameters index 14 0
+                dx $ corner-distance x width $ :from px
+                dy $ corner-distance y height $ :from py
+                mx $ max-absolute $ [] (:from sx) (:to sx)
+                my $ max-absolute $ [] (:from sy) (:to sy)
+                radius $ +
+                  * (+ dx 1) (+ mx 1)
+                  * (+ dy 1) (+ my 1)
+                geometry $ foldl ([] x y width height px py) (motion/Vec2 :x 0 :y 0)
+                  fn (acc p)
+                    hint-fn $ {}
+                      :args $ [] 'quamolit.motion/Vec2 'quamolit.gpu-scalar-program/ScalarParameter
+                      :return 'quamolit.motion/Vec2
+                    sum-error acc $ parameter-error p
+                variable $ foldl
+                  [] (parameter-error tx) (parameter-error ty)
+                    scale-error geometry $ + 1 mx my
+                    scale-error (parameter-error angle) radius
+                    scale-error (parameter-error sx) (+ dx 1)
+                    scale-error (parameter-error sy) (+ dy 1)
+                  motion/Vec2 :x 0 :y 0
+                  fn (acc value)
+                    hint-fn $ {}
+                      :args $ [] 'quamolit.motion/Vec2 'quamolit.motion/Vec2
+                      :return 'quamolit.motion/Vec2
+                    sum-error acc value
+                magnitude $ + 1 radius
+                  abs $ :from px
+                  abs $ :from py
+                  max-absolute $ [] (:from tx) (:to tx)
+                  max-absolute $ [] (:from ty) (:to ty)
+                constant $ + (* radius 0.00048828125) (* 32 1.1920928955078125e-7 magnitude)
+              motion/Vec2 :x
+                /
+                  + (:x variable) constant
+                  , 0.125
+                , :y $ / (:y variable) 0.125
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
+            :args $ [] 'quamolit.gpu-component/RectRecord (:: 'List 'quamolit.gpu-scalar-program/ScalarParameter) 'Number
         'write-parameter! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn write-parameter! (host p)
             let
@@ -15257,7 +15506,7 @@
           :examples $ []
           :schema $ :: 'StructDef
         'TransformMotion $ %{} 'CodeEntry
-          :doc "|可序列化标准变换数据：constant为完整矩阵，trs按绝对时间独立采样。当前仅CPU参考与保留计划接线，尚未实现GPU变换kernel；任意闭包保留TransformSampler :cpu。"
+          :doc "|可序列化标准变换：constant为完整矩阵，trs按绝对时间采样。CPU参考覆盖完整有限输入；GPU program按节点、算子、角度域及世界坐标误差预算选择受限kernel或整层回退，不将任意闭包转换为WGSL。"
           :code $ quote $ defenum TransformMotion (:constant 'quamolit.scene-ir/Matrix2D) (:trs 'quamolit.retained-component/TrsMotion)
           :examples $ []
           :schema $ :: 'EnumDef
@@ -20189,6 +20438,33 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'start-transform $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-transform (time angle pivot scale)
+            retained/build-execution-plan (make-request time 40 false 100)
+              fn (props model input resources viewport)
+                hint-fn $ {}
+                  :args $ [] 'Number 'Number 'Number 'Bool 'Number
+                  :return 'quamolit.retained-component/ExecutionDeclaration
+                let
+                    base $ declare-demo props model input resources viewport
+                    descriptor $ fn (id from to)
+                      hint-fn $ {}
+                        :args $ [] 'String 'Number 'Number
+                        :return 'quamolit.motion/ScalarDescriptor
+                      motion/ScalarDescriptor :id id :version 1 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from from :to to :easing (motion/Easing :smoothstep)
+                    transform $ retained/TrsMotion :x (descriptor |trs-x 0 32) :y (descriptor |trs-y 0 -12) :rotation
+                      descriptor |trs-angle (- 0 angle) angle
+                      , :scale-x (descriptor |trs-scale-x 0.7 scale) :scale-y (descriptor |trs-scale-y 0.7 scale) :pivot $ motion/Vec2 :x pivot :y 72
+                  retained/ExecutionDeclaration :component base :transforms $ retained/TransformSampler :motions $ map
+                    :nodes $ :scene base
+                    fn (node)
+                      if
+                        = (:id node) |badge
+                        retained/TransformMotion :trs transform
+                        retained/TransformMotion :constant $ scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number 'Number 'Number 'Number
         'update-mixed $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-mixed (plan time model ready viewport)
             retained/update-execution-plan plan (make-request time model ready viewport) declare-mixed

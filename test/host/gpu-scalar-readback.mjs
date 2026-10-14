@@ -1,5 +1,5 @@
 // 测试专用有界读回。复用实际 renderer 的 WGSL 与已安装参数，不进入正常帧路径。
-export async function readScalarSample(host, index, time, axis = 0) {
+export async function readScalarSample(host, index, time, axis = 0, point = null) {
   if (
     host.disposed ||
     !host.scalarReady ||
@@ -7,7 +7,8 @@ export async function readScalarSample(host, index, time, axis = 0) {
     index < 0 ||
     index >= host.scalarCount ||
     !Number.isFinite(time) ||
-    (axis !== 0 && axis !== 2 && axis !== 3)
+    (axis !== 0 && axis !== 2 && axis !== 3) ||
+    (point !== null && (!Array.isArray(point) || point.length !== 2 || !point.every(Number.isFinite)))
   )
     throw Error("invalid-scalar-probe");
   const device = host.device;
@@ -17,8 +18,14 @@ export async function readScalarSample(host, index, time, axis = 0) {
       code: `${host.scalarSource}
 @group(0) @binding(2) var<storage,read_write> result: array<f32>;
 @compute @workgroup_size(1) fn probe(){
- result[0]=sampleMotion(motions[${index * 5 + axis}u],0.0);
- result[1]=sampleMotion(motions[${index * 5 + (axis === 2 ? 2 : axis + 1)}u],0.0);
+${
+  point
+    ? `let world=sampleTransform(vec2f(${point[0]},${point[1]}),${index}u);
+ result[0]=world.x; result[1]=world.y;`
+    : `
+ result[0]=sampleMotion(motions[${index * 16 + axis}u],0.0);
+ result[1]=sampleMotion(motions[${index * 16 + (axis === 2 ? 2 : axis + 1)}u],0.0);`
+}
 }`,
     });
     const pipeline = await device.createComputePipelineAsync({

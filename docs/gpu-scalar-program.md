@@ -1,14 +1,24 @@
 # 标量 Motion 到公共 GPU 计划（开发中）
 
+## 本地后续切片：标准 TRS（尚未完成，非已发布能力）
+
+继 #239 的 CPU/Canvas 声明参考，本地后续分支将同一 `TransformSampler :motions` 降为常驻参数，继续复用矩形 pipeline，不创建平行 renderer。节点的常量矩阵保留；TRS 节点冷帧使用单位矩阵，shader 对局部点依次执行减 pivot、缩放、旋转、加 pivot 与平移，避免把 CPU 已采样矩阵再应用一次。普通位置/尺寸/透明度绑定仍可同时存在。拟采用每节点16个32B槽：0–4保持原义，5–7保留给颜色候选，8–12为 tx/ty/rotation/sx/sy，13/14为常量pivot；不把尚未合并的#238当作已交付。
+
+数值合同在实现和测试前约定：已有标量阈值不变；TRS **世界坐标**另按误差传播计算保守上界，预算上限为每轴 `0.125` CSS px，不把这个数用于既有标量、Canvas像素或#144栅格化验收。依据[当前WGSL精度规范](https://www.w3.org/TR/WGSL/#floating-point-accuracy)，f32内建sin/cos在[-π,π]的绝对误差保证仅为2^-11；半径会放大此误差。因此本切片角度端点限于[-3,3]弧度，不做隐式取模/钳制；再用≤0.125的角度量化上界保证实际shader输入仍在[-π,π]。越界整层回退，不修改CPU描述。
+
+对标量参数计算未归一化的误差包络 `E(t)=8ε·(M+V·(|start|+duration+|t|))`（mirror采用16ε，ε=2^-23，M与V同下文）；非恒定零时长跳变拒绝。令Dx/Dy为局部矩形全部位置/尺寸端点组合距pivot的最大距离，Sx/Sy为缩放端点的最大绝对值，G为位置/尺寸及pivot量化误差之和，`R=(Dx+1)(Sx+1)+(Dy+1)(Sy+1)`。每轴上界使用：`Etx+Ety+(1+Sx+Sy)G+R·(2^-11+Erotation)+(Dx+1)Esx+(Dy+1)Esy+32ε·世界坐标幅度界`；额外的1覆盖预算内≤0.125的交叉扰动。几何动画的误差与端点范围也须计入，不能只检查初始静态矩形或只读回角度。按节点收集后取最大仿射时间包络，提交仍为O(1)门禁；上界超过预算则在任何GPU上传前拒绝。无溢出/角度域/世界坐标误差证据，不得称为支持。
+
+后续验收必须在既有消费者的旋转缩放模式执行真实Metal顶点数值与画面、乱序/重复时间、同时间失效、1000帧常驻/上传及卸载，实际误差对照**实施前的传播上界**且上界本身≤0.125；错误平移/支点/旋转方向反例必须失败。Canvas仍全像素严格零差异，GPU旋转边缘不冒充已解决#144。当前只有CPU参考已完成；下文的五槽事实属于先前已验证实现，待完整新链路验证后再统一更新，不能提前宣称GPU TRS或性能完成。
+
 推进 #52，消费 #118 的 ComponentPlan/矩形批次候选，不另造组件或 Scene。已接入参数常驻和 vertex shader 采样；已有真实 GPU 像素、线性及双轴 smoothstep 非整数读回，以及独立消费者分发验证。完整精度域与性能验收仍在开发，不以这些诊断帧代表完整数值等价。
 
 `quamolit.gpu-scalar-program/prepare-program(plan)` 返回 `ProgramResult :ready ScalarProgram` 或 `:fallback reason`。ready 保存同一来源计划、矩形帧和 ScalarParameter 列表。通过既有 `motion-gpu/lower-scalar` 检查描述符，再将明确支持的矩形 x/y/alpha/width/height constant、linear/smoothstep tween 或两点 clamp/mirror 轨道转成参数。轨道复用 tween 编码与 shader，段 easing 取首帧；重复时间保留“时间点前取首值，到点后右侧胜出”，非恒定零时长跳变仍被原精度预算拒绝。多段及 repeat 未实现，仍明确回退。alpha 是填充透明度替换，端点须在 `[0,1]`，不是 group opacity；隔离组、CPU 自定义变换、其他目标/算子及不支持的节点仍整层回退，不返回部分有效绑定。
 
-参数逻辑布局为 `index, axis, start, duration, from, to, easing, padding`，共8个Number。axis 0/1/2/3/4 对应 x/y/alpha/width/height，easing 0/1 对应 clamp linear/smoothstep，2/3 对应 mirror linear/smoothstep。constant归一化为相同from/to、duration=0；零时长在 time<start 时取from，否则取to，shader在除法前处理分支。storage buffer按节点保留五个32B槽，每槽为from/to/start/duration、enabled/easing/0/0；位置为index×160+axis×32，不在shader中搜索绑定。alpha交给原预乘混合；宽高在既有顶点路径中生成矩形，不改变绘制顺序。
+参数逻辑布局为 `index, axis, start, duration, from, to, easing, padding`，共8个Number。axis 0/1/2/3/4 对应 x/y/alpha/width/height，8–14对应上述TRS；easing 0/1对应clamp linear/smoothstep，2/3对应mirror linear/smoothstep。constant归一化为相同from/to、duration=0；零时长在time<start时取from，否则取to，shader在除法前处理分支。当前本地storage布局为每节点16个32B槽，位置为index×512+axis×32，每槽为from/to/start/duration、enabled/easing/0/0；不在shader中搜索绑定。alpha交给原预乘混合；宽高在既有顶点路径中生成局部矩形，TRS再变换局部点，不改变绘制顺序。
 
-五槽共用原buffer与pipeline，不增加资源数量，但参数容量从每节点96B增为160B。10k现有双轴负载的参数冷安装为1600000B清零+640000B写入=2240000B，热帧仍仅16B uniform。历史硬件/正式基准按当时源码保留，不冒充五槽布局的新性能报告；本轮是功能扩展，不声称加速。
+16槽共用原buffer与pipeline，不增加资源数量，但标量模式参数容量从每节点160B增为512B。10k双轴负载冷安装按布局计算为5120000B清零+640000B写入=5760000B，独立消费者新布局仍待复验，热帧协议仍仅16B uniform。先前五槽的2240000B属于旧布局，历史硬件/正式基准不改写、不冒充当前报告；本轮是功能扩展，不声称加速，也不隐瞒冷内存增长。紧凑布局不在本次功能切片展开。
 
-宽高复用已有 `ScalarTarget :width/:height` 与标量描述，不新增公开 API。端点须非负（零合法），否则以 `scalar-size-negative` 整层回退；已支持的 linear/smoothstep 单段不会在非负端点间超调。颜色、旋转/缩放与 group opacity 仍不在此子集中。现有 `?motion=dual` 消费者同时声明 x/y/width/height，测试复用原合同、参数槽清理、8个整数画面及7个非整数/边界样本；数值读回额外检查宽高，容差不变。
+宽高复用已有 `ScalarTarget :width/:height` 与标量描述，不新增公开 API。端点须非负（零合法），否则以 `scalar-size-negative` 整层回退；已支持的 linear/smoothstep 单段不会在非负端点间超调。颜色与group opacity仍不在此分支，旋转/缩放仅为上述本地候选。现有 `?motion=dual` 消费者同时声明x/y/width/height，测试保留原合同、参数槽清理、8个整数画面及7个非整数/边界样本；数值容差不变。
 
 参数预检要求 f32 有限、绝对值及 start+duration 不超过 1e30；正 duration 至少 1e-30，排除 f32 下溢与过大中间值。除此之外，Calcit 冷准备计算保守精度预算，不能只凭有限性接受大绝对时间/短时长。
 

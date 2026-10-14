@@ -10,7 +10,7 @@
 
 本地开发中的标准变换入口为 `TransformSampler :motions List<TransformMotion>`，列表按 Scene 节点顺序一一对应、数量不符直接拒绝。`TransformMotion :constant Matrix2D` 保留静态矩阵，`:trs TrsMotion` 保存五个 ScalarDescriptor（x/y、rotation、scale-x/y）和局部 pivot Vec2，不保存回调。平移为CSS像素、角度为顺时针弧度，矩阵为 `T(x,y) · T(pivot) · R · S · T(-pivot)`：先以支点缩放，再旋转，再平移；零缩放与镜像允许，非有限输入或运算溢出拒绝。绝对时间、常量/tween/轨道语义直接复用标量Motion；描述改变仍须提升组件的实际依赖版本，不能只改字段后沿用旧版本。
 
-当前这部分仅接通纯 Calcit CPU 矩阵参考及保留计划，不是已发布或已合并的GPU变换能力。GPU时间program对标准列表明确返回 `standard-transform-kernel-not-supported`，任意CPU回调保留原 `cpu-transform-required`；不能将数据化误报为WGSL实现。现有混合折线的平移已改用标准数据，原1000帧共享/版本失效/像素门禁继续验证。[独立消费者](../examples/retained-consumer/README.md)在同页新增卡片旋转/缩放/支点模式，声明与采样完全在Calcit，使用候选安装、编译搬移及原生Canvas参考验证；GPU kernel、Metal误差域与同源执行仍待完成，不新增平行renderer或测试框架。
+PR #239基线接通纯Calcit CPU矩阵参考与独立消费者的同页卡片旋转/缩放/支点模式，尚未合并或发布。后续本地GPU候选在原矩形pipeline增加TRS参数与世界坐标误差门禁，详见[GPU标量计划的当前边界](gpu-scalar-program.md)；任意CPU回调仍为 `cpu-transform-required`，混合折线仍整层 `unsupported-node:polyline`，不会静默漏绘。已有Canvas全像素零差异门禁保留；本地kernel与Metal诊断不等于独立安装、完整栅格化或发布验收，不新增平行renderer或测试框架。
 
 两种动画都返回同一个 `ComponentPlan`，共用 `sample-plan-at`；新增 `draw-plan!` 按声明顺序混合绘制顶层矩形与折线，先应用标量绑定再复合各节点局部变换。支持任意有限绝对时间，同时间六类版本变化均重建，替换声明/闭包必须提升 component/motion 版本。更换 Model、资源等不能只调用时间采样入口。构建/采样失败不污染旧计划。
 

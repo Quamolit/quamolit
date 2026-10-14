@@ -4,7 +4,7 @@
   if (!['rgba8unorm', 'bgra8unorm'].includes(format)) throw Error('invalid-gpu-component-format');
   const context = canvas.getContext('webgpu');
   if (!context) throw Error('gpu-component-context-unavailable');
-  if (scalar && (capacity * 160 > device.limits.maxStorageBufferBindingSize || capacity * 160 > device.limits.maxBufferSize)) throw Error('gpu-scalar-storage-capacity');
+  if (scalar && (capacity * 512 > device.limits.maxStorageBufferBindingSize || capacity * 512 > device.limits.maxBufferSize)) throw Error('gpu-scalar-storage-capacity');
   let vertices, params, motions;
   try {
     // 同一段采样代码同时供 vertex 和有界测试读回使用，不另写测试版公式。
@@ -35,6 +35,17 @@ fn sampleMotion(m: Motion, original: f32) -> f32 {
   }
   if (m.flags.y == 1.0 || m.flags.y == 3.0) { ratio = ratio * ratio * (3.0 - 2.0 * ratio); }
   return fromValue * (1.0 - ratio) + toValue * ratio;
+}
+fn sampleTransform(p: vec2f, instance: u32) -> vec2f {
+  let base = instance * 16u;
+  if (motions[base + 8u].flags.x == 0.0) { return p; }
+  let translation = vec2f(sampleMotion(motions[base+8u],0.0),sampleMotion(motions[base+9u],0.0));
+  let angle = sampleMotion(motions[base+10u],0.0);
+  let scale = vec2f(sampleMotion(motions[base+11u],1.0),sampleMotion(motions[base+12u],1.0));
+  let pivot = vec2f(sampleMotion(motions[base+13u],0.0),sampleMotion(motions[base+14u],0.0));
+  let local = (p - pivot) * scale;
+  let c = cos(angle); let s = sin(angle);
+  return translation + pivot + vec2f(c*local.x-s*local.y,s*local.x+c*local.y);
 }` : `struct View { size: vec2f, time: f32, padding: f32 }
 @group(0) @binding(0) var<uniform> view: View;`;
     const shader = device.createShaderModule({label:'Quamolit component rectangles',code:`
@@ -44,13 +55,13 @@ struct VertexOut { @builtin(position) position: vec4f, @location(0) color: vec4f
   @location(0) rect: vec4f, @location(1) color: vec4f,
   @location(2) matrix: vec4f, @location(3) offset: vec4f) -> VertexOut {
   let corners = array<vec2f,6>(vec2f(0,0),vec2f(1,0),vec2f(0,1),vec2f(0,1),vec2f(1,0),vec2f(1,1));
-  let origin = ${scalar ? 'vec2f(sampleMotion(motions[instance*5u], rect.x), sampleMotion(motions[instance*5u+1u], rect.y))' : 'rect.xy'};
-  let extent = ${scalar ? 'vec2f(sampleMotion(motions[instance*5u+3u], rect.z), sampleMotion(motions[instance*5u+4u], rect.w))' : 'rect.zw'};
-  let p = origin + extent * corners[i];
+  let origin = ${scalar ? 'vec2f(sampleMotion(motions[instance*16u], rect.x), sampleMotion(motions[instance*16u+1u], rect.y))' : 'rect.xy'};
+  let extent = ${scalar ? 'vec2f(sampleMotion(motions[instance*16u+3u], rect.z), sampleMotion(motions[instance*16u+4u], rect.w))' : 'rect.zw'};
+  let p = ${scalar ? 'sampleTransform(origin + extent * corners[i],instance)' : 'origin + extent * corners[i]'};
   let world = vec2f(matrix.x*p.x + matrix.z*p.y, matrix.y*p.x + matrix.w*p.y) + offset.xy;
   var result: VertexOut;
   result.position = vec4f(2.0*world.x/view.size.x-1.0, 1.0-2.0*world.y/view.size.y, 0, 1);
-  result.color = ${scalar ? 'vec4f(color.rgb, sampleMotion(motions[instance*5u+2u], color.a))' : 'color'};
+  result.color = ${scalar ? 'vec4f(color.rgb, sampleMotion(motions[instance*16u+2u], color.a))' : 'color'};
   return result;
 }
 @fragment fn fragment(in: VertexOut) -> @location(0) vec4f {
@@ -66,7 +77,7 @@ struct VertexOut { @builtin(position) position: vec4f, @location(0) color: vec4f
     params=device.createBuffer({size:16,usage:0x40|0x08,label:'Quamolit component viewport'});
     const entries=[{binding:0,resource:{buffer:params}}];
     if(scalar){
-      motions=device.createBuffer({size:capacity*160,usage:0x80|0x08,label:'Quamolit scalar parameters'});
+      motions=device.createBuffer({size:capacity*512,usage:0x80|0x08,label:'Quamolit scalar parameters'});
       entries.push({binding:1,resource:{buffer:motions}});
     }
     const bindGroup=device.createBindGroup({layout:pipeline.getBindGroupLayout(0),entries});
