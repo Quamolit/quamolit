@@ -1,5 +1,112 @@
 import { expect, test } from "@playwright/test";
 
+test("图片就地重试保留同identity和字体；仅新版本刷新改变version", async ({ page }) => {
+  let attempts = 0;
+  await page.route("**/assets/lotus.jpg", (route) => (++attempts === 1 ? route.abort() : route.continue()));
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const failed = await page.evaluate(async () => {
+    await Promise.all([window.layeredDashboardDemo.enableFont(), window.layeredDashboardDemo.enableImages()]);
+    return window.layeredDashboardDemo.snapshot();
+  });
+  expect(failed.imageError).not.toBe("");
+  expect(failed.imageVersion).toBe(1);
+  await page.getByRole("button", { name: "重试图片", exact: true }).click();
+  await expect
+    .poll(async () => (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).imageReady)
+    .toBe(true);
+  const retried = await page.evaluate(() => window.layeredDashboardDemo.snapshot());
+  expect(retried.imageVersion).toBe(1);
+  expect(retried.imageError).toBe("");
+  expect(retried.fonts.host.accepted).toBe(1);
+  expect(retried.fonts.references).toHaveLength(2);
+  expect(retried.fonts.registry.loads).toBe(3);
+  expect(retried.fonts.images.handles).toHaveLength(1);
+  const events = retried.events;
+  await page.getByRole("button", { name: "刷新图片（新版本）", exact: true }).click();
+  await expect
+    .poll(async () => (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).imageVersion)
+    .toBe(2);
+  await expect
+    .poll(async () => (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).imageReady)
+    .toBe(true);
+  const refreshed = await page.evaluate(() => window.layeredDashboardDemo.snapshot());
+  expect(refreshed.events).toEqual(events);
+  expect(refreshed.time).toBe(retried.time);
+  expect(refreshed.fonts.host.accepted).toBe(1);
+  expect(refreshed.fonts.images.handles).toHaveLength(1);
+  expect(
+    refreshed.scene.nodes.filter((node) => node.content[0] === "image").map((node) => node.content[1].source.version),
+  ).toEqual([2, 2]);
+  const closed = await page.evaluate(() => {
+    const api = window.layeredDashboardDemo;
+    api.dispose();
+    return { ...api.snapshot(), apiRemoved: !window.layeredDashboardDemo };
+  });
+  expect(closed.apiRemoved).toBe(true);
+  expect(closed.fonts.images.created).toBe(closed.fonts.images.released);
+});
+
+test("新图片先就绪，旧版本解码迟到不覆盖、不重绘或阻塞刷新完成", async ({ page }, testInfo) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const result = await page.evaluate(async () => {
+    const api = window.layeredDashboardDemo;
+    await api.enableFont();
+    const original = HTMLImageElement.prototype.decode;
+    const picture = (color) =>
+      `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="650" height="432"><rect width="650" height="432" fill="${color}"/></svg>`)}`;
+    const red = picture("red"),
+      blue = picture("blue");
+    let unlock, started;
+    const gate = new Promise((resolve) => {
+      unlock = resolve;
+    });
+    const began = new Promise((resolve) => {
+      started = resolve;
+    });
+    HTMLImageElement.prototype.decode = function () {
+      return original.call(this).then(() => {
+        if (this.src === red) {
+          started();
+          return gate;
+        }
+      });
+    };
+    try {
+      const stale = api.setImageSource(red);
+      await began;
+      const during = api.snapshot();
+      await api.setImageSource(blue); // 不等待旧版本gate；等到的必须是当前version。
+      const current = api.snapshot(),
+        pixels = document.querySelector("canvas").toDataURL();
+      const canvas = document.querySelector("canvas"),
+        ctx = canvas.getContext("2d");
+      const pixel = [...ctx.getImageData(canvas.width / 2 + 250, canvas.height / 2 - 215, 1, 1).data];
+      unlock();
+      await stale;
+      const after = api.snapshot();
+      return { during, current, after, pixel, samePixels: pixels === canvas.toDataURL() };
+    } finally {
+      HTMLImageElement.prototype.decode = original;
+      unlock();
+    }
+  });
+  expect(result.during.imageVersion).toBe(2);
+  expect(result.during.imageReady).toBe(false);
+  expect(result.current.imageVersion).toBe(3);
+  expect(result.current.imageReady).toBe(true);
+  expect(result.current.fonts.queue.running).toHaveLength(1); // 旧decode仍被有界队列跟踪。
+  expect(result.pixel[2]).toBeGreaterThan(result.pixel[0]); // 实际画面是新蓝图，而非旧红图。
+  expect(result.after.imageVersion).toBe(3);
+  expect(result.after.fonts.queue.running).toEqual([]);
+  expect(result.after.fonts.images.created).toBe(2);
+  expect(result.after.fonts.images.released).toBe(1);
+  expect(result.after.fonts.images.handles).toHaveLength(1);
+  expect(result.after.paints).toBe(result.current.paints);
+  expect(result.after.fonts.revision).toBe(result.current.fonts.revision);
+  expect(result.samePixels).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("current-blue-after-stale-red.png") });
+});
+
 for (const dpr of [1, 2]) {
   test(`字体与共享图片：独立像素、捕获/resize、100次退出重入与卸载 DPR ${dpr}`, async ({ browser }, testInfo) => {
     const context = await browser.newContext({

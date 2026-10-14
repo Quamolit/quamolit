@@ -4940,6 +4940,13 @@
             :return 'quamolit.examples.layered-dashboard/DashboardMedia
             :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia 'quamolit.examples.layered-dashboard/DashboardLoadResult
             :features $ #{} :js-ffi
+        'consume-media-task $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn consume-media-task (state)
+            struct-with state $ :task $ %none
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.examples.layered-dashboard/DashboardMedia
+            :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia
         'css-hit-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn css-hit-plan (document scale-x scale-y)
             assert |invalid-dashboard-scale $ and (motion/finite-number? scale-x) (motion/finite-number? scale-y) (> scale-x 0) (> scale-y 0)
@@ -5095,6 +5102,24 @@
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerPhase 'quamolit.scene-pointer-browser/PointerEventHost
             :features $ #{} :js-ffi
+        'image-error $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn image-error (state)
+            let
+                resource-id $ :identity $ :descriptor state
+              if
+                resource/contains-entry?
+                  :entries $ :registry state
+                  , resource-id
+                match
+                  :phase $ :state $ resource/find-entry
+                    :entries $ :registry state
+                    , resource-id
+                  (:error message) message
+                  _ |
+                , |
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia
         'image-ready? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn image-ready? (state)
             match
@@ -5131,7 +5156,7 @@
             :args $ []
         'initial-media $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initial-media (url)
-            DashboardMedia :registry (resource/initial-registry 1123201) :queue (queue/initial-load-queue 1 4) :host (font/initial-font-resource-host) :images (image/initial-image-resource-host) :descriptor (image/image-descriptor |dashboard-cover 1 url 650 432) :references (font/empty-font-references) :task (%none) :revision 0 :closed? false
+            DashboardMedia :registry (resource/initial-registry 1123201) :queue (queue/initial-load-queue 2 4) :host (font/initial-font-resource-host) :images (image/initial-image-resource-host) :descriptor (image/image-descriptor |dashboard-cover 1 url 650 432) :references (font/empty-font-references) :task (%none) :revision 0 :closed? false
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.examples.layered-dashboard/DashboardMedia
@@ -5241,6 +5266,32 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
             :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia
+        'media-image-source $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn media-image-source (state)
+            let
+                descriptor $ :descriptor state
+                resource-id $ :identity descriptor
+              scene/ImageSource :id (:id resource-id) :version (:version resource-id) :width (:width descriptor) :height $ :height descriptor
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/ImageSource)
+            :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia
+        'media-task-current? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn media-task-current? (state task)
+            let
+                resource-id $ :identity task
+              and
+                any? (:references state)
+                  fn (item) (= item resource-id)
+                resource/contains-entry?
+                  :entries $ :registry state
+                  , resource-id
+                = (:resource-generation task)
+                  :generation $ :state $ resource/find-entry
+                    :entries $ :registry state
+                    , resource-id
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia 'quamolit.resource-load-queue/ResourceLoadTask
         'presence-scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-scene-at (model time)
             let
@@ -5329,6 +5380,35 @@
             :args $ []
               :: 'List 'quamolit.examples.layered-dashboard/VisibilityEvent
               , 'Number
+        'retry-media-image! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn retry-media-image! (state)
+            assert |dashboard-media-closed $ not $ :closed? state
+            let
+                resource-id $ :identity $ :descriptor state
+                entry $ resource/find-entry
+                  :entries $ :registry state
+                  , resource-id
+              assert |dashboard-image-not-leased $ any? (:references state)
+                fn (item) (= item resource-id)
+              assert |dashboard-image-not-failed $ match
+                :phase $ :state entry
+                (:error _) true
+                _ false
+              let
+                  released $ resource/release-registry (:registry state) resource-id
+                  acquired $ resource/acquire-registry (:registry released) resource-id 1123200
+                  actions $ concat (:actions released) (:actions acquired)
+                struct-with state
+                  :registry $ :registry acquired
+                  :queue $ enqueue-media-actions (:queue state) actions
+                  :task $ %none
+                  :host $ font/apply-font-registry-actions! (:host state) actions
+                  :images $ image/apply-image-registry-actions (:images state) actions
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.examples.layered-dashboard/DashboardMedia
+            :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia
+            :features $ #{} :js-ffi
         'run-media-task! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn run-media-task! (source state task)
             hint-fn $ {} (:async true)
@@ -5392,6 +5472,35 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number 'Number 'Number
+        'select-media-image $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn select-media-image (state url)
+            assert |dashboard-media-closed $ not $ :closed? state
+            let
+                prior $ :descriptor state
+                resource-id $ :identity prior
+              struct-with state $ :descriptor $ image/image-descriptor (:id resource-id)
+                inc $ :version resource-id
+                , url (:width prior) (:height prior)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.examples.layered-dashboard/DashboardMedia
+            :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia 'String
+          :tests $ [] $ %{} 'TestEntry (:name |explicit-source-version)
+            :code $ quote $ let
+                before $ initial-media |asset-a
+                after $ select-media-image before |asset-b
+                source $ media-image-source after
+              assert |old-source-unchanged $ =
+                :url $ :descriptor before
+                , |asset-a
+              assert |new-source-url $ =
+                :url $ :descriptor after
+                , |asset-b
+              assert |explicit-version $ = (:version source) 2
+              assert |old-version-unchanged $ =
+                :version $ media-image-source before
+                , 1
+            :tags $ #{} :layered-dashboard
         'set-layout $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn set-layout (model visible chart-visible time)
             :model $ presence/reconcile-presence model (desired-layout visible chart-visible) time 0.6 $ motion/Easing :linear
@@ -5477,7 +5586,7 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
             :args $ [] 'quamolit.presence/PresenceModel 'Bool
         'with-images $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn with-images (model enabled)
+          :code $ quote $ defn with-images (model enabled source)
             if (not enabled) model $ struct-with model $ :items
               map (:items model)
                 fn (item)
@@ -5492,23 +5601,23 @@
                         (:rect rect)
                           struct-with item $ :entry $ struct-with entry
                             :node $ struct-with node $ :content
-                              scene/SceneContent :image $ scene/ImageNode :source
-                                scene/ImageSource :id |dashboard-cover :version 1 :width 650 :height 432
-                                , :matrix (matrix 1 0 0) :sx 0 :sy 0 :sw 650 :sh 432 :dx (:x rect) :dy (:y rect) :dw (:width rect) :dh $ :height rect
+                              scene/SceneContent :image $ scene/ImageNode :source source :matrix (matrix 1 0 0) :sx 0 :sy 0 :sw (:width source) :sh (:height source) :dx (:x rect) :dy (:y rect) :dw (:width rect) :dh $ :height rect
                         _ item
                       , item
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
-            :args $ [] 'quamolit.presence/PresenceModel 'Bool
+            :args $ [] 'quamolit.presence/PresenceModel 'Bool 'quamolit.scene-ir/ImageSource
           :tests $ [] $ %{} 'TestEntry (:name |shared-image-presence)
             :code $ quote $ let
                 base $ initial
-                model $ with-images base true
+                model $ with-images base true $ scene/ImageSource :id |dashboard-cover :version 1 :width 650 :height 432
                 references $ image-references model
                 frame $ frame-at model 1 1280 720
                 exited $ advance (set-visible model false 1) (empty-events) 1 1.6
               assert |image-projection-disabled $ = base $ with-images base false
+                scene/ImageSource :id |dashboard-cover :version 1 :width 650 :height 432
               assert |image-projection-idempotent $ = model $ with-images model true
+                scene/ImageSource :id |dashboard-cover :version 1 :width 650 :height 432
               assert |shared-image-identity $ = 1 $ count references
               assert |two-image-cards $ = 2 $ count
                 filter (:nodes frame)

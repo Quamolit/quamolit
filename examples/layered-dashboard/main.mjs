@@ -18,7 +18,7 @@ export function mountDemo() {
   let model = dashboard.replay_events(events, time);
   let horizon = 1;
   let scene;
-  const tags = init_tags(["task", "revision"]);
+  const tags = init_tags(["task", "revision", "token"]);
   const defaultFontSource = "local('PingFangSC-Regular'), local('Noto Sans CJK SC'), local('WenQuanYi Zen Hei')";
   let fontEnabled = false;
   let imagesEnabled = false;
@@ -26,26 +26,34 @@ export function mountDemo() {
   const imageUrl = new URL("../../assets/lotus.jpg", import.meta.url).href;
   let fonts = dashboard.initial_media(imageUrl);
   let fontPromise = Promise.resolve();
-  let mediaPump = null;
+  const mediaJobs = new Map();
   function intentModel() {
-    return dashboard.with_images(dashboard.with_font(model, fontEnabled), imagesEnabled);
+    return dashboard.with_images(dashboard.with_font(model, fontEnabled), imagesEnabled, dashboard.media_image_source(fonts));
   }
   function pumpMedia() {
-    if (mediaPump) return mediaPump;
     let task = fonts.get(tags.task);
-    if (to_js_data(task.get(0)) !== "some") return Promise.resolve();
-    mediaPump = (async () => {
-      while (to_js_data(task.get(0)) === "some") {
-        const result = await dashboard.run_media_task_$x_(fontSource, fonts, task.get(1));
+    while (!disposed && to_js_data(task.get(0)) === "some") {
+      const claimed = task.get(1), token = claimed.get(tags.token);
+      fonts = dashboard.consume_media_task(fonts);
+      const job = dashboard.run_media_task_$x_(fontSource, fonts, claimed).then(result => {
         const revision = fonts.get(tags.revision);
         fonts = dashboard.complete_media_$x_(fonts, result);
-        if (disposed) break;
+        if (disposed) return;
         fonts = dashboard.sync_media_$x_(fonts, intentModel());
-        task = fonts.get(tags.task); // 捕获下一个任务后再绘制，resize/绘制不能吞掉已领取任务。
+        pumpMedia(); // 分发已领取任务后再绘制，不能让 resize 吞掉它。
         if (fonts.get(tags.revision) !== revision) draw();
+      }).finally(() => { mediaJobs.delete(token); });
+      mediaJobs.set(token, { promise: job, task: claimed });
+      fonts = dashboard.sync_media_$x_(fonts, intentModel());
+      task = fonts.get(tags.task);
+    }
+    return (async () => {
+      while (mediaJobs.size) {
+        const current = [...mediaJobs.values()].filter(job => dashboard.media_task_current_$q_(fonts, job.task));
+        if (!current.length) break;
+        await Promise.all(current.map(job => job.promise));
       }
-    })().finally(() => { mediaPump = null; });
-    return mediaPump;
+    })();
   }
   const scheduler = new DemandFrameScheduler({
     requestFrame: callback => requestAnimationFrame(callback),
@@ -94,8 +102,10 @@ export function mountDemo() {
     status.dataset.result = "pass";
     document.querySelector("#font-enable").disabled = fontEnabled;
     document.querySelector("#images-enable").disabled = imagesEnabled;
+    document.querySelector("#images-retry").disabled = !imagesEnabled || !state.imageError;
+    document.querySelector("#images-version").disabled = !imagesEnabled;
     document.querySelector("#media-status").textContent = state.mediaError ? `资源错误：${state.mediaError}` :
-      imagesEnabled ? (state.imageReady ? "图片资源已就绪，共享图片 1 张" : "图片加载中，保留原卡片") : "图片未启用";
+      imagesEnabled ? (state.imageReady ? `图片资源已就绪，共享图片 1 张 · v${state.imageVersion}` : "图片加载中，保留原卡片") : "图片未启用";
   }
 
   function stop() {
@@ -139,7 +149,8 @@ export function mountDemo() {
     const capture = pointer.capture;
     return { time, width: canvas.width, height: canvas.height, nodeCount: data.nodes.length, playing, paints, pending: scheduler.pending,
       visible: prior?.visible ?? true, chartVisible: prior?.["chart-visible"] ?? true, lineChart: prior?.["line-chart"] ?? false, events: log, scene: data, pointer,
-      fontEnabled, imagesEnabled, imageReady: dashboard.image_ready_$q_(fonts), mediaError: dashboard.media_error(fonts), fonts: to_js_data(fonts),
+      fontEnabled, imagesEnabled, imageVersion: to_js_data(dashboard.media_image_source(fonts)).version,
+      imageReady: dashboard.image_ready_$q_(fonts), imageError: dashboard.image_error(fonts), mediaError: dashboard.media_error(fonts), fonts: to_js_data(fonts),
       captured: capture[0] === "captured" ? capture[1] : null };
   }
 
@@ -153,6 +164,19 @@ export function mountDemo() {
     if (disposed) return snapshot();
     if (!imagesEnabled) { imagesEnabled = true; draw(); }
     await fontPromise;
+    return snapshot();
+  }
+  async function retryImages() {
+    if (disposed) return snapshot();
+    fonts = dashboard.retry_media_image_$x_(fonts);
+    draw(); await fontPromise;
+    return snapshot();
+  }
+  async function setImageSource(url = imageUrl) {
+    if (disposed) return snapshot();
+    fonts = dashboard.select_media_image(fonts, url);
+    imagesEnabled = true;
+    draw(); await fontPromise;
     return snapshot();
   }
 
@@ -186,6 +210,8 @@ export function mountDemo() {
   document.querySelector("#presence-toggle").onclick = () => setVisible(!snapshot().visible);
   document.querySelector("#font-enable").onclick = () => enableFont();
   document.querySelector("#images-enable").onclick = () => enableImages();
+  document.querySelector("#images-retry").onclick = () => retryImages();
+  document.querySelector("#images-version").onclick = () => setImageSource();
   document.querySelector("#chart-toggle").onclick = () => setChartVisible(!snapshot().chartVisible);
   document.querySelector("#chart-variant").onclick = () => setChartVariant(!snapshot().lineChart);
   document.querySelector("#panel-toggle").onclick = (event) => {
@@ -219,7 +245,7 @@ export function mountDemo() {
     resolution?.removeEventListener("change", watchDpr);
     if (window.layeredDashboardDemo === api) delete window.layeredDashboardDemo;
   }
-  const api = { seek, play, pause: stop, snapshot, setVisible, setChartVisible, setChartVariant, reset, enableFont, enableImages, dispose };
+  const api = { seek, play, pause: stop, snapshot, setVisible, setChartVisible, setChartVariant, reset, enableFont, enableImages, retryImages, setImageSource, dispose };
   window.layeredDashboardDemo = api;
   draw();
   if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();
