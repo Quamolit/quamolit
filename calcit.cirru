@@ -2,8 +2,122 @@
 {}
   :about "|Machine-generated snapshot. Do not edit directly — changes will be overwritten. Use `calcit query` to inspect and `calcit edit`/`calcit tree` to modify. Run `calcit docs agents --contract` before mutations; use `--full` for first orientation or changed contract digest. Manual edits must follow format and schema conventions, then run `calcit edit format`."
   :package |quamolit
-  :entries $ {} $ :default
-    {} (:description |) (:init-fn 'quamolit.bootstrap/main!) (:mode :js) (:reload-fn 'quamolit.bootstrap/reload!) (:target :browser)
+  :entries $ {}
+    :binary-tree $ {} (:description "|原有编译入口 compile:binary-tree") (:init-fn 'quamolit.examples.binary-tree/main!) (:mode :js) (:reload-fn 'quamolit.examples.binary-tree/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :bootstrap $ {} (:description "|runtime合同诊断入口") (:init-fn 'quamolit.bootstrap/main!) (:mode :js) (:reload-fn 'quamolit.bootstrap/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :clock $ {} (:description "|原有编译入口 compile:clock") (:init-fn 'quamolit.examples.clock/main!) (:mode :js) (:reload-fn 'quamolit.examples.clock/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :cohort-pulse $ {} (:description "|原有编译入口 compile:cohort-pulse") (:init-fn 'quamolit.examples.cohort-pulse/main!) (:mode :js) (:reload-fn 'quamolit.examples.cohort-pulse/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :component $ {} (:description "|原有编译入口 compile:component") (:init-fn 'quamolit.test.component-fixture/main!) (:mode :js) (:reload-fn 'quamolit.test.component-fixture/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :cpu-motion $ {} (:description "|原有编译入口 compile:cpu-motion") (:init-fn 'quamolit.test.cpu-motion-fixture/main!) (:mode :js) (:reload-fn 'quamolit.test.cpu-motion-fixture/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :curve $ {} (:description "|原有编译入口 compile:curve") (:init-fn 'quamolit.examples.curve/main!) (:mode :js) (:reload-fn 'quamolit.examples.curve/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :default $ {} (:description |) (:init-fn 'quamolit.bootstrap/main!) (:mode :js) (:reload-fn 'quamolit.bootstrap/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :drag-demo $ {} (:description "|原有编译入口 compile:drag-demo") (:init-fn 'quamolit.examples.drag-demo/main!) (:mode :js) (:reload-fn 'quamolit.examples.drag-demo/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :fade $ {} (:description "|原有编译入口 compile:fade") (:init-fn 'quamolit.test.fade-migration-fixture/main!) (:mode :js) (:reload-fn 'quamolit.test.fade-migration-fixture/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :finder $ {} (:description "|原有编译入口 compile:finder") (:init-fn 'quamolit.examples.finder/main!) (:mode :js) (:reload-fn 'quamolit.examples.finder/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :folding-fan $ {} (:description "|原有编译入口 compile:folding-fan") (:init-fn 'quamolit.examples.folding-fan/main!) (:mode :js) (:reload-fn 'quamolit.examples.folding-fan/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :gpu-component $ {} (:description "|原有编译入口 compile:gpu-component") (:init-fn 'quamolit.test.gpu-component-fixture/main!) (:mode :js) (:reload-fn 'quamolit.test.gpu-component-fixture/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :icons $ {} (:description "|原有编译入口 compile:icons") (:init-fn 'quamolit.examples.icons/main!) (:mode :js) (:reload-fn 'quamolit.examples.icons/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :layer-composition $ {} (:description "|原有编译入口 compile:layer-composition") (:init-fn 'quamolit.examples.layer-composition/main!) (:mode :js) (:reload-fn 'quamolit.bootstrap/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :layered-dashboard $ {} (:description "|原有编译入口 compile:layered-dashboard") (:init-fn 'quamolit.examples.layered-dashboard/main!) (:mode :js) (:reload-fn 'quamolit.examples.layered-dashboard/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :motion $ {} (:description "|原有编译入口 compile:motion") (:init-fn 'quamolit.test.motion-fixture/main!) (:mode :js) (:reload-fn 'quamolit.test.motion-fixture/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :playback $ {} (:description "|原有编译入口 compile:playback") (:init-fn 'quamolit.test.playback-fixture/main!) (:mode :js) (:reload-fn 'quamolit.test.playback-fixture/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :raining $ {} (:description "|原有编译入口 compile:raining") (:init-fn 'quamolit.examples.raining/main!) (:mode :js) (:reload-fn 'quamolit.examples.raining/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :replay-archive $ {} (:description "|原有编译入口 compile:replay-archive") (:init-fn 'quamolit.test.replay-archive-fixture/main!) (:mode :js) (:reload-fn 'quamolit.test.replay-archive-fixture/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :retained-component $ {} (:description "|原有编译入口 compile:retained-component") (:init-fn 'quamolit.test.retained-component-fixture/main!) (:mode :js)
+      :reload-fn 'quamolit.test.retained-component-fixture/reload!
+      :target :browser
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :scene-pointer-browser $ {} (:description "|原有编译入口 compile:scene-pointer-browser")
+      :init-fn 'quamolit.test.scene-pointer-browser-fixture/main!
+      :mode :js
+      :reload-fn 'quamolit.bootstrap/reload!
+      :target :browser
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :signal-weave $ {} (:description "|原有编译入口 compile:signal-weave") (:init-fn 'quamolit.examples.signal-weave/main!) (:mode :js) (:reload-fn 'quamolit.examples.signal-weave/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :solar $ {} (:description "|原有编译入口 compile:solar") (:init-fn 'quamolit.examples.solar/main!) (:mode :js) (:reload-fn 'quamolit.examples.solar/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :table $ {} (:description "|原有编译入口 compile:table") (:init-fn 'quamolit.examples.table/main!) (:mode :js) (:reload-fn 'quamolit.examples.table/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :tidal-bloom $ {} (:description "|原有编译入口 compile:tidal-bloom") (:init-fn 'quamolit.examples.tidal-bloom/main!) (:mode :js) (:reload-fn 'quamolit.examples.tidal-bloom/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :todolist $ {} (:description "|原有编译入口 compile:todolist") (:init-fn 'quamolit.examples.todolist/main!) (:mode :js) (:reload-fn 'quamolit.examples.todolist/reload!) (:target :browser)
+      :feature-policy $ {}
+      :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
+      :type-slots $ {}
+    :visual $ {} (:description "|原有编译入口 compile:visual") (:init-fn 'quamolit.test.frame-fixture/main!) (:mode :js) (:reload-fn 'quamolit.test.frame-fixture/reload!) (:target :browser)
       :feature-policy $ {}
       :modules $ [] |pointed-prompt/ |touch-control/ |js-ffi/
       :type-slots $ {}
