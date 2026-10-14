@@ -752,6 +752,59 @@ export function formatConsumerSummary(report) {
 }
 
 // 独立于 Calcit sampler 的手算位置/颜色期望；同时检查真实对象身份。
+export function verifyTransformConsumer(app, core) {
+  const tags = core.init_tags(["scene", "nodes", "transforms", "declarations", "plan-builds", "transform-samples"]);
+  const original = app.start_transform(0, 40, false, 100),
+    originalScene = original.get(tags.scene),
+    before = core.to_js_data(original);
+  let plan = original;
+  const check = (plan, time, model = 40, viewport = 100) => {
+    const t = Math.max(0, Math.min(1, time)),
+      s = t * t * (3 - 2 * t);
+    const angle = -0.4 + 0.8 * s,
+      scale = 0.7 + 0.35 * s,
+      px = 120 + viewport / 20,
+      py = 44 + model;
+    const matrix = core.to_js_data(plan.get(tags.transforms))[1];
+    for (const [x, y] of [
+      [80, 22 + model],
+      [px, py],
+      [80 + 80 + viewport / 10, 66 + model],
+    ]) {
+      const dx = (x - px) * scale,
+        dy = (y - py) * scale;
+      const expected = [
+        32 * s + px + dx * Math.cos(angle) - dy * Math.sin(angle),
+        -12 * s + py + dx * Math.sin(angle) + dy * Math.cos(angle),
+      ];
+      const actual = [matrix.a * x + matrix.c * y + matrix.e, matrix.b * x + matrix.d * y + matrix.f];
+      for (let axis = 0; axis < 2; axis++)
+        assert.ok(Math.abs(actual[axis] - expected[axis]) < 1e-11, `${time}/${model}/${viewport}/${axis}`);
+    }
+  };
+  for (let frame = 1; frame <= 1000; frame++) {
+    plan = app.update_transform(plan, frame / 1000, 40, false, 100);
+    check(plan, frame / 1000);
+    assert.equal(plan.get(tags.scene), originalScene, "标准变换热帧不重建Scene");
+  }
+  assert.equal(plan.get(tags.declarations), 1);
+  assert.equal(plan.get(tags["plan-builds"]), 1);
+  assert.equal(plan.get(tags["transform-samples"]), 1001);
+  for (const time of [1, 0, 0.5, 0.25, 1, -0.1, 1.1]) {
+    plan = app.update_transform(plan, time, 40, false, 100);
+    check(plan, time);
+  }
+  const repeated = app.update_transform(plan, 1.1, 40, false, 100);
+  assert.equal(repeated.get(tags.transforms), plan.get(tags.transforms));
+  const changed = app.update_transform(plan, 1.1, 41, true, 200);
+  check(changed, 1.1, 41, 200);
+  assert.equal(changed.get(tags.declarations), 2);
+  assert.equal(core.to_js_data(changed.get(tags.scene)).nodes[1].content[1].fill.g, 0.7);
+  assert.deepEqual(core.to_js_data(app.prepare_gpu(changed)), ["fallback", "standard-transform-kernel-not-supported"]);
+  assert.deepEqual(core.to_js_data(original), before);
+  return { frames: 1000, declarations: 1, builds: 1, transformSamples: 1001, gpu: "明确回退，尚未实现" };
+}
+
 export function verifyConsumer(app, core) {
   const tags = core.init_tags([
     "scene",
@@ -819,5 +872,6 @@ export function verifyConsumer(app, core) {
     assert.throws(() => app.update_plan(plan, bad, 41, true, 200), /invalid-component-request/);
   assert.equal(rect(original).x, 80);
   assert.equal(app.browser_available_$q_(), false, "依赖的 :file 片段在 Node 环境运行");
+  counts.standardTransform = verifyTransformConsumer(app, core);
   return counts;
 }

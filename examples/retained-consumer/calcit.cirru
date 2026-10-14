@@ -270,6 +270,8 @@
         'declare-execution $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-execution (props model input ready viewport)
             let
+                zero $ motion/ScalarDescriptor :id |zero :version 1 :motion $ motion/ScalarMotion :constant 0
+                one $ motion/ScalarDescriptor :id |one :version 1 :motion $ motion/ScalarMotion :constant 1
                 base $ declare props model input ready viewport
                 path $ scene/SceneNode :id |ribbon :key |ribbon :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline
                   scene/PolylineNode :width 6 :stroke
@@ -280,14 +282,14 @@
                   , path
               retained/ExecutionDeclaration :component
                 struct-with base $ :scene $ scene/SceneDocument :nodes nodes
-                , :transforms $ retained/TransformSampler :cpu $ fn (time)
-                  map nodes $ fn (node)
-                    scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e
-                      if
-                        = |ribbon $ :id node
-                        + 20 (* 10 time) (- model 40)
-                        , 0
-                      , :f 0
+                , :transforms $ retained/TransformSampler :motions $ map nodes
+                  fn (node)
+                    if
+                      = |ribbon $ :id node
+                      retained/TransformMotion :trs $ retained/TrsMotion :x
+                        motion/ScalarDescriptor :id |ribbon-x :version 1 :motion $ motion/ScalarMotion :time 10 $ + 20 (- model 40)
+                        , :y zero :rotation zero :scale-x one :scale-y one :pivot $ motion/Vec2 :x 0 :y 0
+                      retained/TransformMotion :constant $ scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.retained-component/ExecutionDeclaration
@@ -358,6 +360,45 @@
                 motion/ScalarKeyframe :at 1 :value 120 :easing $ motion/Easing :smoothstep
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'declare-transform $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-transform (props model input ready viewport)
+            let
+                base $ declare props model input ready viewport
+                tween $ fn (id from to)
+                  hint-fn $ {}
+                    :args $ [] 'String 'Number 'Number
+                    :return 'quamolit.motion/ScalarDescriptor
+                  motion/ScalarDescriptor :id id :version 1 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from from :to to :easing (motion/Easing :smoothstep)
+                width $ + 80 $ / viewport 10
+                y $ + props model input
+                scale $ tween |card-scale 0.7 1.05
+                transform $ retained/TransformMotion :trs $ retained/TrsMotion :x (tween |card-x 0 32) :y (tween |card-y 0 -12) :rotation (tween |card-angle -0.4 0.4) :scale-x scale :scale-y scale :pivot
+                  motion/Vec2 :x
+                    + 80 $ / width 2
+                    , :y $ + y 22
+                nodes $ .map
+                  :nodes $ :scene base
+                  fn (node)
+                    if
+                      = |badge $ :id node
+                      match (:content node)
+                        (:rect rect)
+                          struct-with node
+                            :bindings $ []
+                            :content $ scene/SceneContent :rect $ struct-with rect (:width width) (:height 44)
+                        _ $ raise |transform-demo-requires-rect
+                      , node
+              retained/ExecutionDeclaration :component
+                component/ComponentDeclaration :scene (scene/SceneDocument :nodes nodes) :motions $ []
+                , :transforms $ retained/TransformSampler :motions $ .map nodes
+                  fn (node)
+                    if
+                      = |badge $ :id node
+                      , transform $ retained/TransformMotion :constant $ scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.retained-component/ExecutionDeclaration
             :args $ [] 'Number 'Number 'Number 'Bool 'Number
         'dispose-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn dispose-gpu! (host) (batch/dispose-renderer! host)
@@ -1072,6 +1113,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'start-transform $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-transform (time model ready viewport)
+            retained/build-execution-plan (request time model ready viewport) declare-transform
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number 'Number 'Bool 'Number
         'submit-batch! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn submit-batch! (host prepared)
             batch/submit-update! host $ :delta prepared
@@ -1129,6 +1176,12 @@
         'update-rects $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-rects (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+        'update-transform $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-transform (plan time model ready viewport)
+            retained/update-execution-plan plan (request time model ready viewport) declare-transform
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
