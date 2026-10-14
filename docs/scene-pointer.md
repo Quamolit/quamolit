@@ -12,6 +12,14 @@
 
 `quamolit.scene-pointer-browser` 提供第一版类型化薄桥：把 `clientX/clientY` 减去 `getBoundingClientRect().left/top`，得到与 Scene 一致的 CSS px，不乘 DPR；DOM `setPointerCapture/releasePointerCapture` 只执行纯 Calcit 返回的捕获与一次性释放决策。临时 external-object trait 只覆盖当前需要的原始字段和方法，并明确关联 [js-ffi #149](https://github.com/calcit-lang/js-ffi/issues/149)；上游发布等价接口后删除本地声明。Node 宿主替身验证原生捕获各调用一次，Chromium 进一步验证真实 PointerEvent 从画布内按下、移到画布外仍投递、抬起释放，以及 DPR 2 下按 CSS px 命中和 `pointercancel` 清理。测试夹具与 Drag demo 的监听器均由 Calcit 安装；后者还把 Canvas 视图逆变换显式同步为 CSS 坐标尺度。
 
+## 可选位置的 hover 重协调
+
+新增纯 Calcit `reconcile-pointer-state-at(plan, state, Option<Vec2>)`，坐标使用新HitPlan的局部CSS px；先沿旧协议清理无效捕获，再按新几何、clip和层序更新hover。`none`清空hover，不把未知位置猜为(0,0)；非有限坐标明确拒绝。有效capture不因几何移开而释放，只有身份/disabled失效会报告一次释放；此入口不模拟down/up/cancel或返回业务投递。hover几何状态与capture投递归属分开，旧协调入口保持原引用有效性合同。
+
+`reconcile-pointer-surface-at!(surface, plan, state, Option<Vec2>)`接受client CSS位置，每次读取元素当前left/top后转换，不乘DPR、不缓存旧局部位置；只在纯协议要求时释放该元素持有的capture。未知位置不读取元素边界。两个入口都不保存PointerEvent/DOM句柄、不安装新调度器或synthetic事件。
+
+应用负责保存仍有效的纯数据client位置，并在Scene/资源/viewport提交时调用新入口。取消、失焦、离开或卸载应停止提供失效位置，避免下一次提交复活hover；触摸/多指针位置选择由输入策略负责，不能声称完整多指针索引已完成。当前切片提供类型/原生/编译后Node协议验证与旧浏览器回归，真实UI和无新事件的DOM几何组合仍待接线，不能仅凭接口存在关闭#34。
+
 浏览器桥还监听 `lostpointercapture`：只有事件 pointer id 与当前所有者一致才清理；窗口 `blur` 则主动释放元素仍持有的原生 capture，再幂等清空纯状态。两条路径都复用 `PointerReconcile` 的一次性信号。Scene 提交时使用 `reconcile-pointer-surface!(surface, next-plan, state)`，保存返回的 state；它执行纯协调，并在需要时立即释放原生 capture，重复协调不会重复释放。`dispose-pointer-surface!` 是 canvas/surface 真正卸载前的显式协议；调用方不得直接移除仍持有 capture 的元素。坐标边界不缓存，每个 PointerEvent 都重新读取 `getBoundingClientRect()`，因此移动/resize surface 后按新 CSS 边界命中。Drag demo 已接通实际页面卸载；浏览器夹具另覆盖 DPR 1/2 下 resize 与嵌套子树禁用同次提交、无新输入即释放、兄弟节点仍可交互、重入后重新捕获。该夹具不是完整 Presence 退出动画或 Canvas 像素验收。
 
 验证命令为 `yarn test:scene-hit`、`yarn test:scene-pointer`、`yarn test:scene-pointer-browser` 与 `yarn test:drag-demo`。覆盖冒泡、画布外捕获、pointer id 隔离、快速目标切换、`up/cancel`、删除/重挂载、嵌套禁用、hover 清理、边界外祖先捕获释放、兄弟不受影响、重入、背后命中和重复协调；1000 个装饰节点的命中仍 `visited=1`。Node 与 Chromium 验证上述宿主捕获/resize 协议。自动 Presence group 退出接线、实际应用的 resize/退出动画组合、cubic-path、instances 和 GPU picking 尚未覆盖，不以本切片关闭 #34。

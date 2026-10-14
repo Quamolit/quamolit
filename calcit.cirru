@@ -18401,6 +18401,23 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
             :args $ [] 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState
+        'reconcile-pointer-state-at $ %{} 'CodeEntry
+          :doc "|按新HitPlan与可选局部CSS位置重算hover，同时保留原身份/disabled捕获协调。none清空hover，不猜0,0；不返回业务输入投递，不按up/cancel释放有效capture，调用者须沿原输入协议处理取消与失焦。"
+          :code $ quote $ defn reconcile-pointer-state-at (plan state position)
+            let
+                reconciled $ reconcile-pointer-state plan state
+                dispatch $ match position
+                  (:none) (PointerDispatch :none)
+                  (:some point)
+                    do
+                      assert |invalid-pointer-position $ and
+                        motion/finite-number? $ :x point
+                        motion/finite-number? $ :y point
+                      hit-dispatch plan $ PointerInput :pointer-id 0 :phase (PointerPhase :move) :x (:x point) :y $ :y point
+              struct-with reconciled $ :state $ state-with-hover (:state reconciled) dispatch
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
+            :args $ [] 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState $ :: 'Option 'quamolit.motion/Vec2
         'release-phase? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-phase? (phase)
             or
@@ -18509,6 +18526,7 @@
         :code $ quote $ ns quamolit.scene-pointer
           :require (quamolit.scene-ir :as scene) (quamolit.scene-hit :as hit)
             calcit.test :refer $ is=
+            quamolit.motion :as motion
     'quamolit.scene-pointer-browser $ %{} 'FileEntry
       :defs $ {}
         'PointerBoundsHost $ %{} 'CodeEntry (:doc |)
@@ -18633,6 +18651,25 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState
             :features $ #{} :js-ffi
+        'reconcile-pointer-surface-at! $ %{} 'CodeEntry
+          :doc "|Scene提交时按可选client CSS位置重算hover，每次读取元素当前边界，不乘DPR。只接纯数据Vec2，不保存PointerEvent/DOM；none停止hover，不复活旧位置。捕获按身份/disabled协调，原生release仍精确一次，无synthetic DOM事件。"
+          :code $ quote $ defn reconcile-pointer-surface-at! (surface plan state position)
+            let
+                local $ match position
+                  (:none) (Option :none)
+                  (:some client)
+                    let
+                        bounds $ surface .get-pointer-bounds
+                      Option :some $ motion/Vec2 :x
+                        - (:x client) (.-left bounds)
+                        , :y $ - (:y client) (.-top bounds)
+                reconciled $ pointer/reconcile-pointer-state-at plan state local
+              when (:capture-released reconciled) (release-state-native-capture! surface state)
+              , reconciled
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState $ :: 'Option 'quamolit.motion/Vec2
+            :features $ #{} :js-ffi
         'release-native-capture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-native-capture! (surface input routed)
             let
@@ -18669,7 +18706,7 @@
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.scene-pointer-browser
-          :require (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (js-ffi.contract :as contract)
+          :require (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (js-ffi.contract :as contract) (quamolit.motion :as motion)
     'quamolit.test.component-fixture $ %{} 'FileEntry
       :defs $ {}
         'declare-badge $ %{} 'CodeEntry (:doc |)
@@ -20754,6 +20791,26 @@
                       is= true $ :capture-released reconciled
                       is= (pointer/PointerCapture :none)
                         :capture $ :state reconciled
+              :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |stationary-position-reconcile)
+              :code $ quote $ fn ()
+                let
+                    plan $ hit/compile-hit-plan $ routing-scene
+                    initial $ pointer/initial-pointer-state
+                    at-a $ pointer/reconcile-pointer-state-at plan initial $ Option :some (motion/Vec2 :x 20 :y 20)
+                    at-b $ pointer/reconcile-pointer-state-at plan (:state at-a)
+                      Option :some $ motion/Vec2 :x 120 :y 20
+                    unknown $ pointer/reconcile-pointer-state-at plan (:state at-b) (Option :none)
+                    down $ pointer/route-pointer plan initial $ pointer-input 7 (pointer/PointerPhase :down) 20 20
+                    captured $ pointer/capture-dispatch (:state down) (:dispatch down)
+                    outside $ pointer/reconcile-pointer-state-at plan captured $ Option :some (motion/Vec2 :x 1000 :y 1000)
+                  is= |a $ :hover-node $ :state at-a
+                  is= |b $ :hover-node $ :state at-b
+                  is= | $ :hover-node $ :state unknown
+                  is= | $ :hover-node $ :state outside
+                  is= (pointer/PointerCapture :captured 7 |a-action |a)
+                    :capture $ :state outside
+                  is= false $ :capture-released outside
               :tags $ #{} :scene-pointer
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.scene-hit-fixture
