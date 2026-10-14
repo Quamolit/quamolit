@@ -1,16 +1,16 @@
 # 标量 Motion 到公共 GPU 计划（开发中）
 
-推进#52，复用已合并的ComponentPlan/矩形批次，不另造组件或Scene。参数常驻与vertex shader采样、原子集的GPU像素/数值和独立消费者分发已有证据。下述八槽线性RGB是本地候选，尚未提交PR、发布或通过更新后的干净消费者；不能把基础硬件诊断算作完整颜色操作或性能验收。
+推进#52，复用已合并的ComponentPlan/矩形批次，不另造组件或Scene。参数常驻与vertex shader采样、原子集的GPU像素/数值和独立消费者分发已有证据。下述八槽线性RGB属于[候选#238](https://github.com/Quamolit/quamolit/pull/238)，未合并或发布；完整颜色组合与性能验收仍未完成。
 
 `quamolit.gpu-scalar-program/prepare-program(plan)` 返回 `ProgramResult :ready ScalarProgram` 或 `:fallback reason`。ready 保存同一来源计划、矩形帧和 ScalarParameter 列表。通过既有 `motion-gpu/lower-scalar` 检查描述符，再将明确支持的矩形 x/y/alpha/width/height constant、linear/smoothstep tween 或两点 clamp/mirror 轨道转成参数。轨道复用 tween 编码与 shader，段 easing 取首帧；重复时间保留“时间点前取首值，到点后右侧胜出”，非恒定零时长跳变仍被原精度预算拒绝。多段及 repeat 未实现，仍明确回退。alpha 是填充透明度替换，端点须在 `[0,1]`，不是 group opacity；隔离组、CPU 自定义变换、其他目标/算子及不支持的节点仍整层回退，不返回部分有效绑定。
 
 参数逻辑布局为`index,axis,start,duration,from,to,easing,padding`。axis0/1/2/3/4对应x/y/alpha/width/height，5/6/7对应矩形`linear-red/linear-green/linear-blue`；easing0/1为clamp linear/smoothstep，2/3为mirror。constant、零时长与原精度预算不变。storage每节点八个32B槽：from/to/start/duration、enabled/easing/0/0，地址为index×256+axis×32。RGB槽保存线性光通道，采样后编码sRGB并按Canvas的8位规则取整；alpha仍为直通道透明度，不做色域转换。静态未绑定的通道保留原值，层序不变。
 
-八槽共用原buffer/pipeline，宿主仍为3个buffer，但参数容量由每节点160B增至256B。当前65节点的Calcit声明含原x与四个RGBA绑定，本机实际冷安装为16640B清零+160B写入=16800B，时间帧参数/记录不重写，仍仅16B uniform。按新布局10k双轴预算为2560000B清零+640000B写入=3200000B，尚待更新后独立消费者实测，不能把预算公式或旧2240000B报告当作新测量。此处是功能扩展，不声称加速。
+八槽共用原buffer/pipeline，宿主仍为3个buffer，但参数容量由每节点160B增至256B。当前65节点的Calcit声明含原x与四个RGBA绑定，本机实际冷安装为16640B清零+160B写入=16800B，时间帧参数/记录不重写，仍仅16B uniform。25c5555的干净独立消费者已实测10k双轴为2560000B清零+640000B写入=3200000B，candidate=harness、dirty=false，原Metal画面/读回合同通过；旧2240000B报告仅属历史布局。此处是功能扩展，不声称加速。
 
 宽高复用已有`ScalarTarget :width/:height`；非负端点、原精度拒绝与图层回退不变。旋转/缩放与group opacity仍未支持。原`?motion=dual`消费者的位移/宽高、数值及画面合同不变，必须在新布局下重验，不能只更新字节期望。
 
-线性RGB绑定输入为[0,1]线性光值，不是编码sRGB数字；低层调用者可用`motion/srgb-to-linear`转换颜色端点。应用优先用纯Calcit的`component-sample/with-rect-color-motion`添加已有`ColorDescriptor`，不手工拆通道；constant/tween桥接及冲突规则见[组件声明](component-sample.md)。CPU复用现有`linear-to-srgb`，GPU使用同一分段编码规则，避免把sRGB通道直接算术混合后当作标准颜色渐变。越界端点以`scalar-color-outside-unit-interval`回退，CPU仍明确拒绝。仓库内Calcit声明与计划已接通；独立安装消费者、GPU完整常量/缓动/轨道组合及分发复验还未完成。
+线性RGB绑定输入为[0,1]线性光值，不是编码sRGB数字；低层调用者可用`motion/srgb-to-linear`转换颜色端点。应用优先用纯Calcit的`component-sample/with-rect-color-motion`添加已有`ColorDescriptor`，不手工拆通道；constant/tween桥接及冲突规则见[组件声明](component-sample.md)。CPU复用现有`linear-to-srgb`，GPU使用同一分段编码规则，避免把sRGB通道直接算术混合后当作标准颜色渐变。越界端点以`scalar-color-outside-unit-interval`回退，CPU仍明确拒绝。独立消费者`?motion=color`在同页使用该入口，linear/smoothstep颜色版本切换复用原双轴硬件专项：11帧含同时间版本失效、整帧零差异和独立内区公式，7个smoothstep时间点的21个线性通道读回使用原数值容差；原门禁不放宽。GPU完整常量/轨道/透明叠加组合、完整精度域与正式tag分发仍未完成。
 
 本地Apple/Metal-3诊断：`declare-colored-demo`用公共颜色描述和桥接构建保留计划，1→0→0.5→0.25→1的5个不透明内区像素与独立sRGB参考实际零差异，连续3轮通过。新夹具预设RGB≤1级8位转换差、alpha精确255，未改变原整图零差异门禁。0.37/0.81/0.4999999/-0.1/1.1的15个线性值读回满足既定`1e-5+1e-5*abs(expected)`；声明/计划构建各1次。临时仅把`:file`中的输出改为未经编码的线性值，重新codegen后真实像素断言失败（中点128而非188），恢复后复验；不是自比较或仅修改期望。此为仓库内Calcit到后端的功能验证，不替代干净安装或完整#144画质；原始JSON仅在忽略artifact，测量数据本身不作为测试PASS结论。
 

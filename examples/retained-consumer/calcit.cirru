@@ -216,6 +216,17 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'declare-color $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-color (props model input ready viewport)
+            component/with-rect-color-motion (declare props model input ready viewport) |badge $ motion/ColorDescriptor :id |badge-fill :version (if ready 2 1) :motion $ motion/ColorMotion :tween
+              motion/ColorTween :start 0 :duration 1 :from
+                motion/ColorRgba :r 0 :g 1 :b (motion/linear-to-srgb 0.25) :a 1
+                , :to
+                  motion/ColorRgba :r 1 :g 0 :b (motion/linear-to-srgb 0.75) :a 1
+                  , :easing $ if ready (motion/Easing :smoothstep) (motion/Easing :linear)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
         'declare-dual $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-dual (props model input ready viewport)
             let
@@ -1025,6 +1036,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'start-color $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-color (time model ready viewport)
+            retained/build-component-plan (request time model ready viewport) declare-color
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number 'Number 'Bool 'Number
         'start-dual $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-dual (time model ready viewport)
             retained/build-component-plan (request time model ready viewport) declare-dual
@@ -1073,6 +1090,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/BatchPlan)
             :args $ [] 'quamolit.gpu-component/BatchPlan 'quamolit.retained-component/ComponentPlan
+        'update-color $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-color (plan time model ready viewport)
+            retained/update-component-plan plan (request time model ready viewport) declare-color
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
         'update-dual $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-dual (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare-dual

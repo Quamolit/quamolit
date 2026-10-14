@@ -336,5 +336,56 @@ export function verifyDualGpuConsumer(app, core) {
     hotUniformBytes: 16000,
     buffers: 3,
     alpha: verifyGpuConsumer(app, core, true),
+    color: verifyColorGpuConsumer(app, core),
   };
+}
+
+function verifyColorGpuConsumer(app, core) {
+  const tags = core.init_tags(["scene", "declarations", "plan-builds", "parameters"]);
+  const source = app.start_color(0, 40, false, 100),
+    before = core.to_js_data(source);
+  const prepared = app.prepare_gpu(source);
+  assert.equal(prepared.tag.value, "ready");
+  const program = prepared.extra[0];
+  const parameters = core.to_js_data(program.get(tags.parameters));
+  assert.deepEqual(
+    parameters.map((p) => p.axis),
+    [0, 5, 6, 7, 2],
+  );
+  const m = nativeDevice(),
+    host = app.create_gpu_$x_(m.canvas, m.device, "bgra8unorm", 2);
+  try {
+    app.install_gpu_$x_(host, program);
+    assert.equal(host.parameterBytes, 672);
+    const cold = m.writes.length;
+    for (let i = 0; i < 1000; i++) app.draw_gpu_$x_(host, program, [1, 0, 0.5, 0.25, 1][i % 5]);
+    assert.equal(m.writes.length - cold, 1000);
+    assert.ok(m.writes.slice(cold).every((w) => w.bytes === 16 && w.label === "Quamolit component viewport"));
+    const encode = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
+    for (const ready of [false, true]) {
+      for (const time of [1, 0, 0.5, 0.25, 1, 0.37, 0.81]) {
+        const plan = app.update_color(source, time, 40, ready, 100);
+        const scene = core.to_js_data(plan.get(tags.scene)),
+          fill = scene.nodes[1].content[1].fill;
+        const t = ready ? time * time * (3 - 2 * time) : time;
+        for (const [channel, linear] of [
+          ["r", t],
+          ["g", 1 - t],
+          ["b", 0.25 + 0.5 * t],
+        ]) {
+          assert.ok(Math.abs(fill[channel] - encode(linear)) < 1e-12, `${ready}/${time}/${channel}`);
+        }
+        assert.equal(fill.a, 1);
+        assert.equal(scene.nodes[1].content[1].x, 80 + 40 * time);
+        assert.equal(app.gpu_reusable_$q_(program, plan), !ready);
+      }
+    }
+    assert.equal(source.get(tags.declarations), 1);
+    assert.equal(source.get(tags["plan-builds"]), 1);
+    assert.deepEqual(core.to_js_data(source), before);
+  } finally {
+    app.dispose_gpu_$x_(host);
+  }
+  assert.ok(m.buffers.every((b) => b.destroyed === 1));
+  return { frames: 1000, coldParametersBytes: 672, hotParametersBytes: 0, hotUniformBytes: 16000 };
 }

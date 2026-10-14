@@ -8,7 +8,7 @@ M1 #31 的 `quamolit.component-sample` 把 [组件 API 契约](api-contract.md)�
 
 矩形颜色可在声明构建时调用 `with-rect-color-motion declaration node-id color-descriptor`，接受已有的 `ColorDescriptor` constant/tween，不要求应用手工拆通道。它保留原 Scene、几何、位置等绑定，以纯 Calcit 将 RGB 端点解码为线性光标量、alpha 单独插值，生成四个版本化绑定；CPU 解析与受支持 GPU 路径共用该声明。生成 ID 带 `rect-color/` 前缀、节点 ID 长度、节点/描述 ID 及通道；版本沿用颜色描述版本。不存在/非矩形节点、重复颜色或 alpha 目标、生成 ID/version 冲突均拒绝，不静默覆盖 Presence 的透明度。需要出入场透明度时可由父 group 承担，GPU 是否支持该组合仍按整层能力诊断，不能据此推断一般 GPU group opacity 已支持。
 
-参考 `quamolit.test.retained-component-fixture/declare-colored-demo`：在同一保留组件的矩形上添加颜色描述，`start-colored` 由 Calcit 直接构建计划。`test:component-sample` 检查 constant、linear/smoothstep、零时长、固定 seed/乱序时间、冲突和不可变输入；GPU 专项复用原 `test:gpu-component`，JS 只驱动硬件并提供独立数值/像素期望。颜色端点的线性解码再编码允许浮点舍入，纯 `motion/sample-color` 的原端点契约不变；8位色域转换与 f32 数值读回分别验收。独立安装消费者的颜色接线仍待补齐，不把仓库内夹具当成分发完成。
+参考 `quamolit.test.retained-component-fixture/declare-colored-demo`：在同一保留组件的矩形上添加颜色描述，`start-colored` 由 Calcit 直接构建计划。`test:component-sample` 检查 constant、linear/smoothstep、零时长、固定 seed/乱序时间、冲突和不可变输入；GPU 专项复用原 `test:gpu-component`，JS 只驱动硬件并提供独立数值/像素期望。颜色端点的线性解码再编码允许浮点舍入，纯 `motion/sample-color` 的原端点契约不变；8位色域转换与 f32 数值读回分别验收。[独立消费者](../examples/retained-consumer/README.md)的 `declare-color` 使用同一入口，安装/编译搬移与同时间颜色版本失效由 `test:consumer` 验证；不能只用仓库内夹具代替分发。
 
 运行 `yarn test:component-sample` 检查全部公共定义的严格类型、原生与 JS 数值/序列化；`yarn test:motion-browser` 检查 Chromium 中间帧、像素和同时间输入变化。[交互页面](../test/component.html)可手动切换时间、Model、资源与视口。编译输出隔离于 `target/js/component/`，避免不同 Calcit 入口覆盖同名导出。
 
