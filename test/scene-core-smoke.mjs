@@ -25,6 +25,7 @@ test("圆弧声明的数值、几何/颜色失效与明确的绑定边界 (#212)
     "a",
     "arc",
     "alpha",
+    "x",
   ]);
   const record = (type, fields) =>
     core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([key, value]) => [tags[key], value]));
@@ -69,8 +70,13 @@ test("圆弧声明的数值、几何/颜色失效与明确的绑定边界 (#212)
   assert.deepEqual(toJsData(diff.geometry_signature(red)), toJsData(diff.geometry_signature(content(arc))));
   assert.notDeepEqual(toJsData(diff.property_signature(red)), toJsData(diff.property_signature(content(arc))));
   assert.deepEqual(toJsData(diff.resource_signature(red)), ["none"]);
+  const faded = binding.apply_scalar(content(arc), core._PCT__$o__$o_(scene.ScalarTarget, tags.alpha), 0.5);
+  assert.equal(toJsData(faded)[1].stroke.a, 0.5);
+  assert.equal(toJsData(content(arc))[1].stroke.a, 1, "绑定不修改调用者旧圆弧");
+  assert.deepEqual(toJsData(diff.geometry_signature(faded)), toJsData(diff.geometry_signature(content(arc))));
+  assert.notDeepEqual(toJsData(diff.property_signature(faded)), toJsData(diff.property_signature(content(arc))));
   assert.throws(
-    () => binding.apply_scalar(content(arc), core._PCT__$o__$o_(scene.ScalarTarget, tags.alpha), 0.5),
+    () => binding.apply_scalar(content(arc), core._PCT__$o__$o_(scene.ScalarTarget, tags.x), 0.5),
     /unsupported-arc-binding/,
   );
 });

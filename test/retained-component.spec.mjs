@@ -1,5 +1,74 @@
 import { test, expect } from "@playwright/test";
 
+for (const dpr of [1, 2])
+  test(`圆弧 alpha：DPR ${dpr} 保留计划与独立原生中间帧`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({ viewport: { width: 800, height: 600 }, deviceScaleFactor: dpr });
+    const page = await context.newPage();
+    try {
+      await page.goto("/test/retained-component.html");
+      const results = await page.evaluate(async (dpr) => {
+        const fixture = await import("/target/js/retained-component/quamolit.test.retained-component-fixture.mjs");
+        const execution = await import("/target/js/retained-component/quamolit.retained-component.mjs");
+        const core = await import("/target/js/retained-component/calcit.core.mjs");
+        const tags = core.init_tags(["slots", "scene", "declarations", "plan-builds"]);
+        let plan = fixture.start_fading_arc(0);
+        const slots = plan.get(tags.slots),
+          initial = core.to_js_data(plan.get(tags.scene));
+        const create = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = canvas.height = 128 * dpr;
+          const context = canvas.getContext("2d");
+          context.scale(dpr, dpr);
+          return context;
+        };
+        const results = [];
+        for (const time of [1, 0, 0.5, 0.25, 1, -0.1, 1.1, 0.5]) {
+          const actual = create(),
+            expected = create();
+          plan = execution.sample_plan_at(plan, time);
+          execution.draw_plan_$x_(actual, plan);
+          const alpha = 1 - Math.max(0, Math.min(1, time));
+          expected.lineWidth = 8;
+          expected.lineCap = "round";
+          expected.strokeStyle = `rgba(255,51,0,${alpha})`;
+          expected.beginPath();
+          expected.arc(64, 64, 40, 0.2, 2.4, false);
+          expected.stroke();
+          const a = actual.getImageData(0, 0, actual.canvas.width, actual.canvas.height).data;
+          const b = expected.getImageData(0, 0, expected.canvas.width, expected.canvas.height).data;
+          results.push({
+            time,
+            alpha,
+            differences: a.reduce((sum, value, index) => sum + Number(value !== b[index]), 0),
+            nonempty: a.some((value) => value !== 0),
+            sameSlots: plan.get(tags.slots) === slots,
+            declarations: plan.get(tags.declarations),
+            builds: plan.get(tags["plan-builds"]),
+            initialAlpha: initial.nodes[0].content[1].stroke.a,
+            png: actual.canvas.toDataURL(),
+          });
+        }
+        return results;
+      }, dpr);
+      expect(results).toHaveLength(8);
+      for (const [index, result] of results.entries()) {
+        expect(result.differences, JSON.stringify({ time: result.time, dpr })).toBe(0);
+        expect(result.nonempty).toBe(result.alpha > 0);
+        expect(result.sameSlots).toBe(true);
+        expect(result.declarations).toBe(1);
+        expect(result.builds).toBe(1);
+        expect(result.initialAlpha).toBe(1);
+        if (result.time === 0.5)
+          await testInfo.attach(`arc-alpha-dpr${dpr}-${index}`, {
+            body: Buffer.from(result.png.split(",")[1], "base64"),
+            contentType: "image/png",
+          });
+      }
+    } finally {
+      await context.close();
+    }
+  });
+
 test("Presence 通过统一计划绘制矩形与折线 alpha，独立原生 Canvas 对照", async ({ page }, testInfo) => {
   await page.goto("/test/retained-component.html");
   const results = await page.evaluate(async () => {

@@ -74,7 +74,9 @@ Presence 文字可复用同一共享入口：`presence-font-references(model)` �
 
 `test:scene-hit` 与 `test:scene-pointer` 覆盖原生 Calcit 的方向、跨零、圆头、完整圈、零宽以及捕获/禁用协调；`test:curve-demo` 复用现有浏览器文件，在 DPR1/2 下逐点比较 13 种弧形与独立 `Canvas.isPointInStroke`，并比较旋转、非均匀缩放和矩形裁剪后的实际 HitPlan。原生几何放大64倍以减少浏览器内部路径离散误差，逐点断言零差异；默认尺寸原生差异单独记录，不扩张 Calcit 轮廓或修改像素容差。`test:scene-pointer-browser` 验证真实鼠标拒绝空心/缺口、按下捕获、画布外投递、无新输入的禁用释放和重复提交幂等。这不是全浏览器/极端浮点域验收，也没有新增性能结论。
 
-这是实验性 Scene 扩展：目前 WebGPU 无圆弧实现，矩形组件 GPU 入口明确整层回退；图片专属 GPU 入口仍预检拒绝非支持图元。标量绑定和 retained-path 专用入口未实现；绑定明确拒绝 `unsupported-arc-binding`，应用可以重新声明显式时间采样的弧。Discs Vortex 已通过合并 PR #7 消费正式 alpha.4 原生弧，保留原圈数/速度与 DPR 生产门禁；本次命中扩展尚未发布，不把已有 tag 的能力扩大。
+圆弧现在支持既有 `ScalarTarget :alpha`，与折线一致覆盖 `stroke.a`，不隐式乘原始 alpha；需要相乘时在 Motion 描述中表达最终值。`scene-binding/resolve-scene` 与 `retained-component` 的预编译标量 slot 复用同一赋值逻辑；仅时间变化不必重新声明几何。`test:retained-component` 检查原生 Calcit、乱序/重复/区间外时间、旧帧不可变及1000帧声明/构建各1、同一slots身份；DPR1/2 的初始/中间/终点与独立原生 Canvas 整帧RGBA零差异。上述计数不等于帧率或几何内存复用证明。不能通过 alpha=0 自动禁用交互，退出仍须显式 disabled。
+
+这是实验性 Scene 扩展：目前 WebGPU 无圆弧实现，矩形组件 GPU 入口明确整层回退；图片专属 GPU 入口仍预检拒绝非支持图元。中心、半径、起止角和宽度的标量绑定及 retained-path 专用入口未实现，非alpha目标仍明确拒绝 `unsupported-arc-binding`；应用可以重新声明显式时间采样的弧。Discs Vortex 已通过合并 PR #7 消费正式 alpha.4 原生弧，保留原圈数/速度与 DPR 生产门禁；本次命中/alpha扩展尚未发布，不把已有 tag 的能力扩大。
 
 `SceneContent :cubic-path` 使用 `CubicPathNode { start, segments, width, stroke }`；每个 `CubicSegment` 明确保存 `control-1`、`control-2`、`end` 三个有限 `Vec2`。路径至少一段、宽度必须有限且大于零。`SceneContent :circle` 使用 `CircleNode { cx, cy, radius, width, fill, stroke }`；半径必须为正，描边宽度非负。两者均是纯 Calcit 数据：几何与属性签名参与 `scene-diff`，不携带 Canvas 句柄。
 

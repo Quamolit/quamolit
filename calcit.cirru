@@ -15266,7 +15266,7 @@
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) (:: 'List 'quamolit.motion/ScalarDescriptor) 'Number $ :: 'List 'quamolit.retained-component/BoundScalar
             :return $ :: 'List 'quamolit.retained-component/BoundScalar
         'draw-plan! $ %{} 'CodeEntry
-          :doc "|统一 Canvas 提交：按 Scene 顺序绘制矩形与折线，先标量更新再局部仿射变换；不支持组/实例时绘制前拒绝。"
+          :doc "|统一 Canvas 提交：按声明层序绘制原生平面叶图元（含 Arc）；先采样标量再应用局部仿射变换。group、instances、image 或非空 parent 在绘制前拒绝；不声称一般嵌套图层或 GPU Arc 支持。"
           :code $ quote $ defn draw-plan! (context plan)
             assert |unsupported-component-canvas-scene $ every?
               :nodes $ :scene plan
@@ -15694,7 +15694,12 @@
               (:polygon polygon) (raise |unsupported-polygon-binding)
               (:cubic-path path) (raise |unsupported-cubic-path-binding)
               (:circle circle) (raise |unsupported-circle-binding)
-              (:arc arc) (raise |unsupported-arc-binding)
+              (:arc arc)
+                match target
+                  (:alpha)
+                    scene-ir/SceneContent :arc $ struct-with arc $ :stroke
+                      struct-with (:stroke arc) (:a value)
+                  _ $ raise |unsupported-arc-binding
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
             :args $ [] 'quamolit.scene-ir/SceneContent 'quamolit.scene-ir/ScalarTarget 'Number
@@ -17723,6 +17728,7 @@
                     = (content-kind content) |rect
                     = (content-kind content) |polyline
                     = (content-kind content) |text
+                    = (content-kind content) |arc
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/ScalarBinding 'quamolit.scene-ir/SceneContent
@@ -19689,6 +19695,22 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'declare-fading-arc $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-fading-arc (props model input resources viewport)
+            let
+                content $ scene/SceneContent :arc $ scene/ArcNode :cx 64 :cy 64 :radius 40 :start-angle 0.2 :end-angle 2.4 :counterclockwise false :width 8 :stroke
+                  motion/ColorRgba :r 1 :g 0.2 :b 0 :a 1
+                node $ scene/SceneNode :id |fading-arc :parent | :key |fading-arc :content content :bindings
+                  [] $ scene/ScalarBinding :target (scene/ScalarTarget :alpha) :motion-id |arc-alpha :version 1
+                  , :interaction $ scene/SceneInteraction :none
+                descriptor $ motion/ScalarDescriptor :id |arc-alpha :version 1 :motion $ motion/ScalarMotion :tween
+                  motion/ScalarTween :start 0 :duration 1 :from 1 :to 0 :easing $ motion/Easing :linear
+              component/ComponentDeclaration :scene
+                scene/SceneDocument :nodes $ [] node
+                , :motions $ [] descriptor
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
         'declare-mixed $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-mixed (props model input resources viewport)
             let
@@ -19739,8 +19761,37 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ []
-          :tests $ [] $ %{} 'TestEntry (:name |retained-component-replay)
-            :code $ quote $ assert= true (main!)
+          :tests $ []
+            %{} 'TestEntry (:name |retained-component-replay)
+              :code $ quote $ assert= true (main!)
+            %{} 'TestEntry (:name |arc-alpha-native)
+              :code $ quote $ let
+                  initial $ start-fading-arc 0
+                  sampled $ retained/sample-plan-at initial 0.5
+                  old-node $ &list:nth
+                    :nodes $ :scene initial
+                    , 0
+                  new-node $ &list:nth
+                    :nodes $ :scene sampled
+                    , 0
+                is= 1 $ :declarations sampled
+                is= 1 $ :plan-builds sampled
+                is= (:slots initial) (:slots sampled)
+                is= true $ scene/valid-binding?
+                  scene/ScalarBinding :target (scene/ScalarTarget :alpha) :motion-id |arc-alpha :version 1
+                  :content old-node
+                is= false $ scene/valid-binding?
+                  scene/ScalarBinding :target (scene/ScalarTarget :width) :motion-id |arc-alpha :version 1
+                  :content old-node
+                match (:content new-node)
+                  (:arc arc)
+                    is= 0.5 $ :a $ :stroke arc
+                  _ $ is= |arc |other
+                match (:content old-node)
+                  (:arc arc)
+                    is= 1 $ :a $ :stroke arc
+                  _ $ is= |arc |other
+              :tags $ #{} :retained-component
         'make-request $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn make-request (time model ready viewport) (badge/make-request time model ready viewport)
           :examples $ []
@@ -19836,6 +19887,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'start-fading-arc $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-fading-arc (time)
+            retained/build-component-plan (make-request time 40 false 100) declare-fading-arc
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number
         'start-mixed $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-mixed (time model ready viewport)
             retained/build-execution-plan (make-request time model ready viewport) declare-mixed

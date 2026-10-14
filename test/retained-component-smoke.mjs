@@ -11,6 +11,7 @@ import {
   reference_at as referenceAt,
   make_request as makeRequest,
   declare_demo as declareDemo,
+  start_fading_arc as startFadingArc,
 } from "../target/js/retained-component/quamolit.test.retained-component-fixture.mjs";
 import {
   build_component_plan as buildPlan,
@@ -65,6 +66,37 @@ const tags = initTags([
 const field = (x, key) => x.get(tags[key]);
 const nodesOf = (plan) => field(field(plan, "scene"), "nodes");
 const sceneOf = (plan) => toJsData(field(plan, "scene"));
+
+test("圆弧 alpha 绑定复用保留计划，乱序/重复时间与1000帧不重新声明", () => {
+  const initial = startFadingArc(0),
+    slots = field(initial, "slots");
+  const original = sceneOf(initial),
+    geometry = { ...original.nodes[0].content[1] };
+  delete geometry.stroke;
+  let plan = initial;
+  for (const time of [1, 0, 0.5, 0.25, 1, -0.1, 1.1, 0.5, 0.5]) {
+    const previous = plan,
+      previousScene = sceneOf(previous);
+    plan = sampleAt(plan, time);
+    const arc = sceneOf(plan).nodes[0].content[1],
+      actualGeometry = { ...arc };
+    delete actualGeometry.stroke;
+    assert.equal(arc.stroke.a, 1 - Math.max(0, Math.min(1, time)));
+    assert.deepEqual(actualGeometry, geometry);
+    assert.deepEqual(sceneOf(previous), previousScene, "旧帧不可被新采样修改");
+    assert.equal(field(plan, "slots"), slots);
+    assert.equal(field(plan, "declarations"), 1);
+    assert.equal(field(plan, "plan-builds"), 1);
+  }
+  for (let frame = 0; frame < 1000; frame++) {
+    plan = sampleAt(plan, frame / 1000);
+    assert.equal(sceneOf(plan).nodes[0].content[1].stroke.a, 1 - frame / 1000);
+    assert.equal(field(plan, "slots"), slots);
+  }
+  assert.equal(field(plan, "declarations"), 1);
+  assert.equal(field(plan, "plan-builds"), 1);
+  assert.deepEqual(sceneOf(initial), original);
+});
 const presenceTags = initTags([
   "items",
   "alpha",
