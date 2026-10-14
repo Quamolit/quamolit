@@ -18457,10 +18457,50 @@
           :code $ quote $ defatom *frame (initial-frame 0 0 scene)
           :examples $ []
           :schema $ :: 'Dynamic
+        '*path-sample-calls $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defref *path-sample-calls 0
+          :examples $ []
+        'constant-path-sample-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn constant-path-sample-plan (plan transforms)
+            struct-with plan $ :sample $ fn (slots time)
+              hint-fn $ {}
+                :args $ [] (:: 'List 'quamolit.examples.binary-tree/BranchSlot) 'Number
+                :return $
+                  :: 'List 'quamolit.scene-ir/Matrix2D
+              , transforms
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+              :: 'quamolit.retained-path/PathPlan $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
+              :: 'List 'quamolit.scene-ir/Matrix2D
+            :return $ :: 'quamolit.retained-path/PathPlan $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
+        'counted-tree-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn counted-tree-plan (time depth)
+            let
+                plan $ tree/build-plan time depth
+              reset! *path-sample-calls 0
+              struct-with plan $ :sample counted-tree-transforms
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number
+            :return $ :: 'quamolit.retained-path/PathPlan $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
+        'counted-tree-transforms $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn counted-tree-transforms (slots time)
+            reset! *path-sample-calls $ inc $ deref *path-sample-calls
+            tree/sample-transforms slots time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.examples.binary-tree/BranchSlot) 'Number
+            :return $ :: 'List 'quamolit.scene-ir/Matrix2D
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () (reset-fixture!) ([] step-fixture! redraw-fixture! progress)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
+            :args $ []
+        'path-sample-calls $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn path-sample-calls () (deref *path-sample-calls)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ []
         'progress $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn progress () (:model @*frame)
@@ -18518,6 +18558,7 @@
             quamolit.types :refer $ Component Shape
             quamolit.render.paint :refer $ paint-tree-only-with paint-rect
             quamolit.frame-eval :refer $ initial-frame evaluate-at
+            quamolit.examples.binary-tree :as tree
     'quamolit.test.gpu-component-fixture $ %{} 'FileEntry
       :defs $ {}
         'extreme-plan $ %{} 'CodeEntry (:doc |)

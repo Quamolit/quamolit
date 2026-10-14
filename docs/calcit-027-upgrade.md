@@ -32,6 +32,8 @@ js-ffi 0.2.2声明Calcit0.29.1；根 `resolutions` 统一到兼容稳定runtime0
 
 首轮Upload暴露附带测试把空Ref推断为List<never>后写入Tag的旧写法；仅给原parent-before-child测试初始化显式List<Tag>，保留原顺序断言/标签，使用ref首选构造器。frame-clock13项及全项目原生145项全部通过；没有放宽Ref类型或删除测试。
 
+随后Visual在二叉树Node测试中拒绝把裸JS回调动态写入类型化PathPlan.sample；这是测试构造方式不再满足Fn字段证据，而非动画采样失败。计数采样器与故障计划构造移入已有Calcit测试夹具，显式保留BranchSlot/Matrix2D类型，生产公共模块不引用该夹具。原1000帧/63条共享几何/重复时间跳过断言不变；负例先构造计划，再断言实际采样的invalid-path-time/invalid-path-transforms，避免字段赋值错误造成假阳性。本地原生2项及Node8项通过，不改图像阈值、artifact要求或公共API。
+
 干净消费安装451f6e4升级源码、37个可达模块搬移、inline/file显式重编译和生命周期通过。导航里的独立消费者也固定该候选，避免只升级runtime却展示旧库；最终head的消费及Actions须再核对。无头GPU为adapter-unavailable的SKIP，不计硬件或性能通过。整库legacy规范债务、命名entry归并与后续发版仍未完成。
 
 f34899b的candidate=harness、dirty=false消费复测通过；headed/REQUIRE_GPU同head的真实Apple/Metal四项专项全部PASS（非软件adapter），覆盖矩形、双轴、10k实例更新/恢复与独立时间采样。该结果不是吞吐基准，#144的小数栅格化差异仍按原诊断记录。后续仅附带测试类型初始化修复，不把旧head绿灯替代新head的Actions。
