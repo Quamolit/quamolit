@@ -16,11 +16,11 @@ calcit query def app.main/update-plan --raw
 
 从 Quamolit 根目录可运行 `yarn vite examples/retained-consumer --host 127.0.0.1 --port 5183` 查看页面。Vite 只是开发服务器，不是 Calcit 消费者的运行时依赖。点击时间按钮可乱序查看中间帧，在相同时间修改 Model、资源 ready 与宽度版本，观察声明次数及画面更新。
 
-开发中的“卡片旋转与缩放”或 `?motion=transform` 由 Calcit `declare-transform` 声明平移、弧度旋转、缩放与局部支点；`TransformSampler :motions` 不保存闭包。标准矩阵按T(x,y)·T(pivot)·R·S·T(-pivot)采样，时间变化复用Scene和几何；Model/资源/视口在同时间变化仍重声明。原“线性矩形+折线”的20+10×time平移也已改用标准数据，默认效果不变。页面/生产代码只引用Calcit模块；GPU时间采样当前返回 `standard-transform-kernel-not-supported`，仍显示Canvas参考，不能当成GPU变换已交付。
+开发中的“卡片旋转与缩放”或 `?motion=transform` 由Calcit `declare-transform` 声明平移、弧度旋转、缩放与局部支点；`TransformSampler :motions` 不保存闭包。矩阵按T(x,y)·T(pivot)·R·S·T(-pivot)采样，时间变化复用Scene和几何；Model/资源/视口在同时间变化仍重声明。原“线性矩形+折线”的20+10×time平移也已改用标准数据，默认效果不变。页面/生产代码只引用Calcit模块，界面仍显示Canvas参考。后续GPU候选已增加受限TRS参数与shader，角度及世界坐标精度域见[GPU合同](../../docs/gpu-scalar-program.md)；混合折线依然完整回退，不为GPU漏画任何节点。
 
-当前固定990900a候选提供标准变换API，尚非已合并/发布版本。安装、编译搬移、1000帧、支点独立公式和原生Canvas旋转缩放对照复用 `test:consumer`，不另建renderer、测试命令或导航页面。它与尚未合并的颜色/布局候选分支分别验证，不能用旧tag或单一候选pin混称包含所有能力；对齐真实main后再收口PR。
+当前固定9e2b230候选包含本地TRS GPU实现，尚非已合并/发布版本。安装、编译搬移、1000帧、支点独立公式和原生Canvas对照复用 `test:consumer`，已验证新布局；TRS独立安装后的真实GPU专项仍待接入，不能以根项目Metal诊断替代。不另建renderer、测试命令或导航页面。颜色/布局候选仍分别验证，不能用单一pin混称包含所有能力；对齐实际main后再收口PR。
 
-原页面的“矩形透明度渐入”或 `?motion=alpha` 使用 Calcit `declare-alpha` 复用原两矩形 Scene，以两点 clamp 关键帧声明0→1的smoothstep alpha；GPU冷准备归一化到已有tween内核。界面显示Canvas参考，GPU采样/上传/数值和画面对照复用已有双轴硬件专项，多段、repeat 与group opacity仍不支持。五槽布局的冷安装内存/字节变化见[GPU合同](../../docs/gpu-scalar-program.md)，旧性能样本仍属于旧源码。
+原页面的“矩形透明度渐入”或 `?motion=alpha` 使用Calcit `declare-alpha` 复用原两矩形Scene，以两点clamp关键帧声明0→1的smoothstep alpha；GPU冷准备归一化到已有tween内核。界面显示Canvas参考，GPU采样/上传/数值和画面对照复用已有双轴硬件专项，多段、repeat与group opacity仍不支持。16槽候选的冷内存增长见[GPU合同](../../docs/gpu-scalar-program.md)，旧性能样本仍属于旧源码。
 
 “往返轨道”或 `?motion=mirror` 复用同一两矩形声明，只在 Calcit 将 x Motion 改为两点 mirror 轨道。时间 0/1/2 对应起点/终点/回到起点，1.5 为返回中间帧；负时间同样周期映射。Canvas 与 GPU 消费同一来源；GPU 门禁嵌在原双轴专项，包含负时间、跨周期乱序、依赖失效、真实 shader 数值读回及1000热帧。时间域受现有精度检查约束，超出时整层回退，不能把循环理解为无限大的 f32 时间都能精确绘制。
 
@@ -30,7 +30,7 @@ calcit query def app.main/update-plan --raw
 
 字体切片也由本目录的 Calcit 声明：`font-spec` → `load-font!` → 核对当前版本后 `install-font!`，`start-font` / `update-font` 用同一 ComponentPlan 绘制“图表收入”。`load-font!` 在消费方Calcit中构造现有ResourceState/加载队列请求，调用公共`run-font-load-task!`和`complete-font-load`；不是JS loader。移动采用已有 CPU transform，文字节点不随时间重建；字体来源版本变化时显式提升资源版本，同时间也重声明。仅字体 ready 时更新组件可用性修订，Scene 保持与加载请求相同的 FontSpec.version；版本化宿主别名由框架自动处理，下游不拼 CSS。结束用 `release-font!` 删除确切 FontFace。加载、失败、安装和释放都调用 Quamolit Calcit 模块，两个平台 inline 随模块编译内嵌，无额外 JS loader。它是隔离门禁中的固定尺寸诊断，不新增导航作品或声称原生排版缓存已完成；临时平台接口待 js-ffi #158 替换。
 
-`declare` 返回纯 Scene/Motion 声明，`declare-execution` 添加蓝色折线及 CPU 变换提供者，返回 `ExecutionDeclaration`。`request` 构造带完整版本的 `ComponentRequest`，`start` 调用 `build-execution-plan`，`update-plan` 调用 `update-execution-plan`。`draw!` 用 js-ffi 清屏，再调用统一 `draw-plan!`，调用者不选择内部标量/路径计划。
+`declare` 返回纯Scene/Motion声明，`declare-execution` 添加蓝色折线及标准变换数据，返回 `ExecutionDeclaration`。`request` 构造带完整版本的 `ComponentRequest`，`start` 调用 `build-execution-plan`，`update-plan` 调用 `update-execution-plan`。`draw!` 用js-ffi清屏，再调用统一 `draw-plan!`，调用者不选择内部标量/路径计划。
 
 蓝色折线的局部端点是 `(0,140) → (40,140)`，横向变换为 `20 + 10*time + model - 40`。连续时间同时改变粉色矩形的标量绑定和折线变换；同时间 Model 改变会重新声明二者。静态节点、折线局部几何和标量槽位在 1000 个时间更新中保持对象身份，绑定采样与变换采样计数分别显示。
 
@@ -38,9 +38,9 @@ calcit query def app.main/update-plan --raw
 
 ## 隔离门禁
 
-同一个消费方 Snapshot 还提供 `curve-document(time)`、`curve-hit-plan(time)`、`curve-hit(plan,x,y)` 与 `draw-curve!(context,document)`：只引用 Quamolit 的实验性 Calcit Scene/HitPlan/Canvas API，自己声明绝对时间曲线、90°旋转、2倍缩放和祖先裁剪。`arc-document(time)` / `arc-hit-plan(time)` 进一步验证原生圆弧事件目标、圆头、空心、缺口、clip与乱序时间，不从作者测试namespace导入构造器。既有 `test:consumer` 从安装后搬移的产物执行Node和浏览器验证，保存 `consumer-curve-<time>-{actual,expected}.png`；这不是新页面模式或GPU曲线实现。默认依赖固定到已推送的圆弧/Presence候选ac3c9e4（Calcit/runtime0.29.3、js-ffi0.2.3），发布tag后仍须重跑；旧候选可能编译成功但缺少对应能力，不能作为本切片验收。
+同一个消费方Snapshot还提供 `curve-document(time)`、`curve-hit-plan(time)`、`curve-hit(plan,x,y)` 与 `draw-curve!(context,document)`：只引用Quamolit的实验性Calcit Scene/HitPlan/Canvas API，自己声明绝对时间曲线、90°旋转、2倍缩放和祖先裁剪。`arc-document(time)` / `arc-hit-plan(time)` 进一步验证原生圆弧事件目标、圆头、空心、缺口、clip与乱序时间，不从作者测试namespace导入构造器。既有 `test:consumer` 从安装后搬移的产物执行Node和浏览器验证，保存 `consumer-curve-<time>-{actual,expected}.png`；这不是新页面模式或GPU曲线实现。候选版本统一以本目录 `deps.cirru` 为准；发布tag后仍须重跑，旧候选编译成功但缺少能力不能作为验收。
 
-`arc-presence-model(stage)`、`arc-presence-plan(model,time)`、`arc-presence-sample(plan,time)` 在消费方Calcit中调用公共Presence树声明与保留计划，不引入作者测试代码或JS动画函数。原始alpha=0.6的弧在旋转2倍、祖先clip与组opacity=0.4下退出/重入；乱序采样复用同一slots，退出立即disabled、重入恢复target。既有Node/浏览器门禁保留原曲线与弧帧，新增10个生命周期帧对独立原生隔离Canvas全RGBA零差异，包含透明终点，不放宽原非空帧阈值。静态依赖现固定ac3c9e4（含Presence），尚未发布；artifact用`consumer-arc-exit-*` / `consumer-arc-reenter-*`命名。
+`arc-presence-model(stage)`、`arc-presence-plan(model,time)`、`arc-presence-sample(plan,time)` 在消费方Calcit中调用公共Presence树声明与保留计划，不引入作者测试代码或JS动画函数。原始alpha=0.6的弧在旋转2倍、祖先clip与组opacity=0.4下退出/重入；乱序采样复用同一slots，退出立即disabled、重入恢复target。既有Node/浏览器门禁保留原曲线与弧帧，10个生命周期帧对独立原生隔离Canvas全RGBA零差异，包含透明终点，不放宽原非空帧阈值。artifact用 `consumer-arc-exit-*` / `consumer-arc-reenter-*` 命名。
 
 The same isolated Calcit consumer declares native arcs, HitPlans and Presence trees. Its own Calcit functions own lifecycle intent and retained sampling; browser frames compare shuffled exit/reentry under ancestor transforms, clipping and group opacity with an independent native Canvas reference. Exit disables interaction immediately and reentry restores the target. The pinned commit is unpublished; no framework JavaScript or test namespace imports are required.
 
@@ -52,7 +52,7 @@ Presence 模式的 Scene、稳定 key、协调、任意时间采样、是否继�
 
 勾选“全部 10k 实例独立动画”，或使用 `?motion=instances&independent=1`，即可复用同一舞台演示全部实例运动。消费方 Calcit 一次声明 10000 个有独立 ID、from/to/start/duration/easing 的现有 `Vec2Descriptor`，乱序时间直接调用 Quamolit `sample-vec2`；JS 仅把采样结果装入 Float32Array。Canvas 与 CPU→GPU 都消费同一全量快照，每次变化登记/上传 80 kB，同时间 GPU 重绘为 0 B。切回单脏记录模式会恢复原网格，不保留其他实例的偏移。
 
-“10k GPU 时间采样”按钮或 `?motion=instances-scalar` 使用同一份动画声明。Calcit `quamolit.gpu-scalar-program/prepare-instance-program` 将一个逻辑 InstanceNode 和 Motion 列表降为冷执行帧，不创建 10k ComponentPlan；`InstanceProgramResult` 显式返回 ready/fallback。`install-instance-program!` 复用既有 scalar renderer，冷安装记录 640 kB、参数清零及写入 1280 kB；`draw-instance-at!` 检查共用精度预算后仅写 16 B 时间/视口，不进行 CPU 位置采样。常量、linear/smoothstep tween 共享既有参数编码和 WGSL；非法身份/数量立即拒绝，超出 f32/精度域整层回退 Canvas。实例程序只保存纯来源与执行记录，GPU 句柄仍由宿主拥有；设备重建重新安装，不沿用旧句柄。该 API 仍为实验入口，调用者维护 host 当前安装的 program。
+“10k GPU 时间采样”按钮或 `?motion=instances-scalar` 使用同一份动画声明。Calcit `quamolit.gpu-scalar-program/prepare-instance-program` 将一个逻辑InstanceNode和Motion列表降为冷执行帧，不创建10k ComponentPlan；`InstanceProgramResult` 显式返回ready/fallback。`install-instance-program!` 复用既有scalar renderer，16槽候选冷安装记录640 kB、参数清零及写入5760 kB；`draw-instance-at!` 检查共用精度预算后仅写16 B时间/视口，不进行CPU位置采样。常量、linear/smoothstep tween共享参数编码和WGSL；非法身份/数量立即拒绝，超出f32/精度域整层回退Canvas。实例程序只保存纯来源与执行记录，GPU句柄仍由宿主拥有；设备重建重新安装，不沿用旧句柄。该API仍为实验入口，调用者维护host当前安装的program，字节数不作为性能结论。
 
 三路径功能与关键上传计数已接入同一个 `test:consumer`；真实 GPU 专项复用现有 shader 读回 3 个代表索引 × 5 个乱序时间，与独立公式核对既定数值误差。对同一 Float32 CPU 快照还比较两条 GPU 路径的完整画面，五个时间帧均零差异；Canvas 整数起点/终点也保持全图零差异。中间帧另输出差异图、通道差与覆盖像素计数，标为 `PENDING_RASTERIZATION_CONTRACT_144`，不以诊断产物替代画质通过。两档尺寸正式时长测量已记录在[消费者帧报告](../../docs/consumer-performance.md)，目标判定、基线比较与跨后端中间帧合同仍未验收，不宣称 60 FPS 达标。
 

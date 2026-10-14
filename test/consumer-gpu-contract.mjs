@@ -318,7 +318,7 @@ export function verifyDualGpuConsumer(app, core) {
     const before = m.writes.length;
     const linear = app.prepare_gpu(app.start_rects(0, 40, false, 100)).extra[0];
     app.install_gpu_$x_(host, linear);
-    assert.equal(m.writes[before].bytes, 320);
+    assert.equal(m.writes[before].bytes, 2 * 16 * 32);
     assert.ok(
       m.writes[before].values.every((v) => v === 0),
       "切回单轴必须清除旧 y/width/height 动画槽",
