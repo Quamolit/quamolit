@@ -31,12 +31,14 @@ import {
   presence_initial as presenceInitial,
   presence_exit as presenceExit,
   presence_plan as presencePlan,
+  arc_presence_document as arcPresenceDocument,
 } from "../target/js/retained-component/quamolit.test.retained-component-fixture.mjs";
 import { declare_flat as declarePresence } from "../target/js/retained-component/quamolit.presence-component.mjs";
 import {
   reconcile_presence as reconcile,
   settle_presence as settle,
   presence_needs_frame_$q_ as needsFrame,
+  start_presence as startPresence,
 } from "../target/js/retained-component/quamolit.presence.mjs";
 import { _$n_enum_$o_nth as enumNth } from "../target/js/retained-component/calcit.core.mjs";
 import { apply_scalar as applyScalar } from "../target/js/retained-component/quamolit.scene-binding.mjs";
@@ -115,6 +117,35 @@ const presenceTags = initTags([
 const get = (x, key) => x.get(presenceTags[key]);
 const empty = new CalcitSliceList([]);
 const easing = () => get(get(get(presenceInitial(), "items").get(0), "alpha"), "easing");
+
+test("圆弧 Presence：保留原始alpha，进入/退出/重入连续且终点只释放一次", () => {
+  const document = arcPresenceDocument(),
+    initial = startPresence(document);
+  const exiting = get(reconcile(initial, document.assoc(tags.nodes, empty), 0, 1, easing()), "model");
+  let plan = presencePlan(exiting, 0);
+  const slots = field(plan, "slots");
+  const opacity = (plan) => sceneOf(plan).nodes[0].content[1].stroke.a;
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    plan = sampleAt(plan, time);
+    assert.equal(opacity(plan), 0.6 * (1 - time));
+    assert.deepEqual(sceneOf(plan).nodes[0].interaction, ["none"]);
+    assert.equal(field(plan, "slots"), slots);
+  }
+  for (const time of [0.25, 0.5, 0.75]) {
+    const revived = get(reconcile(exiting, document, time, 1, easing()), "model");
+    assert.equal(opacity(presencePlan(revived, time)), opacity(presencePlan(exiting, time)));
+    assert.deepEqual(sceneOf(presencePlan(revived, time)).nodes[0].interaction, ["target", "arc-action"]);
+  }
+  const entering = get(reconcile(get(settle(exiting, 1), "model"), document, 2, 1, easing()), "model");
+  assert.equal(opacity(presencePlan(entering, 2)), 0);
+  assert.equal(opacity(presencePlan(entering, 2.5)), 0.3);
+  assert.equal(opacity(presencePlan(entering, 3)), 0.6);
+  const finished = settle(exiting, 1);
+  assert.equal(toJsData(get(finished, "released")).length, 1);
+  assert.equal(toJsData(get(settle(get(finished, "model"), 1), "released")).length, 0);
+  assert.equal(field(plan, "declarations"), 1);
+  assert.equal(field(plan, "plan-builds"), 1);
+});
 
 test("Presence 统一执行：1000 帧共享折线几何，乱序采样不结算 Model", () => {
   const model = presenceExit(),

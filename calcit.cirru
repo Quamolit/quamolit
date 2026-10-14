@@ -12866,6 +12866,8 @@
                 :a $ :stroke path
               (:text text)
                 :a $ :fill text
+              (:arc arc)
+                :a $ :stroke arc
               _ $ raise |presence-requires-flat-leaf
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
@@ -19670,6 +19672,23 @@
           :require (quamolit.replay-archive :as archive) (quamolit.fixed-step :as fixed)
     'quamolit.test.retained-component-fixture $ %{} 'FileEntry
       :defs $ {}
+        'arc-presence-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-presence-document ()
+            let
+                node $ &list:nth
+                  :nodes $ :scene $ declare-fading-arc 0 40 0 false 100
+                  , 0
+                content $ match (:content node)
+                  (:arc arc)
+                    scene/SceneContent :arc $ struct-with arc $ :stroke
+                      struct-with (:stroke arc) (:a 0.6)
+                  _ $ raise |expected-arc-fixture
+              scene/SceneDocument :nodes $ [] $ struct-with node (:content content)
+                :bindings $ []
+                :interaction $ scene/SceneInteraction :target |arc-action
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ []
         'declare-demo $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-demo (props model input resources viewport)
             let
@@ -19842,34 +19861,66 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.presence/PresenceModel 'Number
-          :tests $ [] $ %{} 'TestEntry (:name |presence-binding-continuity)
-            :code $ quote $ let
-                exiting $ presence-exit
-                midpoint $ presence-plan exiting 0.5
-                revived $ :model $ presence/reconcile-presence exiting (presence-document) 0.5 1 (motion/Easing :linear)
-                resumed $ presence-plan revived 0.5
-                completed $ presence/settle-presence exiting 1
-              is= 2 $ count $ :nodes (:scene midpoint)
-              is= 0.5 $ presence-component/leaf-alpha $ :content
-                &list:nth
-                  :nodes $ :scene midpoint
-                  , 0
-              is= 0.25 $ presence-component/leaf-alpha $ :content
-                &list:nth
-                  :nodes $ :scene midpoint
-                  , 1
-              is= (:scene midpoint)
-                struct-with (:scene resumed)
-                  :nodes $ map
+          :tests $ []
+            %{} 'TestEntry (:name |presence-binding-continuity)
+              :code $ quote $ let
+                  exiting $ presence-exit
+                  midpoint $ presence-plan exiting 0.5
+                  revived $ :model $ presence/reconcile-presence exiting (presence-document) 0.5 1 (motion/Easing :linear)
+                  resumed $ presence-plan revived 0.5
+                  completed $ presence/settle-presence exiting 1
+                is= 2 $ count $ :nodes (:scene midpoint)
+                is= 0.5 $ presence-component/leaf-alpha $ :content
+                  &list:nth
+                    :nodes $ :scene midpoint
+                    , 0
+                is= 0.25 $ presence-component/leaf-alpha $ :content
+                  &list:nth
+                    :nodes $ :scene midpoint
+                    , 1
+                is= (:scene midpoint)
+                  struct-with (:scene resumed)
+                    :nodes $ map
+                      :nodes $ :scene resumed
+                      fn (node)
+                        struct-with node $ :interaction $ scene/SceneInteraction :none
+                is= 2 $ count $ :released completed
+                is= 0 $ count $ :released
+                  presence/settle-presence (:model completed) 1
+                is= false $ presence/presence-needs-frame? (:model completed) 1
+                is-throws $ retained/sample-plan-at midpoint $ / 1 0
+              :tags $ #{} :presence-component
+            %{} 'TestEntry (:name |arc-presence-original-alpha)
+              :code $ quote $ let
+                  document $ arc-presence-document
+                  exiting $ :model $ presence/reconcile-presence (presence/start-presence document)
+                    scene/SceneDocument :nodes $ []
+                    , 0 1 (motion/Easing :linear)
+                  midpoint $ presence-plan exiting 0.5
+                  revived $ :model $ presence/reconcile-presence exiting document 0.5 1 (motion/Easing :linear)
+                  resumed $ presence-plan revived 0.5
+                  complete $ presence/settle-presence exiting 1
+                  tree-declaration $ presence-component/declare-tree exiting (binding/empty-descriptors) ([] |fading-arc)
+                  tree-scene $ binding/resolve-scene (:scene tree-declaration) (:motions tree-declaration) 0.5
+                is= 0.6 $ presence-component/tree-alpha $ :content
+                  &list:nth (:nodes document) 0
+                is= 0.3 $ presence-component/leaf-alpha $ :content
+                  &list:nth
+                    :nodes $ :scene midpoint
+                    , 0
+                is= 0.3 $ presence-component/leaf-alpha $ :content
+                  &list:nth (:nodes tree-scene) 0
+                is=
+                  :content $ &list:nth
+                    :nodes $ :scene midpoint
+                    , 0
+                  :content $ &list:nth
                     :nodes $ :scene resumed
-                    fn (node)
-                      struct-with node $ :interaction $ scene/SceneInteraction :none
-              is= 2 $ count $ :released completed
-              is= 0 $ count $ :released
-                presence/settle-presence (:model completed) 1
-              is= false $ presence/presence-needs-frame? (:model completed) 1
-              is-throws $ retained/sample-plan-at midpoint $ / 1 0
-            :tags $ #{} :presence-component
+                    , 0
+                is= 1 $ count $ :released complete
+                is= 0 $ count $ :released
+                  presence/settle-presence (:model complete) 1
+              :tags $ #{} :presence-component
         'reference-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reference-at (time model ready viewport)
             :scene $ component/sample-component-at (make-request time model ready viewport) declare-demo

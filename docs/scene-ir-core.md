@@ -76,6 +76,8 @@ Presence 文字可复用同一共享入口：`presence-font-references(model)` �
 
 圆弧现在支持既有 `ScalarTarget :alpha`，与折线一致覆盖 `stroke.a`，不隐式乘原始 alpha；需要相乘时在 Motion 描述中表达最终值。`scene-binding/resolve-scene` 与 `retained-component` 的预编译标量 slot 复用同一赋值逻辑；仅时间变化不必重新声明几何。`test:retained-component` 检查原生 Calcit、乱序/重复/区间外时间、旧帧不可变及1000帧声明/构建各1、同一slots身份；DPR1/2 的初始/中间/终点与独立原生 Canvas 整帧RGBA零差异。上述计数不等于帧率或几何内存复用证明。不能通过 alpha=0 自动禁用交互，退出仍须显式 disabled。
 
+Presence 的 `leaf-alpha` / `tree-alpha` 也识别原生弧；原有 `declare-flat` 和按fade-ids选择的 `declare-tree` 复用同一生命周期，不新建出入场API。Presence 将原始 `stroke.a` 乘入阶段 tween 的端点，再通过上述绝对alpha绑定提交。回归使用原始alpha=0.6，覆盖进入、退出、25/50/75%退出途中重入、乱序采样和终点恰好一次释放；DPR1/2共46帧（含原直接绑定场景）对独立原生Canvas逐通道零差异。平面退出仍采用原来的 `:none` 交互策略，嵌套树退出使用既有disabled协议；这个切片不证明一般嵌套弧的GPU合成或缓存性能。
+
 这是实验性 Scene 扩展：目前 WebGPU 无圆弧实现，矩形组件 GPU 入口明确整层回退；图片专属 GPU 入口仍预检拒绝非支持图元。中心、半径、起止角和宽度的标量绑定及 retained-path 专用入口未实现，非alpha目标仍明确拒绝 `unsupported-arc-binding`；应用可以重新声明显式时间采样的弧。Discs Vortex 已通过合并 PR #7 消费正式 alpha.4 原生弧，保留原圈数/速度与 DPR 生产门禁；本次命中/alpha扩展尚未发布，不把已有 tag 的能力扩大。
 
 `SceneContent :cubic-path` 使用 `CubicPathNode { start, segments, width, stroke }`；每个 `CubicSegment` 明确保存 `control-1`、`control-2`、`end` 三个有限 `Vec2`。路径至少一段、宽度必须有限且大于零。`SceneContent :circle` 使用 `CircleNode { cx, cy, radius, width, fill, stroke }`；半径必须为正，描边宽度非负。两者均是纯 Calcit 数据：几何与属性签名参与 `scene-diff`，不携带 Canvas 句柄。
