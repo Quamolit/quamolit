@@ -18335,9 +18335,9 @@
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerInput 'quamolit.scene-pointer/PointerState
             :features $ #{} :js-ffi
         'pointer-event-host $ %{} 'CodeEntry
-          :doc "|临时平台边界：expect-object 只验证非空对象，unsafe-coerce 显式信任浏览器派发的 PointerEventHost 契约，不证明其字段形状；只暴露 #34 所需原始字段，上游 js-ffi #149 发布后替换。"
+          :doc "|临时平台边界：先保留PointerEvent.host的非空对象拒绝，再以Calcit0.29.3受检js-cast检查PointerEventHost的字段存在与方法形状；保留对象身份，不读取字段getter或执行方法，不是深层数据解码。上游js-ffi #149发布等价入口后替换，本地路由/捕获政策不迁入平台库。"
           :code $ quote $ defn pointer-event-host (value)
-            unsafe-coerce (contract/expect-object |PointerEvent.host value) 'quamolit.scene-pointer-browser/PointerEventHost
+            js-cast (contract/expect-object |PointerEvent.host value) 'quamolit.scene-pointer-browser/PointerEventHost
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer-browser/PointerEventHost)
             :args $ [] 'T
@@ -18363,9 +18363,9 @@
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer/PointerPhase 'quamolit.scene-pointer-browser/PointerEventHost
             :features $ #{} :js-ffi
         'pointer-surface-host $ %{} 'CodeEntry
-          :doc "|临时平台边界：expect-object 只验证非空对象，unsafe-coerce 显式信任浏览器元素的 PointerSurfaceHost 契约，不证明其方法形状。上游 js-ffi #149 发布等价接口后删除；事件路由和捕获决策仍为 Calcit。"
+          :doc "|临时平台边界：先保留PointerSurface.host的非空对象拒绝，再以Calcit0.29.3受检js-cast检查PointerSurfaceHost的字段存在与方法形状；保留对象身份，不读取字段getter或执行方法，不是深层数据解码。上游js-ffi #149发布等价入口后替换，本地路由/捕获政策不迁入平台库。"
           :code $ quote $ defn pointer-surface-host (value)
-            unsafe-coerce (contract/expect-object |PointerSurface.host value) 'quamolit.scene-pointer-browser/PointerSurfaceHost
+            js-cast (contract/expect-object |PointerSurface.host value) 'quamolit.scene-pointer-browser/PointerSurfaceHost
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.scene-pointer-browser/PointerSurfaceHost

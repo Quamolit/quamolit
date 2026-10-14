@@ -60,14 +60,75 @@ test("提交实例计划立即协调原生捕获；保留、释放与重复提�
   assert.equal(releases, 2);
 });
 
-test("trusted pointer host boundaries retain object guards without claiming shape validation", () => {
+test("pointer host boundaries reject missing capabilities and preserve native object identity", () => {
+  const event = { pointerId: 7, clientX: 20, clientY: 30, preventDefault() {} };
+  const surface = {
+    getBoundingClientRect() {},
+    setPointerCapture() {},
+    releasePointerCapture() {},
+    hasPointerCapture() {},
+    addEventListener() {},
+  };
+  for (const [adapt, host] of [
+    [pointerEventHost, event],
+    [pointerSurfaceHost, surface],
+  ]) {
+    assert.throws(() => adapt({}), TypeError);
+    assert.equal(adapt(Object.freeze(host)), host);
+    for (const name of Object.keys(host)) {
+      const missing = { ...host };
+      delete missing[name];
+      assert.throws(() => adapt(missing), TypeError, `missing native member ${name}`);
+      if (typeof host[name] === "function") {
+        assert.throws(() => adapt({ ...host, [name]: 42 }), TypeError, `non-callable member ${name}`);
+      }
+    }
+  }
+});
+
+test("pointer capability checks retain null guards without reading coordinate getters or invoking methods", () => {
   for (const adapt of [pointerEventHost, pointerSurfaceHost]) {
     for (const value of [null, undefined, 0, false, "element"]) {
       assert.throws(() => adapt(value), /Pointer(Event|Surface)\.host/);
     }
-    const trustedHost = {};
-    assert.equal(adapt(trustedHost), trustedHost, "adapter preserves the trusted browser object identity");
   }
+  let reads = 0,
+    calls = 0;
+  const event = Object.freeze({
+    pointerId: 7,
+    get clientX() {
+      reads++;
+      return 20;
+    },
+    get clientY() {
+      reads++;
+      return 30;
+    },
+    preventDefault() {
+      calls++;
+    },
+  });
+  assert.equal(pointerEventHost(event), event);
+  assert.equal(reads, 0);
+  assert.equal(calls, 0);
+  const surface = Object.freeze(
+    Object.fromEntries(
+      [
+        "getBoundingClientRect",
+        "setPointerCapture",
+        "releasePointerCapture",
+        "hasPointerCapture",
+        "addEventListener",
+      ].map((name) => [
+        name,
+        () => {
+          calls++;
+        },
+      ]),
+    ),
+  );
+  assert.equal(pointerSurfaceHost(surface), surface);
+  assert.equal(calls, 0);
 });
 
 test("Calcit controls pointer capture while the host only exposes browser primitives", () => {

@@ -12,6 +12,8 @@
 
 `quamolit.scene-pointer-browser` 提供第一版类型化薄桥：把 `clientX/clientY` 减去 `getBoundingClientRect().left/top`，得到与 Scene 一致的 CSS px，不乘 DPR；DOM `setPointerCapture/releasePointerCapture` 只执行纯 Calcit 返回的捕获与一次性释放决策。临时 external-object trait 只覆盖当前需要的原始字段和方法，并明确关联 [js-ffi #149](https://github.com/calcit-lang/js-ffi/issues/149)；上游发布等价接口后删除本地声明。Node 宿主替身验证原生捕获各调用一次，Chromium 进一步验证真实 PointerEvent 从画布内按下、移到画布外仍投递、抬起释放，以及 DPR 2 下按 CSS px 命中和 `pointercancel` 清理。测试夹具与 Drag demo 的监听器均由 Calcit 安装；后者还把 Canvas 视图逆变换显式同步为 CSS 坐标尺度。
 
+后续受检边界候选（尚未合并）将`pointer-event-host`与`pointer-surface-host`的两处`unsafe-coerce`替换为0.29.3的`js-cast`：保留原有非空对象错误，再检查必要字段存在与方法可调用，空对象、缺字段或非函数方法不再冒充有效宿主。转换保持原对象身份，冻结对象也可用；检查不读取坐标getter或执行原生方法，不证明字段值域或方法结果的深层数据类型。原公共schema与路由/捕获决策不变，js-ffi #149仍待提供等价平台入口，本地trait不因受检转换而伪称归属迁移完成。原门禁已覆盖26/26严格定义、6项Node与11项真实Chromium捕获/resize/DPR场景；未新增JS、namespace或runner，不关闭#34。
+
 浏览器桥还监听 `lostpointercapture`：只有事件 pointer id 与当前所有者一致才清理；窗口 `blur` 则主动释放元素仍持有的原生 capture，再幂等清空纯状态。两条路径都复用 `PointerReconcile` 的一次性信号。Scene 提交时使用 `reconcile-pointer-surface!(surface, next-plan, state)`，保存返回的 state；它执行纯协调，并在需要时立即释放原生 capture，重复协调不会重复释放。`dispose-pointer-surface!` 是 canvas/surface 真正卸载前的显式协议；调用方不得直接移除仍持有 capture 的元素。坐标边界不缓存，每个 PointerEvent 都重新读取 `getBoundingClientRect()`，因此移动/resize surface 后按新 CSS 边界命中。Drag demo 已接通实际页面卸载；浏览器夹具另覆盖 DPR 1/2 下 resize 与嵌套子树禁用同次提交、无新输入即释放、兄弟节点仍可交互、重入后重新捕获。该夹具不是完整 Presence 退出动画或 Canvas 像素验收。
 
 验证命令为 `yarn test:scene-hit`、`yarn test:scene-pointer`、`yarn test:scene-pointer-browser` 与 `yarn test:drag-demo`。覆盖冒泡、画布外捕获、pointer id 隔离、快速目标切换、`up/cancel`、删除/重挂载、嵌套禁用、hover 清理、边界外祖先捕获释放、兄弟不受影响、重入、背后命中和重复协调；1000 个装饰节点的命中仍 `visited=1`。Node 与 Chromium 验证上述宿主捕获/resize 协议。自动 Presence group 退出接线、实际应用的 resize/退出动画组合、cubic-path、instances 和 GPU picking 尚未覆盖，不以本切片关闭 #34。
