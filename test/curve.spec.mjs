@@ -188,6 +188,199 @@ for (const dpr of [1, 2])
   });
 
 for (const dpr of [1, 2])
+  test(`圆弧独立命中：DPR ${dpr} 方向、圆头与祖先变换裁剪`, async ({ page }, testInfo) => {
+    await ready(page);
+    const results = await page.evaluate(async (scale) => {
+      const core = await import("/target/js/curve/calcit.core.mjs");
+      const ir = await import("/target/js/curve/quamolit.scene-ir.mjs");
+      const motion = await import("/target/js/curve/quamolit.motion.mjs");
+      const hit = await import("/target/js/curve/quamolit.scene-hit.mjs");
+      const tags = core.init_tags([
+        "cx",
+        "cy",
+        "radius",
+        "start-angle",
+        "end-angle",
+        "counterclockwise",
+        "width",
+        "stroke",
+        "r",
+        "g",
+        "b",
+        "a",
+        "arc",
+        "nodes",
+        "id",
+        "parent",
+        "key",
+        "bindings",
+        "interaction",
+        "content",
+        "target",
+        "disabled",
+        "group",
+        "transform",
+        "clip",
+        "opacity",
+        "rect",
+        "x",
+        "y",
+        "height",
+        "c",
+        "d",
+        "e",
+        "f",
+      ]);
+      const record = (type, fields) =>
+        core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([k, v]) => [tags[k], v]));
+      const color = record(motion.ColorRgba, { r: 1, g: 0, b: 0, a: 1 });
+      const results = [];
+      for (const [start, end, ccw, width] of [
+        [0.2, 2.4, false, 8],
+        [5, 1, false, 8],
+        [1, 5, true, 8],
+        [0.2, 2.4, true, 8],
+        [-8, -3, false, 8],
+        [0, 2 * Math.PI, false, 8],
+        [0, -2 * Math.PI, true, 8],
+        [0, 4 * Math.PI, false, 8],
+        [0, -2 * Math.PI, false, 8],
+        [1, 1, false, 8],
+        [1, 1, true, 8],
+        [0.2, 2.4, false, 0],
+        [0.2, 2.4, false, 100],
+      ]) {
+        const content = core._PCT__$o__$o_(
+          ir.SceneContent,
+          tags.arc,
+          record(ir.ArcNode, {
+            cx: 64,
+            cy: 64,
+            radius: 40,
+            "start-angle": start,
+            "end-angle": end,
+            counterclockwise: ccw,
+            width,
+            stroke: color,
+          }),
+        );
+        const leaf = record(ir.SceneNode, {
+          id: "arc",
+          key: "arc",
+          parent: "root",
+          bindings: core.arrayToList([]),
+          interaction: core._PCT__$o__$o_(ir.SceneInteraction, tags.target, "arc-action"),
+          content,
+        });
+        const root = record(ir.SceneNode, {
+          id: "root",
+          key: "root",
+          parent: "",
+          bindings: core.arrayToList([]),
+          interaction: core._PCT__$o__$o_(ir.SceneInteraction, tags.target, "root-action"),
+          content: core._PCT__$o__$o_(
+            ir.SceneContent,
+            tags.group,
+            record(ir.GroupNode, {
+              transform: record(ir.Matrix2D, { a: 0, b: 2, c: -0.5, d: 0, e: 200, f: 30 }),
+              clip: core._PCT__$o__$o_(
+                ir.ClipSpec,
+                tags.rect,
+                record(ir.ClipRect, { x: 20, y: 20, width: 70, height: 80 }),
+              ),
+              opacity: 0,
+            }),
+          ),
+        });
+        const sceneDocument = record(ir.SceneDocument, { nodes: core.arrayToList([root, leaf]) });
+        const plan = hit.compile_hit_plan(sceneDocument);
+        const disabled = hit.compile_hit_plan(
+          record(ir.SceneDocument, {
+            nodes: core.arrayToList([
+              root.assoc(tags.interaction, core._PCT__$o__$o_(ir.SceneInteraction, tags.disabled)),
+              leaf,
+            ]),
+          }),
+        );
+        // 与现有 cubic 门禁一致，放大原生几何减少浏览器内部路径离散误差。
+        // 默认尺寸的差异另行记录；数学命中不因此扩张轮廓或设置容差。
+        const nativeStroke = (precision) => {
+          const context = document.createElement("canvas").getContext("2d");
+          context.scale(scale, scale);
+          context.lineWidth = width ? width * precision : 1;
+          context.lineCap = "round";
+          context.beginPath();
+          context.arc(64 * precision, 64 * precision, 40 * precision, start, end, ccw);
+          return (x, y) => width > 0 && context.isPointInStroke(x * precision * scale, y * precision * scale);
+        };
+        const native = nativeStroke(64),
+          defaultNative = nativeStroke(1);
+        let differences = 0,
+          defaultDifferences = 0,
+          samples = 0,
+          hits = 0,
+          planDifferences = 0;
+        const mismatches = [];
+        // 离轴点不借用像素 AA；整圆、零长度、宽描边与圆头均由原生路径独立判断。
+        for (let y = -10.29; y < 140; y += 2.7)
+          for (let x = -10.37; x < 140; x += 2.9) {
+            const expected = native(x, y);
+            const actual = hit.local_hit_$q_(content, x, y);
+            if (actual !== defaultNative(x, y)) defaultDifferences++;
+            samples++;
+            hits += Number(expected);
+            if (actual !== expected) {
+              differences++;
+              if (mismatches.length < 4) mismatches.push({ x, y, actual, expected });
+            }
+            const worldX = 200 - 0.5 * y,
+              worldY = 30 + 2 * x;
+            const outcome = core.to_js_data(hit.hit_test_plan(plan, worldX, worldY));
+            const expectedPlan = expected && x >= 20 && x <= 90 && y >= 20 && y <= 100;
+            if ((outcome[0] === "hit") !== expectedPlan) planDifferences++;
+            if (outcome[0] === "hit" && (outcome[1].target !== "arc-action" || outcome[1]["node-id"] !== "arc"))
+              planDifferences++;
+          }
+        results.push({
+          start,
+          end,
+          width,
+          differences,
+          defaultDifferences,
+          planDifferences,
+          samples,
+          hits,
+          mismatches,
+          candidates: hit.candidate_count(plan),
+          disabled: hit.candidate_count(disabled),
+        });
+      }
+      return results;
+    }, dpr);
+    await testInfo.attach(`arc-hit-native-dpr${dpr}`, {
+      body: JSON.stringify({ dpr, nativeGeometryScale: 64, results }, null, 2),
+      contentType: "application/json",
+    });
+    console.log("arc-hit-native", {
+      dpr,
+      samples: results.reduce((sum, result) => sum + result.samples, 0),
+      differences: results.reduce((sum, result) => sum + result.differences, 0),
+      defaultDifferences: results.reduce((sum, result) => sum + result.defaultDifferences, 0),
+      planDifferences: results.reduce((sum, result) => sum + result.planDifferences, 0),
+    });
+    expect(results).toHaveLength(13);
+    for (const result of results) {
+      expect(result.differences, JSON.stringify(result)).toBe(0);
+      expect(result.planDifferences, JSON.stringify(result)).toBe(0);
+      expect(result.samples).toBeGreaterThan(2000);
+      expect(result.candidates).toBe(1);
+      expect(result.disabled).toBe(0);
+    }
+    expect(results[0].hits).toBeGreaterThan(0);
+    expect(results.reduce((sum, result) => sum + result.defaultDifferences, 0)).toBeGreaterThan(0);
+  });
+
+for (const dpr of [1, 2])
   test(`闭合多边形命中：DPR ${dpr} 原生描边、miterLimit 与退化点`, async ({ page }, testInfo) => {
     await ready(page);
     const results = await page.evaluate(async (scale) => {

@@ -6,6 +6,100 @@ async function ready(page) {
 }
 
 for (const dpr of [1, 2])
+  test(`圆弧目标：DPR ${dpr} 拒绝空心/缺口，原生捕获与禁用提交释放`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 800, height: 600 }, deviceScaleFactor: dpr });
+    const page = await context.newPage();
+    try {
+      await ready(page);
+      await page.evaluate(async () => {
+        const core = await import("/target/js/scene-pointer-browser/calcit.core.mjs");
+        const ir = await import("/target/js/scene-pointer-browser/quamolit.scene-ir.mjs");
+        const hit = await import("/target/js/scene-pointer-browser/quamolit.scene-hit.mjs");
+        const fixture = await import("/target/js/scene-pointer-browser/quamolit.test.scene-hit-fixture.mjs");
+        const bridge = await import("/target/js/scene-pointer-browser/quamolit.test.scene-pointer-browser-fixture.mjs");
+        const tags = core.init_tags([
+          "id",
+          "parent",
+          "key",
+          "bindings",
+          "interaction",
+          "content",
+          "nodes",
+          "group",
+          "transform",
+          "clip",
+          "opacity",
+          "none",
+          "target",
+          "disabled",
+        ]);
+        const record = (type, fields) =>
+          core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([k, v]) => [tags[k], v]));
+        const root = record(ir.SceneNode, {
+          id: "root",
+          parent: "",
+          key: "root",
+          bindings: core.arrayToList([]),
+          interaction: core._PCT__$o__$o_(ir.SceneInteraction, tags.none),
+          content: core._PCT__$o__$o_(
+            ir.SceneContent,
+            tags.group,
+            record(ir.GroupNode, {
+              transform: hit.matrix(1, 0, 0, 1, 80, 40),
+              clip: core._PCT__$o__$o_(ir.ClipSpec, tags.none),
+              opacity: 1,
+            }),
+          ),
+        });
+        const leaf = record(ir.SceneNode, {
+          id: "arc",
+          parent: "root",
+          key: "arc",
+          bindings: core.arrayToList([]),
+          interaction: core._PCT__$o__$o_(ir.SceneInteraction, tags.target, "arc-action"),
+          content: fixture.arc_content(0, Math.PI / 2, false, 4),
+        });
+        // Replace the fixture surface, not its existing listeners or production code.
+        const old = document.querySelector("#pointer-surface"),
+          canvas = old.cloneNode(false);
+        old.replaceWith(canvas);
+        const plan = hit.compile_hit_plan(record(ir.SceneDocument, { nodes: core.arrayToList([root, leaf]) }));
+        const disabled = hit.compile_hit_plan(
+          record(ir.SceneDocument, {
+            nodes: core.arrayToList([
+              root,
+              leaf.assoc(tags.interaction, core._PCT__$o__$o_(ir.SceneInteraction, tags.disabled)),
+            ]),
+          }),
+        );
+        const commit = bridge.install_browser_plan_$x_(canvas, plan);
+        document.querySelector("#status").onclick = () => commit(disabled);
+      });
+      const canvas = page.locator("#pointer-surface"),
+        bounds = await canvas.boundingBox();
+      await page.mouse.move(bounds.x + 80, bounds.y + 40);
+      await expect(canvas).toHaveAttribute("data-target", "");
+      await page.mouse.move(bounds.x + 60, bounds.y + 40);
+      await expect(canvas).toHaveAttribute("data-target", "");
+      await page.mouse.move(bounds.x + 100, bounds.y + 40);
+      await page.mouse.down();
+      await expect(canvas).toHaveAttribute("data-target", "arc-action");
+      expect(await canvas.evaluate((node) => node.hasPointerCapture(1))).toBe(true);
+      await page.mouse.move(600, 350);
+      await expect(canvas).toHaveAttribute("data-captured", "true");
+      await expect(canvas).toHaveAttribute("data-target", "arc-action");
+      await page.locator("#status").evaluate((node) => node.click());
+      await expect(canvas).toHaveAttribute("data-commit-released", "true");
+      expect(await canvas.evaluate((node) => node.hasPointerCapture(1))).toBe(false);
+      await page.locator("#status").evaluate((node) => node.click());
+      await expect(canvas).toHaveAttribute("data-commit-released", "false");
+      await page.mouse.up();
+    } finally {
+      await context.close();
+    }
+  });
+
+for (const dpr of [1, 2])
   test(`DPR ${dpr}：resize 与嵌套退出同时发生，立即释放并在重入后恢复`, async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 800, height: 600 }, deviceScaleFactor: dpr });
     const page = await context.newPage();

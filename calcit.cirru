@@ -16379,6 +16379,62 @@
           :code $ quote $ defenum PointProjection (:singular) (:point 'Number 'Number)
           :examples $ []
           :schema $ :: 'EnumDef
+        'arc-endpoint-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-endpoint-hit? (arc angle x y)
+            let
+                dx $ - x $ + (:cx arc)
+                  * (:radius arc) (cos angle)
+                dy $ - y $ + (:cy arc)
+                  * (:radius arc) (sin angle)
+                half-width $ / (:width arc) 2
+              <=
+                + (* dx dx) (* dy dy)
+                * half-width half-width
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/ArcNode 'Number 'Number 'Number
+        'arc-hit? $ %{} 'CodeEntry
+          :doc "|原生开放圆弧描边的纯 Calcit 命中：方向和跨零角域、整圆、零长度及圆头；没有折线离散或整圆降级。通过 HitPlan 复用祖先逆变换、clip、disabled 与绘制层序，零宽不命中。"
+          :code $ quote $ defn arc-hit? (arc x y)
+            let
+                start $ :start-angle arc
+                end $ :end-angle arc
+                ccw $ :counterclockwise arc
+                raw-span $ if ccw (- start end) (- end start)
+                tau 6.283185307179586
+                remainder $ - raw-span $ * tau
+                  floor $ / raw-span tau
+                span $ if
+                  or (>= raw-span tau)
+                    and (not= raw-span 0) (= remainder 0)
+                  , tau $ if (< remainder 0) (+ remainder tau) remainder
+                dx $ - x $ :cx arc
+                dy $ - y $ :cy arc
+                distance $ sqrt $ + (* dx dx) (* dy dy)
+                radial-offset $ - distance $ :radius arc
+                half-width $ / (:width arc) 2
+                direction $ if ccw -1 1
+                after-start $ * direction $ -
+                  * (cos start) dy
+                  * (sin start) dx
+                before-end $ * direction $ -
+                  * dx $ sin end
+                  * dy $ cos end
+                in-sweep $ if (>= span tau) true $ if (<= span 3.141592653589793)
+                  and (>= after-start 0) (>= before-end 0)
+                  or (>= after-start 0) (>= before-end 0)
+              and
+                > (:width arc) 0
+                if (= span 0) (arc-endpoint-hit? arc start x y)
+                  or
+                    and in-sweep
+                      >= radial-offset $ - 0 half-width
+                      <= radial-offset half-width
+                    and (< span tau)
+                      or (arc-endpoint-hit? arc start x y) (arc-endpoint-hit? arc end x y)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/ArcNode 'Number 'Number
         'butt-segment-hit? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn butt-segment-hit? (from to width x y)
             let
@@ -17025,6 +17081,7 @@
                   polygon-hit? (:points polygon) x y
                   closed-stroke-hit? (:points polygon) (:width polygon) x y
               (:cubic-path path) (cubic-path-hit? path x y)
+              (:arc arc) (arc-hit? arc x y)
               _ false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -17289,6 +17346,7 @@
               (:polyline _) true
               (:polygon _) true
               (:cubic-path _) true
+              (:arc _) true
               _ false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -19813,6 +19871,12 @@
             quamolit.scene-binding :as binding
     'quamolit.test.scene-hit-fixture $ %{} 'FileEntry
       :defs $ {}
+        'arc-content $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-content (start end ccw width)
+            scene/SceneContent :arc $ scene/ArcNode :cx 0 :cy 0 :radius 20 :start-angle start :end-angle end :counterclockwise ccw :width width :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ [] 'Number 'Number 'Bool 'Number
         'cubic-stroke-content $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn cubic-stroke-content ()
             scene/SceneContent :cubic-path $ scene/CubicPathNode :start (motion/Vec2 :x 20 :y 70) :segments
@@ -20153,6 +20217,18 @@
                   (:miss visited) (is= 1 visited)
                   (:hit _) (is= |miss |hit)
               :tags $ #{} :scene-hit
+            %{} 'TestEntry (:name |arc-direction-cap-and-empty)
+              :code $ quote $ do
+                is= true $ hit/local-hit? (arc-content 0 1.5707963267948966 false 4) 20 -1
+                is= false $ hit/local-hit? (arc-content 0 1.5707963267948966 false 4) -20 0
+                is= true $ hit/local-hit? (arc-content 0 1.5707963267948966 true 4) -20 0
+                is= false $ hit/local-hit? (arc-content 0 1.5707963267948966 false 4) 0 0
+                is= true $ hit/local-hit? (arc-content 5 1 false 4) 20 0
+                is= true $ hit/local-hit? (arc-content 0 6.283185307179586 false 4) -20 0
+                is= true $ hit/local-hit? (arc-content 0 -6.283185307179586 false 4) 20 0
+                is= true $ hit/local-hit? (arc-content 1 1 false 4) 10.806046117362795 16.82941969615793
+                is= false $ hit/local-hit? (arc-content 0 2 false 0) 20 0
+              :tags $ #{} :scene-hit
         'verify-pointer-routing $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn verify-pointer-routing () true
           :examples $ []
@@ -20358,6 +20434,34 @@
                 is= (pointer/PointerDispatch :none) (:dispatch routed)
                 is= | $ hit/effective-target (:nodes disabled)
                   &list:nth (:nodes disabled) 3
+              :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |arc-target-capture-disable)
+              :code $ quote $ let
+                  leaf $ scene/SceneNode :id |arc :parent | :key |arc :bindings ([]) :interaction (scene/SceneInteraction :target |arc-action) :content $ arc-content 0 2 false 4
+                  document $ scene/SceneDocument :nodes $ [] leaf
+                  plan $ hit/compile-hit-plan document
+                  down $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 7 (pointer/PointerPhase :down) 20 0
+                  disabled $ hit/compile-hit-plan $ scene/SceneDocument :nodes
+                    [] $ struct-with leaf $ :interaction (scene/SceneInteraction :disabled)
+                is= 1 $ hit/candidate-count plan
+                match (:dispatch down)
+                  (:none) (is= |routed |none)
+                  (:routed route)
+                    let
+                        captured $ pointer/capture-target (:state down) route |arc-action
+                        moved $ pointer/route-pointer plan captured $ pointer-input 7 (pointer/PointerPhase :move) 400 400
+                        reconciled $ pointer/reconcile-pointer-state disabled $ :state moved
+                      is= |arc $ :source-node route
+                      match (:dispatch moved)
+                        (:none) (is= |routed |none)
+                        (:routed movement)
+                          do
+                            is= true $ :captured movement
+                            is= |arc $ :source-node movement
+                      is= true $ :capture-released reconciled
+                      is= (pointer/PointerCapture :none)
+                        :capture $ :state reconciled
               :tags $ #{} :scene-pointer
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.scene-hit-fixture
