@@ -1,5 +1,78 @@
 import { expect, test } from "@playwright/test";
 
+test("两个旧decode占槽时，新版本等待排队且不越过有界背压", async ({ page }) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const result = await page.evaluate(async () => {
+    const api = window.layeredDashboardDemo;
+    await api.enableFont();
+    const original = HTMLImageElement.prototype.decode;
+    const picture = (color) =>
+      `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="650" height="432"><rect width="650" height="432" fill="${color}"/></svg>`)}`;
+    const red = picture("red"),
+      green = picture("green"),
+      blue = picture("blue");
+    const gates = new Map();
+    const beginnings = new Map();
+    for (const url of [red, green]) {
+      let release, started;
+      const wait = new Promise((resolve) => {
+        release = resolve;
+      });
+      const began = new Promise((resolve) => {
+        started = resolve;
+      });
+      gates.set(url, { wait, release, started });
+      beginnings.set(url, began);
+    }
+    HTMLImageElement.prototype.decode = function () {
+      return original.call(this).then(() => {
+        const gate = gates.get(this.src);
+        if (gate) {
+          gate.started();
+          return gate.wait;
+        }
+      });
+    };
+    try {
+      const first = api.setImageSource(red);
+      await beginnings.get(red);
+      const second = api.setImageSource(green);
+      await beginnings.get(green);
+      let completed = false;
+      const latest = api.setImageSource(blue).then((value) => {
+        completed = true;
+        return value;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const queued = { ...api.snapshot(), completed };
+      gates.get(red).release();
+      const ready = await latest;
+      const pixels = document.querySelector("canvas").toDataURL();
+      gates.get(green).release();
+      await Promise.all([first, second]);
+      const after = api.snapshot();
+      return { queued, ready, after, samePixels: pixels === document.querySelector("canvas").toDataURL() };
+    } finally {
+      HTMLImageElement.prototype.decode = original;
+      for (const gate of gates.values()) gate.release();
+    }
+  });
+  expect(result.queued.completed).toBe(false);
+  expect(result.queued.imageReady).toBe(false);
+  expect(result.queued.fonts.queue.running).toHaveLength(2);
+  expect(result.queued.fonts.queue.pending).toHaveLength(1);
+  expect(result.ready.imageVersion).toBe(4);
+  expect(result.ready.imageReady).toBe(true);
+  expect(result.ready.fonts.queue.running).toHaveLength(1);
+  expect(result.after.fonts.queue.running).toEqual([]);
+  expect(result.after.fonts.images.created).toBe(3);
+  expect(result.after.fonts.images.released).toBe(2);
+  expect(result.after.fonts.images.handles).toHaveLength(1);
+  expect(result.after.fonts.revision).toBe(result.ready.fonts.revision);
+  expect(result.after.paints).toBe(result.ready.paints);
+  expect(result.samePixels).toBe(true);
+});
+
 test("图片就地重试保留同identity和字体；仅新版本刷新改变version", async ({ page }) => {
   let attempts = 0;
   await page.route("**/assets/lotus.jpg", (route) => (++attempts === 1 ? route.abort() : route.continue()));

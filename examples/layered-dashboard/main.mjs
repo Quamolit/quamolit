@@ -50,7 +50,11 @@ export function mountDemo() {
     return (async () => {
       while (mediaJobs.size) {
         const current = [...mediaJobs.values()].filter(job => dashboard.media_task_current_$q_(fonts, job.task));
-        if (!current.length) break;
+        if (!current.length) {
+          if (!dashboard.media_pending_current_$q_(fonts)) break;
+          await Promise.race([...mediaJobs.values()].map(job => job.promise));
+          continue;
+        }
         await Promise.all(current.map(job => job.promise));
       }
     })();

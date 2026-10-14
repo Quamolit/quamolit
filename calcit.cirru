@@ -5275,6 +5275,14 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/ImageSource)
             :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia
+        'media-pending-current? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn media-pending-current? (state)
+            any?
+              :pending $ :queue state
+              fn (task) (media-task-current? state task)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia
         'media-task-current? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn media-task-current? (state task)
             let

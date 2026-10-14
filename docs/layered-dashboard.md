@@ -36,7 +36,9 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 
 “重试图片”只对当前image的error开放，以release/acquire创建新resource-generation，identity/version不变、引用仍为1，不关闭字体或重置动画。“刷新图片（新版本）”和`setImageSource(url)`由Calcit递增descriptor.version，Scene与lookup同时使用新identity；不在同identity下偷偷换URL。切换中的旧图片继续由队列跟踪，迟到的旧identity/generation不能安装、不能替换新画面。等待时显示原卡片，字体保持就绪；仅字体失败不能启用图片重试按钮。
 
-既有`test:layered-dashboard`含2项原生语义与22项浏览器回归：DPR1/2的独立原生Canvas图片/隔离alpha参考、捕获中的父级退出、暂停resize、100次独立reset/退出/重入、idle复用、重复关闭、真实解码等待期间卸载与失败不影响字体；新增同identity重试和新蓝图先就绪/旧红图后到，断言版本、帧计数、像素与释放不被污染。参考与实际采用相同物理画布尺寸和默认图片平滑，区域逐通道零差异；不使用宽容差掩盖不同尺寸的采样差异。像素与resize先在完整尺寸验证；计数链路使用固定800×600物理尺寸和独立短日志，不作为吞吐测量。预览：`?demo=layered-dashboard&t=1`→启用字体/图片→刷新新版本→隐藏→时间条1.3/1.6→恢复；截图仍为忽略artifact。通用多图版本UI、glyph缓存、GPU文字及fence-safe回收仍未实现，#34/#51/#53/M2/M3不关闭。
+两个旧decode占满槽时，新版本保持pending，页面操作不会把“未启动当前任务”误当成“已经完成”。Calcit的`media-pending-current?`复用identity/generation引用判定；宿主等待任一旧Promise结算腾出槽，再等待当前任务，不增加并发、不轮询资源表，也不等待剩余无效旧任务全部结束。
+
+既有`test:layered-dashboard`含2项原生语义与23项浏览器回归：DPR1/2的独立原生Canvas图片/隔离alpha参考、捕获中的父级退出、暂停resize、100次独立reset/退出/重入、idle复用、重复关闭、真实解码等待期间卸载与失败不影响字体；同identity重试、新蓝图先就绪/旧红图后到，以及两槽占满后第三版本排队，断言版本、帧计数、像素与释放不被污染。临时恢复旧等待逻辑时，新排队用例在`completed=false`断言失败，证明能够检出提前返回；修复后完整23项通过。参考与实际采用相同物理画布尺寸和默认图片平滑，区域逐通道零差异；不使用宽容差掩盖不同尺寸的采样差异。像素与resize先在完整尺寸验证；计数链路使用固定800×600物理尺寸和独立短日志，不作为吞吐测量。预览：`?demo=layered-dashboard&t=1`→启用字体/图片→刷新新版本→隐藏→时间条1.3/1.6→恢复；截图仍为忽略artifact。通用多图版本UI、glyph缓存、GPU文字及fence-safe回收仍未实现，#34/#51/#53/M2/M3不关闭。
 
 ## 图表子组件的独立出入
 
