@@ -35,6 +35,39 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
             :args $ [] 'Number
+        'arc-presence-model $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-presence-model (stage)
+            assert |invalid-consumer-arc-presence-stage $ or (= stage |exit) (= stage |reenter)
+            let
+                nodes $ :nodes $ arc-document 0
+                leaf $ &list:nth nodes 1
+                content $ match (:content leaf)
+                  (:arc arc)
+                    scene/SceneContent :arc $ struct-with arc $ :stroke
+                      struct-with (:stroke arc) (:a 0.6)
+                  _ $ raise |expected-consumer-arc
+                document $ scene/SceneDocument :nodes $ assoc nodes 1
+                  struct-with leaf $ :content content
+                exiting $ :model $ presence/reconcile-presence (presence/start-presence document)
+                  scene/SceneDocument :nodes $ []
+                  , 0 1 (motion/Easing :linear)
+              if (= stage |exit) exiting $ :model $ presence/reconcile-presence exiting document 0.5 1 (motion/Easing :linear)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ [] 'String
+        'arc-presence-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-presence-plan (model time)
+            retained/build-component-plan (request time 40 false 320)
+              fn (props ignored input resources viewport)
+                presence-component/declare-tree model (binding/empty-descriptors) ([] |consumer-arc)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.presence/PresenceModel 'Number
+        'arc-presence-sample $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-presence-sample (plan time) (retained/sample-plan-at plan time)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
         'browser-available? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn browser-available? () (browser/document-available?)
           :examples $ []

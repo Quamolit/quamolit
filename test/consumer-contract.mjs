@@ -242,6 +242,28 @@ export function verifyCurveConsumer(app, core) {
     if (time === 1) previousArc = scene;
   }
   for (const bad of [NaN, Infinity, -Infinity]) assert.throws(() => app.arc_hit_plan(bad), /invalid-consumer-arc-time/);
+  const tags = core.init_tags(["scene", "slots", "declarations", "plan-builds"]);
+  const exiting = app.arc_presence_model("exit"),
+    before = core.to_js_data(exiting);
+  let presencePlan = app.arc_presence_plan(exiting, 0);
+  const presenceSlots = presencePlan.get(tags.slots);
+  const arcOf = (plan) => core.to_js_data(plan.get(tags.scene)).nodes.find((node) => node.content[0] === "arc");
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    presencePlan = app.arc_presence_sample(presencePlan, time);
+    assert.equal(arcOf(presencePlan).content[1].stroke.a, 0.6 * (1 - time));
+    assert.deepEqual(arcOf(presencePlan).interaction, ["disabled"], "树退出在可见中间帧也停止交互");
+    assert.equal(presencePlan.get(tags.slots), presenceSlots);
+    assert.equal(presencePlan.get(tags.declarations), 1);
+    assert.equal(presencePlan.get(tags["plan-builds"]), 1);
+  }
+  const revived = app.arc_presence_plan(app.arc_presence_model("reenter"), 0.5);
+  assert.equal(
+    arcOf(revived).content[1].stroke.a,
+    arcOf(app.arc_presence_sample(presencePlan, 0.5)).content[1].stroke.a,
+  );
+  assert.deepEqual(arcOf(revived).interaction, ["target", "arc-action"]);
+  assert.deepEqual(core.to_js_data(exiting), before);
+  assert.throws(() => app.arc_presence_model("unsupported"), /invalid-consumer-arc-presence-stage/);
   return {
     builds,
     queries,
@@ -251,6 +273,7 @@ export function verifyCurveConsumer(app, core) {
       queries: arcQueries,
       scope: "下游Calcit原生弧、圆头、空心、缺口、旋转2x、clip和乱序时间",
     },
+    arcPresence: { times: [1, 0, 0.5, 0.25, 1], originalAlpha: 0.6, reenterAt: 0.5, declarations: 1, builds: 1 },
     scope: "下游Calcit声明、旋转2x、clip、butt、空洞与乱序时间；不是性能测量",
   };
 }
