@@ -133,7 +133,8 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
       taken.get(tags.queue),
       loaded,
     );
-    const texture = core.option_$o_unwrap(textures.installed_texture(completion.get(tags.host), identity));
+    let textureHost = completion.get(tags.host);
+    const texture = core.option_$o_unwrap(textures.installed_texture(textureHost, identity));
     const source = R(scene.ImageSource, { id: "checker", version: 1, width: 8, height: 8 });
     const matrix = (a, b, c, d, e, f) => R(scene.Matrix2D, { a, b, c, d, e, f });
     const image = (sx, transform) =>
@@ -156,6 +157,7 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
     const view = matrix(1, 0, 0, 1, 0, 0);
     const clear = R(motion.ColorRgba, { r: 0, g: 0, b: 0, a: 1 });
     const draw = () => core.to_js_data(images.draw_document_$x_(host, document, () => texture, view, 48, 48, clear));
+    let readback;
     try {
       const first = draw();
       let last;
@@ -226,6 +228,48 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
       const scopedReferencePixels = scopedPoints.map(([x, y]) =>
         Array.from(referenceContext.getImageData(x, y, 1, 1).data),
       );
+      // 不在释放前等待queue完成；mapAsync只在销毁请求之后等待已提交的复制。
+      images.draw_document_$x_(host, scopedDocument, () => texture, view, 48, 48, clear);
+      const submittedTexture = canvas.getContext("webgpu").getCurrentTexture();
+      readback = device.createBuffer({ size: 256 * 48, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+      const copy = device.createCommandEncoder();
+      copy.copyTextureToBuffer({ texture: submittedTexture }, { buffer: readback, bytesPerRow: 256 }, [48, 48]);
+      device.queue.submit([copy.finish()]);
+      const staleTextureEncoder = device.createCommandEncoder();
+      staleTextureEncoder.copyTextureToBuffer({ texture }, { buffer: readback, bytesPerRow: 256 }, [8, 8]);
+      const staleTextureCommand = staleTextureEncoder.finish();
+      const disposed = images.dispose_$x_(host);
+      const disposedAgain = images.dispose_$x_(host);
+      const closed = lifecycle.close_registry(completion.get(tags.transition).get(tags.registry));
+      textureHost = textures.apply_texture_actions_$x_(textureHost, closed.get(tags.actions));
+      const released = core.to_js_data(textures.texture_resource_metrics(textureHost));
+      let afterCloseError;
+      try {
+        draw();
+      } catch (error) {
+        afterCloseError = error.message;
+      }
+      await readback.mapAsync(GPUMapMode.READ);
+      const bytes = new Uint8Array(readback.getMappedRange());
+      const bgra = navigator.gpu.getPreferredCanvasFormat() === "bgra8unorm";
+      const releasedPixels = scopedPoints.map(([x, y]) => {
+        const offset = y * 256 + x * 4;
+        const pixel = Array.from(bytes.slice(offset, offset + 4));
+        return bgra ? [pixel[2], pixel[1], pixel[0], pixel[3]] : pixel;
+      });
+      readback.unmap();
+      // 相反顺序必须被原生验证拒绝，不能把未提交编码等同于已提交工作。
+      const invalidSource = device.createBuffer({ size: 4, usage: GPUBufferUsage.COPY_SRC });
+      const invalidCopy = device.createCommandEncoder();
+      invalidCopy.copyBufferToBuffer(invalidSource, 0, readback, 0, 4);
+      const command = invalidCopy.finish();
+      invalidSource.destroy();
+      device.pushErrorScope("validation");
+      device.queue.submit([command]);
+      const invalidSubmission = await device.popErrorScope();
+      device.pushErrorScope("validation");
+      device.queue.submit([staleTextureCommand]);
+      const invalidTextureSubmission = await device.popErrorScope();
       return {
         result: "PASS",
         adapter: {
@@ -239,13 +283,21 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
         scopedReferencePixels,
         first,
         last,
+        releasedPixels,
+        disposed,
+        disposedAgain,
+        released,
+        afterCloseError,
+        invalidSubmission: invalidSubmission?.message ?? "",
+        invalidTextureSubmission: invalidTextureSubmission?.message ?? "",
         errors,
       };
     } finally {
       await device.queue.onSubmittedWorkDone();
       images.dispose_$x_(host);
       const closed = lifecycle.close_registry(completion.get(tags.transition).get(tags.registry));
-      textures.apply_texture_actions_$x_(completion.get(tags.host), closed.get(tags.actions));
+      textureHost = textures.apply_texture_actions_$x_(textureHost, closed.get(tags.actions));
+      readback?.destroy();
       device.destroy();
     }
   });
@@ -263,6 +315,13 @@ test("Scene 图片裁剪、90 度旋转与透明层序，1000 帧复用 GPU 资�
     [0, 0, 0, 255],
   ]);
   expect(report.scopedPixels).toEqual(report.scopedReferencePixels);
+  expect(report.releasedPixels).toEqual(report.scopedReferencePixels);
+  expect(report.disposed).toBe(true);
+  expect(report.disposedAgain).toBe(false);
+  expect(report.released).toMatchObject({ created: 1, released: 1, live: 0, "live-bytes": 0 });
+  expect(report.afterCloseError).toMatch(/disposed/);
+  expect(report.invalidSubmission).toMatch(/destroyed/i);
+  expect(report.invalidTextureSubmission).toMatch(/destroyed/i);
   // Solid interiors; permit one channel level for 0.5-alpha conversion/rounding.
   const expected = [
     [255, 0, 0, 255],

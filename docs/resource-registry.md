@@ -43,5 +43,5 @@ Presence 的实例源已经通过纯 Calcit `quamolit.presence-resource-registry
 
 ## 尚未完成
 
-- Presence instances 已把真实 WebGPU batch 创建/上传/绘制/释放及 device generation 接入 registry；其他 texture/buffer/pipeline、多图层共享和 queue 完成后的安全延迟释放尚未接入。
+- Presence instances已接真实WebGPU batch及device generation；texture亦经统一队列用于图片Scene，见[texture宿主](webgpu-texture-runner.md)。多图层通用共享、glyph/geometry/pipeline loader及完整恢复仍未验收。WebGPU原生destroy保护已提交工作，不能把额外延迟销毁队列一律当作必需前置；仅编码未提交、关闭后的新提交及池化复用仍须遵守各自生命周期，不能把逻辑释放计数当物理显存归零。
 - 当前只有总量 LRU；未提供按 kind 分池、优先级、TTL、pin、脏范围或后端实际内存反馈。这些需要真实消费者数据后再增加，不在无证据时预设复杂策略。
