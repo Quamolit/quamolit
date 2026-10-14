@@ -92,7 +92,7 @@ Presence 的 `leaf-alpha` / `tree-alpha` 也识别原生弧；原有 `declare-fl
 
 已解析候选沿用祖先逆变换、clip、禁用与逆绘制层序；查询不调用 lookup，不测量文字，不改变原计划。位置不属于测量身份，因此移动可复用同一度量快照，但必须按新 Scene 重建/解析边界。字体 ready/fallback 改变时，调用方须重新测量并提交新计划，即使时间、FontSpec.version 相同也不能沿用旧结果；此切片尚未实现自动资源接线、缓存或失效计数。未调用 resolver 的旧文字入口仍使用近似宽度，仅为兼容保留，不能称为精确命中。
 
-`canvas-reference/measure-text-hit!` 以纯 Calcit 配置与绘制相同的字体别名、left/middle/ltr，原生测量一次，受检 cast 后转成纯数据，成功/异常均恢复宿主状态，不改变当前 path/pixels、不加载字体。`measure-text-hit-plan!` 将同一逻辑接入现有候选计划，非文字候选保持身份。通用平台类型化原语在 [js-ffi PR177](https://github.com/calcit-lang/js-ffi/pull/177)，尚未发布；暂用局部 `NativeTextInkHost` 只读 Trait，正式tag可用后改引上游并删除该Trait，不增加生产JS或虚构依赖版本。
+`canvas-reference/measure-text-hit!` 以纯 Calcit 配置与绘制相同的字体别名、left/middle/ltr，原生测量一次，受检 cast 后转成纯数据，成功/异常均恢复宿主状态，不改变当前 path/pixels、不加载字体。按 Calcit `try` 契约传递错误消息，恢复后 `raise`，不保持 JS Error 对象身份。`measure-text-hit-plan!` 将同一逻辑接入现有候选计划，非文字候选保持身份。通用平台类型化原语在 [js-ffi PR177](https://github.com/calcit-lang/js-ffi/pull/177)，尚未发布；暂用局部 `NativeTextInkHost` 只读 Trait，正式tag可用后改引上游并删除该Trait，不增加生产JS或虚构依赖版本。
 
 现有 `test:scene-hit` 增加手算有符号边界、身份/非法数据拒绝及旋转/裁剪用例；`test:curve-demo` 在DPR1/2用三字体、中文/非等宽/空文本验证原生参考与Calcit测量计划，并确认1000次查询不再测量、禁用文字不请求测量，宿主样式/当前path/pixels不变。Node测试缺字段、非有限值与原生异常的restore合同。独立消费者沿既有中文组件、采样变换和字体加载入口调用Calcit模块，验证乱序时间命中与同时间/同字体版本ready后的重新提交；没有在测试JS中实现度量适配或命中。此入口是显式重新测量，不是自动资源失效/cache；实际看板接线、仅移动时复用的布局/测量计数与完整迟到资源矩阵仍待完成，不以本候选关闭 #34/#53/M3。
 

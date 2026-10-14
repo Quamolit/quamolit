@@ -88,11 +88,9 @@ test("Calcit文字测量原生调用一次，成功与缺字段/非法值/异常
     result = { ...native, actualBoundingBoxAscent: invalid };
     assert.throws(() => measureTextHit(context, text), /invalid-text-hit-metrics/);
   }
-  const error = (result = Error("native-measure-failure"));
-  assert.throws(
-    () => measureTextHit(context, text),
-    (thrown) => thrown === error,
-  );
+  result = Error("native-measure-failure");
+  // Calcit try按语言契约传递错误消息String，恢复后raise新异常；不宣称保持JS Error identity。
+  assert.throws(() => measureTextHit(context, text), /native-measure-failure/);
   assert.equal(saves, 9);
   assert.equal(restores, saves);
   assert.equal(calls, saves);
