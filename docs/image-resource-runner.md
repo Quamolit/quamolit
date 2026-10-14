@@ -31,4 +31,4 @@ Folding Fan 页面不再自行调用 `new Image`、维护 generation Map 或判�
 
 `yarn test:folding-fan` 覆盖严格公共类型、异步解码 ABI 的 Node 宿主替身、成功、失败、尺寸不符、runtime generation 取消、两张同代图片与共享租约、idle 重入、未知 token、活动结果重放、错误身份/代次，以及单资源和 registry 各100次版本装卸。关闭后 `created=released=100、live=0`。真实 Chromium 保留折扇初始/中间/终点与 DPR1/2 整帧 RGBA 零差异、失败重试、统一 Canvas 卸载后的迟到隔离；不修改像素容差或基线。
 
-当前交付的是 Canvas 图片宿主，不替代已存在的 WebGPU texture runner。实际看板的 font+image 联合出入、glyph/geometry/pipeline 缓存和 GPU fence-safe 释放仍待验收。released 结果的重复投递不保留无界历史去重表；指标按丢弃投递计数，不用它声明浏览器物理内存释放。
+当前交付的是 Canvas 图片宿主，不替代已存在的 WebGPU texture runner。[看板联合候选](layered-dashboard.md#字体与共享图片的联合场景)复用同一registry/queue，在Calcit协调font/image动作、100次独立出入、resize/capture、失败与迟到关闭；候选尚待前置PR合并与发布，不能据此关闭#51。glyph/geometry/pipeline缓存和GPU fence-safe释放仍未验收。released结果的重复投递不保留无界历史去重表；指标按丢弃投递计数，不用它声明浏览器物理内存释放。

@@ -1,6 +1,206 @@
 import { expect, test } from "@playwright/test";
 
 for (const dpr of [1, 2]) {
+  test(`字体与共享图片：独立像素、捕获/resize、100次退出重入与卸载 DPR ${dpr}`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 720 },
+      deviceScaleFactor: dpr,
+      reducedMotion: "reduce",
+    });
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    try {
+      await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+      const nativeBefore = await page.evaluate(() => document.fonts.size);
+      const loaded = await page.evaluate(async () => {
+        await Promise.all([window.layeredDashboardDemo.enableFont(), window.layeredDashboardDemo.enableImages()]);
+        return window.layeredDashboardDemo.snapshot();
+      });
+      expect(loaded.imageReady).toBe(true);
+      expect(loaded.fonts.registry.loads).toBe(2);
+      expect(loaded.fonts.references).toHaveLength(2);
+      expect(loaded.fonts.host.accepted).toBe(1);
+      expect(loaded.fonts.images.created).toBe(1);
+      expect(loaded.fonts.images.handles).toHaveLength(1);
+      expect(loaded.scene.nodes.filter((node) => node.content[0] === "image")).toHaveLength(2);
+      expect(loaded.fonts.queue.running).toEqual([]);
+      const compareImageRegion = async (alpha) =>
+        page.evaluate(async (alpha) => {
+          const picture = new Image();
+          picture.src = "/assets/lotus.jpg";
+          await picture.decode();
+          const canvas = document.querySelector("canvas"),
+            cx = canvas.width / 2,
+            cy = canvas.height / 2;
+          const create = () => {
+            const c = document.createElement("canvas");
+            c.width = canvas.width;
+            c.height = canvas.height;
+            return c.getContext("2d");
+          };
+          const expected = create(),
+            panel = create(),
+            cards = create();
+          expected.fillStyle = "rgb(6.375,8.925,17.85)";
+          expected.fillRect(0, 0, canvas.width, canvas.height);
+          panel.fillStyle = "rgb(14.025,19.125,33.15)";
+          panel.fillRect(cx - 410, cy - 270, 820, 540);
+          cards.drawImage(picture, 0, 0, 650, 432, cx + 242, cy - 226, 84, 42);
+          cards.drawImage(picture, 0, 0, 650, 432, cx + 276, cy - 210, 84, 42);
+          panel.globalAlpha = 0.55;
+          panel.drawImage(cards.canvas, 0, 0);
+          expected.globalAlpha = alpha;
+          expected.drawImage(panel.canvas, 0, 0);
+          const actual = canvas
+            .getContext("2d")
+            .getImageData(canvas.width / 2 + 236, canvas.height / 2 - 232, 130, 82).data;
+          const reference = expected.getImageData(cx + 236, cy - 232, 130, 82).data;
+          return {
+            differences: actual.reduce((n, v, i) => n + Number(v !== reference[i]), 0),
+            imageWidth: picture.naturalWidth,
+            imageHeight: picture.naturalHeight,
+          };
+        }, alpha);
+      expect(await compareImageRegion(1)).toEqual({ differences: 0, imageWidth: 650, imageHeight: 432 });
+      const point = await page.locator("canvas").evaluate((canvas) => ({
+        x: (canvas.width / 2 + 250) / devicePixelRatio,
+        y: (canvas.height / 2 - 215) / devicePixelRatio,
+      }));
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.down();
+      expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).captured).not.toBeNull();
+      const start = await page.evaluate(() => window.layeredDashboardDemo.setVisible(false));
+      expect(start.captured).toBeNull();
+      expect(start.fonts.references).toHaveLength(2);
+      await page.mouse.up();
+      await page.evaluate(() => window.layeredDashboardDemo.seek(1.3));
+      expect(await compareImageRegion(0.5)).toEqual({ differences: 0, imageWidth: 650, imageHeight: 432 });
+      await page.screenshot({ path: testInfo.outputPath(`shared-media-mid-dpr${dpr}.png`) });
+      await page.setViewportSize({ width: 1320, height: 740 });
+      await expect
+        .poll(async () => (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).width)
+        .toBe(1320 * dpr);
+      expect(await compareImageRegion(0.5)).toEqual({ differences: 0, imageWidth: 650, imageHeight: 432 });
+      // 像素/resize 已在完整尺寸验证；计数链路使用固定物理尺寸，避免把 100 次重绘变成吞吐基准。
+      await page.setViewportSize({ width: 800 / dpr, height: 600 / dpr });
+      await expect
+        .poll(async () => (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).width)
+        .toBe(800);
+      const lifecycle = await page.evaluate(() => {
+        const api = window.layeredDashboardDemo;
+        api.seek(1.6);
+        const idle = api.snapshot();
+        api.setVisible(true);
+        api.seek(2.2);
+        const cycles = [];
+        for (let i = 0; i < 100; i++) {
+          api.reset();
+          api.seek(1); // 独立生命周期，不把历史日志增长混成资源门禁。
+          const start = api.snapshot().time;
+          api.setVisible(false);
+          api.seek(start + 0.6);
+          const hidden = api.snapshot();
+          api.setVisible(true);
+          api.seek(start + 1.2);
+          const visible = api.snapshot();
+          cycles.push([
+            hidden.fonts.references.length,
+            visible.fonts.references.length,
+            visible.fonts.registry.loads,
+            visible.fonts.images.created,
+          ]);
+        }
+        api.dispose();
+        api.dispose();
+        return { idle, cycles, closed: api.snapshot(), nativeAfter: document.fonts.size };
+      });
+      expect(lifecycle.idle.fonts.references).toEqual([]);
+      expect(lifecycle.idle.fonts.images.handles).toHaveLength(1);
+      expect(lifecycle.cycles).toEqual(Array.from({ length: 100 }, () => [0, 2, 2, 1]));
+      expect(lifecycle.closed.fonts.host.handles).toEqual([]);
+      expect(lifecycle.closed.fonts.host.released).toBe(1);
+      expect(lifecycle.closed.fonts.images.handles).toEqual([]);
+      expect(lifecycle.closed.fonts.images.released).toBe(1);
+      expect(lifecycle.nativeAfter).toBe(nativeBefore);
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+test("共享队列图片解码迟到：卸载后释放候选、不开新帧、不复活字体", async ({ page }) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const result = await page.evaluate(async () => {
+    const api = window.layeredDashboardDemo;
+    const nativeBefore = document.fonts.size;
+    await api.enableFont();
+    const original = HTMLImageElement.prototype.decode;
+    let unlock, started;
+    const gate = new Promise((resolve) => {
+      unlock = resolve;
+    });
+    const began = new Promise((resolve) => {
+      started = resolve;
+    });
+    HTMLImageElement.prototype.decode = function () {
+      return original.call(this).then(() => {
+        started();
+        return gate;
+      });
+    };
+    try {
+      const pending = api.enableImages();
+      await began;
+      const during = api.snapshot();
+      api.dispose();
+      api.dispose();
+      const closed = api.snapshot();
+      unlock();
+      await pending;
+      return { during, closed, after: api.snapshot(), nativeBefore, nativeAfter: document.fonts.size };
+    } finally {
+      HTMLImageElement.prototype.decode = original;
+      unlock();
+    }
+  });
+  expect(result.during.fonts.queue.running).toHaveLength(1);
+  expect(result.during.fonts.references).toHaveLength(2);
+  expect(result.after.fonts.queue.running).toEqual([]);
+  expect(result.after.fonts.host.handles).toEqual([]);
+  expect(result.after.fonts.images.handles).toEqual([]);
+  expect(result.after.fonts.images.created).toBe(1);
+  expect(result.after.fonts.images.released).toBe(1);
+  expect(result.after.fonts.revision).toBe(result.closed.fonts.revision);
+  expect(result.after.paints).toBe(result.closed.paints);
+  expect(result.after.pending).toBe(false);
+  expect(result.nativeAfter).toBe(result.nativeBefore);
+});
+
+test("共享队列图片失败：字体仍可使用，原卡片保留且错误可见", async ({ page }) => {
+  await page.route("**/assets/lotus.jpg", (route) => route.abort());
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const state = await page.evaluate(async () => {
+    await Promise.all([window.layeredDashboardDemo.enableFont(), window.layeredDashboardDemo.enableImages()]);
+    return window.layeredDashboardDemo.snapshot();
+  });
+  expect(state.imageReady).toBe(false);
+  expect(state.mediaError).not.toBe("");
+  expect(state.fonts.host.accepted).toBe(1);
+  expect(state.fonts.host.handles).toHaveLength(1);
+  expect(state.fonts.images.handles).toEqual([]);
+  expect(state.fonts.images.created).toBe(state.fonts.images.released);
+  expect(state.fonts.queue.running).toEqual([]);
+  expect(state.scene.nodes.filter((node) => node.content[0] === "image")).toEqual([]);
+  expect(state.scene.nodes.filter((node) => /overlap-[ab]$/.test(node.id)).map((node) => node.content[0])).toEqual([
+    "rect",
+    "rect",
+  ]);
+  await expect(page.locator("#media-status")).toContainText("资源错误");
+});
+
+for (const dpr of [1, 2]) {
   test(`图表换类型保留旧图退出与新图进入，快速切回连续 DPR ${dpr}`, async ({ browser }, testInfo) => {
     const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },

@@ -18,15 +18,23 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 
 `yarn test:layered-dashboard` 沿既有门禁验证8项Chromium用例：DPR1/2下resize与退出同次提交，在无新PointerEvent时释放恰好一次；渐出仍有28节点，中间帧截图、重入连续、新按下再次捕获、重复卸载后无监听/待执行帧；原有像素与全屏浮层断言不变。纯协议同时检查日志增量/乱序等价、100次1↔28节点往返、换父新旧身份共存、嵌套子项仍在原父组裁剪/层序，以及整组渐出的独立一次合成参考。首个rAF允许早于播放注册时间，宿主保证推进时间不倒退，回归检查终点停帧和两秒空闲。截图和报告仍在忽略的test-results/CI artifact，不入库。
 
-本批未优化时间帧Scene/绑定分配或全ID访问；默认文字仍使用内置monospace，可选外部字体的联合验收见下节，图片联合仍未覆盖。WebGPU一般组不支持，硬件及性能结论未新增；#34/#53/M3不能因此关闭。
+本批未优化时间帧Scene/绑定分配或全ID访问；默认文字仍使用内置monospace，字体/图片联合验收见下节。WebGPU一般组不支持，硬件及性能结论未新增；#34/#53/M3不能因此关闭。
 
 ## 字体租约与真实退出联合提交
 
-浮层“启用字体资源”显式启用 `QuamolitDashboard/version=1`，通过现有 Calcit 字体 loader 申请本机中文字体；默认不加载、不改变原画面。逻辑字体描述与 Presence Model 投影在 `with-font`，Registry/LoadQueue/FontResourceHost 仍使用公共入口，`DashboardFonts` 只是本示例的连接状态，不是第二套资源运行时。绘制不修改原动画 Model；启用后所有正向、seek 与乱序帧都按同一资源选择投影。
+浮层“启用字体资源”显式启用 `QuamolitDashboard/version=1`，通过现有 Calcit 字体 loader 申请本机中文字体；默认不加载、不改变原画面。逻辑字体描述与 Presence Model 投影在 `with-font`，Registry/LoadQueue/FontResourceHost 仍使用公共入口；连接状态现为 `DashboardMedia`，不是第二套资源运行时。绘制不修改原动画 Model；启用后所有正向、seek 与乱序帧都按同一资源选择投影。
 
-先生成实际 Scene 并编译/提交 HitPlan 协调捕获，再同步同一展示 Model 的租约。退出开始立刻禁交互、释放原生捕获，文字与租约仍留到0.6秒退出终点；终点归零后资源进入 idle，不冒充已销毁。中途重入与 idle 重入复用一次加载；页面卸载关闭自己的 registry、取消队列并精确删除 FontFace。异步完成总是交给最新 Calcit 状态判定；关闭后的迟到结果不能安装或触发重绘。
+先同步意图 Model 的资源引用，再按实际就绪状态生成展示 Scene、编译/提交 HitPlan 协调捕获，最后绘制；解码未就绪时保留原卡片而非传递不存在的ImageHost。退出开始立刻禁交互、释放原生捕获，文字/图片与租约仍留到0.6秒退出终点；终点归零后资源进入 idle，不冒充已销毁。中途重入与 idle 重入复用一次加载；页面卸载关闭共享 registry、取消队列并精确删除 FontFace/图片强引用。异步完成总是交给最新 Calcit 状态判定；关闭后的迟到结果不能安装或触发重绘。
 
-现有看板浏览器门禁在 DPR1/2 组合真实 FontFace、按住柱图、退出与 resize、0.5 alpha 中间帧、快速重入、终点归还与 idle 复用及重复卸载。另在真实字体加载等待期间卸载，验证迟到完成后 accepted=0、live=0、running=0，画面计数不变。静态发布导航再验证同一Canvas的两次挂载：旧加载未完成时持有原生capture，导航卸载释放一次；新看板成功安装同名字体后再放行旧完成，新状态/画面计数完全不变、旧结果不误删新FontFace，最终返回目录使FontFaceSet回到基线。该竞态在DPR1/2连续三轮验证，先结算新挂载正常ResizeObserver/DPR通知，不删绘制计数断言。原全帧隔离组像素和原入场效果回归保留。字体可用性 revision 只在接纳时增加；当前页面全量重绘，不声称已接保留布局缓存。该连接只管理一种可选字体，失败保留通用回退，尚无版本切换/自动重试 UI、图片联合或 GPU fence/recovery；#34/#51/M2/M3仍开放。
+现有看板浏览器门禁在 DPR1/2 组合真实 FontFace、按住柱图、退出与 resize、0.5 alpha 中间帧、快速重入、终点归还与 idle 复用及重复卸载。另在真实字体加载等待期间卸载，验证迟到完成后 accepted=0、live=0、running=0，画面计数不变。静态发布导航再验证同一Canvas的两次挂载：旧加载未完成时持有原生capture，导航卸载释放一次；新看板成功安装同名字体后再放行旧完成，新状态/画面计数完全不变、旧结果不误删新FontFace，最终返回目录使FontFaceSet回到基线。该竞态在DPR1/2连续三轮验证，先结算新挂载正常ResizeObserver/DPR通知，不删绘制计数断言。原全帧隔离组像素和原入场效果回归保留。媒体提交改变registry时增加revision，关闭迟到保持不变；当前页面全量重绘，不声称已接保留布局缓存。该字体分支管理一种可选字体，失败保留通用回退；下节补图片联合，版本切换/自动重试UI或GPU fence/recovery仍未完成，#34/#51/M2/M3仍开放。
+
+## 字体与共享图片的联合场景
+
+“启用图片资源”将两个信号块投影成真实荷花缩略卡片，几何/逻辑key/父级隔离透明度不变，两个ImageNode共用`dashboard-cover/version=1`的一份租约。URL/预期尺寸仅在`ImageResourceDescriptor`，Scene没有URL或宿主句柄；`with-images`与`image-references`由Calcit定义。原`DashboardFonts`连接状态归并为`DashboardMedia`，同一个registry/queue协调font与image，分别复用FontResourceHost/ImageResourceHost。完成、缓存驱逐和关闭动作均同时应用到两类宿主，不在JS实现资源状态机。
+
+默认不启用图片，保留原画面；解码等待/失败仍显示原卡片与可见错误。共享队列一次运行一个任务，JS仅驱动Promise与DOM；每次完成交给最新Calcit状态，再领取下一项，resize/绘制不能吞掉已领取任务。关闭后迟到图片计入created/released且不重绘、不复活字体；HTMLImageElement没有destroy，释放只表示框架删除强引用，不声称物理内存同步回收。snapshot的历史`fonts`字段现在含整个媒体状态（含images），没有另一套资源运行时。
+
+既有`test:layered-dashboard`加入1项原生语义与4项浏览器用例，合计20项浏览器回归：DPR1/2的独立原生Canvas图片/隔离alpha参考、捕获中的父级退出、暂停resize、100次独立reset/退出/重入、idle复用、重复关闭、真实解码等待期间卸载与图片失败不影响字体。参考与实际采用相同物理画布尺寸和默认图片平滑，区域逐通道零差异；不使用宽容差掩盖不同尺寸的采样差异。像素与resize先在完整尺寸验证；计数链路使用固定800×600物理尺寸和独立短日志，不作为吞吐测量。预览：`?demo=layered-dashboard&t=1`→启用字体/图片→隐藏→时间条1.3/1.6→恢复；截图仍为忽略artifact。版本切换/失败就地重试UI、glyph缓存、GPU文字及fence-safe回收仍未实现，#34/#51/#53/M2/M3不关闭。
 
 ## 图表子组件的独立出入
 
