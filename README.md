@@ -28,7 +28,7 @@ let
 
 ## 开发与验证
 
-需要 Calcit **0.28.0**、Node.js **24**、Yarn **4**；依赖以 `deps.cirru` 和 lockfile 为准，使用 node-modules linker。
+需要 Calcit **0.29.3**、Node.js **24**、Yarn **4**；依赖以 `deps.cirru` 和 lockfile 为准，使用 node-modules linker。
 
 ```sh
 corepack enable
@@ -59,7 +59,7 @@ The [standalone consumer](examples/retained-consumer/README.md) demonstrates com
 
 The experimental Scene API includes [native arcs](docs/scene-ir-core.md#原生圆弧212), declared in Calcit and drawn through typed Canvas APIs without application-side polyline tessellation. Arc GPU rendering, hit testing and scalar bindings are not supported yet. This addition is not in the published alpha.3; consumers must use a newer tag containing it.
 
-Use Calcit 0.28.0 and Node.js 24, then run the development commands above. `yarn compile && yarn release` builds the unified gallery and animations into `dist/`; the root URL preserves shared parameters and redirects to that same page. `release:demos` uses the same configuration with a compatibility output directory. Bootstrap is smoke-only; named Calcit entries still await upstream #1665. Navigation tests exercise the ordinary release output, not source fallback. Follow [plan v3](docs/plan-v3.md) for milestone status.
+Use Calcit 0.29.3 and Node.js 24, then run the development commands above. `yarn compile && yarn release` builds the unified gallery and animations into `dist/`; the root URL preserves shared parameters and redirects to that same page. `release:demos` uses the same configuration with a compatibility output directory. Bootstrap is smoke-only; named entry migration is a follow-up to the toolchain upgrade. Navigation tests exercise the ordinary release output, not source fallback. Follow [plan v3](docs/plan-v3.md) for milestone status.
 
 ## History and license
 

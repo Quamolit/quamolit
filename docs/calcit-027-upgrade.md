@@ -1,12 +1,18 @@
 # Calcit 工具链升级与版本合同
 
-当前候选使用已发布的 Calcit 稳定版 `0.28.0`、匹配的 `@calcit/procs@0.28.0` 和 js-ffi `0.2.1-alpha.11`。根项目、独立消费者、`deps.cirru`、npm runtime、Yarn resolution、锁文件和中英文入口同步；不接受仅升级本机 CLI。沿用本页与现有门禁，不另建升级测试体系。js-ffi 当前最新 tag 仍为 alpha.11，其 npm runtime 通过根 resolution 统一为 0.28.0。
+2026-10-14 升级候选使用已发布的 Calcit 稳定版 `0.29.3`、匹配的 `@calcit/procs@0.29.3` 和 js-ffi `0.2.2`。根项目、独立消费者、`deps.cirru`、npm runtime、Yarn resolution、锁文件和中英文入口同步；不接受仅升级本机 CLI。沿用本页与现有门禁，不另建升级测试体系。主线及旧alpha仍为0.28.0，不能把候选声明当作已完成验收。
+
+本机全局CLI为0.29.0-alpha.17，不用于正式0.29.3验收；官方release的两个可执行资产均为Linux，因此macOS从官方0.29.3 crate构建隔离CLI（`--locked --no-default-features`，本项目使用JS目标，非WASM验收）。不覆盖用户全局安装。named entry 创建的上游#1665已经关闭，工具链门禁通过后另做入口归并，不混入本升级PR。
 
 ## 版本合同
 
-`yarn test:runtime` 同时检查当前 `calcit --version`、根项目与消费者的 `:calcit-version`、两处 `@calcit/procs` 声明和实际安装版本，以及从 js-ffi 包位置解析到的 runtime。全部必须为 `0.28.0`；另用 `caps verify --toolchain` 检查模块与 runtime。
+`yarn test:runtime` 同时检查当前 `calcit --version`、根项目与消费者的 `:calcit-version`、两处 `@calcit/procs` 声明和实际安装版本，以及从 js-ffi 包位置解析到的 runtime。全部必须为 `0.29.3`；另用 `caps verify --toolchain` 检查模块与 runtime。
 
-js-ffi alpha.11 已同步 CLI/runtime，不再沿用 alpha.10 的旧版 runtime 说明。根 `resolutions` 继续约束消费者安装为同一 runtime 单例，不改变平台 API 与 Quamolit 业务代码的归属。
+js-ffi 0.2.2声明Calcit0.29.1；根 `resolutions` 统一到兼容稳定runtime0.29.3，保持单例，不改变平台API与Quamolit业务代码的归属。pointed-prompt更新到正式0.0.17，修复旧版本已退役的join-str引用；不是无依据的依赖批量升级。
+
+本轮局部迁移：普通nil谓词改为non-nil?，保留Option.some?；FontFace采用identical?而非值比较；旧矩形夹具显式检查尺寸数值，nil/false仍取原默认值、0保留，非法字符串拒绝；tracked-transform的Map读取显式匹配Option，不伪装成Struct。看板两处defref由core-api-0.29-v1的machine-applicable证明迁移，重复预览为空。
+
+资源循环旧局部名ref与新版构造器冲突。rename-local planner在改名之前就因保留名预处理失败，已上报[Calcit #2049](https://github.com/calcit-lang/calcit/issues/2049)；仅在两个完整读取的小函数中用结构化事务重放相同控制流并改名，不文本编辑Snapshot。全项目preset仍因旧textbox的FFI债务失败，不给整个namespace添加宽泛权限，也不宣称全库规范迁移已完成。
 
 升级预检复用 GPU 公共入口（80 个定义）、Motion/保留组件/三个图表 demo（169 个定义）、GPU Node 合同（23 项）及 Motion Chromium（31 项）。这些不是全项目类型验收或真实 GPU 验收。选定主路径的 `core-api-0.28-v1` 预览为空，不为“升级”制造无必要的源码改写。
 
@@ -34,6 +40,6 @@ yarn test:consumer
 yarn test:demo-nav
 ```
 
-CI 的 `setup-calcit@v1` 读取根 `deps.cirru`，日志必须显示 `calcit version: 0.28.0`，且 `test`、`bench-smoke`、`visual` 全部通过。无头环境没有非软件 WebGPU adapter 时仍明确 SKIP，不冒充硬件验收。
+CI 的 `setup-calcit@v1.5.0` 显式读取根 `deps.cirru`，日志必须显示 `calcit version: 0.29.3`，且 `test`、`bench-smoke`、`visual` 全部通过。无头环境没有非软件 WebGPU adapter 时仍明确 SKIP，不冒充硬件验收。
 
 Calcit 0.26 的迁移背景和当时诊断见 [历史升级记录](calcit-026-upgrade.md)。
