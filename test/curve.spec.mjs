@@ -6,6 +6,166 @@ async function ready(page, time = 30) {
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
 }
 
+for (const dpr of [1, 2])
+  test(`文字墨迹命中计划：DPR ${dpr} 原生度量、祖先裁剪与查询复用`, async ({ page }) => {
+    await ready(page);
+    const result = await page.evaluate(async (scale) => {
+      const core = await import("/target/js/curve/calcit.core.mjs");
+      const ir = await import("/target/js/curve/quamolit.scene-ir.mjs");
+      const motion = await import("/target/js/curve/quamolit.motion.mjs");
+      const hit = await import("/target/js/curve/quamolit.scene-hit.mjs");
+      const tags = core.init_tags([
+        "font",
+        "family",
+        "fallback",
+        "version",
+        "size",
+        "text",
+        "fill",
+        "x",
+        "y",
+        "left",
+        "right",
+        "ascent",
+        "descent",
+        "r",
+        "g",
+        "b",
+        "a",
+        "c",
+        "d",
+        "e",
+        "f",
+        "id",
+        "key",
+        "parent",
+        "bindings",
+        "interaction",
+        "content",
+        "target",
+        "none",
+        "disabled",
+        "nodes",
+        "group",
+        "transform",
+        "clip",
+        "opacity",
+        "rect",
+        "width",
+        "height",
+        "serif",
+        "sans-serif",
+        "monospace",
+      ]);
+      const record = (type, fields) =>
+        core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([k, v]) => [tags[k], v]));
+      const value = (type, key, ...args) => core._PCT__$o__$o_(type, tags[key], ...args);
+      const color = record(motion.ColorRgba, { r: 1, g: 0, b: 0, a: 1 });
+      let mismatches = 0,
+        approximateDifferences = 0,
+        queries = 0,
+        measured = 0;
+      for (const fallback of ["serif", "sans-serif", "monospace"])
+        for (const text of ["WWWWiiii", "jÁgy", "中文", ""]) {
+          const font = record(ir.FontSpec, { family: "", fallback: value(ir.FontFallback, fallback), version: 0 });
+          const textNode = record(ir.TextNode, { x: 10, y: 20, size: 24, text, fill: color, font });
+          const leaf = record(ir.SceneNode, {
+            id: "ink",
+            key: "ink",
+            parent: "root",
+            bindings: core.arrayToList([]),
+            interaction: value(ir.SceneInteraction, "target", "ink-action"),
+            content: value(ir.SceneContent, "text", textNode),
+          });
+          const root = record(ir.SceneNode, {
+            id: "root",
+            key: "root",
+            parent: "",
+            bindings: core.arrayToList([]),
+            interaction: value(ir.SceneInteraction, "none"),
+            content: value(
+              ir.SceneContent,
+              "group",
+              record(ir.GroupNode, {
+                transform: record(ir.Matrix2D, { a: 0, b: 2, c: -2, d: 0, e: 220, f: 30 }),
+                clip: value(ir.ClipSpec, "rect", record(ir.ClipRect, { x: 0, y: 0, width: 90, height: 50 })),
+                opacity: 0,
+              }),
+            ),
+          });
+          const documentOf = (parent) => record(ir.SceneDocument, { nodes: core.arrayToList([parent, leaf]) });
+          const context = document.createElement("canvas").getContext("2d");
+          context.scale(scale, scale);
+          context.font = `24px ${fallback}`;
+          context.textAlign = "left";
+          context.textBaseline = "middle";
+          context.direction = "ltr";
+          // 独立原生结果用于参考，lookup单独测量；测试JS只搬运宿主数值，不实现Calcit命中算法。
+          const reference = context.measureText(text);
+          let calls = 0;
+          const plan = hit.resolve_text_hit_plan(hit.compile_hit_plan(documentOf(root)), (node) => {
+            calls++;
+            const native = context.measureText(node.getRequired(tags.text));
+            return record(hit.TextHitMetrics, {
+              font,
+              size: 24,
+              text,
+              left: native.actualBoundingBoxLeft,
+              right: native.actualBoundingBoxRight,
+              ascent: native.actualBoundingBoxAscent,
+              descent: native.actualBoundingBoxDescent,
+            });
+          });
+          const left = 10 - reference.actualBoundingBoxLeft,
+            right = 10 + reference.actualBoundingBoxRight;
+          const top = 20 - reference.actualBoundingBoxAscent,
+            bottom = 20 + reference.actualBoundingBoxDescent;
+          for (let x = -3; x <= 110; x += 2)
+            for (let y = 0; y <= 52; y += 2) {
+              const expected =
+                x >= 0 &&
+                x <= 90 &&
+                y >= 0 &&
+                y <= 50 &&
+                right > left &&
+                bottom > top &&
+                x >= left &&
+                x <= right &&
+                y >= top &&
+                y <= bottom;
+              const actual = core.to_js_data(hit.hit_test_plan(plan, 220 - 2 * y, 30 + 2 * x))[0] === "hit";
+              if (actual !== expected) mismatches++;
+              const approximate =
+                x >= 0 &&
+                x <= 90 &&
+                y >= 0 &&
+                y <= 50 &&
+                x >= 10 &&
+                x <= 10 + 24 * 0.6 * text.length &&
+                y >= 8 &&
+                y <= 32;
+              if (approximate !== expected) approximateDifferences++;
+              queries++;
+            }
+          for (let query = 0; query < 1000; query++) hit.hit_test_plan(plan, 180, 60);
+          if (calls !== 1) throw Error(`query remeasured text: ${calls}`);
+          measured += calls;
+          const disabled = hit.resolve_text_hit_plan(
+            hit.compile_hit_plan(documentOf(root.assoc(tags.interaction, value(ir.SceneInteraction, "disabled")))),
+            () => {
+              throw Error("disabled text measured");
+            },
+          );
+          if (core.to_js_data(hit.hit_test_plan(disabled, 180, 60))[0] !== "miss") mismatches++;
+        }
+      return { mismatches, approximateDifferences, queries, measured };
+    }, dpr);
+    expect(result.mismatches).toBe(0);
+    expect(result.approximateDifferences).toBeGreaterThan(0);
+    expect(result.queries).toBe(18468);
+    expect(result.measured).toBe(12);
+  });
+
 async function captureStage(page, testInfo, name) {
   await page.screenshot({ path: testInfo.outputPath(`curve-${name}-overlay.png`) });
   await page.locator("#panel-toggle").click();
