@@ -34,7 +34,7 @@
 
 当前优先补齐#34/#53的真实图形/交互功能，不扩展性能优化。已合并工具链、入口和资源产物不能再列为待开发前置；沿现有组件/资源/导航与消费者完善联合出口，不新增平行demo、资源层、runner或job。用户已授权按依赖顺序合并自身Actions全绿且无冲突的PR，不授权发版，Vite保持运行；未合并的标准变换/颜色等功能仍按各自PR验证。
 
-最新本地切片将实际看板标题接公共Calcit文字测量/HitPlan提交，并在同一DashboardMedia增加FontSpec版本刷新，不改变原画面与动画意图。既有两项DPR用例验证同时间ready/失败、暂停resize、capture/退出/重入，以及v3先ready/v2后到、图片所有权不变、多版本关闭与真实按钮恢复；完整看板25项、compile/release和导航76项及增强后的静态看板用例通过。旧近似框负例会失败，恢复后复验通过；没有放宽容差。本地尚未推送或建PR，不能计为主线Actions或新tag能力；当前证据集中#53与[layered-dashboard](layered-dashboard.md)。完整类型/重排/指针矩阵、查询/布局/glyph/路径缓存计数、GPU文字/栅格化和发布后tag消费仍未完成，不关闭#34/#51/#53/M2/M3。
+最新分支切片将实际看板标题接公共Calcit文字测量/HitPlan提交，并在同一DashboardMedia增加FontSpec版本刷新，不改变原画面与动画意图。既有两项DPR用例验证同时间ready/失败、暂停resize、capture/退出/重入，以及v3先ready/v2后到、图片所有权不变、多版本关闭与真实按钮恢复；完整看板25项、compile/release和导航76项及增强后的静态看板用例通过。旧近似框负例会失败，恢复后复验通过；没有放宽容差。e39d83b已完成精确远端干净消费与既有Metal回归，分支Visual/Benchmark亦成功；PR最终提交仍须自身CI，不计为主线或新tag能力。当前证据集中#53与[layered-dashboard](layered-dashboard.md)。完整类型/重排/指针矩阵、查询/布局/glyph/路径缓存计数、GPU文字/栅格化和发布后tag消费仍未完成，不关闭#34/#51/#53/M2/M3。
 
 并行于功能主线，#204首批工程减法已随#207合并，移除24个退役`quamolit.app.*`，不删除旧库API或减少11个demo/门禁。[API迁移清单](api-contract.md#仍保留的旧入口退役登记)现登记仍保留15项的仓内定义调用、import-only、替代入口和退役门槛/阶段；原始逐定义查询只在忽略目录。仓外使用者未全面核对，不能据仓内无调用删除公开入口；`retained-path`仍服务Binary Tree。新抽象/粒度规则沿已有模板/AGENTS，不增状态页、扫描框架、命令或job。
 
