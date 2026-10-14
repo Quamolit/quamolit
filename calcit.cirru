@@ -15774,6 +15774,12 @@
                       , :fill $ match target
                         (:alpha)
                           struct-with (:fill rect) (:a value)
+                        (:red)
+                          struct-with (:fill rect) (:r value)
+                        (:green)
+                          struct-with (:fill rect) (:g value)
+                        (:blue)
+                          struct-with (:fill rect) (:b value)
                         _ $ :fill rect
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/RectNode)
@@ -17749,7 +17755,7 @@
           :schema $ :: 'StructDef
         'ScalarTarget $ %{} 'CodeEntry
           :doc "|Scalar animation binding target; supported per content kind by validator."
-          :code $ quote $ defenum ScalarTarget (:x) (:y) (:width) (:height) (:opacity) (:alpha)
+          :code $ quote $ defenum ScalarTarget (:x) (:y) (:width) (:height) (:opacity) (:alpha) (:red) (:green) (:blue)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneContent $ %{} 'CodeEntry
@@ -18008,6 +18014,12 @@
                     = (content-kind content) |polyline
                     = (content-kind content) |text
                     = (content-kind content) |arc
+                (:red)
+                  = (content-kind content) |rect
+                (:green)
+                  = (content-kind content) |rect
+                (:blue)
+                  = (content-kind content) |rect
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/ScalarBinding 'quamolit.scene-ir/SceneContent
