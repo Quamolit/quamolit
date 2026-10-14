@@ -157,6 +157,20 @@ try {
     "反例：停掉字体文字时间/资源更新必须失败",
   );
   const curveCounts = verifyCurveConsumer(app, core);
+  assert.throws(
+    () =>
+      verifyCurveConsumer(
+        { ...app, arc_presence_sample: () => app.arc_presence_plan(app.arc_presence_model("exit"), 0) },
+        core,
+      ),
+    /AssertionError/,
+    "停止Presence时间采样但返回合法ComponentPlan的消费负例必须失败",
+  );
+  assert.throws(
+    () => verifyCurveConsumer({ ...app, arc_hit_plan: () => app.curve_hit_plan(0) }, core),
+    /AssertionError/,
+    "只有曲线命中而未支持Arc的消费负例必须失败",
+  );
   const curveMiss = app.curve_hit(app.curve_hit_plan(0), 1000, 1000);
   assert.throws(
     () => verifyCurveConsumer({ ...app, curve_hit: () => curveMiss }, core),
@@ -248,19 +262,56 @@ try {
   const curveBrowser = await page.evaluate(async () => {
     const app = await import("./target/js/app/app.main.mjs");
     const core = await import("./target/js/app/calcit.core.mjs");
+    const hit = await import("./target/js/app/quamolit.scene-hit.mjs");
+    const tags = core.init_tags(["scene", "slots"]);
+    const lifecycle = {
+      "arc-exit": app.arc_presence_plan(app.arc_presence_model("exit"), 0),
+      "arc-reenter": app.arc_presence_plan(app.arc_presence_model("reenter"), 0.5),
+    };
+    const slots = Object.fromEntries(Object.entries(lifecycle).map(([key, plan]) => [key, plan.get(tags.slots)]));
     const frames = [];
-    for (const time of [0, 0.5, 3]) {
+    for (const [kind, time] of [
+      ...[0, 0.5, 3].map((time) => ["curve", time]),
+      ...[1, 0, 0.5, 0.25, 1].map((time) => ["arc", time]),
+      ...[1, 0, 0.5, 0.25, 1].map((time) => ["arc-exit", time]),
+      ...[1.5, 0.5, 1, 0.75, 1.5].map((time) => ["arc-reenter", time]),
+    ]) {
+      const isArc = kind.startsWith("arc"),
+        isLifecycle = Boolean(lifecycle[kind]);
+      const arcTime = kind === "arc" ? time : 0;
+      const clamp = (value) => Math.max(0, Math.min(1, value));
+      const alpha =
+        kind === "arc-exit" ? 0.6 * (1 - clamp(time)) : kind === "arc-reenter" ? 0.3 + 0.3 * clamp(time - 0.5) : 1;
+      if (isLifecycle) lifecycle[kind] = app.arc_presence_sample(lifecycle[kind], time);
+      const sceneDocument = isLifecycle
+        ? lifecycle[kind].get(tags.scene)
+        : isArc
+          ? app.arc_document(time)
+          : app.curve_document(time);
       const actual = document.createElement("canvas"),
         expected = document.createElement("canvas");
       actual.width = expected.width = 320;
       actual.height = expected.height = 180;
       const a = actual.getContext("2d", { willReadFrequently: true });
       const e = expected.getContext("2d", { willReadFrequently: true });
-      app.draw_curve_$x_(a, app.curve_document(time));
+      app.draw_curve_$x_(a, sceneDocument);
       // 独立原生隔离group参考，不读取消费者/框架生成的Scene或控制点。
       // GPU-backed Offscreen与直接CPU Canvas的边缘另报，不放宽阈值。
       const offset = 10 * time;
       const drawReference = (context) => {
+        if (isArc) {
+          context.transform(0, 2, -2, 0, 200, 50);
+          context.beginPath();
+          context.rect(-30, -30, 40, 60);
+          context.clip();
+          context.beginPath();
+          context.arc(0, 0, 20, 0.7 * arcTime, 0.7 * arcTime + Math.PI / 2, false);
+          context.lineWidth = 4;
+          context.lineCap = "round";
+          context.strokeStyle = `rgba(0,255,255,${alpha})`;
+          context.stroke();
+          return;
+        }
         context.transform(0, 2, -2, 0, 240, 0);
         context.beginPath();
         context.rect(0, 0, 100, 80);
@@ -280,11 +331,13 @@ try {
       isolated.width = 320;
       isolated.height = 180;
       drawReference(isolated.getContext("2d"));
+      e.globalAlpha = isArc ? 0.4 : 1;
       e.drawImage(isolated, 0, 0);
       const direct = document.createElement("canvas");
       direct.width = 320;
       direct.height = 180;
       const d = direct.getContext("2d", { willReadFrequently: true });
+      d.globalAlpha = isArc ? 0.4 : 1;
       drawReference(d);
       const left = a.getImageData(0, 0, 320, 180).data;
       const right = e.getImageData(0, 0, 320, 180).data;
@@ -310,14 +363,31 @@ try {
         diffImage.data[index + 3] = maximum ? 255 : 0;
       }
       diffContext.putImageData(diffImage, 0, 0);
-      const plan = app.curve_hit_plan(time);
+      const plan = isLifecycle
+        ? hit.compile_hit_plan(sceneDocument)
+        : isArc
+          ? app.arc_hit_plan(time)
+          : app.curve_hit_plan(time);
+      const arcEnd = 0.7 * arcTime + Math.PI / 2,
+        arcStart = 0.7 * arcTime;
       frames.push({
+        kind,
         time,
+        alpha,
+        sameSlots: !isLifecycle || lifecycle[kind].get(tags.slots) === slots[kind],
         differingChannels,
         blankDifferingChannels,
         directDifferingChannels,
-        hit: core.to_js_data(app.curve_hit(plan, 180, 100 + 20 * time)),
-        clipped: core.to_js_data(app.curve_hit(plan, 120, 220)),
+        hit: core.to_js_data(
+          isArc
+            ? app.curve_hit(plan, 200 - 40 * Math.sin(arcEnd), 50 + 40 * Math.cos(arcEnd))
+            : app.curve_hit(plan, 180, 100 + 20 * time),
+        ),
+        clipped: core.to_js_data(
+          isArc
+            ? app.curve_hit(plan, 200 - 40 * Math.sin(arcStart), 50 + 40 * Math.cos(arcStart))
+            : app.curve_hit(plan, 120, 220),
+        ),
         actualPng: actual.toDataURL(),
         expectedPng: expected.toDataURL(),
         directPng: direct.toDataURL(),
@@ -329,20 +399,42 @@ try {
       channelsPerFrame: 320 * 180 * 4,
       directReferenceStatus: "DIAGNOSTIC_ONLY_CONTRACT_144",
       scope:
-        "搬移后的Calcit曲线声明/Canvas绘制/命中；独立原生隔离group全RGBA参考，直接CPU Canvas差异单列，非GPU曲线/性能验收",
+        "搬移后的Calcit曲线/圆弧声明、Canvas绘制与命中；独立原生隔离group全RGBA参考，直接CPU Canvas差异单列，非GPU路径/性能验收",
     };
   });
-  for (const frame of curveBrowser.frames) {
+  for (const [index, frame] of curveBrowser.frames.entries()) {
     for (const kind of ["actual", "expected", "direct", "directDiff"]) {
       const key = `${kind}Png`,
-        name = `consumer-curve-${frame.time}-${kind}.png`;
+        name = frame.kind.startsWith("arc")
+          ? `consumer-${frame.kind}-${index}-${frame.time}-${kind}.png`
+          : `consumer-curve-${frame.time}-${kind}.png`;
       await writeFile(join(artifacts, name), Buffer.from(frame[key].split(",")[1], "base64"));
       frame[key] = name;
     }
     assert.equal(frame.differingChannels, 0, JSON.stringify(frame));
-    assert.ok(frame.blankDifferingChannels > 1000, "空绘制负例必须与参考不同");
-    assert.deepEqual(frame.hit, ["hit", { "node-id": "consumer-curve", target: "curve-action", visited: 1 }]);
-    assert.deepEqual(frame.clipped, ["miss", 1]);
+    assert.equal(frame.sameSlots, true);
+    assert.ok(
+      frame.alpha === 0
+        ? frame.blankDifferingChannels === 0
+        : frame.blankDifferingChannels > (frame.kind.startsWith("arc") ? 100 : 1000),
+      "空绘制负例必须与参考不同；原曲线阈值保留，较小的裁剪弧另设非空门禁",
+    );
+    if (frame.kind === "arc-exit") {
+      assert.deepEqual(frame.hit, ["miss", 0]);
+      assert.deepEqual(frame.clipped, ["miss", 0]);
+    } else if (frame.kind === "arc-reenter") {
+      assert.equal(frame.hit[0], "hit");
+      assert.equal(frame.hit[1].target, "arc-action");
+      assert.equal(frame.hit[1].visited, 1);
+      assert.ok(frame.hit[1]["node-id"].includes("consumer-arc"));
+      assert.deepEqual(frame.clipped, ["miss", 1]);
+    } else {
+      assert.deepEqual(frame.hit, [
+        "hit",
+        { "node-id": `consumer-${frame.kind}`, target: `${frame.kind}-action`, visited: 1 },
+      ]);
+      assert.deepEqual(frame.clipped, ["miss", 1]);
+    }
   }
   for (const [time, x] of [
     [1, 120],

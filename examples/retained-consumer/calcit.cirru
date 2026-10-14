@@ -14,6 +14,60 @@
           :code $ quote $ defstruct InstanceFrame (:index 'Number) (:x 'Number) (:y 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'arc-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-document (time)
+            do
+              assert |invalid-consumer-arc-time $ motion/finite-number? time
+              let
+                  start $ * 0.7 time
+                scene/SceneDocument :nodes $ []
+                  scene/SceneNode :id |arc-root :parent | :key |arc-root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group $ scene/GroupNode :transform (hit/matrix 0 2 -2 0 200 50) :clip
+                    scene/ClipSpec :rect $ scene/ClipRect :x -30 :y -30 :width 40 :height 60
+                    , :opacity 0.4
+                  scene/SceneNode :id |consumer-arc :parent |arc-root :key |consumer-arc :bindings ([]) :interaction (scene/SceneInteraction :target |arc-action) :content $ scene/SceneContent :arc $ scene/ArcNode :cx 0 :cy 0 :radius 20 :start-angle start :end-angle (+ start 1.5707963267948966) :counterclockwise false :width 4 :stroke
+                    motion/ColorRgba :r 0 :g 1 :b 1 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+        'arc-hit-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-hit-plan (time)
+            hit/compile-hit-plan $ arc-document time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'Number
+        'arc-presence-model $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-presence-model (stage)
+            assert |invalid-consumer-arc-presence-stage $ or (= stage |exit) (= stage |reenter)
+            let
+                nodes $ :nodes $ arc-document 0
+                leaf $ &list:nth nodes 1
+                content $ match (:content leaf)
+                  (:arc arc)
+                    scene/SceneContent :arc $ struct-with arc $ :stroke
+                      struct-with (:stroke arc) (:a 0.6)
+                  _ $ raise |expected-consumer-arc
+                document $ scene/SceneDocument :nodes $ assoc nodes 1
+                  struct-with leaf $ :content content
+                exiting $ :model $ presence/reconcile-presence (presence/start-presence document)
+                  scene/SceneDocument :nodes $ []
+                  , 0 1 (motion/Easing :linear)
+              if (= stage |exit) exiting $ :model $ presence/reconcile-presence exiting document 0.5 1 (motion/Easing :linear)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
+            :args $ [] 'String
+        'arc-presence-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-presence-plan (model time)
+            retained/build-component-plan (request time 40 false 320)
+              fn (props ignored input resources viewport)
+                presence-component/declare-tree model (binding/empty-descriptors) ([] |consumer-arc)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.presence/PresenceModel 'Number
+        'arc-presence-sample $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-presence-sample (plan time) (retained/sample-plan-at plan time)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
         'browser-available? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn browser-available? () (browser/document-available?)
           :examples $ []
@@ -424,6 +478,29 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'quamolit.scene-ir/SceneDocument 'Number 'Number
+        'font-hit-plan! $ %{} 'CodeEntry
+          :doc "|独立消费者将既有单文字组件的采样变换接入交互Scene，再仅通过Calcit模块测量/编译文字命中。不在JS实现字体别名或命中，ready同时间更新必须重新提交。"
+          :code $ quote $ defn font-hit-plan! (context plan label)
+            let
+                root $ scene/SceneNode :id |font-hit-root :parent | :key |font-hit-root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group
+                  scene/GroupNode :transform
+                    &list:nth (:transforms plan) 0
+                    , :clip (scene/ClipSpec :none) :opacity 1
+                nodes $ map
+                  :nodes $ :scene plan
+                  fn (node)
+                    struct-with node (:parent |font-hit-root)
+                      :interaction $ scene/SceneInteraction :target |font-label-action
+                      :content $ match (:content node)
+                        (:text text)
+                          scene/SceneContent :text $ struct-with text $ :text label
+                        _ $ :content node
+                document $ scene/SceneDocument :nodes $ prepend nodes root
+              canvas/measure-text-hit-plan! context $ hit/compile-hit-plan document
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.retained-component/ComponentPlan 'String
+            :features $ #{} :js-ffi
         'font-request $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn font-request (time spec)
             component/ComponentRequest :id |consumer-font :time time :versions

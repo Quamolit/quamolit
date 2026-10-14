@@ -1,5 +1,385 @@
 import { expect, test } from "@playwright/test";
 
+test("两个旧decode占槽时，新版本等待排队且不越过有界背压", async ({ page }) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const result = await page.evaluate(async () => {
+    const api = window.layeredDashboardDemo;
+    await api.enableFont();
+    const original = HTMLImageElement.prototype.decode;
+    const picture = (color) =>
+      `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="650" height="432"><rect width="650" height="432" fill="${color}"/></svg>`)}`;
+    const red = picture("red"),
+      green = picture("green"),
+      blue = picture("blue");
+    const gates = new Map();
+    const beginnings = new Map();
+    for (const url of [red, green]) {
+      let release, started;
+      const wait = new Promise((resolve) => {
+        release = resolve;
+      });
+      const began = new Promise((resolve) => {
+        started = resolve;
+      });
+      gates.set(url, { wait, release, started });
+      beginnings.set(url, began);
+    }
+    HTMLImageElement.prototype.decode = function () {
+      return original.call(this).then(() => {
+        const gate = gates.get(this.src);
+        if (gate) {
+          gate.started();
+          return gate.wait;
+        }
+      });
+    };
+    try {
+      const first = api.setImageSource(red);
+      await beginnings.get(red);
+      const second = api.setImageSource(green);
+      await beginnings.get(green);
+      let completed = false;
+      const latest = api.setImageSource(blue).then((value) => {
+        completed = true;
+        return value;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const queued = { ...api.snapshot(), completed };
+      gates.get(red).release();
+      const ready = await latest;
+      const pixels = document.querySelector("canvas").toDataURL();
+      gates.get(green).release();
+      await Promise.all([first, second]);
+      const after = api.snapshot();
+      return { queued, ready, after, samePixels: pixels === document.querySelector("canvas").toDataURL() };
+    } finally {
+      HTMLImageElement.prototype.decode = original;
+      for (const gate of gates.values()) gate.release();
+    }
+  });
+  expect(result.queued.completed).toBe(false);
+  expect(result.queued.imageReady).toBe(false);
+  expect(result.queued.fonts.queue.running).toHaveLength(2);
+  expect(result.queued.fonts.queue.pending).toHaveLength(1);
+  expect(result.ready.imageVersion).toBe(4);
+  expect(result.ready.imageReady).toBe(true);
+  expect(result.ready.fonts.queue.running).toHaveLength(1);
+  expect(result.after.fonts.queue.running).toEqual([]);
+  expect(result.after.fonts.images.created).toBe(3);
+  expect(result.after.fonts.images.released).toBe(2);
+  expect(result.after.fonts.images.handles).toHaveLength(1);
+  expect(result.after.fonts.revision).toBe(result.ready.fonts.revision);
+  expect(result.after.paints).toBe(result.ready.paints);
+  expect(result.samePixels).toBe(true);
+});
+
+test("图片就地重试保留同identity和字体；仅新版本刷新改变version", async ({ page }) => {
+  let attempts = 0;
+  await page.route("**/assets/lotus.jpg", (route) => (++attempts === 1 ? route.abort() : route.continue()));
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const failed = await page.evaluate(async () => {
+    await Promise.all([window.layeredDashboardDemo.enableFont(), window.layeredDashboardDemo.enableImages()]);
+    return window.layeredDashboardDemo.snapshot();
+  });
+  expect(failed.imageError).not.toBe("");
+  expect(failed.imageVersion).toBe(1);
+  await page.getByRole("button", { name: "重试图片", exact: true }).click();
+  await expect
+    .poll(async () => (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).imageReady)
+    .toBe(true);
+  const retried = await page.evaluate(() => window.layeredDashboardDemo.snapshot());
+  expect(retried.imageVersion).toBe(1);
+  expect(retried.imageError).toBe("");
+  expect(retried.fonts.host.accepted).toBe(1);
+  expect(retried.fonts.references).toHaveLength(2);
+  expect(retried.fonts.registry.loads).toBe(3);
+  expect(retried.fonts.images.handles).toHaveLength(1);
+  const events = retried.events;
+  await page.getByRole("button", { name: "刷新图片（新版本）", exact: true }).click();
+  await expect
+    .poll(async () => (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).imageVersion)
+    .toBe(2);
+  await expect
+    .poll(async () => (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).imageReady)
+    .toBe(true);
+  const refreshed = await page.evaluate(() => window.layeredDashboardDemo.snapshot());
+  expect(refreshed.events).toEqual(events);
+  expect(refreshed.time).toBe(retried.time);
+  expect(refreshed.fonts.host.accepted).toBe(1);
+  expect(refreshed.fonts.images.handles).toHaveLength(1);
+  expect(
+    refreshed.scene.nodes.filter((node) => node.content[0] === "image").map((node) => node.content[1].source.version),
+  ).toEqual([2, 2]);
+  const closed = await page.evaluate(() => {
+    const api = window.layeredDashboardDemo;
+    api.dispose();
+    return { ...api.snapshot(), apiRemoved: !window.layeredDashboardDemo };
+  });
+  expect(closed.apiRemoved).toBe(true);
+  expect(closed.fonts.images.created).toBe(closed.fonts.images.released);
+});
+
+test("新图片先就绪，旧版本解码迟到不覆盖、不重绘或阻塞刷新完成", async ({ page }, testInfo) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const result = await page.evaluate(async () => {
+    const api = window.layeredDashboardDemo;
+    await api.enableFont();
+    const original = HTMLImageElement.prototype.decode;
+    const picture = (color) =>
+      `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="650" height="432"><rect width="650" height="432" fill="${color}"/></svg>`)}`;
+    const red = picture("red"),
+      blue = picture("blue");
+    let unlock, started;
+    const gate = new Promise((resolve) => {
+      unlock = resolve;
+    });
+    const began = new Promise((resolve) => {
+      started = resolve;
+    });
+    HTMLImageElement.prototype.decode = function () {
+      return original.call(this).then(() => {
+        if (this.src === red) {
+          started();
+          return gate;
+        }
+      });
+    };
+    try {
+      const stale = api.setImageSource(red);
+      await began;
+      const during = api.snapshot();
+      await api.setImageSource(blue); // 不等待旧版本gate；等到的必须是当前version。
+      const current = api.snapshot(),
+        pixels = document.querySelector("canvas").toDataURL();
+      const canvas = document.querySelector("canvas"),
+        ctx = canvas.getContext("2d");
+      const pixel = [...ctx.getImageData(canvas.width / 2 + 250, canvas.height / 2 - 215, 1, 1).data];
+      unlock();
+      await stale;
+      const after = api.snapshot();
+      return { during, current, after, pixel, samePixels: pixels === canvas.toDataURL() };
+    } finally {
+      HTMLImageElement.prototype.decode = original;
+      unlock();
+    }
+  });
+  expect(result.during.imageVersion).toBe(2);
+  expect(result.during.imageReady).toBe(false);
+  expect(result.current.imageVersion).toBe(3);
+  expect(result.current.imageReady).toBe(true);
+  expect(result.current.fonts.queue.running).toHaveLength(1); // 旧decode仍被有界队列跟踪。
+  expect(result.pixel[2]).toBeGreaterThan(result.pixel[0]); // 实际画面是新蓝图，而非旧红图。
+  expect(result.after.imageVersion).toBe(3);
+  expect(result.after.fonts.queue.running).toEqual([]);
+  expect(result.after.fonts.images.created).toBe(2);
+  expect(result.after.fonts.images.released).toBe(1);
+  expect(result.after.fonts.images.handles).toHaveLength(1);
+  expect(result.after.paints).toBe(result.current.paints);
+  expect(result.after.fonts.revision).toBe(result.current.fonts.revision);
+  expect(result.samePixels).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("current-blue-after-stale-red.png") });
+});
+
+for (const dpr of [1, 2]) {
+  test(`字体与共享图片：独立像素、捕获/resize、100次退出重入与卸载 DPR ${dpr}`, async ({ browser }, testInfo) => {
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 720 },
+      deviceScaleFactor: dpr,
+      reducedMotion: "reduce",
+    });
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    try {
+      await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+      const nativeBefore = await page.evaluate(() => document.fonts.size);
+      const loaded = await page.evaluate(async () => {
+        await Promise.all([window.layeredDashboardDemo.enableFont(), window.layeredDashboardDemo.enableImages()]);
+        return window.layeredDashboardDemo.snapshot();
+      });
+      expect(loaded.imageReady).toBe(true);
+      expect(loaded.fonts.registry.loads).toBe(2);
+      expect(loaded.fonts.references).toHaveLength(2);
+      expect(loaded.fonts.host.accepted).toBe(1);
+      expect(loaded.fonts.images.created).toBe(1);
+      expect(loaded.fonts.images.handles).toHaveLength(1);
+      expect(loaded.scene.nodes.filter((node) => node.content[0] === "image")).toHaveLength(2);
+      expect(loaded.fonts.queue.running).toEqual([]);
+      const compareImageRegion = async (alpha) =>
+        page.evaluate(async (alpha) => {
+          const picture = new Image();
+          picture.src = "/assets/lotus.jpg";
+          await picture.decode();
+          const canvas = document.querySelector("canvas"),
+            cx = canvas.width / 2,
+            cy = canvas.height / 2;
+          const create = () => {
+            const c = document.createElement("canvas");
+            c.width = canvas.width;
+            c.height = canvas.height;
+            return c.getContext("2d");
+          };
+          const expected = create(),
+            panel = create(),
+            cards = create();
+          expected.fillStyle = "rgb(6.375,8.925,17.85)";
+          expected.fillRect(0, 0, canvas.width, canvas.height);
+          panel.fillStyle = "rgb(14.025,19.125,33.15)";
+          panel.fillRect(cx - 410, cy - 270, 820, 540);
+          cards.drawImage(picture, 0, 0, 650, 432, cx + 242, cy - 226, 84, 42);
+          cards.drawImage(picture, 0, 0, 650, 432, cx + 276, cy - 210, 84, 42);
+          panel.globalAlpha = 0.55;
+          panel.drawImage(cards.canvas, 0, 0);
+          expected.globalAlpha = alpha;
+          expected.drawImage(panel.canvas, 0, 0);
+          const actual = canvas
+            .getContext("2d")
+            .getImageData(canvas.width / 2 + 236, canvas.height / 2 - 232, 130, 82).data;
+          const reference = expected.getImageData(cx + 236, cy - 232, 130, 82).data;
+          return {
+            differences: actual.reduce((n, v, i) => n + Number(v !== reference[i]), 0),
+            imageWidth: picture.naturalWidth,
+            imageHeight: picture.naturalHeight,
+          };
+        }, alpha);
+      expect(await compareImageRegion(1)).toEqual({ differences: 0, imageWidth: 650, imageHeight: 432 });
+      const point = await page.locator("canvas").evaluate((canvas) => ({
+        x: (canvas.width / 2 + 250) / devicePixelRatio,
+        y: (canvas.height / 2 - 215) / devicePixelRatio,
+      }));
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.down();
+      expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).captured).not.toBeNull();
+      const start = await page.evaluate(() => window.layeredDashboardDemo.setVisible(false));
+      expect(start.captured).toBeNull();
+      expect(start.fonts.references).toHaveLength(2);
+      await page.mouse.up();
+      await page.evaluate(() => window.layeredDashboardDemo.seek(1.3));
+      expect(await compareImageRegion(0.5)).toEqual({ differences: 0, imageWidth: 650, imageHeight: 432 });
+      await page.screenshot({ path: testInfo.outputPath(`shared-media-mid-dpr${dpr}.png`) });
+      await page.setViewportSize({ width: 1320, height: 740 });
+      await expect
+        .poll(async () => (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).width)
+        .toBe(1320 * dpr);
+      expect(await compareImageRegion(0.5)).toEqual({ differences: 0, imageWidth: 650, imageHeight: 432 });
+      // 像素/resize 已在完整尺寸验证；计数链路使用固定物理尺寸，避免把 100 次重绘变成吞吐基准。
+      await page.setViewportSize({ width: 800 / dpr, height: 600 / dpr });
+      await expect
+        .poll(async () => (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).width)
+        .toBe(800);
+      const lifecycle = await page.evaluate(() => {
+        const api = window.layeredDashboardDemo;
+        api.seek(1.6);
+        const idle = api.snapshot();
+        api.setVisible(true);
+        api.seek(2.2);
+        const cycles = [];
+        for (let i = 0; i < 100; i++) {
+          api.reset();
+          api.seek(1); // 独立生命周期，不把历史日志增长混成资源门禁。
+          const start = api.snapshot().time;
+          api.setVisible(false);
+          api.seek(start + 0.6);
+          const hidden = api.snapshot();
+          api.setVisible(true);
+          api.seek(start + 1.2);
+          const visible = api.snapshot();
+          cycles.push([
+            hidden.fonts.references.length,
+            visible.fonts.references.length,
+            visible.fonts.registry.loads,
+            visible.fonts.images.created,
+          ]);
+        }
+        api.dispose();
+        api.dispose();
+        return { idle, cycles, closed: api.snapshot(), nativeAfter: document.fonts.size };
+      });
+      expect(lifecycle.idle.fonts.references).toEqual([]);
+      expect(lifecycle.idle.fonts.images.handles).toHaveLength(1);
+      expect(lifecycle.cycles).toEqual(Array.from({ length: 100 }, () => [0, 2, 2, 1]));
+      expect(lifecycle.closed.fonts.host.handles).toEqual([]);
+      expect(lifecycle.closed.fonts.host.released).toBe(1);
+      expect(lifecycle.closed.fonts.images.handles).toEqual([]);
+      expect(lifecycle.closed.fonts.images.released).toBe(1);
+      expect(lifecycle.nativeAfter).toBe(nativeBefore);
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+test("共享队列图片解码迟到：卸载后释放候选、不开新帧、不复活字体", async ({ page }) => {
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const result = await page.evaluate(async () => {
+    const api = window.layeredDashboardDemo;
+    const nativeBefore = document.fonts.size;
+    await api.enableFont();
+    const original = HTMLImageElement.prototype.decode;
+    let unlock, started;
+    const gate = new Promise((resolve) => {
+      unlock = resolve;
+    });
+    const began = new Promise((resolve) => {
+      started = resolve;
+    });
+    HTMLImageElement.prototype.decode = function () {
+      return original.call(this).then(() => {
+        started();
+        return gate;
+      });
+    };
+    try {
+      const pending = api.enableImages();
+      await began;
+      const during = api.snapshot();
+      api.dispose();
+      api.dispose();
+      const closed = api.snapshot();
+      unlock();
+      await pending;
+      return { during, closed, after: api.snapshot(), nativeBefore, nativeAfter: document.fonts.size };
+    } finally {
+      HTMLImageElement.prototype.decode = original;
+      unlock();
+    }
+  });
+  expect(result.during.fonts.queue.running).toHaveLength(1);
+  expect(result.during.fonts.references).toHaveLength(2);
+  expect(result.after.fonts.queue.running).toEqual([]);
+  expect(result.after.fonts.host.handles).toEqual([]);
+  expect(result.after.fonts.images.handles).toEqual([]);
+  expect(result.after.fonts.images.created).toBe(1);
+  expect(result.after.fonts.images.released).toBe(1);
+  expect(result.after.fonts.revision).toBe(result.closed.fonts.revision);
+  expect(result.after.paints).toBe(result.closed.paints);
+  expect(result.after.pending).toBe(false);
+  expect(result.nativeAfter).toBe(result.nativeBefore);
+});
+
+test("共享队列图片失败：字体仍可使用，原卡片保留且错误可见", async ({ page }) => {
+  await page.route("**/assets/lotus.jpg", (route) => route.abort());
+  await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+  const state = await page.evaluate(async () => {
+    await Promise.all([window.layeredDashboardDemo.enableFont(), window.layeredDashboardDemo.enableImages()]);
+    return window.layeredDashboardDemo.snapshot();
+  });
+  expect(state.imageReady).toBe(false);
+  expect(state.mediaError).not.toBe("");
+  expect(state.fonts.host.accepted).toBe(1);
+  expect(state.fonts.host.handles).toHaveLength(1);
+  expect(state.fonts.images.handles).toEqual([]);
+  expect(state.fonts.images.created).toBe(state.fonts.images.released);
+  expect(state.fonts.queue.running).toEqual([]);
+  expect(state.scene.nodes.filter((node) => node.content[0] === "image")).toEqual([]);
+  expect(state.scene.nodes.filter((node) => /overlap-[ab]$/.test(node.id)).map((node) => node.content[0])).toEqual([
+    "rect",
+    "rect",
+  ]);
+  await expect(page.locator("#media-status")).toContainText("资源错误");
+});
+
 for (const dpr of [1, 2]) {
   test(`图表换类型保留旧图退出与新图进入，快速切回连续 DPR ${dpr}`, async ({ browser }, testInfo) => {
     const context = await browser.newContext({

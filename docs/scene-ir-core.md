@@ -64,19 +64,37 @@ Presence 文字可复用同一共享入口：`presence-font-references(model)` �
 
 `SceneContent :arc` 使用纯数据 `ArcNode { cx, cy, radius, start-angle, end-angle, counterclockwise, width, stroke }`，由 `canvas-reference/draw-arc!` 调用 js-ffi 已类型化的 `CanvasContextHost.arc!`。不添加专属 JS wrapper，不在应用或绘制器中离散折线。中心、半径、角度与宽度必须有限；半径大于零，宽度非负，颜色沿用 ColorRgba。宽度为零不绘制。
 
-角度为弧度，零角朝右；CSS 坐标中 `counterclockwise=false` 顺时针，`true` 逆时针。起止角不预先取模：按 [HTML Canvas arc 规范](https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-arc)，所选方向的跨度至少 `2π` 才画完整圆；跨零遵循所选方向，相同起止角按原生零长度路径处理，不自动改成完整圆。固定圆头、开放描边，无填充、扇区闭合、dash 或可选 lineCap。每条弧独立 beginPath，不连接上一条弧；不 closePath，以免引入径向线段。
+角度为弧度，零角朝右；CSS 坐标中 `counterclockwise=false` 顺时针，`true` 逆时针。起止角不预先取模：按 [HTML Canvas arc 规范](https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-arc)，所选方向的跨度至少 `2π` 时画完整圆；跨零遵循所选方向，相同起止角按原生零长度路径处理，不自动改成完整圆。固定圆头、开放描边，无填充、扇区闭合、dash 或可选 lineCap。每条弧独立 beginPath，不连接上一条弧；不 closePath，以免引入径向线段。
 
 几何签名包含中心、半径、两个角度、方向和宽度，颜色只进入属性签名，无宿主资源字段。`draw-reference!` 支持顶层弧；`canvas-scene/draw-document!` 支持原有祖先 transform/clip/隔离 opacity，绝对根变换由 Scene 提供（包括 DPR），不是继承调用者 context 的外部变换。
 
 复用 `test:scene-core` 的原生/Node 门禁及 `test:motion-browser` 的 Scene 浏览器门禁：DPR1/2、乱序0/0.5/2.5秒、顺逆/跨零/完整圆/相同角度/零宽、圆头，与独立原生 Canvas 整帧 RGBA 零差异比较；错误方向/圆头是必需负例。`test:gpu-component` 检查完整图层 fallback 与节点身份诊断 `unsupported-node:arc`，不静默丢弧，不将 mock 或 Canvas 对照当真实 GPU 通过。
 
-这是实验性 Scene 扩展：目前 WebGPU 无圆弧实现，矩形组件 GPU 入口明确整层回退；图片专属 GPU 入口仍预检拒绝非支持图元。弧的独立命中/指针目标、标量绑定和 retained-path 专用入口未实现，不以整圆命中或折线近似偷偷替代；绑定明确拒绝 `unsupported-arc-binding`，应用可以重新声明显式时间采样的弧。首次实际迁移对象是 Discs Vortex；待新 tag 后撤销其点离散绕过，并按原圈数/速度/DPR生产门禁复验，再收口 #212。
+`scene-hit` 新增纯 Calcit 圆弧描边命中，复用 `HitPlan` 的逆祖先变换、clip、层序与 disabled 过滤。按角域和径向距离判断弧段，并包含半宽圆头；不转成折线、不把部分弧当完整圆、不命中空心区域。零宽不命中；相同角度的原生 round cap 仍有半宽圆盘，不能当作空路径。所选方向至少一圈以及反方向恰好整圈遵循当前 Chromium 完整圆的实际行为，后者不能仅取模后当成零长度。
+
+`test:scene-hit` 与 `test:scene-pointer` 覆盖原生 Calcit 的方向、跨零、圆头、完整圈、零宽以及捕获/禁用协调；`test:curve-demo` 复用现有浏览器文件，在 DPR1/2 下逐点比较 13 种弧形与独立 `Canvas.isPointInStroke`，并比较旋转、非均匀缩放和矩形裁剪后的实际 HitPlan。原生几何放大64倍以减少浏览器内部路径离散误差，逐点断言零差异；默认尺寸原生差异单独记录，不扩张 Calcit 轮廓或修改像素容差。`test:scene-pointer-browser` 验证真实鼠标拒绝空心/缺口、按下捕获、画布外投递、无新输入的禁用释放和重复提交幂等。这不是全浏览器/极端浮点域验收，也没有新增性能结论。
+
+圆弧现在支持既有 `ScalarTarget :alpha`，与折线一致覆盖 `stroke.a`，不隐式乘原始 alpha；需要相乘时在 Motion 描述中表达最终值。`scene-binding/resolve-scene` 与 `retained-component` 的预编译标量 slot 复用同一赋值逻辑；仅时间变化不必重新声明几何。`test:retained-component` 检查原生 Calcit、乱序/重复/区间外时间、旧帧不可变及1000帧声明/构建各1、同一slots身份；DPR1/2 的初始/中间/终点与独立原生 Canvas 整帧RGBA零差异。上述计数不等于帧率或几何内存复用证明。不能通过 alpha=0 自动禁用交互，退出仍须显式 disabled。
+
+Presence 的 `leaf-alpha` / `tree-alpha` 也识别原生弧；原有 `declare-flat` 和按fade-ids选择的 `declare-tree` 复用同一生命周期，不新建出入场API。Presence 将原始 `stroke.a` 乘入阶段 tween 的端点，再通过上述绝对alpha绑定提交。回归使用原始alpha=0.6，覆盖进入、退出、25/50/75%退出途中重入、乱序采样和终点恰好一次释放；DPR1/2共46帧（含原直接绑定场景）对独立原生Canvas逐通道零差异。平面退出仍采用原来的 `:none` 交互策略，嵌套树退出使用既有disabled协议；这个切片不证明一般嵌套弧的GPU合成或缓存性能。
+
+这是实验性 Scene 扩展：目前 WebGPU 无圆弧实现，矩形组件 GPU 入口明确整层回退；图片专属 GPU 入口仍预检拒绝非支持图元。中心、半径、起止角和宽度的标量绑定及 retained-path 专用入口未实现，非alpha目标仍明确拒绝 `unsupported-arc-binding`；应用可以重新声明显式时间采样的弧。Discs Vortex 已通过合并 PR #7 消费正式 alpha.4 原生弧，保留原圈数/速度与 DPR 生产门禁；本次命中/alpha扩展尚未发布，不把已有 tag 的能力扩大。
 
 `SceneContent :cubic-path` 使用 `CubicPathNode { start, segments, width, stroke }`；每个 `CubicSegment` 明确保存 `control-1`、`control-2`、`end` 三个有限 `Vec2`。路径至少一段、宽度必须有限且大于零。`SceneContent :circle` 使用 `CircleNode { cx, cy, radius, width, fill, stroke }`；半径必须为正，描边宽度非负。两者均是纯 Calcit 数据：几何与属性签名参与 `scene-diff`，不携带 Canvas 句柄。
 
 `canvas-reference` 直接调用 js-ffi `CanvasContextHost` 上已类型化的 `bezier-curve-to!` 与 `arc!`，没有 Quamolit 专用 JavaScript wrapper。Curve 和 Solar 分别作为 32 段 cubic 与 10 个 circle 的首批用户；旧 16 步/48 边近似只保留为测试误差基准。`retained-path`、标量绑定与 WebGPU 后端目前明确拒绝这两类新节点，后续支持必须单独声明语义，不得静默降级为折线。
 
 树的 `scene-at(time, depth)` 与浏览器入口现已消费该正式 IR；旧 `RoundPolyline` API 委托同一 `draw-round-path!` 原语，没有另建 JS renderer。`yarn test:binary-tree` 验证序列化、身份、几何/属性失效、非法与不支持场景的零副作用；`test/scene-core.spec.mjs` 用原生 Canvas 独立像素参考验证半透明矩形/折线层序，并以倒序绘制作为负例。仍是全量参考实现，不能用这项集成声称跨帧缓存或 GPU 提速。下一步为 #50 的路径保留计划及同源全量/保留对照。
+
+## #34/#53 文字墨迹命中计划（候选）
+
+在 `compile-hit-plan` 或 `compile-hit-plan-with-positions` 后调用 `resolve-text-hit-plan(plan, lookup)`，即可把所有交互文字的测量快照解析进同一个 HitPlan。`lookup(TextNode) -> TextHitMetrics` 返回纯 Calcit 数据：font、size、text 与 left/right/ascent/descent 四个有符号墨迹距离。测量必须采用绘制的 left/middle/ltr 约定；不是 advance width、逐 glyph 轮廓或像素 picking。`text-hit-bounds` 核对完整 FontSpec（含版本）、字号与文本，拒绝非有限距离、负总宽高及运算溢出，按 x-left、y-ascent 计算局部矩形。单个距离允许为负，零面积不命中。
+
+已解析候选沿用祖先逆变换、clip、禁用与逆绘制层序；查询不调用 lookup，不测量文字，不改变原计划。位置不属于测量身份，因此移动可复用同一度量快照，但必须按新 Scene 重建/解析边界。字体 ready/fallback 改变时，调用方须重新测量并提交新计划，即使时间、FontSpec.version 相同也不能沿用旧结果；此切片尚未实现自动资源接线、缓存或失效计数。未调用 resolver 的旧文字入口仍使用近似宽度，仅为兼容保留，不能称为精确命中。
+
+`canvas-reference/measure-text-hit!` 以纯 Calcit 配置与绘制相同的字体别名、left/middle/ltr，原生测量一次，受检 cast 后转成纯数据，成功/异常均恢复宿主状态，不改变当前 path/pixels、不加载字体。按 Calcit `try` 契约传递错误消息，恢复后 `raise`，不保持 JS Error 对象身份。`measure-text-hit-plan!` 将同一逻辑接入现有候选计划，非文字候选保持身份。通用平台类型化原语在 [js-ffi PR177](https://github.com/calcit-lang/js-ffi/pull/177)，尚未发布；暂用局部 `NativeTextInkHost` 只读 Trait，正式tag可用后改引上游并删除该Trait，不增加生产JS或虚构依赖版本。
+
+现有 `test:scene-hit` 增加手算有符号边界、身份/非法数据拒绝及旋转/裁剪用例；`test:curve-demo` 在DPR1/2用三字体、中文/非等宽/空文本验证原生参考与Calcit测量计划，并确认1000次查询不再测量、禁用文字不请求测量，宿主样式/当前path/pixels不变。Node测试缺字段、非有限值与原生异常的restore合同。独立消费者沿既有中文组件、采样变换和字体加载入口调用Calcit模块，验证乱序时间命中与同时间/同字体版本ready后的重新提交；没有在测试JS中实现度量适配或命中。此入口是显式重新测量，不是自动资源失效/cache；实际看板接线、仅移动时复用的布局/测量计数与完整迟到资源矩阵仍待完成，不以本候选关闭 #34/#53/M3。
 
 ## #53 图片 Scene 参考路径
 

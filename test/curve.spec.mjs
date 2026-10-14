@@ -6,6 +6,176 @@ async function ready(page, time = 30) {
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
 }
 
+for (const dpr of [1, 2])
+  test(`文字墨迹命中计划：DPR ${dpr} 原生度量、祖先裁剪与查询复用`, async ({ page }) => {
+    await ready(page);
+    const result = await page.evaluate(async (scale) => {
+      const core = await import("/target/js/curve/calcit.core.mjs");
+      const ir = await import("/target/js/curve/quamolit.scene-ir.mjs");
+      const motion = await import("/target/js/curve/quamolit.motion.mjs");
+      const hit = await import("/target/js/curve/quamolit.scene-hit.mjs");
+      const canvas = await import("/target/js/curve/quamolit.canvas-reference.mjs");
+      const tags = core.init_tags([
+        "font",
+        "family",
+        "fallback",
+        "version",
+        "size",
+        "text",
+        "fill",
+        "x",
+        "y",
+        "left",
+        "right",
+        "ascent",
+        "descent",
+        "r",
+        "g",
+        "b",
+        "a",
+        "c",
+        "d",
+        "e",
+        "f",
+        "id",
+        "key",
+        "parent",
+        "bindings",
+        "interaction",
+        "content",
+        "target",
+        "none",
+        "disabled",
+        "nodes",
+        "group",
+        "transform",
+        "clip",
+        "opacity",
+        "rect",
+        "width",
+        "height",
+        "serif",
+        "sans-serif",
+        "monospace",
+      ]);
+      const record = (type, fields) =>
+        core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([k, v]) => [tags[k], v]));
+      const value = (type, key, ...args) => core._PCT__$o__$o_(type, tags[key], ...args);
+      const color = record(motion.ColorRgba, { r: 1, g: 0, b: 0, a: 1 });
+      let mismatches = 0,
+        approximateDifferences = 0,
+        queries = 0,
+        measured = 0;
+      for (const fallback of ["serif", "sans-serif", "monospace"])
+        for (const text of ["WWWWiiii", "jÁgy", "中文", ""]) {
+          const font = record(ir.FontSpec, { family: "", fallback: value(ir.FontFallback, fallback), version: 0 });
+          const textNode = record(ir.TextNode, { x: 10, y: 20, size: 24, text, fill: color, font });
+          const leaf = record(ir.SceneNode, {
+            id: "ink",
+            key: "ink",
+            parent: "root",
+            bindings: core.arrayToList([]),
+            interaction: value(ir.SceneInteraction, "target", "ink-action"),
+            content: value(ir.SceneContent, "text", textNode),
+          });
+          const root = record(ir.SceneNode, {
+            id: "root",
+            key: "root",
+            parent: "",
+            bindings: core.arrayToList([]),
+            interaction: value(ir.SceneInteraction, "none"),
+            content: value(
+              ir.SceneContent,
+              "group",
+              record(ir.GroupNode, {
+                transform: record(ir.Matrix2D, { a: 0, b: 2, c: -2, d: 0, e: 220, f: 30 }),
+                clip: value(ir.ClipSpec, "rect", record(ir.ClipRect, { x: 0, y: 0, width: 90, height: 50 })),
+                opacity: 0,
+              }),
+            ),
+          });
+          const documentOf = (parent) => record(ir.SceneDocument, { nodes: core.arrayToList([parent, leaf]) });
+          const context = document.createElement("canvas").getContext("2d");
+          context.scale(scale, scale);
+          context.font = `24px ${fallback}`;
+          context.textAlign = "left";
+          context.textBaseline = "middle";
+          context.direction = "ltr";
+          // 原生参考独立测量；实际配置、受检Trait、快照和计划解析全部调用Calcit入口。
+          const reference = context.measureText(text);
+          let calls = 0;
+          const nativeMeasure = context.measureText.bind(context);
+          context.measureText = (content) => {
+            calls++;
+            return nativeMeasure(content);
+          };
+          context.font = "10px sans-serif";
+          context.textAlign = "right";
+          context.textBaseline = "top";
+          context.direction = "rtl";
+          context.fillRect(1, 1, 3, 3);
+          context.beginPath();
+          context.rect(1, 1, 5, 5);
+          const pixels = Array.from(context.getImageData(0, 0, 300, 150).data);
+          const plan = canvas.measure_text_hit_plan_$x_(context, hit.compile_hit_plan(documentOf(root)));
+          if (
+            context.font !== "10px sans-serif" ||
+            context.textAlign !== "right" ||
+            context.textBaseline !== "top" ||
+            context.direction !== "rtl" ||
+            !context.isPointInPath(3 * scale, 3 * scale) ||
+            Array.from(context.getImageData(0, 0, 300, 150).data).some((v, i) => v !== pixels[i])
+          )
+            throw Error("text measurement leaked context/path/pixels");
+          const left = 10 - reference.actualBoundingBoxLeft,
+            right = 10 + reference.actualBoundingBoxRight;
+          const top = 20 - reference.actualBoundingBoxAscent,
+            bottom = 20 + reference.actualBoundingBoxDescent;
+          for (let x = -3; x <= 110; x += 2)
+            for (let y = 0; y <= 52; y += 2) {
+              const expected =
+                x >= 0 &&
+                x <= 90 &&
+                y >= 0 &&
+                y <= 50 &&
+                right > left &&
+                bottom > top &&
+                x >= left &&
+                x <= right &&
+                y >= top &&
+                y <= bottom;
+              const actual = core.to_js_data(hit.hit_test_plan(plan, 220 - 2 * y, 30 + 2 * x))[0] === "hit";
+              if (actual !== expected) mismatches++;
+              const approximate =
+                x >= 0 &&
+                x <= 90 &&
+                y >= 0 &&
+                y <= 50 &&
+                x >= 10 &&
+                x <= 10 + 24 * 0.6 * text.length &&
+                y >= 8 &&
+                y <= 32;
+              if (approximate !== expected) approximateDifferences++;
+              queries++;
+            }
+          for (let query = 0; query < 1000; query++) hit.hit_test_plan(plan, 180, 60);
+          if (calls !== 1) throw Error(`query remeasured text: ${calls}`);
+          measured += calls;
+          const disabled = canvas.measure_text_hit_plan_$x_(
+            context,
+            hit.compile_hit_plan(documentOf(root.assoc(tags.interaction, value(ir.SceneInteraction, "disabled")))),
+          );
+          if (calls !== 1) throw Error("disabled text measured");
+          if (core.to_js_data(hit.hit_test_plan(disabled, 180, 60))[0] !== "miss") mismatches++;
+        }
+      return { mismatches, approximateDifferences, queries, measured };
+    }, dpr);
+    expect(result.mismatches).toBe(0);
+    expect(result.approximateDifferences).toBeGreaterThan(0);
+    expect(result.queries).toBe(18468);
+    expect(result.measured).toBe(12);
+  });
+
 async function captureStage(page, testInfo, name) {
   await page.screenshot({ path: testInfo.outputPath(`curve-${name}-overlay.png`) });
   await page.locator("#panel-toggle").click();
@@ -185,6 +355,199 @@ for (const dpr of [1, 2])
       expect(result.negativeDiffering).toBeGreaterThan(100 * dpr * dpr);
       expect(result.restored).toEqual(["square", "bevel", 1, 20, "#ff0000"]);
     }
+  });
+
+for (const dpr of [1, 2])
+  test(`圆弧独立命中：DPR ${dpr} 方向、圆头与祖先变换裁剪`, async ({ page }, testInfo) => {
+    await ready(page);
+    const results = await page.evaluate(async (scale) => {
+      const core = await import("/target/js/curve/calcit.core.mjs");
+      const ir = await import("/target/js/curve/quamolit.scene-ir.mjs");
+      const motion = await import("/target/js/curve/quamolit.motion.mjs");
+      const hit = await import("/target/js/curve/quamolit.scene-hit.mjs");
+      const tags = core.init_tags([
+        "cx",
+        "cy",
+        "radius",
+        "start-angle",
+        "end-angle",
+        "counterclockwise",
+        "width",
+        "stroke",
+        "r",
+        "g",
+        "b",
+        "a",
+        "arc",
+        "nodes",
+        "id",
+        "parent",
+        "key",
+        "bindings",
+        "interaction",
+        "content",
+        "target",
+        "disabled",
+        "group",
+        "transform",
+        "clip",
+        "opacity",
+        "rect",
+        "x",
+        "y",
+        "height",
+        "c",
+        "d",
+        "e",
+        "f",
+      ]);
+      const record = (type, fields) =>
+        core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([k, v]) => [tags[k], v]));
+      const color = record(motion.ColorRgba, { r: 1, g: 0, b: 0, a: 1 });
+      const results = [];
+      for (const [start, end, ccw, width] of [
+        [0.2, 2.4, false, 8],
+        [5, 1, false, 8],
+        [1, 5, true, 8],
+        [0.2, 2.4, true, 8],
+        [-8, -3, false, 8],
+        [0, 2 * Math.PI, false, 8],
+        [0, -2 * Math.PI, true, 8],
+        [0, 4 * Math.PI, false, 8],
+        [0, -2 * Math.PI, false, 8],
+        [1, 1, false, 8],
+        [1, 1, true, 8],
+        [0.2, 2.4, false, 0],
+        [0.2, 2.4, false, 100],
+      ]) {
+        const content = core._PCT__$o__$o_(
+          ir.SceneContent,
+          tags.arc,
+          record(ir.ArcNode, {
+            cx: 64,
+            cy: 64,
+            radius: 40,
+            "start-angle": start,
+            "end-angle": end,
+            counterclockwise: ccw,
+            width,
+            stroke: color,
+          }),
+        );
+        const leaf = record(ir.SceneNode, {
+          id: "arc",
+          key: "arc",
+          parent: "root",
+          bindings: core.arrayToList([]),
+          interaction: core._PCT__$o__$o_(ir.SceneInteraction, tags.target, "arc-action"),
+          content,
+        });
+        const root = record(ir.SceneNode, {
+          id: "root",
+          key: "root",
+          parent: "",
+          bindings: core.arrayToList([]),
+          interaction: core._PCT__$o__$o_(ir.SceneInteraction, tags.target, "root-action"),
+          content: core._PCT__$o__$o_(
+            ir.SceneContent,
+            tags.group,
+            record(ir.GroupNode, {
+              transform: record(ir.Matrix2D, { a: 0, b: 2, c: -0.5, d: 0, e: 200, f: 30 }),
+              clip: core._PCT__$o__$o_(
+                ir.ClipSpec,
+                tags.rect,
+                record(ir.ClipRect, { x: 20, y: 20, width: 70, height: 80 }),
+              ),
+              opacity: 0,
+            }),
+          ),
+        });
+        const sceneDocument = record(ir.SceneDocument, { nodes: core.arrayToList([root, leaf]) });
+        const plan = hit.compile_hit_plan(sceneDocument);
+        const disabled = hit.compile_hit_plan(
+          record(ir.SceneDocument, {
+            nodes: core.arrayToList([
+              root.assoc(tags.interaction, core._PCT__$o__$o_(ir.SceneInteraction, tags.disabled)),
+              leaf,
+            ]),
+          }),
+        );
+        // 与现有 cubic 门禁一致，放大原生几何减少浏览器内部路径离散误差。
+        // 默认尺寸的差异另行记录；数学命中不因此扩张轮廓或设置容差。
+        const nativeStroke = (precision) => {
+          const context = document.createElement("canvas").getContext("2d");
+          context.scale(scale, scale);
+          context.lineWidth = width ? width * precision : 1;
+          context.lineCap = "round";
+          context.beginPath();
+          context.arc(64 * precision, 64 * precision, 40 * precision, start, end, ccw);
+          return (x, y) => width > 0 && context.isPointInStroke(x * precision * scale, y * precision * scale);
+        };
+        const native = nativeStroke(64),
+          defaultNative = nativeStroke(1);
+        let differences = 0,
+          defaultDifferences = 0,
+          samples = 0,
+          hits = 0,
+          planDifferences = 0;
+        const mismatches = [];
+        // 离轴点不借用像素 AA；整圆、零长度、宽描边与圆头均由原生路径独立判断。
+        for (let y = -10.29; y < 140; y += 2.7)
+          for (let x = -10.37; x < 140; x += 2.9) {
+            const expected = native(x, y);
+            const actual = hit.local_hit_$q_(content, x, y);
+            if (actual !== defaultNative(x, y)) defaultDifferences++;
+            samples++;
+            hits += Number(expected);
+            if (actual !== expected) {
+              differences++;
+              if (mismatches.length < 4) mismatches.push({ x, y, actual, expected });
+            }
+            const worldX = 200 - 0.5 * y,
+              worldY = 30 + 2 * x;
+            const outcome = core.to_js_data(hit.hit_test_plan(plan, worldX, worldY));
+            const expectedPlan = expected && x >= 20 && x <= 90 && y >= 20 && y <= 100;
+            if ((outcome[0] === "hit") !== expectedPlan) planDifferences++;
+            if (outcome[0] === "hit" && (outcome[1].target !== "arc-action" || outcome[1]["node-id"] !== "arc"))
+              planDifferences++;
+          }
+        results.push({
+          start,
+          end,
+          width,
+          differences,
+          defaultDifferences,
+          planDifferences,
+          samples,
+          hits,
+          mismatches,
+          candidates: hit.candidate_count(plan),
+          disabled: hit.candidate_count(disabled),
+        });
+      }
+      return results;
+    }, dpr);
+    await testInfo.attach(`arc-hit-native-dpr${dpr}`, {
+      body: JSON.stringify({ dpr, nativeGeometryScale: 64, results }, null, 2),
+      contentType: "application/json",
+    });
+    console.log("arc-hit-native", {
+      dpr,
+      samples: results.reduce((sum, result) => sum + result.samples, 0),
+      differences: results.reduce((sum, result) => sum + result.differences, 0),
+      defaultDifferences: results.reduce((sum, result) => sum + result.defaultDifferences, 0),
+      planDifferences: results.reduce((sum, result) => sum + result.planDifferences, 0),
+    });
+    expect(results).toHaveLength(13);
+    for (const result of results) {
+      expect(result.differences, JSON.stringify(result)).toBe(0);
+      expect(result.planDifferences, JSON.stringify(result)).toBe(0);
+      expect(result.samples).toBeGreaterThan(2000);
+      expect(result.candidates).toBe(1);
+      expect(result.disabled).toBe(0);
+    }
+    expect(results[0].hits).toBeGreaterThan(0);
+    expect(results.reduce((sum, result) => sum + result.defaultDifferences, 0)).toBeGreaterThan(0);
   });
 
 for (const dpr of [1, 2])

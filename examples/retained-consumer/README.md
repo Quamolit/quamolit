@@ -34,7 +34,11 @@ calcit query def app.main/update-plan --raw
 
 ## 隔离门禁
 
-同一个消费方 Snapshot 还提供 `curve-document(time)`、`curve-hit-plan(time)`、`curve-hit(plan,x,y)` 与 `draw-curve!(context,document)`：只引用 Quamolit 的实验性 Calcit Scene/HitPlan/Canvas API，自己声明绝对时间曲线、90°旋转、2倍缩放和祖先裁剪。既有 `test:consumer` 从安装后搬移的产物执行Node和浏览器验证，保存 `consumer-curve-<time>-{actual,expected}.png`；这不是新页面模式或GPU曲线实现。默认依赖固定到已推送的曲线候选0a7fa89，发布tag后仍须重跑；旧候选可能编译成功但不支持曲线命中，不能作为本切片验收。
+同一个消费方 Snapshot 还提供 `curve-document(time)`、`curve-hit-plan(time)`、`curve-hit(plan,x,y)` 与 `draw-curve!(context,document)`：只引用 Quamolit 的实验性 Calcit Scene/HitPlan/Canvas API，自己声明绝对时间曲线、90°旋转、2倍缩放和祖先裁剪。`arc-document(time)` / `arc-hit-plan(time)` 进一步验证原生圆弧事件目标、圆头、空心、缺口、clip与乱序时间，不从作者测试namespace导入构造器。既有 `test:consumer` 从安装后搬移的产物执行Node和浏览器验证，保存 `consumer-curve-<time>-{actual,expected}.png`；这不是新页面模式或GPU曲线实现。默认依赖固定到已推送的圆弧/Presence候选ac3c9e4（Calcit/runtime0.29.3、js-ffi0.2.3），发布tag后仍须重跑；旧候选可能编译成功但缺少对应能力，不能作为本切片验收。
+
+`arc-presence-model(stage)`、`arc-presence-plan(model,time)`、`arc-presence-sample(plan,time)` 在消费方Calcit中调用公共Presence树声明与保留计划，不引入作者测试代码或JS动画函数。原始alpha=0.6的弧在旋转2倍、祖先clip与组opacity=0.4下退出/重入；乱序采样复用同一slots，退出立即disabled、重入恢复target。既有Node/浏览器门禁保留原曲线与弧帧，新增10个生命周期帧对独立原生隔离Canvas全RGBA零差异，包含透明终点，不放宽原非空帧阈值。静态依赖现固定ac3c9e4（含Presence），尚未发布；artifact用`consumer-arc-exit-*` / `consumer-arc-reenter-*`命名。
+
+The same isolated Calcit consumer declares native arcs, HitPlans and Presence trees. Its own Calcit functions own lifecycle intent and retained sampling; browser frames compare shuffled exit/reentry under ancestor transforms, clipping and group opacity with an independent native Canvas reference. Exit disables interaction immediately and reentry restores the target. The pinned commit is unpublished; no framework JavaScript or test namespace imports are required.
 
 页面可在“线性矩形 + 折线”、“位置与尺寸渐变”与“Presence 生命周期”之间切换，后两者也可通过 `?motion=dual` / `?motion=presence` 直接进入。位置与尺寸声明仍由 Calcit 的 `declare-dual` 创建，同一参数供 `start-dual` / `update-dual` 的 Canvas 参考和 GPU 程序使用。切换声明时重建计划，保留当前显式时间/Model，不在旧声明的相同版本上错误复用结构。
 
