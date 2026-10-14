@@ -2,6 +2,7 @@
 import * as finder from "../../target/js/finder/quamolit.examples.finder.mjs";
 import { to_js_data } from "../../target/js/finder/calcit.core.mjs";
 import { draw_reference_$x_ } from "../../target/js/finder/quamolit.canvas-reference.mjs";
+import { contain_matrix, frame_matrix } from "../../target/js/finder/quamolit.scene-ir.mjs";
 import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
 const canvas = document.querySelector("#scene"), context = canvas.getContext("2d");
@@ -31,7 +32,10 @@ function draw() {
   const nextHitPlan = finder.hit_plan(model,time,displayed);
   const width = Math.max(1, Math.round(bounds.width * dpr)), height = Math.max(1, Math.round(bounds.height * dpr));
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
-  view = compact ? {scale:dpr,x:width/2,y:finder.compact_view_y(bounds.height,scroll)*dpr} : { scale: Math.min(width / 1100, height / 800), x: panel.hidden ? width / 2 : width * 0.38, y: height / 2 };
+  const frame = to_js_data(compact
+    ? frame_matrix(width,height,dpr,0.5,0,0,finder.compact_view_y(bounds.height,scroll))
+    : contain_matrix(width,height,1100,800,panel.hidden ? 0.5 : 0.38,0.5));
+  view = {scale:frame.a,x:frame.e,y:frame.f};
   context.setTransform(1, 0, 0, 1, 0, 0); context.clearRect(0, 0, width, height);
   context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
   draw_reference_$x_(context, displayed);

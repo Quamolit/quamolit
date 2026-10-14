@@ -9,6 +9,35 @@ import * as motion from "../target/js/motion/quamolit.motion.mjs";
 import * as diff from "../target/js/motion/quamolit.scene-diff.mjs";
 import * as binding from "../target/js/motion/quamolit.scene-binding.mjs";
 
+test("共享呈现矩阵：contain、CSS像素锚点偏移、非法值与溢出", () => {
+  const frame = (...args) => toJsData(scene.frame_matrix(...args));
+  const contain = (...args) => toJsData(scene.contain_matrix(...args));
+  assert.deepEqual(contain(1000, 500, 800, 1000, 0.38, 0.5), { a: 0.5, b: 0, c: 0, d: 0.5, e: 380, f: 250 });
+  assert.deepEqual(frame(780, 1688, 2, 0.5, 0, 0, 100), { a: 2, b: 0, c: 0, d: 2, e: 390, f: 200 });
+  for (const bad of [NaN, Infinity, -Infinity]) {
+    for (let field = 0; field < 7; field++) {
+      const values = [1000, 500, 2, 0.5, 0.5, 0, 0];
+      values[field] = bad;
+      assert.throws(() => frame(...values));
+    }
+    for (let field = 0; field < 6; field++) {
+      const values = [1000, 500, 800, 1000, 0.5, 0.5];
+      values[field] = bad;
+      assert.throws(() => contain(...values));
+    }
+  }
+  for (const bad of [0, -1]) {
+    for (let field = 0; field < 4; field++) {
+      const values = [1000, 500, 800, 1000, 0.5, 0.5];
+      values[field] = bad;
+      assert.throws(() => contain(...values));
+    }
+    assert.throws(() => frame(1000, 500, bad, 0.5, 0.5, 0, 0));
+  }
+  assert.throws(() => frame(1000, 500, Number.MAX_VALUE, 0.5, 0.5, 2, 0));
+  assert.throws(() => contain(Number.MIN_VALUE, Number.MIN_VALUE, Number.MAX_VALUE, Number.MAX_VALUE, 0.5, 0.5));
+});
+
 test("圆弧声明的数值、几何/颜色失效与明确的绑定边界 (#212)", () => {
   const tags = core.init_tags([
     "cx",
