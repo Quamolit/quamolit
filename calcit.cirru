@@ -1312,6 +1312,43 @@
           :code $ quote $ defstruct ComponentRequest ([] 'P 'M 'I 'R 'V) (:id 'String) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:props 'P) (:model 'M) (:input 'I) (:resources 'R) (:viewport 'V)
           :examples $ []
           :schema $ :: 'StructDef
+        'color-channel-descriptor $ %{} 'CodeEntry
+          :doc "|颜色声明内部 lowering：RGB 解码为线性光，alpha 不编码；生成节点、原描述身份、通道共同决定的标量 ID。调用方使用 with-rect-color-motion。"
+          :code $ quote $ defn color-channel-descriptor (descriptor node-id target)
+            let
+                channel $ fn (color)
+                  hint-fn $ {} (:return 'Number)
+                    :args $ [] 'quamolit.motion/ColorRgba
+                  match target
+                    (:linear-red)
+                      motion/srgb-to-linear $ :r color
+                    (:linear-green)
+                      motion/srgb-to-linear $ :g color
+                    (:linear-blue)
+                      motion/srgb-to-linear $ :b color
+                    (:alpha) (:a color)
+                    _ $ raise |invalid-rect-color-target
+                suffix $ match target
+                  (:linear-red) |r
+                  (:linear-green) |g
+                  (:linear-blue) |b
+                  (:alpha) |a
+                  _ $ raise |invalid-rect-color-target
+                scalar $ match (:motion descriptor)
+                  (:constant color)
+                    motion/ScalarMotion :constant $ channel color
+                  (:tween tween)
+                    motion/ScalarMotion :tween $ motion/ScalarTween :start (:start tween) :duration (:duration tween) :from
+                      channel $ :from tween
+                      , :to
+                        channel $ :to tween
+                        , :easing $ :easing tween
+              motion/ScalarDescriptor :id
+                str |rect-color/ (count node-id) |: node-id (:id descriptor) |/ suffix
+                , :version (:version descriptor) :motion scalar
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'quamolit.motion/ColorDescriptor 'String 'quamolit.scene-ir/ScalarTarget
         'resample-component-at $ %{} 'CodeEntry (:doc "|仅当组件身份、绝对时间与六类版本全相同时复用上一帧；调用方负责真实依赖版本。")
           :code $ quote $ defn resample-component-at (previous request declare)
             direct/resample-at previous (to-direct-request request)
@@ -1374,6 +1411,40 @@
             :args $ [] $ :: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V
             :generics $ [] 'P 'M 'I 'R 'V
             :return $ :: 'quamolit.direct-frame/DirectRequest 'P 'M 'I 'R 'V
+        'with-rect-color-motion $ %{} 'CodeEntry
+          :doc "|给已有矩形声明添加标准 ColorDescriptor constant/tween，纯 Calcit 转换为线性 RGB 与独立 alpha 四个版本化绑定。保留其他绑定与输入；拒绝不存在/非矩形、重复目标或生成 ID 冲突，不覆盖 Presence 的 alpha 所有权。构建期使用，不逐帧调用。"
+          :code $ quote $ defn with-rect-color-motion (declaration node-id descriptor)
+            scene-ir/validate-scene $ :scene declaration
+            motion/sample-color descriptor 0
+            assert |rect-color-node-required $ = 1 $ count
+              .filter
+                :nodes $ :scene declaration
+                fn (node)
+                  = node-id $ :id node
+            let
+                targets $ [] (scene-ir/ScalarTarget :linear-red) (scene-ir/ScalarTarget :linear-green) (scene-ir/ScalarTarget :linear-blue) (scene-ir/ScalarTarget :alpha)
+                descriptors $ .map targets $ fn (target) (color-channel-descriptor descriptor node-id target)
+                bindings $ .map targets $ fn (target)
+                  let
+                      scalar $ color-channel-descriptor descriptor node-id target
+                    scene-ir/ScalarBinding :target target :motion-id (:id scalar) :version $ :version scalar
+                nodes $ .map
+                  :nodes $ :scene declaration
+                  fn (node)
+                    if
+                      = node-id $ :id node
+                      do
+                        assert |rect-color-requires-rect $ match (:content node)
+                          (:rect _) true
+                          _ false
+                        struct-with node $ :bindings $ concat (:bindings node) bindings
+                      , node
+                result $ ComponentDeclaration :scene (scene-ir/SceneDocument :nodes nodes) :motions $ concat (:motions declaration) descriptors
+              resolve-declaration result 0
+              , result
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'quamolit.component-sample/ComponentDeclaration 'String 'quamolit.motion/ColorDescriptor
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.component-sample
           :require (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene-ir) (quamolit.scene-binding :as binding) (quamolit.motion :as motion) (quamolit.host-clock :as clock) (quamolit.playback :as playback)
@@ -9153,6 +9224,9 @@
               (:alpha) 2
               (:width) 3
               (:height) 4
+              (:linear-red) 5
+              (:linear-green) 6
+              (:linear-blue) 7
               _ -1
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
@@ -9307,19 +9381,20 @@
             :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/ScalarProgram
             :features $ #{} :js-ffi
         'make-axis-parameter $ %{} 'CodeEntry
-          :doc "|组件与 instances 共用标量编码；axis=0/1/2/3/4 对应 x/y/alpha/width/height。alpha 端点限于 [0,1]，宽高端点非负。"
+          :doc "|组件与instances共用标量编码：axis0/1/2/3/4为x/y/alpha/width/height，5/6/7为矩形线性RGB。alpha与线性RGB端点限[0,1]，宽高非负。"
           :code $ quote $ defn make-axis-parameter (index axis tween)
             assert |invalid-scalar-instance-index $ and (motion/finite-number? index) (>= index 0)
               = index $ floor index
-            assert |invalid-scalar-instance-axis $ or (= axis 0) (= axis 1) (= axis 2) (= axis 3) (= axis 4)
+            assert |invalid-scalar-instance-axis $ or (= axis 0) (= axis 1) (= axis 2) (= axis 3) (= axis 4) (= axis 5) (= axis 6) (= axis 7)
             if
-              and (= axis 2)
+              and
+                or (= axis 2) (>= axis 5)
                 not $ and
                   >= (:from tween) 0
                   <= (:from tween) 1
                   >= (:to tween) 0
                   <= (:to tween) 1
-              ParameterResult :fallback |scalar-alpha-outside-unit-interval
+              ParameterResult :fallback $ if (= axis 2) |scalar-alpha-outside-unit-interval |scalar-color-outside-unit-interval
               if
                 and
                   or (= axis 3) (= axis 4)
@@ -9552,7 +9627,7 @@
           :code $ quote $ defn raw-parameter! (host index axis start duration from to easing) &unit
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,index,axis,start,duration,from,to,easing)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(index)||index<0||index>=h.scalarCount||(axis!==0&&axis!==1&&axis!==2&&axis!==3&&axis!==4))throw Error('gpu-scalar-index');\n h.scalarScratch.set([from,to,start,duration,1,easing,0,0]);\n h.device.queue.writeBuffer(h.motions,index*160+axis*32,h.scalarScratch);h.parameterBytes+=32;\n}"
+            :js $ {} $ :inline "|(h,index,axis,start,duration,from,to,easing)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(index)||index<0||index>=h.scalarCount||(!Number.isSafeInteger(axis)||axis<0||axis>7))throw Error('gpu-scalar-index');\n h.scalarScratch.set([from,to,start,duration,1,easing,0,0]);\n h.device.queue.writeBuffer(h.motions,index*256+axis*32,h.scalarScratch);h.parameterBytes+=32;\n}"
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'Number 'Number 'Number 'Number 'Number 'Number 'Number
             :features $ #{} :js-ffi
@@ -9568,7 +9643,7 @@
           :code $ quote $ defn raw-reset! (host instances time) &unit
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,count,time)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-scalar-capacity');\n h.scalarReady=false;h.scalarProgram=null;h.scalarCount=count;h.viewScratch[2]=time;\n if(count>0){h.device.queue.writeBuffer(h.motions,0,new Float32Array(count*40));h.parameterBytes+=count*160;}\n}"
+            :js $ {} $ :inline "|(h,count,time)=>{\n if(h.disposed||!h.motions)throw Error('gpu-scalar-host-required');\n if(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-scalar-capacity');\n h.scalarReady=false;h.scalarProgram=null;h.scalarCount=count;h.viewScratch[2]=time;\n if(count>0){h.device.queue.writeBuffer(h.motions,0,new Float32Array(count*64));h.parameterBytes+=count*256;}\n}"
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'Number 'Number
             :features $ #{} :js-ffi
@@ -15774,12 +15849,21 @@
                       , :fill $ match target
                         (:alpha)
                           struct-with (:fill rect) (:a value)
-                        (:red)
-                          struct-with (:fill rect) (:r value)
-                        (:green)
-                          struct-with (:fill rect) (:g value)
-                        (:blue)
-                          struct-with (:fill rect) (:b value)
+                        (:linear-red)
+                          struct-with (:fill rect)
+                            :r $ if
+                              or (= value 0) (= value 1)
+                              , value $ motion/linear-to-srgb value
+                        (:linear-green)
+                          struct-with (:fill rect)
+                            :g $ if
+                              or (= value 0) (= value 1)
+                              , value $ motion/linear-to-srgb value
+                        (:linear-blue)
+                          struct-with (:fill rect)
+                            :b $ if
+                              or (= value 0) (= value 1)
+                              , value $ motion/linear-to-srgb value
                         _ $ :fill rect
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/RectNode)
@@ -17754,8 +17838,8 @@
           :examples $ []
           :schema $ :: 'StructDef
         'ScalarTarget $ %{} 'CodeEntry
-          :doc "|Scalar animation binding target; supported per content kind by validator."
-          :code $ quote $ defenum ScalarTarget (:x) (:y) (:width) (:height) (:opacity) (:alpha) (:red) (:green) (:blue)
+          :doc "|矩形linear-red/green/blue绑定接收[0,1]线性光通道，采样后编码为ColorRgba的直通道sRGB；其他目标的单位和支持种类不变。实验接口。"
+          :code $ quote $ defenum ScalarTarget (:x) (:y) (:width) (:height) (:opacity) (:alpha) (:linear-red) (:linear-green) (:linear-blue)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneContent $ %{} 'CodeEntry
@@ -18014,11 +18098,11 @@
                     = (content-kind content) |polyline
                     = (content-kind content) |text
                     = (content-kind content) |arc
-                (:red)
+                (:linear-red)
                   = (content-kind content) |rect
-                (:green)
+                (:linear-green)
                   = (content-kind content) |rect
-                (:blue)
+                (:linear-blue)
                   = (content-kind content) |rect
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -20015,6 +20099,17 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ []
+        'declare-colored-demo $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-colored-demo (props model input resources viewport)
+            component/with-rect-color-motion (declare-demo props model input resources viewport) |tile-0 $ motion/ColorDescriptor :id |tile-fill :version 1 :motion $ motion/ColorMotion :tween
+              motion/ColorTween :start 0 :duration 1 :from
+                motion/ColorRgba :r 0 :g 1 :b (motion/linear-to-srgb 0.25) :a 1
+                , :to
+                  motion/ColorRgba :r 1 :g 0 :b (motion/linear-to-srgb 0.75) :a 1
+                  , :easing $ motion/Easing :linear
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
         'declare-demo $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-demo (props model input resources viewport)
             let
@@ -20264,6 +20359,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'start-colored $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-colored (time)
+            retained/build-component-plan (make-request time 40 false 100) declare-colored-demo
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number
         'start-fading-arc $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-fading-arc (time)
             retained/build-component-plan (make-request time 40 false 100) declare-fading-arc

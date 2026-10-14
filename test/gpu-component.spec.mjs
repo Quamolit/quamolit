@@ -1,5 +1,112 @@
 import { test, expect } from "@playwright/test";
 
+test("非软件GPU线性RGB：同一声明的数值读回、sRGB像素与热帧参数不变", async ({ page }, info) => {
+  await page.goto("/test/retained-component.html");
+  const report = await page.evaluate(async () => {
+    const adapter = await navigator.gpu?.requestAdapter();
+    if (
+      !adapter ||
+      adapter.info?.isFallbackAdapter ||
+      /swiftshader|software|llvmpipe/i.test(`${adapter.info?.vendor} ${adapter.info?.architecture}`)
+    )
+      return { result: "SKIP", reason: adapter ? "software-adapter" : "adapter-unavailable" };
+    const root = "/target/js/retained-component/";
+    const core = await import(root + "calcit.core.mjs"),
+      retained = await import(root + "quamolit.retained-component.mjs");
+    const fixture = await import(root + "quamolit.test.retained-component-fixture.mjs");
+    const scalar = await import(root + "quamolit.gpu-scalar-program.mjs"),
+      gpu = await import(root + "quamolit.gpu-component.mjs");
+    const { readScalarSample } = await import("/test/host/gpu-scalar-readback.mjs");
+    const tag = (key) => core.init_tags([key])[key];
+    // 声明、颜色拆分及计划构建均由 Calcit 完成，JS 仅驱动 GPU 和独立断言。
+    const plan = fixture.start_colored(0);
+    const rect = core._$n_enum_$o_nth(plan.get(tag("scene")).get(tag("nodes")).get(0).get(tag("content")), 1);
+    const prepared = scalar.prepare_program(plan);
+    if (prepared.tag.value !== "ready") throw Error(JSON.stringify(core.to_js_data(prepared)));
+    const program = prepared.extra[0],
+      device = await adapter.requestDevice(),
+      errors = [];
+    device.addEventListener("uncapturederror", (event) => errors.push(event.error.message));
+    const canvas = document.createElement("canvas");
+    canvas.width = 320;
+    canvas.height = 180;
+    const capture = document.createElement("canvas");
+    capture.width = 320;
+    capture.height = 180;
+    const context = capture.getContext("2d");
+    let host;
+    const encode = (v) => (v === 0 || v === 1 ? v : v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055);
+    const expected = (time) => {
+      const t = Math.max(0, Math.min(1, time));
+      return [t, 1 - t, 0.25 + t * 0.5];
+    };
+    try {
+      host = scalar.create_renderer_$x_(canvas, device, navigator.gpu.getPreferredCanvasFormat(), 128);
+      scalar.install_program_$x_(host, program);
+      const cold = host.parameterBytes,
+        pixels = [],
+        numeric = [];
+      for (const time of [1, 0, 0.5, 0.25, 1]) {
+        scalar.draw_at_$x_(host, program, time);
+        context.drawImage(canvas, 0, 0);
+        const color = expected(time).map((value) => Math.round(encode(value) * 255));
+        const actual = [...context.getImageData(rect.get(tag("x")) + 4, rect.get(tag("y")) + 4, 1, 1).data];
+        const cpu = core.to_js_data(retained.sample_plan_at(plan, time));
+        pixels.push({
+          time,
+          actual,
+          expected: [...color, 255],
+          cpu: cpu.scene.nodes[0].content[1].fill,
+          declarations: cpu.declarations,
+          builds: cpu["plan-builds"],
+        });
+      }
+      for (const time of [0.37, 0.81, 0.4999999, -0.1, 1.1]) {
+        const rg = await readScalarSample(host, 0, time, 5),
+          bb = await readScalarSample(host, 0, time, 7);
+        numeric.push({ time, actual: [...rg, bb[0]], expected: expected(time) });
+      }
+      return {
+        result: "MEASURED",
+        adapter: {
+          vendor: adapter.info.vendor,
+          architecture: adapter.info.architecture,
+          software: adapter.info.isFallbackAdapter,
+        },
+        cold,
+        after: host.parameterBytes,
+        pixels,
+        numeric,
+        errors,
+      };
+    } finally {
+      if (host) gpu.dispose_renderer_$x_(host);
+      device.destroy();
+    }
+  });
+  await info.attach("linear-rgb-report", { body: JSON.stringify(report, null, 2), contentType: "application/json" });
+  console.log(`linear RGB: ${JSON.stringify(report)}`);
+  test.skip(report.result === "SKIP", report.reason);
+  expect(report.errors).toEqual([]);
+  expect(report.cold).toBe(65 * 256 + 5 * 32);
+  expect(report.after).toBe(report.cold);
+  for (const sample of report.pixels) {
+    expect([sample.cpu.r, sample.cpu.g, sample.cpu.b].map((value) => Math.round(value * 255))).toEqual(
+      sample.expected.slice(0, 3),
+    );
+    // 此新夹具只允许8位色域转换的1级舍入差；原有整图零差异测试不变。
+    for (let channel = 0; channel < 3; channel++)
+      expect(Math.abs(sample.actual[channel] - sample.expected[channel])).toBeLessThanOrEqual(1);
+    expect(sample.actual[3]).toBe(255);
+    expect(sample.declarations).toBe(1);
+    expect(sample.builds).toBe(1);
+  }
+  for (const sample of report.numeric)
+    sample.actual.forEach((value, i) =>
+      expect(Math.abs(value - sample.expected[i])).toBeLessThanOrEqual(1e-5 + 1e-5 * Math.abs(sample.expected[i])),
+    );
+});
+
 test("公共计划的整层 Canvas 回退与原参考一致", async ({ page }, info) => {
   await page.goto("/test/retained-component.html");
   await expect(page.locator("#gpu-status")).toHaveAttribute("data-backend", "canvas");

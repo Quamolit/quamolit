@@ -10,7 +10,7 @@ import {
   scene_document_at as sceneDocumentAt,
 } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
-test("矩形RGB通道用原标量声明乱序采样，不改alpha、几何或旧Scene", () => {
+test("矩形线性RGB通道用原标量声明乱序采样，不改alpha、几何或旧Scene", () => {
   const tag = (name) => core.init_tags([name])[name];
   const make = (type, fields) =>
     core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([key, value]) => [tag(key), value]));
@@ -18,7 +18,7 @@ test("矩形RGB通道用原标量声明乱序采样，不改alpha、几何或旧
   const E = (type, name, ...values) => core._PCT__$o__$o_(type, tag(name), ...values);
   const original = sceneDocumentAt(0),
     nodes = original.get(tag("nodes"));
-  const references = ["red", "green", "blue"].map((channel) =>
+  const references = ["linear-red", "linear-green", "linear-blue"].map((channel) =>
     make(scene.ScalarBinding, {
       target: E(scene.ScalarTarget, channel),
       "motion-id": channel,
@@ -31,7 +31,7 @@ test("矩形RGB通道用原标量声明乱序采样，不改alpha、几何或旧
     [0.25, 0.75],
   ].map(([from, to], index) =>
     make(motion.ScalarDescriptor, {
-      id: ["red", "green", "blue"][index],
+      id: ["linear-red", "linear-green", "linear-blue"][index],
       version: 1,
       motion: E(
         motion.ScalarMotion,
@@ -50,13 +50,15 @@ test("矩形RGB通道用原标量声明乱序采样，不改alpha、几何或旧
   const document = original.assoc(tag("nodes"), list([rect]));
   const before = toJsData(document),
     descriptors = list(tweens);
+  const encode = (value) =>
+    value === 0 || value === 1 ? value : value <= 0.0031308 ? value * 12.92 : 1.055 * Math.pow(value, 1 / 2.4) - 0.055;
   assert.equal(scene.validate_scene(document), true);
   for (const time of [1, 0, 0.5, -0.25, 0.25, 1]) {
     const result = toJsData(binding.resolve_scene(document, descriptors, time));
     const t = Math.max(0, Math.min(1, time));
     assert.deepEqual(result.nodes[0].content[1], {
       ...before.nodes[0].content[1],
-      fill: { r: t, g: 1 - t, b: 0.25 + t * 0.5, a: before.nodes[0].content[1].fill.a },
+      fill: { r: encode(t), g: encode(1 - t), b: encode(0.25 + t * 0.5), a: before.nodes[0].content[1].fill.a },
     });
   }
   for (const reference of references) {
@@ -69,7 +71,7 @@ test("矩形RGB通道用原标量声明乱序采样，不改alpha、几何或旧
   );
   assert.throws(() => binding.resolve_scene(duplicate, descriptors, 0.5));
   const invalid = make(motion.ScalarDescriptor, {
-    id: "red",
+    id: "linear-red",
     version: 1,
     motion: E(motion.ScalarMotion, "constant", 1.1),
   });

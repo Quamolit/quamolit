@@ -45,6 +45,9 @@ const tags = core.init_tags([
   "content",
   "repeat",
   "mirror",
+  "linear-red",
+  "linear-green",
+  "linear-blue",
 ]);
 const js = core.to_js_data,
   get = (o, k) => o.get(tags[k]),
@@ -114,13 +117,9 @@ test("能力表区分候选 lowering 与真实标量执行；绑定回退定位�
     assert.equal(lowering.lower_scalar(get(changed, "descriptor")).tag.value, lower, name);
     assert.equal(program.prepare_slot(changed).tag.value, execute, name);
   }
-  for (const target of ["x", "y", "alpha", "width", "height", "opacity"]) {
+  for (const target of ["x", "y", "alpha", "width", "height", "linear-red", "linear-green", "linear-blue", "opacity"]) {
     const changed = set(withMotion(en(motion.ScalarMotion, "constant", 0.5)), "target", en(scene.ScalarTarget, target));
-    assert.equal(
-      program.prepare_slot(changed).tag.value,
-      ["x", "y", "alpha", "width", "height"].includes(target) ? "ready" : "fallback",
-      target,
-    );
+    assert.equal(program.prepare_slot(changed).tag.value, target !== "opacity" ? "ready" : "fallback", target);
   }
   const p = base(),
     document = get(p, "scene"),
@@ -307,7 +306,8 @@ test("组件与实例共用参数编码：轴、索引和完整 f32 域保持同
   });
   for (const index of [-1, 0.5, NaN])
     assert.throws(() => program.make_axis_parameter(index, 0, tween()), /invalid-scalar-instance-index/);
-  assert.throws(() => program.make_axis_parameter(0, 5, tween()), /invalid-scalar-instance-axis/);
+  for (const axis of [-1, 8, 5.5, NaN])
+    assert.throws(() => program.make_axis_parameter(0, axis, tween()), /invalid-scalar-instance-axis/);
   assert.deepEqual(js(program.make_axis_parameter(0, 0, set(tween(), "to", 1e31))), [
     "fallback",
     "scalar-parameters-outside-f32-domain",
@@ -341,15 +341,62 @@ test("矩形 alpha 使用同一 sampler，端点限于单位区间；group opaci
   try {
     program.install_program_$x_(host, prepared.extra[0]);
     const parameterWrite = m.writes.find((w) => w.label === "Quamolit scalar parameters" && w.bytes === 32);
-    assert.equal(parameterWrite.offset, 64 * 160 + 2 * 32);
+    assert.equal(parameterWrite.offset, 64 * 256 + 2 * 32);
     assert.deepEqual(parameterWrite.values, [0, 1, 0, 1, 1, 0, 0, 0]);
-    assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*5u+2u], color.a)"));
+    assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*8u+2u], color.a)"));
     const cold = m.writes.length;
     for (const time of [1, 0, 0.5, 0.25, 1]) program.draw_at_$x_(host, prepared.extra[0], time);
     assert.ok(m.writes.slice(cold).every((w) => w.bytes === 16));
     assert.equal(m.buffers.length, 3);
   } finally {
     dispose_renderer_$x_(host);
+  }
+});
+
+test("线性RGB复用标量参数：单位域拒绝、独立槽位及同时间重新安装清理", () => {
+  const colorTween = set(set(tween(), "from", 0), "to", 1);
+  const slots = ["linear-red", "linear-green", "linear-blue"].map((target, index) => {
+    const bound = set(
+      withMotion(en(motion.ScalarMotion, "tween", colorTween)),
+      "target",
+      en(scene.ScalarTarget, target),
+    );
+    assert.equal(js(program.prepare_slot(bound).extra[0]).axis, index + 5);
+    for (const value of [-0.01, 1.01, NaN, Infinity])
+      for (const field of ["from", "to"])
+        assert.deepEqual(js(program.make_axis_parameter(64, index + 5, set(colorTween, field, value))), [
+          "fallback",
+          "scalar-color-outside-unit-interval",
+        ]);
+    return bound;
+  });
+  const p = set(base(), "slots", new core.CalcitSliceList(slots));
+  const prepared = program.prepare_program(p);
+  assert.equal(prepared.tag.value, "ready");
+  const m = mock(),
+    h = program.create_renderer_$x_(m.canvas, m.device, "bgra8unorm", 128);
+  try {
+    program.install_program_$x_(h, prepared.extra[0]);
+    assert.deepEqual(
+      m.writes
+        .filter((write) => write.label === "Quamolit scalar parameters" && write.bytes === 32)
+        .map((write) => write.offset),
+      [64 * 256 + 5 * 32, 64 * 256 + 6 * 32, 64 * 256 + 7 * 32],
+    );
+    assert.equal(h.parameterBytes, 65 * 256 + 3 * 32);
+    const start = m.writes.length;
+    for (const time of [1, 0, 0.5, 0.25, 1]) program.draw_at_$x_(h, prepared.extra[0], time);
+    assert.ok(m.writes.slice(start).every((write) => write.bytes === 16));
+    assert.ok(m.shaders[0].includes("sampleColorChannel(motions[instance*8u+5u], color.r)"));
+    const beforeReset = m.writes.length;
+    program.install_program_$x_(h, program.prepare_program(base()).extra[0]);
+    const reset = m.writes
+      .slice(beforeReset)
+      .find((write) => write.label === "Quamolit scalar parameters" && write.bytes > 32);
+    assert.equal(reset.bytes, 65 * 256);
+    assert.ok(reset.values.every((value) => value === 0));
+  } finally {
+    dispose_renderer_$x_(h);
   }
 });
 
@@ -385,7 +432,7 @@ test("宽高共享标量编码：零尺寸合法，负端点整层回退，两�
     program.install_program_$x_(host, prepared.extra[0]);
     assert.deepEqual(
       m.writes.filter((w) => w.label === "Quamolit scalar parameters" && w.bytes === 32).map((w) => w.offset),
-      [64 * 160 + 96, 64 * 160 + 128],
+      [64 * 256 + 96, 64 * 256 + 128],
     );
     for (const time of [1, 0, 0.5, 0.25, 1]) {
       const sampled = sample_plan_at(source, time);
@@ -511,16 +558,16 @@ test("编译后 file/inline 调用：参数常驻，1000 时间帧只更新 unif
   assert.throws(() => program.draw_at_$x_(h, prepared, 0), /not-installed/);
   program.install_program_$x_(h, prepared);
   assert.equal(h.uploadedBytes, 4160);
-  assert.equal(h.parameterBytes, 10432);
+  assert.equal(h.parameterBytes, 65 * 256 + 32);
   const hotStart = m.writes.length;
   for (let i = 0; i < 1000; i++) program.draw_at_$x_(h, prepared, (i % 101) / 100);
   const hot = m.writes.slice(hotStart);
   assert.equal(hot.length, 1000);
   assert.ok(hot.every((w) => w.bytes === 16 && w.label === "Quamolit component viewport"));
   assert.equal(h.uploadedBytes, 4160);
-  assert.equal(h.parameterBytes, 10432);
+  assert.equal(h.parameterBytes, 65 * 256 + 32);
   assert.equal(m.buffers.length, 3);
-  assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*5u]"));
+  assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*8u]"));
   assert.equal(hot[25].values[2], 0.25);
   dispose_renderer_$x_(h);
   dispose_renderer_$x_(h);

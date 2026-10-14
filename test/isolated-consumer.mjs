@@ -656,7 +656,7 @@ try {
   const scalarGpu = await page.evaluate(() => window.consumer.setMode("instances-scalar"));
   if (scalarGpu.recovery.phase[0] === "ready") {
     assert.equal(scalarGpu.metrics["cold-record-bytes"], 640000);
-    assert.equal(scalarGpu.metrics["cold-parameter-bytes"], 2240000);
+    assert.equal(scalarGpu.metrics["cold-parameter-bytes"], 10000 * (256 + 2 * 32));
     for (const time of [1, 0, 0.5, 0.25, 1]) {
       const state = await page.evaluate((time) => window.consumer.set({ time }), time);
       assert.equal(state.source.copiedBytes, 0);
