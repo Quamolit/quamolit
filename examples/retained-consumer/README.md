@@ -34,7 +34,9 @@ calcit query def app.main/update-plan --raw
 
 ## 隔离门禁
 
-同一个消费方 Snapshot 还提供 `curve-document(time)`、`curve-hit-plan(time)`、`curve-hit(plan,x,y)` 与 `draw-curve!(context,document)`：只引用 Quamolit 的实验性 Calcit Scene/HitPlan/Canvas API，自己声明绝对时间曲线、90°旋转、2倍缩放和祖先裁剪。既有 `test:consumer` 从安装后搬移的产物执行Node和浏览器验证，保存 `consumer-curve-<time>-{actual,expected}.png`；这不是新页面模式或GPU曲线实现。默认依赖固定到已推送的曲线候选0a7fa89，发布tag后仍须重跑；旧候选可能编译成功但不支持曲线命中，不能作为本切片验收。
+同一个消费方 Snapshot 还提供 `curve-document(time)`、`curve-hit-plan(time)`、`curve-hit(plan,x,y)` 与 `draw-curve!(context,document)`：只引用 Quamolit 的实验性 Calcit Scene/HitPlan/Canvas API，自己声明绝对时间曲线、90°旋转、2倍缩放和祖先裁剪。`arc-document(time)` / `arc-hit-plan(time)` 进一步验证原生圆弧事件目标、圆头、空心、缺口、clip与乱序时间，不从作者测试namespace导入构造器。既有 `test:consumer` 从安装后搬移的产物执行Node和浏览器验证，保存 `consumer-curve-<time>-{actual,expected}.png`；这不是新页面模式或GPU曲线实现。默认依赖固定到已推送的圆弧命中候选b40fcb6（Calcit/runtime0.29.3、js-ffi0.2.3），发布tag后仍须重跑；旧候选可能编译成功但不支持圆弧命中，不能作为本切片验收。
+
+The same isolated Calcit consumer declares native arcs and builds public HitPlans. It verifies round caps, hollow regions, angular gaps, ancestor clipping and shuffled absolute times after installation and output relocation. Browser frames also compare clipped arcs with isolated group opacity against an independent native Canvas reference, with zero RGBA differences; artifacts use `consumer-arc-<index>-<time>-{actual,expected}.png`. The pinned commit is an unpublished candidate, not a released tag; no framework JavaScript or test namespace imports are required.
 
 页面可在“线性矩形 + 折线”、“位置与尺寸渐变”与“Presence 生命周期”之间切换，后两者也可通过 `?motion=dual` / `?motion=presence` 直接进入。位置与尺寸声明仍由 Calcit 的 `declare-dual` 创建，同一参数供 `start-dual` / `update-dual` 的 Canvas 参考和 GPU 程序使用。切换声明时重建计划，保留当前显式时间/Model，不在旧声明的相同版本上错误复用结构。
 

@@ -14,6 +14,27 @@
           :code $ quote $ defstruct InstanceFrame (:index 'Number) (:x 'Number) (:y 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'arc-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-document (time)
+            do
+              assert |invalid-consumer-arc-time $ motion/finite-number? time
+              let
+                  start $ * 0.7 time
+                scene/SceneDocument :nodes $ []
+                  scene/SceneNode :id |arc-root :parent | :key |arc-root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group $ scene/GroupNode :transform (hit/matrix 0 2 -2 0 200 50) :clip
+                    scene/ClipSpec :rect $ scene/ClipRect :x -30 :y -30 :width 40 :height 60
+                    , :opacity 0.4
+                  scene/SceneNode :id |consumer-arc :parent |arc-root :key |consumer-arc :bindings ([]) :interaction (scene/SceneInteraction :target |arc-action) :content $ scene/SceneContent :arc $ scene/ArcNode :cx 0 :cy 0 :radius 20 :start-angle start :end-angle (+ start 1.5707963267948966) :counterclockwise false :width 4 :stroke
+                    motion/ColorRgba :r 0 :g 1 :b 1 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ [] 'Number
+        'arc-hit-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-hit-plan (time)
+            hit/compile-hit-plan $ arc-document time
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'Number
         'browser-available? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn browser-available? () (browser/document-available?)
           :examples $ []

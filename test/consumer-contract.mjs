@@ -212,10 +212,45 @@ export function verifyCurveConsumer(app, core) {
   queries++;
   for (const bad of [NaN, Infinity, -Infinity])
     assert.throws(() => app.curve_hit_plan(bad), /invalid-consumer-curve-time/);
+  let arcBuilds = 0,
+    arcQueries = 0,
+    previousArc;
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    const plan = app.arc_hit_plan(time),
+      end = 0.7 * time + Math.PI / 2;
+    arcBuilds++;
+    const query = (x, y) => {
+      arcQueries++;
+      return core.to_js_data(app.curve_hit(plan, x, y));
+    };
+    assert.deepEqual(
+      query(200 - 40 * Math.sin(end), 50 + 40 * Math.cos(end)),
+      ["hit", { "node-id": "consumer-arc", target: "arc-action", visited: 1 }],
+      "下游圆弧圆头必须可以成为事件目标",
+    );
+    assert.deepEqual(query(200, 50), ["miss", 1], "圆弧空心不作为填充");
+    const start = 0.7 * time;
+    assert.deepEqual(
+      query(200 - 40 * Math.sin(start), 50 + 40 * Math.cos(start)),
+      ["miss", 1],
+      "真实弧起点位于祖先clip之外",
+    );
+    assert.deepEqual(query(200 + 40 * Math.sin(end), 50 - 40 * Math.cos(end)), ["miss", 1], "缺口不退化成整圆命中");
+    const scene = core.to_js_data(app.arc_document(time));
+    assert.equal(scene.nodes[1].content[0], "arc");
+    if (time === 1 && previousArc) assert.deepEqual(scene, previousArc);
+    if (time === 1) previousArc = scene;
+  }
+  for (const bad of [NaN, Infinity, -Infinity]) assert.throws(() => app.arc_hit_plan(bad), /invalid-consumer-arc-time/);
   return {
     builds,
     queries,
     times: [1, 0, 0.5, 0.25, 1],
+    arc: {
+      builds: arcBuilds,
+      queries: arcQueries,
+      scope: "下游Calcit原生弧、圆头、空心、缺口、旋转2x、clip和乱序时间",
+    },
     scope: "下游Calcit声明、旋转2x、clip、butt、空洞与乱序时间；不是性能测量",
   };
 }
