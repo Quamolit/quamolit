@@ -83,7 +83,7 @@ export function mountDemo() {
     fonts = dashboard.sync_media_$x_(fonts, intent);
     const displayModel = dashboard.image_ready_$q_(fonts) ? intent : dashboard.with_font(model, fontEnabled);
     scene = dashboard.frame_at(displayModel, time, width, height);
-    dashboard.commit_scene_$x_(canvas, scene, bounds.width / width, bounds.height / height);
+    dashboard.commit_scene_$x_(canvas, context, scene, bounds.width / width, bounds.height / height);
     fontPromise = pumpMedia();
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, width, height);

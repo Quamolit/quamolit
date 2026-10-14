@@ -52,6 +52,12 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 
 ## Scene 能力与完整预检
 
+### 真实标题的文字命中
+
+原有标题增加独立 `title` 交互目标，不改变文字、画面或出入动画。`commit-scene!` 使用当前 Canvas context 调用公共 Calcit `measure-text-hit-plan!`，先解析同一 sampled Scene 的文字墨迹边界，再提交 CSS HitPlan、协调捕获，最后绘制。测量仍由 Calcit 配置字体、left/middle/ltr并恢复context；JS仅传入既有context，不实现边界计算或字体状态机。每次Scene提交重新测量交互文字，因此同时间字体ready/失败及暂停resize/DPR不会沿用旧边界；这是正确性接线，不是布局缓存或性能优化。
+
+既有 `test:layered-dashboard` 增加DPR1/2两项真实标题门禁：原生墨迹内正例、旧字号近似框的假阳性负例、延迟FontFace完成后同时间/同版本边界改变、暂停resize、标题捕获与父级退出立即释放、重入及加载失败fallback。参考独立使用原生Canvas测量和矩阵投影，不读取实际HitPlan生成期望；原23项资源/像素/生命周期回归保留。其他没有解析的便利命中入口仍为近似，文字布局/glyph缓存和字体版本切换UI不因本切片完成。
+
 以下区分完整 `canvas-scene/draw-document!` 与受限 GPU 消费者，不能把单图层能力拼成任意 Scene 都支持的承诺。
 
 | SceneContent | Canvas document | 现有 WebGPU 路径 / 不支持时 |

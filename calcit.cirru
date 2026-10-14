@@ -4984,16 +4984,16 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
             :args $ [] 'Number 'Number 'Number 'Number
         'commit-scene! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn commit-scene! (element document scale-x scale-y)
+          :code $ quote $ defn commit-scene! (element context document scale-x scale-y)
             let
-                next-plan $ css-hit-plan document scale-x scale-y
+                next-plan $ canvas-reference/measure-text-hit-plan! context $ css-hit-plan document scale-x scale-y
                 reconciled $ pointer-browser/reconcile-pointer-surface! (pointer-browser/pointer-surface-host element) next-plan @*dashboard-pointer
               reset! *dashboard-pointer $ :state reconciled
               reset! *dashboard-plan next-plan
               , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.browser/DomElementHost 'quamolit.scene-ir/SceneDocument 'Number 'Number
+            :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument 'Number 'Number
             :features $ #{} :js-ffi
         'complete-media! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn complete-media! (state result)
@@ -5320,7 +5320,10 @@
                     if
                       = (:id item) |chart
                       struct-with item $ :interaction $ scene/SceneInteraction :target |chart
-                      , item
+                      if
+                        = (:id item) |title
+                        struct-with item $ :interaction $ scene/SceneInteraction :target |title
+                        , item
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number 'Number 'Number
@@ -5732,7 +5735,7 @@
             :tags $ #{} :layered-dashboard
       :ns $ %{} 'NsEntry (:doc "|图表型 UI 动画：以嵌套矩形裁剪展示数据揭示，以隔离组透明度保证重叠图元只整体合成一次。")
         :code $ quote $ ns quamolit.examples.layered-dashboard
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-scene :as canvas-scene) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.presence :as presence) (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as pointer-browser) (js-ffi.browser :as dom) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as queue) (quamolit.image-resource-runner :as image)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-scene :as canvas-scene) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.presence :as presence) (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as pointer-browser) (js-ffi.browser :as dom) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as queue) (quamolit.image-resource-runner :as image) (quamolit.canvas-reference :as canvas-reference)
     'quamolit.examples.raining $ %{} 'FileEntry
       :defs $ {}
         'build-drops $ %{} 'CodeEntry (:doc |)
