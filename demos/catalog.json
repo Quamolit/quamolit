@@ -136,7 +136,7 @@
       "path": "examples/clock/index.html",
       "title": "Clock · 数字时钟",
       "group": "originals",
-      "summary": "六位时分秒与七段笔画渐变；逻辑时间由页面注入，进位与透明度由 Calcit 纯函数决定，可乱序截图。随机散开暂未恢复。",
+      "summary": "六位时分秒与七段笔画渐变；Calcit 用稳定 seed 重现端点散开与收拢，提供跨秒／分钟中间帧快捷查看，可乱序截图。",
       "status": "恢复切片 · Canvas",
       "docs": "docs/clock-restoration.md",
       "compile": "compile:clock"
