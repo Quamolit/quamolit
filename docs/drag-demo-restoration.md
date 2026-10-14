@@ -6,7 +6,9 @@
 
 拖动越出原图形边界后仍按捕获的指针更新；非拥有 pointer 不能移动或释放；`pointerup`、`pointercancel`、丢失捕获和窗口失焦均收尾一次。页面只在输入或尺寸变化时绘制，没有空闲动画循环。画布覆盖视口，浮层可收起；窄屏收起时增大 contain 比例。
 
-“禁用交互”通过 Calcit Model 的 `enabled?` 将原四个图元设为 `SceneInteraction :disabled`，不移除图形或改变历史几何。`commit-drag-scene!` 在 Model/尺寸提交时调用既有 `reconcile-pointer-surface!`，立即协调逻辑状态和原生捕获；禁用后不等待新输入即可结束拖动，重复提交不重复释放，恢复后须重新按下。重置/预设也先释放旧捕获，再替换 Model。这个实际应用入口不新增事件系统或生产 JS 桥；DPR1/2 浏览器检查捕获中的禁用与 resize、重入、重置和两秒停帧。它不是完整嵌套 Presence 退出动画的验收。
+“禁用交互”通过 Calcit Model 的 `enabled?` 将原四个图元设为 `SceneInteraction :disabled`，不移除图形或改变历史几何。`commit-drag-scene!` 在 Model/尺寸提交时调用 `reconcile-pointer-surface-at!`，立即协调几何hover和身份捕获；禁用后不等待新输入即可结束拖动，重复提交不重复释放，恢复后须重新按下。重置/预设也先释放旧捕获，再替换 Model。这个实际应用入口不新增事件系统或生产 JS 桥；DPR1/2 浏览器检查捕获中的禁用与 resize、重入、重置和两秒停帧。它不是完整嵌套 Presence 退出动画的验收。
+
+Calcit保存纯数据client位置，并用同一Scene及实际DragView生成CSS命中计划；cancel、未捕获leave、blur/pagehide、reset/dispose终止旧位置，新增enter/leave监听器也随原dispose移除。浮层显示hover目标，快照提供`pointerState`。原5项Chromium回归保留，新增DPR1/2两项覆盖无输入的resize移开/覆盖、元素CSS平移、Model不变、有效native capture保留、取消/失焦/离开不复活及重复卸载。旧合法协调入口会在残留hover断言失败，恢复后通过；完整位置协议与限制集中在[Scene指针文档](scene-pointer.md#可选位置的-hover-重协调)，不另建框架或扩大触摸/多指针验收。
 
 ```sh
 yarn test:drag-demo

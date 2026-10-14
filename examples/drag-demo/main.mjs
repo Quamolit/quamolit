@@ -43,7 +43,8 @@ export function mountDemo() {
     interaction.textContent = state["enabled?"] ? "禁用交互" : "恢复交互";
     interaction.setAttribute("aria-pressed", String(!state["enabled?"]));
     const pointer = drag.current_pointer();
-    status.textContent = `矩形 (${state.x.toFixed(1)}, ${state.y.toFixed(1)}) · 滑块 ${state.value.toFixed(2)}\n活动指针 ${pointer < 0 ? "无" : pointer} · 绘制 ${paints} · ${width} × ${height} 像素`;
+    const hover = to_js_data(drag.current_pointer_state())["hover-target"];
+    status.textContent = `矩形 (${state.x.toFixed(1)}, ${state.y.toFixed(1)}) · 滑块 ${state.value.toFixed(2)}\n活动指针 ${pointer < 0 ? "无" : pointer} · hover ${hover || "无"} · 绘制 ${paints} · ${width} × ${height} 像素`;
     status.dataset.result = "pass";
   }
   function snapshot() {
@@ -53,6 +54,7 @@ export function mountDemo() {
       model: to_js_data(model),
       scene: to_js_data(drag.scene_at(model)),
       captured: pointer < 0 ? null : pointer,
+      pointerState: to_js_data(drag.current_pointer_state()),
       paints,
       width: canvas.width,
       height: canvas.height,

@@ -18,7 +18,11 @@
 
 `reconcile-pointer-surface-at!(surface, plan, state, Option<Vec2>)`接受client CSS位置，每次读取元素当前left/top后转换，不乘DPR、不缓存旧局部位置；只在纯协议要求时释放该元素持有的capture。未知位置不读取元素边界。两个入口都不保存PointerEvent/DOM句柄、不安装新调度器或synthetic事件。
 
-应用负责保存仍有效的纯数据client位置，并在Scene/资源/viewport提交时调用新入口。取消、失焦、离开或卸载应停止提供失效位置，避免下一次提交复活hover；触摸/多指针位置选择由输入策略负责，不能声称完整多指针索引已完成。当前切片提供类型/原生/编译后Node协议验证与旧浏览器回归，真实UI和无新事件的DOM几何组合仍待接线，不能仅凭接口存在关闭#34。
+应用负责保存仍有效的纯数据client位置，并在Scene/资源/viewport提交时调用新入口。取消、失焦、离开或卸载应停止提供失效位置，避免下一次提交复活hover；触摸/多指针位置选择由输入策略负责，不能声称完整多指针索引已完成。
+
+真实Drag以Calcit `Option<Vec2>`保存client位置，空引用用`assert-type`声明初始类型上下文；同一逻辑Scene附加与实际绘制一致的DragView CSS根变换后生成HitPlan，保留原节点身份，不另维护布局扫描。普通事件仍沿原逆变换路由，视图/Model提交调用新薄桥。真实pointerenter仅更新位置并绘制，不制造业务down/up；未捕获的pointerleave、cancel、blur/pagehide、reset/dispose清空位置与hover，有效capture不会被leave或几何移开释放。新增enter/leave监听器随原dispose一同移除，原图形/拖动/滑块不变。
+
+`test:drag-demo`沿原5项增加DPR1/2两项：同任务内输入计数为0的resize移开/重新覆盖、Model不变、有效native capture保留、取消/失焦/离开后的重复提交不复活、重复卸载后监听器失效。浮层新增hover目标文本，`snapshot().pointerState`仅观察Calcit状态。公共协议的12项原生/7项Node与原13项浏览器继续保留；看板字体ready的静止hover、完整触摸/多指针和全部资源/交互矩阵仍待完成，不关闭#34。
 
 浏览器桥还监听 `lostpointercapture`：只有事件 pointer id 与当前所有者一致才清理；窗口 `blur` 则主动释放元素仍持有的原生 capture，再幂等清空纯状态。两条路径都复用 `PointerReconcile` 的一次性信号。Scene 提交时使用 `reconcile-pointer-surface!(surface, next-plan, state)`，保存返回的 state；它执行纯协调，并在需要时立即释放原生 capture，重复协调不会重复释放。`dispose-pointer-surface!` 是 canvas/surface 真正卸载前的显式协议；调用方不得直接移除仍持有 capture 的元素。坐标边界不缓存，每个 PointerEvent 都重新读取 `getBoundingClientRect()`，因此移动/resize surface 后按新 CSS 边界命中。Drag demo 已接通实际页面卸载；浏览器夹具另覆盖 DPR 1/2 下 resize 与嵌套子树禁用同次提交、无新输入即释放、兄弟节点仍可交互、重入后重新捕获。该夹具不是完整 Presence 退出动画或 Canvas 像素验收。
 

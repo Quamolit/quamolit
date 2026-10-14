@@ -90,7 +90,7 @@ test("无输入的几何协调更新hover而不因移开释放有效capture", ()
   for (const value of [NaN, Infinity, -Infinity]) assert.throws(() => reconcileAt(plan, hovered, at(value, 20)));
 });
 
-test("静止client位置按元素最新边界重投影，未知位置不读取宿主", () => {
+test("静止client位置按元素最新边界重投影，未知位置不读取元素边界", () => {
   const tags = initTags(["state", "dispatch", "down", "capture-released", "x", "y"]);
   const position = some(record(Vec2, tags.x, 120, tags.y, 70));
   const plan = compilePlan(routingScene());
