@@ -21,9 +21,32 @@ export function mountDemo() {
   const tags = init_tags(["task", "revision"]);
   const defaultFontSource = "local('PingFangSC-Regular'), local('Noto Sans CJK SC'), local('WenQuanYi Zen Hei')";
   let fontEnabled = false;
+  let imagesEnabled = false;
   let fontSource = defaultFontSource;
-  let fonts = dashboard.initial_fonts();
+  const imageUrl = new URL("../../assets/lotus.jpg", import.meta.url).href;
+  let fonts = dashboard.initial_media(imageUrl);
   let fontPromise = Promise.resolve();
+  let mediaPump = null;
+  function intentModel() {
+    return dashboard.with_images(dashboard.with_font(model, fontEnabled), imagesEnabled);
+  }
+  function pumpMedia() {
+    if (mediaPump) return mediaPump;
+    let task = fonts.get(tags.task);
+    if (to_js_data(task.get(0)) !== "some") return Promise.resolve();
+    mediaPump = (async () => {
+      while (to_js_data(task.get(0)) === "some") {
+        const result = await dashboard.run_media_task_$x_(fontSource, fonts, task.get(1));
+        const revision = fonts.get(tags.revision);
+        fonts = dashboard.complete_media_$x_(fonts, result);
+        if (disposed) break;
+        fonts = dashboard.sync_media_$x_(fonts, intentModel());
+        task = fonts.get(tags.task); // 捕获下一个任务后再绘制，resize/绘制不能吞掉已领取任务。
+        if (fonts.get(tags.revision) !== revision) draw();
+      }
+    })().finally(() => { mediaPump = null; });
+    return mediaPump;
+  }
   const scheduler = new DemandFrameScheduler({
     requestFrame: callback => requestAnimationFrame(callback),
     cancelFrame: handle => cancelAnimationFrame(handle),
@@ -44,21 +67,15 @@ export function mountDemo() {
       canvas.width = width;
       canvas.height = height;
     }
-    const displayModel = dashboard.with_font(model, fontEnabled);
+    const intent = intentModel();
+    fonts = dashboard.sync_media_$x_(fonts, intent);
+    const displayModel = dashboard.image_ready_$q_(fonts) ? intent : dashboard.with_font(model, fontEnabled);
     scene = dashboard.frame_at(displayModel, time, width, height);
     dashboard.commit_scene_$x_(canvas, scene, bounds.width / width, bounds.height / height);
-    fonts = dashboard.sync_fonts_$x_(fonts, displayModel);
-    const task = fonts.get(tags.task);
-    if (to_js_data(task.get(0)) === "some") {
-      fontPromise = dashboard.run_font_task_$x_(fontSource, task.get(1)).then(result => {
-        const revision = fonts.get(tags.revision);
-        fonts = dashboard.complete_font_$x_(fonts, result);
-        if (!disposed && fonts.get(tags.revision) !== revision) draw();
-      });
-    }
+    fontPromise = pumpMedia();
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, width, height);
-    dashboard.draw_frame_$x_(context, scene, width, height);
+    dashboard.draw_media_frame_$x_(context, fonts, scene, width, height);
     paints++;
     slider.value = String(time);
     slider.max = String(horizon);
@@ -76,6 +93,9 @@ export function mountDemo() {
     status.textContent = `t=${time.toFixed(2)} · ${width}×${height} · ${state.nodeCount} 节点 · 捕获 ${state.captured ?? "无"}`;
     status.dataset.result = "pass";
     document.querySelector("#font-enable").disabled = fontEnabled;
+    document.querySelector("#images-enable").disabled = imagesEnabled;
+    document.querySelector("#media-status").textContent = state.mediaError ? `资源错误：${state.mediaError}` :
+      imagesEnabled ? (state.imageReady ? "图片资源已就绪，共享图片 1 张" : "图片加载中，保留原卡片") : "图片未启用";
   }
 
   function stop() {
@@ -119,13 +139,19 @@ export function mountDemo() {
     const capture = pointer.capture;
     return { time, width: canvas.width, height: canvas.height, nodeCount: data.nodes.length, playing, paints, pending: scheduler.pending,
       visible: prior?.visible ?? true, chartVisible: prior?.["chart-visible"] ?? true, lineChart: prior?.["line-chart"] ?? false, events: log, scene: data, pointer,
-      fontEnabled, fonts: to_js_data(fonts),
+      fontEnabled, imagesEnabled, imageReady: dashboard.image_ready_$q_(fonts), mediaError: dashboard.media_error(fonts), fonts: to_js_data(fonts),
       captured: capture[0] === "captured" ? capture[1] : null };
   }
 
   async function enableFont(source = defaultFontSource) {
     if (disposed) return snapshot();
     if (!fontEnabled) { fontSource = source; fontEnabled = true; draw(); }
+    await fontPromise;
+    return snapshot();
+  }
+  async function enableImages() {
+    if (disposed) return snapshot();
+    if (!imagesEnabled) { imagesEnabled = true; draw(); }
     await fontPromise;
     return snapshot();
   }
@@ -159,6 +185,7 @@ export function mountDemo() {
   document.querySelector("#reset").onclick = reset;
   document.querySelector("#presence-toggle").onclick = () => setVisible(!snapshot().visible);
   document.querySelector("#font-enable").onclick = () => enableFont();
+  document.querySelector("#images-enable").onclick = () => enableImages();
   document.querySelector("#chart-toggle").onclick = () => setChartVisible(!snapshot().chartVisible);
   document.querySelector("#chart-variant").onclick = () => setChartVariant(!snapshot().lineChart);
   document.querySelector("#panel-toggle").onclick = (event) => {
@@ -184,7 +211,7 @@ export function mountDemo() {
     if (disposed) return;
     disposePointer();
     disposed = true;
-    fonts = dashboard.close_fonts_$x_(fonts);
+    fonts = dashboard.close_media_$x_(fonts);
     stop();
     scheduler.dispose();
     listeners.abort();
@@ -192,7 +219,7 @@ export function mountDemo() {
     resolution?.removeEventListener("change", watchDpr);
     if (window.layeredDashboardDemo === api) delete window.layeredDashboardDemo;
   }
-  const api = { seek, play, pause: stop, snapshot, setVisible, setChartVisible, setChartVariant, reset, enableFont, dispose };
+  const api = { seek, play, pause: stop, snapshot, setVisible, setChartVisible, setChartVariant, reset, enableFont, enableImages, dispose };
   window.layeredDashboardDemo = api;
   draw();
   if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();
