@@ -29,9 +29,11 @@ jobs:
 
       - run: corepack enable
 
-      - uses: calcit-lang/setup-calcit@v1
+      - uses: calcit-lang/setup-calcit@v1.5.0
         with:
           tools: calcit,caps
+          caps-version: "0.1.1"
+          deps-file: deps.cirru
 
       - run: yarn install --immutable
 

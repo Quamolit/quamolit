@@ -28,7 +28,7 @@
             :args $ [] 'Dynamic
         'arrange-children $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arrange-children (children)
-            if (every? children some?)
+            if (every? children non-nil?)
               -> children $ map-indexed $ fn (idx x) ([] idx x)
               -> children
                 map-indexed $ fn (idx x) ([] idx x)
@@ -67,7 +67,7 @@
               :children $ arrange-children children
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic 'Dynamic
+            :args $ [] 'Dynamic 'Dynamic $ :: 'List 'Dynamic
             :features $ #{} :js-ffi
         'defcomp $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defmacro defcomp (comp-name args & body)
@@ -236,7 +236,7 @@
                     let
                         source $ :source image
                         host $ lookup (:id source) (:version source)
-                      assert |missing-image-resource $ some? host
+                      assert |missing-image-resource $ non-nil? host
                       assert |image-size-mismatch $ and
                         = (:width source) (browser/image-natural-width host)
                         = (:height source) (browser/image-natural-height host)
@@ -720,7 +720,7 @@
             let
                 source $ :source image
                 host $ lookup (:id source) (:version source)
-              assert |missing-image-resource $ some? host
+              assert |missing-image-resource $ non-nil? host
               assert |image-size-mismatch $ and
                 = (:width source) (browser/image-natural-width host)
                 = (:height source) (browser/image-natural-height host)
@@ -975,7 +975,7 @@
                 fn (elapsed d!)
                   case-default (:stage state)
                     println "|unknown stage" $ :stage state
-                    :hidden $ when (some? p1)
+                    :hidden $ when (non-nil? p1)
                       d! cursor $ merge state $ {} (:stage :showing)
                         :opacity $ + (* elapsed v) 0
                       write-node-cache! cursor f1
@@ -1003,7 +1003,7 @@
                   case-default (:stage state)
                     either p1 $ &let
                       old-f $ get-node! cursor
-                      if (some? old-f)
+                      if (non-nil? old-f)
                         old-f (>> states :renderer) (:opacity state) (:stage state)
                     :hidden nil
           :examples $ []
@@ -1022,7 +1022,7 @@
                 fn (elapsed d!)
                   case-default (:stage state)
                     println "|unknown stage" $ :stage state
-                    :hidden $ when (some? p1)
+                    :hidden $ when (non-nil? p1)
                       d! cursor $ merge state $ {} (:stage :showing)
                         :opacity $ + (* elapsed v) 0
                       write-node-cache! cursor p1
@@ -1259,7 +1259,7 @@
                 let
                     maybe-listener $ if
                       and (&struct:matches? Shape target)
-                        some? $ :event target
+                        non-nil? $ :event target
                       get-in target $ [] :event event-name
                       %none
                   match maybe-listener
@@ -1590,7 +1590,7 @@
                 if
                   and
                     or (.-metaKey event) (.-ctrlKey event) (.-shiftKey event)
-                    some? @*drag-moving-cache
+                    non-nil? @*drag-moving-cache
                   let
                       prev @*drag-moving-cache
                       current $ [] (.-clientX event) (.-clientY event)
@@ -1601,7 +1601,7 @@
               .addEventListener root |mouseup $ fn (event) (reset! *drag-moving-cache nil)
                 let
                     coord @*clicked-focus
-                  when (some? coord) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
+                  when (non-nil? coord) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
                     when-let
                       target $ find-hit-area
                         []
@@ -4676,11 +4676,11 @@
     'quamolit.examples.layered-dashboard $ %{} 'FileEntry
       :defs $ {}
         '*dashboard-plan $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *dashboard-plan
+          :code $ quote $ defref *dashboard-plan
             hit/compile-hit-plan $ scene/SceneDocument :nodes $ scene/empty-scene-nodes
           :examples $ []
         '*dashboard-pointer $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *dashboard-pointer (pointer/initial-pointer-state)
+          :code $ quote $ defref *dashboard-pointer (pointer/initial-pointer-state)
           :examples $ []
         'DashboardFonts $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct DashboardFonts (:registry 'quamolit.resource-lifecycle/ResourceRegistry) (:queue 'quamolit.resource-load-queue/ResourceLoadQueue) (:host 'quamolit.font-resource/FontResourceHost)
@@ -7671,7 +7671,7 @@
                           if
                             any? (:handles host)
                               fn (handle)
-                                =
+                                identical?
                                   :face $ :loaded handle
                                   :face loaded
                             , host $ do (release-font! loaded) host
@@ -8094,7 +8094,7 @@
             :args $ [] 'Dynamic 'Dynamic 'Number
           :tests $ [] $ %{} 'TestEntry (:name |parent-before-child)
             :code $ quote $ let
-                seen $ atom $ []
+                seen $ ref $ assert-type ([]) (:: 'List 'Tag)
                 child $ %{} Component (:name :child) (:tree nil)
                   :on-tick $ fn (elapsed dispatch!) (swap! seen conj :child)
                 parent $ %{} Component (:name :parent)
@@ -9409,7 +9409,7 @@
             :args $ []
         'hud-log $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hud-log (& xs)
-            swap! *hud-logs conj $ join-str xs "|, "
+            swap! *hud-logs conj $ xs .join-string "|, "
           :examples $ []
           :schema $ :: 'Fn $ {} (:rest 'Dynamic) (:return 'Dynamic)
             :args $ []
@@ -12093,10 +12093,10 @@
         'plan-release-loop $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn plan-release-loop (remaining references acc)
             if (empty? remaining) acc $ let
-                ref $ first-resource-ref remaining
+                resource-reference $ first-resource-ref remaining
               recur (rest remaining) references $ if
-                resource-ref-present? references $ :key ref
-                , acc $ append acc (:source ref)
+                resource-ref-present? references $ :key resource-reference
+                , acc $ append acc (:source resource-reference)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] (:: 'List 'quamolit.presence/InstanceResourceRef) (:: 'List 'quamolit.presence/InstanceResourceRef) (:: 'List 'quamolit.scene-ir/InstanceSource)
@@ -12361,8 +12361,8 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
             :args $ [] 'quamolit.scene-ir/SceneDocument
         'total-ref-count $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn total-ref-count (acc ref)
-            + acc $ :count ref
+          :code $ quote $ defn total-ref-count (acc resource-reference)
+            + acc $ :count resource-reference
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number 'quamolit.presence/InstanceResourceRef
@@ -13582,6 +13582,14 @@
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic
             :features $ #{} :js-ffi
+        'legacy-number $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn legacy-number (value fallback)
+            if
+              or (nil? value) (= value false)
+              , fallback $ if (number? value) value $ raise |invalid-legacy-style-number
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Dynamic 'Number
         'paint $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint (ctx tree coord dispatch! elapsed tick?) (; js/console.log |paint tree) (paint-tree-with ctx tree coord dispatch! elapsed tick? paint-one)
           :examples $ []
@@ -13613,7 +13621,7 @@
                 miter-limit $ either (&map:get style :miter-limit) 8
               .!beginPath ctx
               .!arc ctx x y r s-angle e-angle counterclockwise
-              when (some? event)
+              when (non-nil? event)
                 reset! *touch-event-areas $ prepend
                   {} (:kind :arc) (:r r)
                     :transform $ &map:get @*tracked-transform :transform
@@ -13737,23 +13745,27 @@
         'paint-rect $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-rect (ctx style coord event)
             let
-                w $ or (&map:get style :w) 100
-                h $ or (&map:get style :h) 40
+                w $ legacy-number (&map:get style :w) 100
+                h $ legacy-number (&map:get style :h) 40
                 x $ -
-                  or (&map:get style :x) 0
+                  legacy-number (&map:get style :x) 0
                   / w 2
                 y $ -
-                  or (&map:get style :y) 0
+                  legacy-number (&map:get style :y) 0
                   / h 2
-                line-width $ or (&map:get style :line-width) 2
+                line-width $ legacy-number (&map:get style :line-width) 2
               .!beginPath ctx
               .!rect ctx x y w h
-              when (some? event)
+              when (non-nil? event)
                 reset! *touch-event-areas $ prepend @*touch-event-areas $ {} (:kind :rect)
                   :half-w $ &* 0.5 w
                   :half-h $ &* 0.5 h
-                  :transform $ :transform @*tracked-transform
-                  :offset $ :offset @*tracked-transform
+                  :transform $ match (get @*tracked-transform :transform)
+                    (:some value) value
+                    (:none) (raise |missing-legacy-transform-field)
+                  :offset $ match (get @*tracked-transform :offset)
+                    (:some value) value
+                    (:none) (raise |missing-legacy-transform-field)
                   :coord coord
                   :position $ []
                     &+ x $ &* 0.5 w
@@ -18445,10 +18457,50 @@
           :code $ quote $ defatom *frame (initial-frame 0 0 scene)
           :examples $ []
           :schema $ :: 'Dynamic
+        '*path-sample-calls $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defref *path-sample-calls 0
+          :examples $ []
+        'constant-path-sample-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn constant-path-sample-plan (plan transforms)
+            struct-with plan $ :sample $ fn (slots time)
+              hint-fn $ {}
+                :args $ [] (:: 'List 'quamolit.examples.binary-tree/BranchSlot) 'Number
+                :return $
+                  :: 'List 'quamolit.scene-ir/Matrix2D
+              , transforms
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ []
+              :: 'quamolit.retained-path/PathPlan $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
+              :: 'List 'quamolit.scene-ir/Matrix2D
+            :return $ :: 'quamolit.retained-path/PathPlan $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
+        'counted-tree-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn counted-tree-plan (time depth)
+            let
+                plan $ tree/build-plan time depth
+              reset! *path-sample-calls 0
+              struct-with plan $ :sample counted-tree-transforms
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number
+            :return $ :: 'quamolit.retained-path/PathPlan $ :: 'List 'quamolit.examples.binary-tree/BranchSlot
+        'counted-tree-transforms $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn counted-tree-transforms (slots time)
+            reset! *path-sample-calls $ inc $ deref *path-sample-calls
+            tree/sample-transforms slots time
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'quamolit.examples.binary-tree/BranchSlot) 'Number
+            :return $ :: 'List 'quamolit.scene-ir/Matrix2D
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () (reset-fixture!) ([] step-fixture! redraw-fixture! progress)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
+            :args $ []
+        'path-sample-calls $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn path-sample-calls () (deref *path-sample-calls)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ []
         'progress $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn progress () (:model @*frame)
@@ -18506,6 +18558,7 @@
             quamolit.types :refer $ Component Shape
             quamolit.render.paint :refer $ paint-tree-only-with paint-rect
             quamolit.frame-eval :refer $ initial-frame evaluate-at
+            quamolit.examples.binary-tree :as tree
     'quamolit.test.gpu-component-fixture $ %{} 'FileEntry
       :defs $ {}
         'extreme-plan $ %{} 'CodeEntry (:doc |)
