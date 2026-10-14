@@ -30,7 +30,11 @@ js-ffi 0.2.2声明Calcit0.29.1；根 `resolutions` 统一到兼容稳定runtime0
 
 本机0.29.3已构建完成；关键本地结果：CLI/runtime合同、稳定API17项、TodoList13项、看板16项、原视觉11项、保留组件Node9/浏览器4项、完整编译/构建与静态导航76项通过。旧矩形数值边界另复核5项正负例；不改像素阈值或基线。最初两个浏览器命令争用5180导致TodoList末项连接失败，串行重跑13项全部通过，不跳过用例。
 
+首轮Upload暴露附带测试把空Ref推断为List<never>后写入Tag的旧写法；仅给原parent-before-child测试初始化显式List<Tag>，保留原顺序断言/标签，使用ref首选构造器。frame-clock13项及全项目原生145项全部通过；没有放宽Ref类型或删除测试。
+
 干净消费安装451f6e4升级源码、37个可达模块搬移、inline/file显式重编译和生命周期通过。导航里的独立消费者也固定该候选，避免只升级runtime却展示旧库；最终head的消费及Actions须再核对。无头GPU为adapter-unavailable的SKIP，不计硬件或性能通过。整库legacy规范债务、命名entry归并与后续发版仍未完成。
+
+f34899b的candidate=harness、dirty=false消费复测通过；headed/REQUIRE_GPU同head的真实Apple/Metal四项专项全部PASS（非软件adapter），覆盖矩形、双轴、10k实例更新/恢复与独立时间采样。该结果不是吞吐基准，#144的小数栅格化差异仍按原诊断记录。后续仅附带测试类型初始化修复，不把旧head绿灯替代新head的Actions。
 
 最低门禁：
 

@@ -8094,7 +8094,7 @@
             :args $ [] 'Dynamic 'Dynamic 'Number
           :tests $ [] $ %{} 'TestEntry (:name |parent-before-child)
             :code $ quote $ let
-                seen $ atom $ []
+                seen $ ref $ assert-type ([]) (:: 'List 'Tag)
                 child $ %{} Component (:name :child) (:tree nil)
                   :on-tick $ fn (elapsed dispatch!) (swap! seen conj :child)
                 parent $ %{} Component (:name :parent)
