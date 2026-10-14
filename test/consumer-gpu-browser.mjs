@@ -157,7 +157,7 @@ export async function verifyIndependentGpuConsumerBrowser(page, artifacts) {
   assert.deepEqual(report.errors, []);
   assert.equal(report.samples.length, 15);
   assert.equal(report.coldRecordBytes, 640000);
-  assert.equal(report.coldParameterBytes, 2240000);
+  assert.equal(report.coldParameterBytes, 3200000);
   assert.equal(report.hotRecordBytes, 0);
   assert.equal(report.hotParameterBytes, 0);
   assert.equal(report.frames.length, 5);
@@ -411,7 +411,7 @@ export async function verifyGpuConsumerBrowser(page, artifacts, dual = false) {
     const reused = index < 5 || (mirror ? index >= 8 : index > 8);
     assert.equal(frame.reused, reused);
     assert.equal(frame.uploadedBytes, reused ? 0 : 128);
-    assert.equal(frame.parameterBytes, reused ? 0 : dual && !alpha && !mirror ? 448 : 352);
+    assert.equal(frame.parameterBytes, reused ? 0 : dual && !alpha && !mirror ? 640 : 544);
   }
   assert.equal(report.numericSamples.length, mirror ? 10 : dual ? 7 : 0);
   for (const sample of report.numericSamples) {
