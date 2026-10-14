@@ -3,6 +3,116 @@ import { readFile } from "node:fs/promises";
 const catalog = JSON.parse(await readFile(new URL("../demos/catalog.json", import.meta.url), "utf8"));
 const artifactURL = `http://127.0.0.1:${process.env.QUAMOLIT_DEMO_TEST_PORT || 5190}/preview/`;
 
+const originalApis = {
+  "binary-tree": "treeDemo",
+  todolist: "todoDemo",
+  clock: "clockDemo",
+  curve: "curveDemo",
+  solar: "solarDemo",
+  icons: "iconsDemo",
+  raining: "rainingDemo",
+  finder: "finderDemo",
+  table: "tableDemo",
+  "drag-demo": "dragDemo",
+  "folding-fan": "foldingFanDemo",
+};
+for (const dpr of [1, 2])
+  test(`原有11示例发布屏幕矩阵 DPR${dpr}：暂停resize、浮层、截图及卸载`, async ({ browser }, testInfo) => {
+    test.setTimeout(60000); // 一个既有发布链路覆盖11个作品，不新增runner/job。
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 900 },
+      deviceScaleFactor: dpr,
+      reducedMotion: "reduce",
+    });
+    const page = await context.newPage(),
+      errors = [],
+      evidence = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.addInitScript(() => Object.defineProperty(navigator, "gpu", { value: undefined, configurable: true }));
+    const originals = catalog.entries.filter((entry) => entry.group === "originals");
+    expect(originals.map((entry) => entry.id).sort()).toEqual(Object.keys(originalApis).sort());
+    const intent = (state) =>
+      Object.fromEntries(
+        ["time", "tick", "seed", "model", "events", "cells", "selected"]
+          .filter((key) => key in state)
+          .map((key) => [key, state[key]]),
+      );
+    try {
+      for (const entry of originals) {
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await page.goto(
+          `${artifactURL}demos/index.html?demo=${entry.id}&t=${entry.id === "folding-fan" ? "0.18&events=0" : "1"}&seed=17&tick=75`,
+        );
+        await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
+        const apiName = originalApis[entry.id];
+        const read = () => page.evaluate((name) => window[name].snapshot(), apiName);
+        await page.evaluate((name) => window[name].pause?.(), apiName);
+        if (entry.id === "folding-fan") await expect.poll(async () => (await read()).resource).toBe("ready");
+        const before = intent(await read());
+        for (const size of [
+          { width: 1280, height: 900 },
+          { width: 390, height: 844 },
+          { width: 600, height: 640 },
+        ]) {
+          await page.setViewportSize(size);
+          await expect
+            .poll(async () => [(await read()).width, (await read()).height])
+            .toEqual([size.width * dpr, size.height * dpr]);
+          await expect(page.locator("canvas")).toHaveCount(1);
+          const bounds = await page.locator("canvas").boundingBox();
+          expect(bounds).toEqual({ x: 0, y: 0, ...size });
+          const state = await read();
+          expect(intent(state)).toEqual(before);
+          if ("pending" in state) await expect.poll(async () => (await read()).pending).toBe(false);
+          if ("playing" in state) expect(state.playing).toBe(false);
+          // 按钮位于真正DOM浮层，开合不能穿透成Canvas业务输入。
+          const panel = page.locator("#panel");
+          if (await panel.isHidden()) await page.locator("#panel-toggle").click();
+          await expect(panel).toBeVisible();
+          expect(intent(await read())).toEqual(before);
+          if (size.width !== 600)
+            await page.screenshot({ path: testInfo.outputPath(`${entry.id}-${size.width}-dpr${dpr}-overlay.png`) });
+          await page.locator("#panel-toggle").click();
+          await expect(panel).toBeHidden();
+          expect(intent(await read())).toEqual(before);
+          if (size.width !== 600) {
+            // hidden属性会被导航的display规则覆盖，截图必须验证真正不可见。
+            const overlayStyles = await page.locator("nav, #panel-toggle").evaluateAll((elements) =>
+              elements.map((element) => {
+                const original = [element.style.visibility, element.style.getPropertyPriority("visibility")];
+                element.style.setProperty("visibility", "hidden", "important");
+                return original;
+              }),
+            );
+            for (const overlay of await page.locator("nav, #panel-toggle").all()) await expect(overlay).toBeHidden();
+            await page.screenshot({ path: testInfo.outputPath(`${entry.id}-${size.width}-dpr${dpr}-canvas.png`) });
+            await page.locator("nav, #panel-toggle").evaluateAll((elements, styles) => {
+              elements.forEach((element, index) => {
+                const [value, priority] = styles[index];
+                if (value) element.style.setProperty("visibility", value, priority);
+                else element.style.removeProperty("visibility");
+              });
+            }, overlayStyles);
+          }
+          evidence.push({ id: entry.id, size, dpr, intent: before, backing: [state.width, state.height] });
+        }
+        await page
+          .getByRole("navigation", { name: "演示导航" })
+          .getByRole("button", { name: /所有演示/ })
+          .click();
+        await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
+        expect(await page.evaluate((name) => name in window, apiName)).toBe(false);
+        expect(errors).toEqual([]);
+      }
+      await testInfo.attach("original-screen-matrix", {
+        body: JSON.stringify(evidence, null, 2),
+        contentType: "application/json",
+      });
+    } finally {
+      await context.close();
+    }
+  });
+
 for (const [entry, dpr] of [
   ["index.html", 1],
   ["", 2],

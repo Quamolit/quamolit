@@ -22,6 +22,8 @@
 
 当前 [Binary Tree](binary-tree-restoration.md)、[TodoList](todolist-restoration.md)、[Clock](clock-restoration.md)、[Curve](curve-restoration.md)、[Solar](solar-restoration.md)、[Icons](icons-restoration.md)、[Raining](raining-restoration.md)、[Finder](finder-restoration.md)、[Table](table-restoration.md)、[Drag demo](drag-demo-restoration.md) 与 [Folding Fan](folding-fan-restoration.md) 均已提供可运行 Canvas 切片。`demos/catalog.json` 的 `planned` 仅登记尚无运行页面的未来项目，目前原有 11 项均在 `entries`。完整 Scene/GPU/功能矩阵及 M3 验收仍未完成；可运行不等于全部验收完成。
 
+`test:demo-nav` 的两项原有示例屏幕矩阵从普通 `release` 产物进入同一导航：11项×DPR1/2×1280×900、390×844、600×640共66组合，检查唯一全屏Canvas、实际backing store、暂停resize保持时间/tick/seed/Model/日志、浮层开合不穿透业务输入，以及返回后API卸载。桌面与390px各保存纯Canvas/含浮层截图，共88张，位于忽略的`test-results/demo-nav/`并沿原导航artifact上传；纯Canvas截图实际隐藏且断言导航/按钮不可见，不能只依赖被CSS覆盖的hidden属性。固定输入为普通时间`t=1`、Raining `seed=17/tick=75`、Folding Fan `t=0.18/events=0`。这些是屏幕/意图矩阵，不代替每个作品初始/中间/终点动画保真、触摸目标或跨后端像素对照；桌面/窄屏触摸功能仍由原作品门禁负责。复用同一runner/job，不新增命令，单项矩阵60秒上限只用于串行11作品，不能解释为性能结论。
+
 [原有 11 个 Demo 动画保真核对](demo-fidelity-audit.md) 对照 `9b5bcdd` 逐项记录了已恢复的动态细节、固定时间画面和仍未完全等价的部分；导航能打开不能代替动画中间帧的检验。
 
 ## 全屏舞台与 DOM 浮层

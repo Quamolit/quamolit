@@ -9,7 +9,7 @@
 - **声明和绘制组件**：[独立 Calcit 消费者](examples/retained-consumer/README.md)贯通安装、组件、可控时间、Canvas 与受限 WebGPU。它仍使用实验 API，不代表完整渲染面已稳定。
 - **迁移旧项目**：[API 清单与迁移合同](docs/api-contract.md)区分稳定、实验、旧入口和内部实现。旧 `paint` / `tick-tree` 的迁移说明集中在那里；不再以旧 DSL 作为首页教程，历史示例仍可查 Git 历史，旧实现不在本轮删除。
 
-实验 Scene 已提供[原生圆弧](docs/scene-ir-core.md#原生圆弧212)：Calcit 描述弧度、方向、圆头与描边，Canvas 直接绘制，无应用侧折线离散；WebGPU、弧命中和标量绑定尚不支持。已发布 alpha.3 不含这项新增能力，下游须等包含它的新 tag，不能把 main 写法套到旧版本。
+实验 Scene 已提供[原生圆弧](docs/scene-ir-core.md#原生圆弧212)：Calcit 描述弧度、方向、圆头与描边，Canvas 直接绘制，无应用侧折线离散。原生绘制已发布于 alpha.4；main 另已支持纯 Calcit 弧命中、保留 alpha 绑定与 Presence 出入，后者尚未发布新 tag。WebGPU 和中心/半径/角度等几何标量绑定仍不支持，不把 main 能力套到旧 tag。
 
 ## 最小动画 / Minimal animation
 
@@ -57,7 +57,7 @@ Start with the [demo gallery](demos/README.md) (`yarn demo`) and the [API stabil
 
 The [standalone consumer](examples/retained-consumer/README.md) demonstrates component declarations, retained execution, Canvas and a supported WebGPU subset through Calcit imports. Those renderer/resource interfaces remain experimental. See the [verification rules](docs/verification.md) for actual coverage and hardware limits; passing compilation is not proof of application behavior or performance. The [migration contract](docs/api-contract.md#旧入口弃用计划) replaces the old homepage DSL tutorial; historical code remains in Git history and is not removed here.
 
-The experimental Scene API includes [native arcs](docs/scene-ir-core.md#原生圆弧212), declared in Calcit and drawn through typed Canvas APIs without application-side polyline tessellation. Arc GPU rendering, hit testing and scalar bindings are not supported yet. This addition is not in the published alpha.3; consumers must use a newer tag containing it.
+The experimental Scene API includes [native arcs](docs/scene-ir-core.md#原生圆弧212), declared in Calcit and drawn through typed Canvas APIs without application-side polyline tessellation. Native drawing shipped in alpha.4. Main additionally supports Calcit arc hit testing, retained alpha bindings and Presence transitions; those extensions have not shipped in a new tag. Arc GPU rendering and geometric scalar bindings remain unsupported. Do not assume main capabilities exist in an older tag.
 
 Use Calcit 0.29.3 and Node.js 24, then run the development commands above. `yarn compile && yarn release` builds the unified gallery and animations into `dist/`; the root URL preserves shared parameters and redirects to that same page. `release:demos` uses the same configuration with a compatibility output directory. The 27 existing compilation scripts select named entries in the main Snapshot; inspect them with `calcit config show`. The default/bootstrap remains smoke-only, and the independently installed consumer retains its own Snapshot. Entries do not isolate distributed code. Navigation tests check entry/script consistency and exercise the ordinary release output, not source fallback. Follow [plan v3](docs/plan-v3.md) for milestone status.
 
