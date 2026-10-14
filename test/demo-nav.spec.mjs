@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 const catalog = JSON.parse(await readFile(new URL("../demos/catalog.json", import.meta.url), "utf8"));
 const artifactURL = `http://127.0.0.1:${process.env.QUAMOLIT_DEMO_TEST_PORT || 5190}/preview/`;
 
@@ -104,11 +104,26 @@ for (const dpr of [1, 2])
         expect(await page.evaluate((name) => name in window, apiName)).toBe(false);
         expect(errors).toEqual([]);
       }
-      await testInfo.attach("original-screen-matrix", {
-        body: JSON.stringify(evidence, null, 2),
-        contentType: "application/json",
-      });
     } finally {
+      const manifest = testInfo.outputPath("original-screen-matrix.json");
+      await writeFile(
+        manifest,
+        JSON.stringify(
+          {
+            platform: process.platform,
+            arch: process.arch,
+            browser: browser.version(),
+            gpu: "forced-unavailable; Canvas2D fallback only",
+            completedCases: evidence.length,
+            expectedCases: originals.length * 3,
+            errors,
+            evidence,
+          },
+          null,
+          2,
+        ),
+      );
+      await testInfo.attach("original-screen-matrix", { path: manifest, contentType: "application/json" });
       await context.close();
     }
   });
