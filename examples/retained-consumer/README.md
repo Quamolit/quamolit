@@ -2,7 +2,7 @@
 
 本目录是单独的 Calcit/Yarn 项目，不是 Quamolit workspace 子包。主要源码是 `calcit.cirru` 中的 `app.main`；通过统一 Calcit 执行入口声明静态横条、标量 Motion 矩形及 CPU 变换折线，使用同一个 ComponentPlan 绘制 Canvas。JS 入口只连接页面按钮、传入 Canvas 原生上下文与展示诊断计数，不实现动画或渲染循环。
 
-使用 Calcit 0.28.0、Node.js 24 和 Yarn 4.12.0：
+使用 Calcit/runtime 0.29.3、Node.js 24 和 Yarn 4.12.0：
 
 ```sh
 cd examples/retained-consumer
@@ -15,6 +15,10 @@ calcit query def app.main/update-plan --raw
 `deps.cirru` 固定一个已推送的 Quamolit 候选提交，用于公共 API 验证；它不是发布 tag。要验证另一已推送提交或发布 tag，使用 `caps --ci add Quamolit/quamolit -r <完整 SHA 或 tag>`，再编译。不需要 npm 的 Quamolit 包或 `@calcit/js-ffi` 包；当前路径唯一 npm 直接依赖是 `@calcit/procs`。
 
 从 Quamolit 根目录可运行 `yarn vite examples/retained-consumer --host 127.0.0.1 --port 5183` 查看页面。Vite 只是开发服务器，不是 Calcit 消费者的运行时依赖。点击时间按钮可乱序查看中间帧，在相同时间修改 Model、资源 ready 与宽度版本，观察声明次数及画面更新。
+
+开发中的“卡片旋转与缩放”或 `?motion=transform` 由 Calcit `declare-transform` 声明平移、弧度旋转、缩放与局部支点；`TransformSampler :motions` 不保存闭包。标准矩阵按T(x,y)·T(pivot)·R·S·T(-pivot)采样，时间变化复用Scene和几何；Model/资源/视口在同时间变化仍重声明。原“线性矩形+折线”的20+10×time平移也已改用标准数据，默认效果不变。页面/生产代码只引用Calcit模块；GPU时间采样当前返回 `standard-transform-kernel-not-supported`，仍显示Canvas参考，不能当成GPU变换已交付。
+
+当前固定990900a候选提供标准变换API，尚非已合并/发布版本。安装、编译搬移、1000帧、支点独立公式和原生Canvas旋转缩放对照复用 `test:consumer`，不另建renderer、测试命令或导航页面。它与尚未合并的颜色/布局候选分支分别验证，不能用旧tag或单一候选pin混称包含所有能力；对齐真实main后再收口PR。
 
 原页面的“矩形透明度渐入”或 `?motion=alpha` 使用 Calcit `declare-alpha` 复用原两矩形 Scene，以两点 clamp 关键帧声明0→1的smoothstep alpha；GPU冷准备归一化到已有tween内核。界面显示Canvas参考，GPU采样/上传/数值和画面对照复用已有双轴硬件专项，多段、repeat 与group opacity仍不支持。五槽布局的冷安装内存/字节变化见[GPU合同](../../docs/gpu-scalar-program.md)，旧性能样本仍属于旧源码。
 
