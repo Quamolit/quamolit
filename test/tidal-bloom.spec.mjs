@@ -131,9 +131,25 @@ test("分析图表可切换数据系列、中途反向并分享中间画面", as
   expect(halfway.seriesPosition).toBeCloseTo(0.5, 4);
   expect(halfway.chartBarHeight).toBeCloseTo(109.5, 4);
   await page.screenshot({ path: testInfo.outputPath("metric-flow-series-middle.png") });
+  // 真实按钮的 onclick 会重新启动 rAF。紧随其后在同一事件任务取样，
+  // 再通过公开时钟入口暂停；跨 Playwright 调用读取会混入合法的时间推进。
+  await page.locator("#series-visitors").evaluate((button) => {
+    button.addEventListener(
+      "click",
+      () => {
+        button.dataset.interruptionSnapshot = JSON.stringify(window.metricFlowDemo.snapshot());
+        window.metricFlowDemo.pause();
+      },
+      { once: true },
+    );
+  });
   await page.locator("#series-visitors").click();
-  const reversed = await page.evaluate(() => window.metricFlowDemo.snapshot());
-  expect(reversed.seriesPosition).toBeCloseTo(halfway.seriesPosition, 4);
+  const reversed = await page
+    .locator("#series-visitors")
+    .evaluate((button) => JSON.parse(button.dataset.interruptionSnapshot));
+  expect(reversed.playing).toBe(true);
+  expect(reversed.time).toBe(halfway.time);
+  expect(reversed.seriesPosition).toBe(halfway.seriesPosition);
   expect(reversed.seriesEventCount).toBe(2);
   const settled = await at(1.35);
   expect(settled.seriesPosition).toBe(0);

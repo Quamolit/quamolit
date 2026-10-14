@@ -2,7 +2,7 @@
 
 2026-10-14 升级候选使用已发布的 Calcit 稳定版 `0.29.3`、匹配的 `@calcit/procs@0.29.3` 和 js-ffi `0.2.3`。根项目、独立消费者、`deps.cirru`、npm runtime、Yarn resolution、锁文件和中英文入口同步；不接受仅升级本机 CLI。沿用本页与现有门禁，不另建升级测试体系。主线及旧alpha仍为0.28.0，不能把候选声明当作已完成验收。
 
-本机全局CLI为0.29.0-alpha.17，不用于正式0.29.3验收；官方release的两个可执行资产均为Linux，因此macOS从官方0.29.3 crate构建隔离CLI（`--locked --no-default-features`，本项目使用JS目标，非WASM验收）。不覆盖用户全局安装。named entry 创建的上游#1665已经关闭，工具链门禁通过后另做入口归并，不混入本升级PR。
+本机全局CLI为0.29.0-alpha.17，不用于正式0.29.3验收；官方release的两个可执行资产均为Linux，因此macOS从官方0.29.3 crate构建隔离CLI（`--locked --no-default-features`，本项目使用JS目标，非WASM验收）。不覆盖用户全局安装。工具链[#226](https://github.com/Quamolit/quamolit/pull/226)的三个Actions及同head干净消费/Metal门禁已通过，尚待合并。命名entry创建的上游#1665已经关闭，后续归并候选使用主Snapshot的27个命名入口；不混入升级PR，不改变default或将独立消费者并入作者Snapshot。
 
 ## 版本合同
 
@@ -36,7 +36,9 @@ js-ffi 0.2.3已于本轮发布并声明Calcit/runtime0.29.3，新增受检宿主
 
 随后Visual在二叉树Node测试中拒绝把裸JS回调动态写入类型化PathPlan.sample；这是测试构造方式不再满足Fn字段证据，而非动画采样失败。计数采样器与故障计划构造移入已有Calcit测试夹具，显式保留BranchSlot/Matrix2D类型，生产公共模块不引用该夹具。原1000帧/63条共享几何/重复时间跳过断言不变；负例先构造计划，再断言实际采样的invalid-path-time/invalid-path-transforms，避免字段赋值错误造成假阳性。本地原生2项及Node8项通过，不改图像阈值、artifact要求或公共API。
 
-干净消费安装451f6e4升级源码、37个可达模块搬移、inline/file显式重编译和生命周期通过。导航里的独立消费者也固定该候选，避免只升级runtime却展示旧库；最终head的消费及Actions须再核对。无头GPU为adapter-unavailable的SKIP，不计硬件或性能通过。整库legacy规范债务、命名entry归并与后续发版仍未完成。
+干净消费安装451f6e4升级源码、37个可达模块搬移、inline/file显式重编译和生命周期通过。导航里的独立消费者也固定该候选，避免只升级runtime却展示旧库。最终升级head74b5c3c的candidate=harness、dirty=false干净消费/Metal四项专项及三个Actions已通过；无头GPU的adapter-unavailable仍为SKIP，不计硬件或性能通过。整库legacy规范债务、入口归并候选的完整门禁与后续发版仍未完成。
+
+命名entry后续候选的本地对照：在同一Snapshot/CLI下分别运行原init/reload参数与新entry命令，27个入口各118个JS文件逐字节相同。既有清单Node6项（含配置漂移反例）、普通compile/release、发布产物导航76项、runtime/API17项与格式通过；清单之外的GPU组件另有原生3项、Node29项、浏览器2项通过/2项硬件SKIP。没有新增namespace、Snapshot、runner或CI job；独立候选消费和Actions仍须按新head验证，不能借用前置绿灯。
 
 f34899b的candidate=harness、dirty=false消费复测通过；headed/REQUIRE_GPU同head的真实Apple/Metal四项专项全部PASS（非软件adapter），覆盖矩形、双轴、10k实例更新/恢复与独立时间采样。该结果不是吞吐基准，#144的小数栅格化差异仍按原诊断记录。后续仅附带测试类型初始化修复，不把旧head绿灯替代新head的Actions。
 

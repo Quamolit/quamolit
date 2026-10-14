@@ -4,7 +4,7 @@
 
 ## 当前事实与下一项交付
 
-2026-10-14 核对：已合并基线为 `749469c`，包含 #217–#224的精确端点、原生圆弧、窄屏、资源与子图表出入，以及#225的CDN部署。已发布消费版本alpha.4基于0.28.0，不含#223字体投影修复。本轮工具链候选采用Calcit/runtime0.29.3、js-ffi0.2.3；源码迁移与独立消费验证见[工具链合同](calcit-027-upgrade.md)，尚不把候选算作已发布tag。功能通过不等于稳定API、全画质或性能达标。
+2026-10-14 核对：已合并基线为 `749469c`，包含 #217–#224的精确端点、原生圆弧、窄屏、资源与子图表出入，以及#225的CDN部署。已发布消费版本alpha.4基于0.28.0，不含#223字体投影修复。Calcit/runtime0.29.3、正式js-ffi0.2.3升级候选[#226](https://github.com/Quamolit/quamolit/pull/226)已通过本地干净消费/Metal专项，更新head的Actions另行复验，尚未合并或发布。命名entry候选将原27条编译命令归并为主Snapshot入口，default与独立消费者边界不变；检验规则见[入口门禁](verification.md)。功能通过不等于稳定API、全画质或性能达标。
 
 ### 阶段矩阵
 
@@ -30,9 +30,9 @@
 | 资源与设备恢复 | 逻辑 identity/generation、共享租约、图片加载与迟到清理 | 实例 buffer、texture runner 与受限 device loss/rebuild 已验证 | [资源注册表](resource-registry.md)、`test:consumer`/`test:webgpu-instances`；font 已接加载队列与迟到隔离，共享宿主、idle重入与精确释放随[已合并 #205](https://github.com/Quamolit/quamolit/pull/205)；glyph/geometry/pipeline 回收及自动运行时接线仍未完整验收 |
 | 命中与指针捕获 | 纯 Calcit HitPlan/PointerState；支持基础叶图元、逆变换/clip、Drag 捕获/释放 | 复用逻辑 CPU 路由；没有 GPU picking | [路由合同](scene-pointer.md)、`test:scene-hit`/`test:scene-pointer-browser`；嵌套禁用随[已合并 #200](https://github.com/Quamolit/quamolit/pull/200)，polygon/cubic 描边、版本化矩形 instances 命中及逻辑捕获提交协调随[已合并 #202](https://github.com/Quamolit/quamolit/pull/202)合并；完整应用接线、病态曲线全域及完整 ID 访问计数仍未完成 |
 | Canvas UI + GPU 层 | 显式 RenderLayer，统一时间/视口、声明顺序与整层回退 | 单根实例层可与 UI 同屏，不自动拆任意 Scene | [分层契约与门禁](layer-composition.md)；#177 的默认后端/成本决策未完成，跨层 capture 与 GPU 文字不在现有合同 |
-| 模块与真实入口 | 单个 Calcit 模块，inline/file 随安装内嵌；主 Snapshot 与独立消费者分工明确 | 同一模块可消费受支持 GPU 入口，无手工宿主 JS 导入 | [FFI](calcit-first-ffi.md)、[消费者](isolated-consumer.md)；[已合并 #201](https://github.com/Quamolit/quamolit/pull/201)贯通普通 compile/release 并隔离演示调度器；语言 named entry 创建仍待 [Calcit #1665](https://github.com/calcit-lang/calcit/issues/1665)，不把 entry 当分发隔离机制 |
+| 模块与真实入口 | 单个 Calcit 模块，inline/file 随安装内嵌；主 Snapshot 与独立消费者分工明确 | 同一模块可消费受支持 GPU 入口，无手工宿主 JS 导入 | [FFI](calcit-first-ffi.md)、[消费者](isolated-consumer.md)；[已合并 #201](https://github.com/Quamolit/quamolit/pull/201)贯通普通 compile/release 并隔离演示调度器；[Calcit #1665](https://github.com/calcit-lang/calcit/issues/1665)已关闭，0.29.3归并候选使用27个命名entry，尚不把候选算作主线交付或分发隔离 |
 
-当前优先补齐 #34/#53 的图形与交互功能，不扩展性能优化。#217–#225已合并，不能再列为未实现前置。先完成0.29.3工具链与新规范验收；随后使用已发布的命名entry创建能力归并入口，再继续同一看板的字体/图片、退出/重入、capture与resize联合场景，不新增平行demo或资源层。未合并升级及未来tag不能视作已交付。
+当前优先补齐 #34/#53 的图形与交互功能，不扩展性能优化。#217–#225已合并，不能再列为未实现前置。0.29.3工具链候选已通过门禁；先收口命名entry归并的编译/发布/导航与独立消费证据，再继续同一看板的字体/图片、退出/重入、capture与resize联合场景，不新增平行demo或资源层。#226及后续入口候选未合并，未来tag不能视作已交付。
 
 下一条贯通链路是实际UI的退出/重入、resize/DPR、capture与外部字体/图片租约联合验收，复用上述组件、队列、宿主和既有门禁，不再建立平行demo或资源层。#223使用主线精确端点，保留父子/类型事件意图与字体提交顺序，并检查实际绘制Scene不丢字体描述；不能以解决冲突为由删除任一动画/资源测试。#222多图接口已可用于后续联合场景，但当前看板尚未接图片。精确文字命中、完整类型/重排矩阵、全指针ID访问、排版/路径缓存、GPU文字与栅格化仍未完成，不能关闭#34/#51/#53/M2/M3。性能调优暂缓。
 
@@ -69,7 +69,7 @@
 - 1000 个仅时间更新不重新声明静态结构、不重建静态计划；拓扑、Model、资源/视口变化按契约失效。记录声明/构建/采样、分配/复制/上传及耗时，不以局部计数替代总帧性能。
 - 同一个组件、输入日志、seed、时间、视口用于全量 CPU 参考、Canvas 和受支持 GPU 路径。t=[1,0,0.5,0.25,1] 乱序/重复和同时间失效均有独立期望。
 - 干净消费者通过候选提交安装与编译，发布后用 tag 再验证；输出搬移仍运行，片段源码实际随模块分发。不把先发版作为测试前提。
-- 最终交付单个 Calcit 模块，而不是框架 JS 加 Calcit 转发层；所需 inline/file 源码随模块安装，编译时内嵌，可达产物不得包含测试 namespace、夹具或作者的 target 路径。主 Snapshot 的命名 entry 用于归并 demo/测试配置，不是发布隔离机制；独立消费者保留独立 Snapshot。创建能力未发布前保留现有 CLI 覆盖，待 Calcit #1665 解决后按结构化事务迁移，并重跑既有编译与消费者门禁。
+- 最终交付单个 Calcit 模块，而不是框架 JS 加 Calcit 转发层；所需 inline/file 源码随模块安装，编译时内嵌，可达产物不得包含测试 namespace、夹具或作者的 target 路径。主 Snapshot 的命名 entry 用于归并 demo/测试配置，不是发布隔离机制；独立消费者保留独立 Snapshot。Calcit 0.29.3已提供创建能力，归并使用结构化事务与scoped_revision，保留原函数/依赖/权限/输出目录并重跑既有编译、发布、导航与消费者门禁。
 - 功能、运行计数、实际耗时分开报告；软件 GPU skip 不是硬件验收。实际命令由实现 PR 加入 package scripts 与 CI；本文不声称新增测试已经实现。
 
 ## inline/file 与上游问题处理
@@ -97,7 +97,7 @@
 
 ### #35：随主线实现 FFI，而非独立扩大清理范围
 
-当前版本为 Calcit/runtime0.28.0、js-ffi0.2.1-alpha.11；inline/file 分发、重编译与产物搬移已进入 #104，全部片段/公共边界审计与语言 named entry 创建仍未完成。
+已发布alpha.4仍用Calcit/runtime0.28.0；0.29.3/js-ffi0.2.2候选与命名entry归并按上方状态验收。inline/file分发、重编译与产物搬移已进入#104，全部片段/公共边界审计仍未完成，不以入口配置取代这些出口。
 
 - 优先使用 js-ffi Calcit API，必要适配采用定义级 :ffi :js :inline/:file；file 是单个函数表达式源码，不是 import 整个 ESM。
 - 状态、批量或 shader 不是自动保留整文件模块的理由；逐项核对 ABI、异步和共享状态，避免重复嵌入导致状态分裂。

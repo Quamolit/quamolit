@@ -114,7 +114,7 @@ yarn test:bench
 yarn bench
 ```
 
-不同 Calcit 入口编译到被忽略的 `target/js/<entry>/`；`compile:visual` 使用 `target/js/visual/`，`compile:motion` 使用 `target/js/motion/`。`compile:bootstrap` 在 `target/js/app/` 只生成诊断入口/core，供既有 runtime smoke 使用。普通 `compile` 安装模块并按清单编译所有真实入口，`release` 用同一站点配置生成 `dist/`。现有 `test:demo-nav` 从普通发布产物运行根 URL 分享参数、DPR 1/2 的 TodoList 实际新增/卸载及全部导航回归，服务器不读取作者源码。Snapshot default 仍为 bootstrap，named entry 创建仍待 Calcit #1665；不把构建入口归并当语言 entry 迁移或整个 M3 验收。新公共 namespace 仍须严格检查，不用兼容模式掩盖错误。
+27 个原编译命令选择主 Snapshot 的命名 entry，编译到被忽略的原 `target/js/` 子目录：`visual`/`motion` 同名，`cpu-motion`/`replay-archive` 仍输出 `cpu`/`replay`，bootstrap 仍输出 `app`。default 仍为 bootstrap；原两个未覆盖 reload 的入口保留 bootstrap reload，不顺手改动热重载。普通 `compile` 安装模块并按清单编译所有真实入口，`release` 用同一站点配置生成 `dist/`。现有 `test:demo-nav` 的 Node 清单测试通过 CLI 读取配置，检查全部 entry/编译脚本、init/reload、默认上下文、输出目录与缺失/重复/权限漂移反例；浏览器从普通发布产物运行根 URL 分享参数、DPR 1/2 的 TodoList 实际新增/卸载及全部导航回归，服务器不读取作者源码。独立消费者仍单独安装和编译；命名 entry 不证明产物隔离或整个 M3 验收。新公共 namespace 仍须严格检查，不用兼容模式掩盖错误。
 
 测试目录中的手写 JS/MJS/CJS 使用 Prettier：提交前运行 `yarn format:test-js`，CI 以 `yarn check:test-js-format` 检查。范围限于 `test/**/*.{js,mjs,cjs}`；`js-out*`、`target/` 等生成产物不格式化。主代码、Calcit snapshot 和 demo 页面暂不纳入这条格式门禁。
 
