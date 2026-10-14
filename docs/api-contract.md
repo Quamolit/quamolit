@@ -232,7 +232,33 @@ alpha 阶段也不静默破坏稳定合同。稳定 API 的破坏性修改须在
 | `quamolit.app.schema` | 各 `quamolit.examples.*` 的显式 Model |
 | `quamolit.app.updater` | 各示例输入函数；绘制不更新 Model |
 
-仍保留 12 个旧 Shape/组件 namespace 与 `frame-clock`、`frame-eval`、`retained-path` 三个早期桥梁，共15项；不能因为退役应用已移除就连带删除。前者仍供旧迁移/Frame 夹具与库 API 使用，后者仍有 clock、frame、Binary Tree/retained-path 门禁。逐定义调用方及移除/外移方案还需 #204 后续登记，公共旧入口仍受上方 alpha tag/下游迁移前置条件约束。本批没有削减断言、改动像素容差、增加测试命令或宣称运行时加速。
+### 仍保留的旧入口退役登记
+
+2026-10-15在main `6ac6d0e`以Calcit 0.29.3逐定义查询15个legacy namespace的110个定义，同时查全部95个namespace的require与命名entry；下表是该快照的仓内证据，不是全网调用图。调用方省略`quamolit.`前缀；`import-only`表示只有require而未查到定义引用。没有旧namespace直接作为命名entry，并不代表所有入口都无法间接到达它们。仓外消费者未全面核对，**不能把无仓内调用当成可删除**。普通JS源码另查到`test/retained-path-smoke.mjs`直接导入旧路径；原逐定义JSON只放忽略的审计目录，不入库。
+
+退役门槛：**L**＝先核对仓外库使用者，按#176/#36发布带迁移说明的新tag并让下游验证，再单独提删除/外移PR；不得静默移除公开旧库。**C**＝时钟消费者转`host-clock`且顺序/倒退语义不变。**F**＝Frame/paint迁移夹具转新计划或固定tick，原行为断言仍保留。**P**＝Binary Tree真实入口与retained-path独立数值/像素合同转`retained-component`，不能删测试换归零。C/F/P也须遵守公开旧入口的L门槛；阶段是目标，不是承诺某日删除。
+
+<!-- legacy-retirement:start -->
+| namespace | 定义数；仓内定义引用/import-only | 迁移目标 | 删除/外移门槛；目标阶段 |
+| --- | --- | --- | --- |
+| `quamolit.alias` | 22；comp.debug、comp.fade-in-out、comp.slider、render.element、test.frame-fixture | retained-component / scene-ir / scene-hit | L；M3 |
+| `quamolit.core` | 25；无仓内定义引用或require | host-clock / playback / retained-component | L；M3 |
+| `quamolit.types` | 2；alias、controller.resolve、frame-eval、render.paint、test.frame-fixture；core为import-only | Scene/Motion类型 | L，先迁完整旧依赖链；M3 |
+| `quamolit.comp.debug` | 2；无定义引用或require | 已有DOM诊断浮层 | L；M3 |
+| `quamolit.comp.fade-in-out` | 6；无定义引用；comp.slider为import-only | presence / ui-motion | L；M3 |
+| `quamolit.comp.slider` | 1；无定义引用或require | 实际Drag示例与声明式交互 | L；M3 |
+| `quamolit.controller.resolve` | 2；core | scene-hit / scene-pointer | L，退出/捕获合同不降级；M3 |
+| `quamolit.cursor` | 2；无定义引用或require | 应用显式Model/输入 | L；M3 |
+| `quamolit.global` | 4；core、render.paint | 显式计划/资源/指针所有权 | L，保留清理语义；M3 |
+| `quamolit.hud-logs` | 3；core | 已有DOM状态/指标浮层 | L；M3 |
+| `quamolit.render.element` | 7；comp.fade-in-out、comp.slider；comp.debug为import-only | canvas-scene / retained-component | L，先迁旧组件链；M3 |
+| `quamolit.render.paint` | 20；core、test.frame-fixture | retained-component / canvas-scene | L+F；M3 |
+| `quamolit.frame-clock` | 4；core、frame-eval | host-clock | C；M2/M3 |
+| `quamolit.frame-eval` | 4；render.paint、test.frame-fixture | direct-frame / retained-component / fixed-step | F；M2/M3 |
+| `quamolit.retained-path` | 6；examples.binary-tree；另有JS smoke直接导入 | retained-component | P；M2/M3 |
+<!-- legacy-retirement:end -->
+
+此15项加上前表24个已退役应用共39项，包含#204原36项旧库/应用及三个早期桥梁。`check:api-inventory`校验本表与当前legacy分类一一对应，拒绝缺项、重复、已改类/已删除的残留和空迁移条件；它不重跑全部调用图，也不证明仓外用户已迁移。后续改调用方应按新SHA刷新仓内登记，删除前仍须重新查询，不沿用历史无调用结论。本批不删除代码、削减断言、放宽容差或引入新扫描框架。
 
 | 旧写法 | 当前可执行桥梁 | 拟议新位置 |
 | --- | --- | --- |
