@@ -31,8 +31,26 @@ test("风险筛选中途反向，详情面板独立切换并可分享", async ({
   expect(halfway.filter).toBeCloseTo(0.5, 4);
   expect(halfway.safeVisible).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("cohort-pulse-filter-middle.png") });
+  await page.evaluate(() => {
+    // onclick已更新意图并恢复播放；在同一click任务采样连续性，避免跨任务时rAF合法前进。
+    document.querySelector("#filter-all").addEventListener(
+      "click",
+      () => {
+        window.__cohortReversalBoundary = window.cohortPulseDemo.snapshot();
+        window.cohortPulseDemo.pause();
+      },
+      { once: true },
+    );
+  });
   await page.locator("#filter-all").click();
-  expect((await page.evaluate(() => window.cohortPulseDemo.snapshot())).filter).toBeCloseTo(halfway.filter, 4);
+  const reversed = await page.evaluate(() => {
+    const result = window.__cohortReversalBoundary;
+    delete window.__cohortReversalBoundary;
+    return result;
+  });
+  expect(reversed.playing).toBe(true);
+  expect(reversed.time).toBe(halfway.time);
+  expect(reversed.filter).toBe(halfway.filter);
   await at(1.7);
   expect((await page.evaluate(() => window.cohortPulseDemo.snapshot())).filter).toBeLessThan(halfway.filter);
   await page.locator("#panel-detail").click();
