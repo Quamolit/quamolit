@@ -52,7 +52,7 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
     const autoInstalled = document.fonts.has(face);
     const stale = app.install_font_$x_(loaded, app.font_spec("QuamolitChineseFixture", 2));
     const afterStale = document.fonts.has(face);
-    const installed = app.install_font_$x_(loaded, spec);
+    let installed;
     const actual = document.createElement("canvas"),
       reference = document.createElement("canvas");
     actual.width = reference.width = 320;
@@ -61,6 +61,15 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
     actual.id = "consumer-font-evidence";
     const a = actual.getContext("2d"),
       b = reference.getContext("2d");
+    const sameTime = app.start_font(0.5, spec);
+    const fallbackHit = app.font_hit_plan_$x_(a, sameTime, "WWWWiiii");
+    installed = app.install_font_$x_(loaded, spec);
+    const loadedHit = app.font_hit_plan_$x_(a, sameTime, "WWWWiiii");
+    const boundsOf = (hitPlan) => core.to_js_data(hitPlan).candidates[0]["text-bounds"][1];
+    const beforeReady = boundsOf(fallbackHit),
+      afterReady = boundsOf(loadedHit);
+    if (JSON.stringify(beforeReady) === JSON.stringify(afterReady))
+      throw Error("font ready did not change native ink bounds at the same time/version");
     let released, failure, sharedRegistry;
     const frames = [];
     let plan = app.start_font(0, spec);
@@ -88,6 +97,30 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
         b.textBaseline = "middle";
         b.fillStyle = "rgb(255,0,0)";
         b.fillText("图表收入", 20 + 40 * time, 50);
+        const ink = b.measureText("图表收入");
+        const hitPlan = app.font_hit_plan_$x_(a, plan, "图表收入");
+        const expectedBounds = {
+          x: 20 - ink.actualBoundingBoxLeft,
+          y: 50 - ink.actualBoundingBoxAscent,
+          width: ink.actualBoundingBoxLeft + ink.actualBoundingBoxRight,
+          height: ink.actualBoundingBoxAscent + ink.actualBoundingBoxDescent,
+        };
+        const measuredBounds = boundsOf(hitPlan);
+        if (Object.keys(expectedBounds).some((key) => measuredBounds[key] !== expectedBounds[key]))
+          throw Error(`Calcit consumer text bounds differ: ${JSON.stringify({ measuredBounds, expectedBounds })}`);
+        let hitDifferences = 0,
+          hitQueries = 0;
+        for (let x = 0; x <= 180; x += 2)
+          for (let y = 20; y <= 80; y += 2) {
+            const expectedHit =
+              x >= expectedBounds.x + 40 * time &&
+              x <= expectedBounds.x + 40 * time + expectedBounds.width &&
+              y >= expectedBounds.y &&
+              y <= expectedBounds.y + expectedBounds.height;
+            const actualHit = core.to_js_data(app.curve_hit(hitPlan, x, y))[0] === "hit";
+            if (actualHit !== expectedHit) hitDifferences++;
+            hitQueries++;
+          }
         const av = a.getImageData(0, 0, 320, 180).data,
           bv = b.getImageData(0, 0, 320, 180).data;
         let differences = 0,
@@ -96,7 +129,7 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
           if (av[i] !== bv[i]) differences++;
           if (bv[i]) nonblank++;
         }
-        frames.push({ time, differences, nonblank, png: actual.toDataURL("image/png") });
+        frames.push({ time, differences, nonblank, hitDifferences, hitQueries, png: actual.toDataURL("image/png") });
       }
       // 单独缺字负例：四个汉字都必须非空，且与同字体的缺字字形不同。
       const glyphs = ["图", "表", "收", "入", "\uFFFF"].map((text) => {
@@ -128,6 +161,13 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
         glyphChecks,
         sharedRegistry,
         fallbackDifferences,
+        inkReady: {
+          beforeReady,
+          afterReady,
+          sameTime: 0.5,
+          version: 1,
+          oldPlanUnchanged: JSON.stringify(boundsOf(fallbackHit)) === JSON.stringify(beforeReady),
+        },
         status: face.status,
       };
     } finally {
@@ -145,6 +185,13 @@ export async function verifyFontConsumerBrowser(page, artifacts) {
   assert.equal(evidence.failure[0], "failed");
   assert.ok(evidence.failure[1].length > 0);
   assert.ok(evidence.frames.every((frame) => frame.differences === 0 && frame.nonblank > 0));
+  assert.ok(evidence.frames.every((frame) => frame.hitDifferences === 0 && frame.hitQueries === 2821));
+  assert.equal(evidence.inkReady.oldPlanUnchanged, true);
+  assert.notDeepEqual(
+    evidence.inkReady.beforeReady,
+    evidence.inkReady.afterReady,
+    "字体ready的同时间、同版本边界必须更新，旧计划不被修改",
+  );
   assert.ok(
     evidence.glyphChecks.every((glyph) => glyph.nonblank && glyph.differsFromMissing),
     "中文不能以空白/缺字画面互比冒充通过",

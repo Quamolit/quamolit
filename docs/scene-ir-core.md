@@ -86,6 +86,16 @@ Presence 的 `leaf-alpha` / `tree-alpha` 也识别原生弧；原有 `declare-fl
 
 树的 `scene-at(time, depth)` 与浏览器入口现已消费该正式 IR；旧 `RoundPolyline` API 委托同一 `draw-round-path!` 原语，没有另建 JS renderer。`yarn test:binary-tree` 验证序列化、身份、几何/属性失效、非法与不支持场景的零副作用；`test/scene-core.spec.mjs` 用原生 Canvas 独立像素参考验证半透明矩形/折线层序，并以倒序绘制作为负例。仍是全量参考实现，不能用这项集成声称跨帧缓存或 GPU 提速。下一步为 #50 的路径保留计划及同源全量/保留对照。
 
+## #34/#53 文字墨迹命中计划（候选）
+
+在 `compile-hit-plan` 或 `compile-hit-plan-with-positions` 后调用 `resolve-text-hit-plan(plan, lookup)`，即可把所有交互文字的测量快照解析进同一个 HitPlan。`lookup(TextNode) -> TextHitMetrics` 返回纯 Calcit 数据：font、size、text 与 left/right/ascent/descent 四个有符号墨迹距离。测量必须采用绘制的 left/middle/ltr 约定；不是 advance width、逐 glyph 轮廓或像素 picking。`text-hit-bounds` 核对完整 FontSpec（含版本）、字号与文本，拒绝非有限距离、负总宽高及运算溢出，按 x-left、y-ascent 计算局部矩形。单个距离允许为负，零面积不命中。
+
+已解析候选沿用祖先逆变换、clip、禁用与逆绘制层序；查询不调用 lookup，不测量文字，不改变原计划。位置不属于测量身份，因此移动可复用同一度量快照，但必须按新 Scene 重建/解析边界。字体 ready/fallback 改变时，调用方须重新测量并提交新计划，即使时间、FontSpec.version 相同也不能沿用旧结果；此切片尚未实现自动资源接线、缓存或失效计数。未调用 resolver 的旧文字入口仍使用近似宽度，仅为兼容保留，不能称为精确命中。
+
+`canvas-reference/measure-text-hit!` 以纯 Calcit 配置与绘制相同的字体别名、left/middle/ltr，原生测量一次，受检 cast 后转成纯数据，成功/异常均恢复宿主状态，不改变当前 path/pixels、不加载字体。按 Calcit `try` 契约传递错误消息，恢复后 `raise`，不保持 JS Error 对象身份。`measure-text-hit-plan!` 将同一逻辑接入现有候选计划，非文字候选保持身份。通用平台类型化原语在 [js-ffi PR177](https://github.com/calcit-lang/js-ffi/pull/177)，尚未发布；暂用局部 `NativeTextInkHost` 只读 Trait，正式tag可用后改引上游并删除该Trait，不增加生产JS或虚构依赖版本。
+
+现有 `test:scene-hit` 增加手算有符号边界、身份/非法数据拒绝及旋转/裁剪用例；`test:curve-demo` 在DPR1/2用三字体、中文/非等宽/空文本验证原生参考与Calcit测量计划，并确认1000次查询不再测量、禁用文字不请求测量，宿主样式/当前path/pixels不变。Node测试缺字段、非有限值与原生异常的restore合同。独立消费者沿既有中文组件、采样变换和字体加载入口调用Calcit模块，验证乱序时间命中与同时间/同字体版本ready后的重新提交；没有在测试JS中实现度量适配或命中。此入口是显式重新测量，不是自动资源失效/cache；实际看板接线、仅移动时复用的布局/测量计数与完整迟到资源矩阵仍待完成，不以本候选关闭 #34/#53/M3。
+
 ## #53 图片 Scene 参考路径
 
 `SceneContent :image` 持有 `ImageNode { source, matrix, sx, sy, sw, sh, dx, dy, dw, dh }`，其中 `ImageSource { id, version, width, height }` 只有逻辑身份与原始像素尺寸；DOM 图片、解码状态和 GPU 纹理都在 Scene 外。源裁剪必须落在原始图片之内，源/目标尺寸必须为正，矩阵与坐标均须有限。`scene-diff` 把矩阵及裁剪/目标矩形归为 geometry，把 `ImageSource` 归为 resources；仅时间推进但图片不变不必更换资源。
