@@ -14,6 +14,7 @@ for (const dpr of [1, 2])
       const ir = await import("/target/js/curve/quamolit.scene-ir.mjs");
       const motion = await import("/target/js/curve/quamolit.motion.mjs");
       const hit = await import("/target/js/curve/quamolit.scene-hit.mjs");
+      const canvas = await import("/target/js/curve/quamolit.canvas-reference.mjs");
       const tags = core.init_tags([
         "font",
         "family",
@@ -100,22 +101,32 @@ for (const dpr of [1, 2])
           context.textAlign = "left";
           context.textBaseline = "middle";
           context.direction = "ltr";
-          // 独立原生结果用于参考，lookup单独测量；测试JS只搬运宿主数值，不实现Calcit命中算法。
+          // 原生参考独立测量；实际配置、受检Trait、快照和计划解析全部调用Calcit入口。
           const reference = context.measureText(text);
           let calls = 0;
-          const plan = hit.resolve_text_hit_plan(hit.compile_hit_plan(documentOf(root)), (node) => {
+          const nativeMeasure = context.measureText.bind(context);
+          context.measureText = (content) => {
             calls++;
-            const native = context.measureText(node.getRequired(tags.text));
-            return record(hit.TextHitMetrics, {
-              font,
-              size: 24,
-              text,
-              left: native.actualBoundingBoxLeft,
-              right: native.actualBoundingBoxRight,
-              ascent: native.actualBoundingBoxAscent,
-              descent: native.actualBoundingBoxDescent,
-            });
-          });
+            return nativeMeasure(content);
+          };
+          context.font = "10px sans-serif";
+          context.textAlign = "right";
+          context.textBaseline = "top";
+          context.direction = "rtl";
+          context.fillRect(1, 1, 3, 3);
+          context.beginPath();
+          context.rect(1, 1, 5, 5);
+          const pixels = Array.from(context.getImageData(0, 0, 300, 150).data);
+          const plan = canvas.measure_text_hit_plan_$x_(context, hit.compile_hit_plan(documentOf(root)));
+          if (
+            context.font !== "10px sans-serif" ||
+            context.textAlign !== "right" ||
+            context.textBaseline !== "top" ||
+            context.direction !== "rtl" ||
+            !context.isPointInPath(3 * scale, 3 * scale) ||
+            Array.from(context.getImageData(0, 0, 300, 150).data).some((v, i) => v !== pixels[i])
+          )
+            throw Error("text measurement leaked context/path/pixels");
           const left = 10 - reference.actualBoundingBoxLeft,
             right = 10 + reference.actualBoundingBoxRight;
           const top = 20 - reference.actualBoundingBoxAscent,
@@ -150,12 +161,11 @@ for (const dpr of [1, 2])
           for (let query = 0; query < 1000; query++) hit.hit_test_plan(plan, 180, 60);
           if (calls !== 1) throw Error(`query remeasured text: ${calls}`);
           measured += calls;
-          const disabled = hit.resolve_text_hit_plan(
+          const disabled = canvas.measure_text_hit_plan_$x_(
+            context,
             hit.compile_hit_plan(documentOf(root.assoc(tags.interaction, value(ir.SceneInteraction, "disabled")))),
-            () => {
-              throw Error("disabled text measured");
-            },
           );
+          if (calls !== 1) throw Error("disabled text measured");
           if (core.to_js_data(hit.hit_test_plan(disabled, 180, 60))[0] !== "miss") mismatches++;
         }
       return { mismatches, approximateDifferences, queries, measured };

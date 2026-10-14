@@ -5,6 +5,7 @@ import {
   init_tags as initTags,
   assoc,
   CalcitSliceList,
+  _$n__PCT__$M_ as recordValue,
 } from "../target/js/curve/calcit.core.mjs";
 import {
   curve_points as curvePoints,
@@ -12,7 +13,13 @@ import {
   scene_at as sceneAt,
   draw_$x_ as draw,
 } from "../target/js/curve/quamolit.examples.curve.mjs";
-import { validate_scene as validateScene } from "../target/js/curve/quamolit.scene-ir.mjs";
+import {
+  validate_scene as validateScene,
+  TextNode,
+  default_font as defaultFont,
+} from "../target/js/curve/quamolit.scene-ir.mjs";
+import { ColorRgba } from "../target/js/curve/quamolit.motion.mjs";
+import { measure_text_hit_$x_ as measureTextHit } from "../target/js/curve/quamolit.canvas-reference.mjs";
 import {
   compile_hit_plan as compileHitPlan,
   hit_test_plan as hitTestPlan,
@@ -25,6 +32,72 @@ import {
   instance_hit_document as instanceDocument,
   instance_hit_source as instanceSource,
 } from "../target/js/curve/quamolit.test.scene-hit-fixture.mjs";
+
+test("Calcit文字测量原生调用一次，成功与缺字段/非法值/异常均恢复宿主状态", () => {
+  const tags = initTags(["x", "y", "size", "text", "fill", "font", "r", "g", "b", "a"]);
+  const record = (type, fields) =>
+    recordValue(type, ...Object.entries(fields).flatMap(([key, value]) => [tags[key], value]));
+  const text = record(TextNode, {
+    x: 10,
+    y: 20,
+    size: 24,
+    text: "中文",
+    font: defaultFont(),
+    fill: record(ColorRgba, { r: 1, g: 0, b: 0, a: 1 }),
+  });
+  const native = {
+    actualBoundingBoxLeft: -1,
+    actualBoundingBoxRight: 40,
+    actualBoundingBoxAscent: 8,
+    actualBoundingBoxDescent: 6,
+  };
+  const original = { font: "10px serif", textAlign: "right", textBaseline: "top", direction: "rtl" };
+  let result = native,
+    calls = 0,
+    saves = 0,
+    restores = 0;
+  const context = {
+    ...original,
+    save() {
+      saves++;
+    },
+    restore() {
+      restores++;
+      Object.assign(this, original);
+    },
+    measureText(value) {
+      calls++;
+      assert.equal(value, "中文");
+      assert.deepEqual(
+        [this.font, this.textAlign, this.textBaseline, this.direction],
+        ["24px monospace", "left", "middle", "ltr"],
+      );
+      if (result instanceof Error) throw result;
+      return result;
+    },
+  };
+  const measured = toJsData(measureTextHit(context, text));
+  assert.deepEqual([measured.left, measured.right, measured.ascent, measured.descent], [-1, 40, 8, 6]);
+  assert.equal(calls, 1);
+  for (const key of Object.keys(native)) {
+    result = { ...native };
+    delete result[key];
+    assert.throws(() => measureTextHit(context, text));
+  }
+  for (const invalid of [NaN, Infinity, -Infinity]) {
+    result = { ...native, actualBoundingBoxAscent: invalid };
+    assert.throws(() => measureTextHit(context, text), /invalid-text-hit-metrics/);
+  }
+  const error = (result = Error("native-measure-failure"));
+  assert.throws(
+    () => measureTextHit(context, text),
+    (thrown) => thrown === error,
+  );
+  assert.equal(saves, 9);
+  assert.equal(restores, saves);
+  assert.equal(calls, saves);
+  assert.deepEqual([context.font, context.textAlign, context.textBaseline, context.direction], Object.values(original));
+});
 
 test("实例命中复用不可变位置快照，逆变换、祖先裁剪和倒序索引保持一致", () => {
   const tags = initTags(["candidates", "instance-points", "version"]);

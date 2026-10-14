@@ -382,6 +382,13 @@
           :code $ quote $ defstruct InstancesMetrics (:boundary-calls 'Number) (:canvas-calls 'Number) (:instances 'Number) (:position-bytes-read 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'NativeTextInkHost $ %{} 'CodeEntry
+          :doc "|临时原生TextMetrics只读投影，等待js-ffi PR177合并并发布正式tag后换用上游CanvasTextInkMetricsHost。不是Quamolit渲染器或任意JS对象解码。"
+          :code $ quote $ deftrait NativeTextInkHost (:left 'Number) (:right 'Number) (:ascent 'Number) (:descent 'Number)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+            :names $ {} (:ascent |actualBoundingBoxAscent) (:descent |actualBoundingBoxDescent) (:left |actualBoundingBoxLeft) (:right |actualBoundingBoxRight)
+          :schema $ :: 'Trait
         'color-css $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn color-css (color)
             hint-fn $ {}
@@ -651,6 +658,48 @@
                 , "|\"QuamolitFont:0:UI\\\"\\\\Family\", \"UI\\\"\\\\Family\", monospace"
               , &unit
             :tags $ #{} :font :scene
+        'measure-text-hit! $ %{} 'CodeEntry
+          :doc "|按draw-text!的字体别名/left/middle/ltr约定原生测量一次，恢复宿主状态；异常也restore，不画图、不加载字体、不更新Model。返回纯Calcit度量快照，缺字段或非法值明确失败。"
+          :code $ quote $ defn measure-text-hit! (context text)
+            do
+              assert |invalid-scene-text $ scene/valid-content? $ scene/SceneContent :text text
+              context .save!
+              let
+                  metrics $ try
+                    do
+                      js-set context :font $ str (:size text) "|px " $ font-family-css (:font text)
+                      js-set context :text-align |left
+                      js-set context :text-baseline |middle
+                      js-set context :direction |ltr
+                      let
+                          native $ js-cast
+                            context .measure-text $ :text text
+                            , NativeTextInkHost
+                          measured $ hit/TextHitMetrics :font (:font text) :size (:size text) :text (:text text) :left (native :left) :right (native :right) :ascent (native :ascent) :descent $ native :descent
+                        hit/text-hit-bounds text measured
+                        , measured
+                    fn (error) (context .restore!) (raise error)
+                context .restore!
+                , metrics
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/TextHitMetrics)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/TextNode
+            :features $ #{} :js-ffi
+        'measure-text-hit-plan! $ %{} 'CodeEntry
+          :doc "|将既有HitPlan所有交互文字接原生测量；非文字候选保持身份，查询不测量。没有自动cache，字体ready/fallback变化后调用方须重新提交，不能仅按时间判断。"
+          :code $ quote $ defn measure-text-hit-plan! (context plan)
+            struct-with plan $ :candidates $ map (:candidates plan)
+              fn (candidate)
+                match
+                  :content $ :node candidate
+                  (:text text)
+                    struct-with candidate $ :text-bounds $ Option :some
+                      hit/text-hit-bounds text $ measure-text-hit! context text
+                  _ candidate
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-hit/HitPlan
+            :features $ #{} :js-ffi
         'raw-draw-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-draw-instances! (context positions start amount width height fill-style alpha) (raise |js-only-canvas-instances)
           :examples $ []
@@ -680,7 +729,7 @@
       :ns $ %{} 'NsEntry
         :doc "|Calcit 编写的基础 Canvas2D 参考绘制；Scene 解释保留在 Quamolit，不在 js-ffi 宿主层。"
         :code $ quote $ ns quamolit.canvas-reference
-          :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
+          :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene) (js-ffi.contract :as contract) (quamolit.scene-hit :as hit)
     'quamolit.canvas-scene $ %{} 'FileEntry
       :defs $ {}
         'CanvasLayerHost $ %{} 'CodeEntry

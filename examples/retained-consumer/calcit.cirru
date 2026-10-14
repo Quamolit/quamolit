@@ -478,6 +478,29 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'quamolit.scene-ir/SceneDocument 'Number 'Number
+        'font-hit-plan! $ %{} 'CodeEntry
+          :doc "|独立消费者将既有单文字组件的采样变换接入交互Scene，再仅通过Calcit模块测量/编译文字命中。不在JS实现字体别名或命中，ready同时间更新必须重新提交。"
+          :code $ quote $ defn font-hit-plan! (context plan label)
+            let
+                root $ scene/SceneNode :id |font-hit-root :parent | :key |font-hit-root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group
+                  scene/GroupNode :transform
+                    &list:nth (:transforms plan) 0
+                    , :clip (scene/ClipSpec :none) :opacity 1
+                nodes $ map
+                  :nodes $ :scene plan
+                  fn (node)
+                    struct-with node (:parent |font-hit-root)
+                      :interaction $ scene/SceneInteraction :target |font-label-action
+                      :content $ match (:content node)
+                        (:text text)
+                          scene/SceneContent :text $ struct-with text $ :text label
+                        _ $ :content node
+                document $ scene/SceneDocument :nodes $ prepend nodes root
+              canvas/measure-text-hit-plan! context $ hit/compile-hit-plan document
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.retained-component/ComponentPlan 'String
+            :features $ #{} :js-ffi
         'font-request $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn font-request (time spec)
             component/ComponentRequest :id |consumer-font :time time :versions
