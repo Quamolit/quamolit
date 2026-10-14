@@ -23,7 +23,7 @@
 - 写入 Snapshot 前运行 `calcit docs agents --contract`，按其要求核对 CLI、`deps.cirru` 和 `calcit query config`；首次使用或契约变化时读取完整指南。
 - `calcit.cirru` 只能通过 `calcit edit/tree/cursor/config` 修改，禁止文本 patch 或正则改写。目标与替换内容来自查询结果；多步写入使用 transaction、dry-run 和 scoped_revision 检查。编译器证明等价的迁移先预览官方 fix，再按同一scope/revision应用并重复预览。
 - `calcit.cirru` 是项目主要源码，不得重新加上 `linguist-generated` 或 `-diff` 属性。
-- 最终对外提供 Calcit 模块；inline/file 片段由模块安装与编译自动处理，不要求下游手工引入 JS。demo/测试优先用主 Snapshot 的命名 entry，独立安装消费者保留独立 Snapshot。Calcit #1665已关闭；0.29.3工具链验收后另做命名entry归并，在此前保留原覆盖命令，不绕过结构化编辑规则。
+- 最终对外提供 Calcit 模块；inline/file 片段由模块安装与编译自动处理，不要求下游手工引入 JS。demo/测试用主 Snapshot 的命名 entry，独立安装消费者保留独立 Snapshot。Calcit 0.29.3 已提供创建能力；新增编译入口通过结构化 config transaction 配置 init/reload，并同步脚本及既有清单测试，不再堆积 CLI 函数覆盖。不把 entry 当发布隔离机制。
 - 自动测量的 JSON/GZ、截图、编译产物放被忽略的 `test-results/`/`target/`，不作为日常源码提交；结论与复现说明人工整理入文档，阶段验收另提供 artifact。确需入库的生成合同/审查基线须逐项说明用途并在 `.gitattributes` 精确标记 `linguist-generated`，不把所有 JSON 或混合人工文档一概标为 generated。
 - 生产 JS 宿主适配只放 `src/host/`（入口/构建配置除外），测试夹具桥接放 `test/host/`，仅演示页面使用的共享调度放 `demos/`；后两者不得被公共模块的生产宿主引用。同步、无状态、原始 ABI 的小适配器优先用定义级 `:ffi :js :inline/:file` 嵌入 Calcit 定义，不新增独立 `.mjs`；归属细则见 [Calcit 优先的 FFI 边界](docs/calcit-first-ffi.md)。多入口 Calcit 编译产物放被忽略的 `target/js/<entry>/`，不得在根目录新建 `js-out-*`。
 - 优先采用当前已发布且适用的新方案；升级时同步 Calcit CLI、runtime、依赖、lockfile 与 CI。不要未经核对机械升级所有依赖；若回退，给出可复现回归和上游 issue。
@@ -45,7 +45,7 @@
 - 每个 milestone 关闭前提交阶段验收与直观演示：已完成/未完成矩阵、可复现命令、固定时间初始/中间/终点画面或交互页面、实际计数与性能报告、限制及下一阶段入口。用户能打开查看成果；不能仅以 Actions 绿灯或 issue 数量说明完成。
 
 - 按 `verification.md` 选择实际存在的命令。未来命令明确标为“待实现”，不能写成已经通过。
-- `yarn compile` 按现有清单编译真实演示，`yarn release` 发布统一应用到 `dist/`；根 URL 只是保留参数的兼容跳转。bootstrap 保留在 `compile:bootstrap`，供 runtime smoke 使用，不代表应用；主 Snapshot default 仍为该诊断入口，named entry 创建待 Calcit #1665。入口构建成功仍须通过现有发布产物交互/导航门禁，不等于全部恢复或性能验收。
+- `yarn compile` 按现有清单编译真实演示，`yarn release` 发布统一应用到 `dist/`；根 URL 只是保留参数的兼容跳转。bootstrap 保留在 `compile:bootstrap`，供 runtime smoke 使用，不代表应用；主 Snapshot default 仍为该诊断入口，原编译命令使用对应命名 entry。入口构建成功仍须通过现有发布产物交互/导航门禁，不等于全部恢复或性能验收。
 - PR 写清实际实现、未完成范围、运行命令、环境和结果。性能结论必须附数据；截图变化附差异图，不能静默放宽阈值。
 - 部分实现使用“推进 #N”；仅在全部验收项有证据时写 `Closes #N`。不因预算或会话结束把 issue/milestone 标成完成。
 - 编码 PR 需确认 Actions 结果。无法访问真实 GPU 时如实标为未验证，不用 skip 代替通过。

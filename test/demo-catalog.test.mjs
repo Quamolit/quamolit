@@ -3,8 +3,141 @@ import { test } from "node:test";
 import { readFile, readdir, access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const catalog = JSON.parse(await readFile(join(root, "demos/catalog.json"), "utf8"));
+const scripts = JSON.parse(await readFile(join(root, "package.json"), "utf8")).scripts;
+const config = JSON.parse(
+  execFileSync("calcit", ["config", "show", "--format", "json"], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }),
+).data;
+const entryNamespaces = Object.fromEntries([
+  ...[
+    "layer-composition",
+    "todolist",
+    "binary-tree",
+    "clock",
+    "curve",
+    "tidal-bloom",
+    "signal-weave",
+    "cohort-pulse",
+    "layered-dashboard",
+    "solar",
+    "icons",
+    "raining",
+    "finder",
+    "table",
+    "drag-demo",
+    "folding-fan",
+  ].map((name) => [name, `quamolit.examples.${name}`]),
+  ...[
+    "gpu-component",
+    "retained-component",
+    "scene-pointer-browser",
+    "motion",
+    "playback",
+    "component",
+    "cpu-motion",
+    "replay-archive",
+  ].map((name) => [name, `quamolit.test.${name}-fixture`]),
+  ["fade", "quamolit.test.fade-migration-fixture"],
+  ["visual", "quamolit.test.frame-fixture"],
+  ["bootstrap", "quamolit.bootstrap"],
+]);
+const defaultEntry = {
+  name: "default",
+  mode: "js",
+  target: "browser",
+  init_fn: "quamolit.bootstrap/main!",
+  reload_fn: "quamolit.bootstrap/reload!",
+  description: "",
+  modules: ["pointed-prompt/", "touch-control/", "js-ffi/"],
+  type_slots: {},
+  feature_policy: {},
+};
+function verifyNamedEntries(configuration, commands) {
+  const names = Object.keys(entryNamespaces);
+  assert.deepEqual(configuration.entries.map((entry) => entry.name).sort(), ["default", ...names].sort());
+  assert.deepEqual(
+    configuration.entries.find((entry) => entry.name === "default"),
+    defaultEntry,
+  );
+  const compilations = Object.entries(commands).filter(
+    ([name, command]) => name.startsWith("compile:") && /\bcalcit\b/.test(command),
+  );
+  assert.deepEqual(compilations.map(([name]) => name.slice("compile:".length)).sort(), names.sort());
+  for (const [name, namespace] of Object.entries(entryNamespaces)) {
+    const entry = configuration.entries.find((entry) => entry.name === name);
+    assert.equal(entry.init_fn, `${namespace}/main!`, `${name}: init`);
+    // 原命令未覆盖 reload 的两个入口保持 default；不是顺手修正热重载的切片。
+    const reloadNamespace = ["layer-composition", "scene-pointer-browser"].includes(name)
+      ? "quamolit.bootstrap"
+      : namespace;
+    assert.equal(entry.reload_fn, `${reloadNamespace}/reload!`, `${name}: reload`);
+    for (const key of ["mode", "target", "modules", "type_slots", "feature_policy"])
+      assert.deepEqual(entry[key], defaultEntry[key], `${name}: ${key}`);
+    assert.ok(entry.description, `${name}: description`);
+    const destination = { bootstrap: "app", "cpu-motion": "cpu", "replay-archive": "replay" }[name] ?? name;
+    const command = commands[`compile:${name}`];
+    assert.match(
+      command,
+      /^(?:mkdir -p target\/js\/[\w/-]+ && )?calcit --entry [\w-]+ --emit-path target\/js\/[\w-]+\/ calcit\.cirru js$/,
+    );
+    assert.ok(command.endsWith(`calcit --entry ${name} --emit-path target/js/${destination}/ calcit.cirru js`));
+  }
+}
+test("27 个命名 entry 对应原编译上下文，default 与独立消费者边界不变", () => {
+  verifyNamedEntries(config, scripts);
+  assert.equal(scripts["compile:consumer"], undefined, "独立安装消费者不并入主 Snapshot");
+});
+test("entry 缺失、重复、错用函数或权限、脚本覆盖与输出漂移必须失败", () => {
+  const mutations = [
+    (c) =>
+      c.entries.splice(
+        c.entries.findIndex((entry) => entry.name === "todolist"),
+        1,
+      ),
+    (c) => c.entries.push(structuredClone(c.entries[0])),
+    (c) => c.entries.push({ ...c.entries[0], name: "orphan" }),
+    (c) => {
+      c.entries.find((entry) => entry.name === "default").init_fn = "quamolit.examples.todolist/main!";
+    },
+    (c) => {
+      c.entries.find((entry) => entry.name === "todolist").init_fn = "quamolit.bootstrap/main!";
+    },
+    (c) => {
+      c.entries.find((entry) => entry.name === "layer-composition").reload_fn =
+        "quamolit.examples.layer-composition/reload!";
+    },
+    ...Object.entries({
+      mode: "eval",
+      target: "node",
+      modules: [],
+      type_slots: { Extra: "quamolit.motion/Vec2" },
+      feature_policy: { "js-ffi": "allow" },
+    }).map(([key, value]) => (c) => {
+      c.entries.find((entry) => entry.name === "motion")[key] = value;
+    }),
+    (_, s) => {
+      s["compile:motion"] += " --init-fn quamolit.bootstrap/main!";
+    },
+    (_, s) => {
+      s["compile:cpu-motion"] = s["compile:cpu-motion"].replace("target/js/cpu/", "target/js/cpu-motion/");
+    },
+    (_, s) => {
+      delete s["compile:visual"];
+    },
+  ];
+  for (const mutate of mutations) {
+    const configuration = structuredClone(config),
+      commands = { ...scripts };
+    mutate(configuration, commands);
+    assert.throws(() => verifyNamedEntries(configuration, commands));
+  }
+});
 function isArtifactDirectory(name) {
   return (
     ["node_modules", "target", ".calcit", ".yarn", "test-results", "dist", "dist-demos"].includes(name) ||
