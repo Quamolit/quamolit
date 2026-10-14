@@ -43,6 +43,88 @@ import {
 import { _$n_enum_$o_nth as enumNth } from "../target/js/retained-component/calcit.core.mjs";
 import { apply_scalar as applyScalar } from "../target/js/retained-component/quamolit.scene-binding.mjs";
 import { validate_scene as validateScene } from "../target/js/retained-component/quamolit.scene-ir.mjs";
+import * as core from "../target/js/retained-component/calcit.core.mjs";
+import * as retained from "../target/js/retained-component/quamolit.retained-component.mjs";
+import * as motion from "../target/js/retained-component/quamolit.motion.mjs";
+import * as scene from "../target/js/retained-component/quamolit.scene-ir.mjs";
+
+test("标准TRS按支点先缩放再旋转后平移；乱序、镜像、零缩放与非法值明确", () => {
+  const tag = (name) => core.init_tags([name])[name];
+  const make = (type, fields) => core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([k, v]) => [tag(k), v]));
+  const en = (type, name, ...values) => core._PCT__$o__$o_(type, tag(name), ...values);
+  const scalar = (id, value) =>
+    make(motion.ScalarDescriptor, { id, version: 1, motion: en(motion.ScalarMotion, "constant", value) });
+  const angle = make(motion.ScalarDescriptor, {
+    id: "angle",
+    version: 1,
+    motion: en(motion.ScalarMotion, "time", 1, 0),
+  });
+  const base = make(retained.TrsMotion, {
+    x: scalar("x", 13),
+    y: scalar("y", -7),
+    rotation: angle,
+    "scale-x": scalar("sx", -2),
+    "scale-y": scalar("sy", 3),
+    pivot: make(motion.Vec2, { x: 5, y: 9 }),
+  });
+  const description = en(retained.TransformMotion, "trs", base);
+  const before = core.to_js_data(description);
+  assert.deepEqual(JSON.parse(JSON.stringify(before)), before, "标准变换描述没有闭包或宿主句柄");
+  for (const time of [Math.PI / 2, 0, 0.7, -Math.PI / 2, Math.PI, 0.7]) {
+    const matrix = core.to_js_data(retained.sample_transform(description, time));
+    for (const [x, y] of [
+      [3, 7],
+      [5, 9],
+      [12, -1],
+    ]) {
+      const dx = -2 * (x - 5),
+        dy = 3 * (y - 9);
+      const expected = [
+        13 + 5 + dx * Math.cos(time) - dy * Math.sin(time),
+        -7 + 9 + dx * Math.sin(time) + dy * Math.cos(time),
+      ];
+      const actual = [matrix.a * x + matrix.c * y + matrix.e, matrix.b * x + matrix.d * y + matrix.f];
+      for (let i = 0; i < 2; i++) assert.ok(Math.abs(actual[i] - expected[i]) < 1e-12, `${time}/${x},${y}`);
+    }
+  }
+  const zero = en(retained.TransformMotion, "trs", base.assoc(tag("scale-x"), scalar("zero", 0)));
+  assert.ok(Object.values(core.to_js_data(retained.sample_transform(zero, 0.25))).every(Number.isFinite));
+  const identity = make(scene.Matrix2D, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+  const constant = en(retained.TransformMotion, "constant", identity);
+  assert.equal(retained.sample_transform(constant, 0.5), identity);
+  const sampler = en(retained.TransformSampler, "motions", new core.CalcitSliceList([description]));
+  assert.equal(retained.transform_active_$q_(sampler), true);
+  assert.equal(retained.evaluate_transforms(sampler, 1, 0.5).len(), 1);
+  assert.throws(() => retained.evaluate_transforms(sampler, 2, 0.5), /transform-count/);
+  for (const time of [NaN, Infinity, -Infinity])
+    assert.throws(() => retained.sample_transform(constant, time), /transform-time/);
+  assert.throws(() =>
+    retained.sample_transform(en(retained.TransformMotion, "constant", identity.assoc(tag("a"), Infinity)), 0),
+  );
+  assert.throws(() =>
+    retained.sample_transform(
+      en(retained.TransformMotion, "trs", base.assoc(tag("pivot"), make(motion.Vec2, { x: NaN, y: 0 }))),
+      0,
+    ),
+  );
+  assert.throws(() =>
+    retained.sample_transform(
+      en(
+        retained.TransformMotion,
+        "trs",
+        base.assoc(tag("scale-x"), scalar("huge", 1e308)).assoc(tag("pivot"), make(motion.Vec2, { x: 1e308, y: 0 })),
+      ),
+      0,
+    ),
+  );
+  const cpu = en(
+    retained.TransformSampler,
+    "cpu",
+    (time) => new core.CalcitSliceList([identity.assoc(tag("e"), time * 3)]),
+  );
+  assert.equal(core.to_js_data(retained.evaluate_transforms(cpu, 1, 0.5))[0].e, 1.5);
+  assert.deepEqual(core.to_js_data(description), before);
+});
 
 const tags = initTags([
   "scene",

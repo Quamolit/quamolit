@@ -9568,7 +9568,9 @@
           :code $ quote $ defn prepare-program (plan)
             if
               retained/transform-active? $ :transform-sampler plan
-              ProgramResult :fallback |cpu-transform-required
+              ProgramResult :fallback $ match (:transform-sampler plan)
+                (:motions _) |standard-transform-kernel-not-supported
+                _ |cpu-transform-required
               match (gpu/prepare-plan plan)
                 (:fallback reason) (ProgramResult :fallback reason)
                 (:rects frame)
@@ -15386,14 +15388,25 @@
           :code $ quote $ defstruct ExecutionDeclaration (:component 'quamolit.component-sample/ComponentDeclaration) (:transforms 'quamolit.retained-component/TransformSampler)
           :examples $ []
           :schema $ :: 'StructDef
+        'TransformMotion $ %{} 'CodeEntry
+          :doc "|可序列化标准变换数据：constant为完整矩阵，trs按绝对时间独立采样。当前仅CPU参考与保留计划接线，尚未实现GPU变换kernel；任意闭包保留TransformSampler :cpu。"
+          :code $ quote $ defenum TransformMotion (:constant 'quamolit.scene-ir/Matrix2D) (:trs 'quamolit.retained-component/TrsMotion)
+          :examples $ []
+          :schema $ :: 'EnumDef
         'TransformSampler $ %{} 'CodeEntry
-          :doc "|执行层 CPU 变换采样器，按 Scene 节点顺序返回矩阵；闭包不进入 Scene/Motion IR，不承诺自动 WGSL。"
+          :doc "|组件变换提供者：none、任意CPU函数或按Scene节点顺序一一对应的标准TransformMotion列表。标准数据不含闭包；数量严格匹配，当前时间采样在Calcit，GPU标准变换kernel尚未接通。"
           :code $ quote $ defenum TransformSampler (:none)
             :cpu $ :: 'Fn $ {}
               :args $ [] 'Number
               :return $ :: 'List 'quamolit.scene-ir/Matrix2D
+            :motions $ :: 'List 'quamolit.retained-component/TransformMotion
           :examples $ []
           :schema $ :: 'EnumDef
+        'TrsMotion $ %{} 'CodeEntry
+          :doc "|标准二维变换数据：x/y为CSS像素平移，rotation为顺时针弧度，scale-x/y允许镜像与零缩放，pivot为局部坐标。矩阵顺序T(x,y)·T(pivot)·R·S·T(-pivot)，不包含闭包或宿主。各字段沿用ScalarDescriptor时间/身份规则，修改须提升组件实际依赖版本。"
+          :code $ quote $ defstruct TrsMotion (:x 'quamolit.motion/ScalarDescriptor) (:y 'quamolit.motion/ScalarDescriptor) (:rotation 'quamolit.motion/ScalarDescriptor) (:scale-x 'quamolit.motion/ScalarDescriptor) (:scale-y 'quamolit.motion/ScalarDescriptor) (:pivot 'quamolit.motion/Vec2)
+          :examples $ []
+          :schema $ :: 'StructDef
         'build-component-plan $ %{} 'CodeEntry
           :doc "|声明并验证一次组件，解析 Motion 引用，直接生成首个指定时间帧；所有业务处理在 Calcit。"
           :code $ quote $ defn build-component-plan (request declare)
@@ -15514,6 +15527,10 @@
                     = size $ count result
                     every? result valid-transform?
                   , result
+              (:motions descriptions)
+                do
+                  assert |invalid-component-transform-count $ = size $ count descriptions
+                  .map descriptions $ fn (description) (sample-transform description time)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.retained-component/TransformSampler 'Number 'Number
@@ -15554,11 +15571,47 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
+        'sample-transform $ %{} 'CodeEntry (:doc "|按有限绝对时间采样标准变换，并拒绝非法或溢出的矩阵；CPU正确性参考，不是GPU采样器。")
+          :code $ quote $ defn sample-transform (description time)
+            assert |invalid-transform-time $ motion/finite-number? time
+            let
+                result $ match description
+                  (:constant matrix) matrix
+                  (:trs fields) (sample-trs fields time)
+              assert |invalid-component-transform $ valid-transform? result
+              , result
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] 'quamolit.retained-component/TransformMotion 'Number
+        'sample-trs $ %{} 'CodeEntry (:doc "|标准TRS内部矩阵计算；公共调用优先sample-transform，以保留最终有限性检查。")
+          :code $ quote $ defn sample-trs (description time)
+            assert |invalid-transform-pivot $ motion/finite-vec2? $ :pivot description
+            let
+                x $ motion/sample-scalar (:x description) time
+                y $ motion/sample-scalar (:y description) time
+                angle $ motion/sample-scalar (:rotation description) time
+                sx $ motion/sample-scalar (:scale-x description) time
+                sy $ motion/sample-scalar (:scale-y description) time
+                cosine $ cos angle
+                sine $ sin angle
+                a $ * sx cosine
+                b $ * sx sine
+                c $ - 0 $ * sy sine
+                d $ * sy cosine
+                px $ :x $ :pivot description
+                py $ :y $ :pivot description
+              scene/Matrix2D :a a :b b :c c :d d :e
+                - (+ x px) (* a px) (* c py)
+                , :f $ - (+ y py) (* b px) (* d py)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] 'quamolit.retained-component/TrsMotion 'Number
         'transform-active? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn transform-active? (sampler)
             match sampler
               (:none) false
               (:cpu sample) true
+              (:motions descriptions) true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.retained-component/TransformSampler
@@ -20154,6 +20207,8 @@
         'declare-mixed $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-mixed (props model input resources viewport)
             let
+                zero $ motion/ScalarDescriptor :id |zero :version 1 :motion $ motion/ScalarMotion :constant 0
+                one $ motion/ScalarDescriptor :id |one :version 1 :motion $ motion/ScalarMotion :constant 1
                 base $ declare-demo props model input resources viewport
                 path $ scene/SceneNode :id |mixed-path :parent | :key |mixed-path :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :polyline
                   scene/PolylineNode :width 4 :stroke
@@ -20164,14 +20219,14 @@
                   , path
               retained/ExecutionDeclaration :component
                 struct-with base $ :scene $ scene/SceneDocument :nodes nodes
-                , :transforms $ retained/TransformSampler :cpu $ fn (time)
-                  map nodes $ fn (node)
-                    scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e
-                      if
-                        = |mixed-path $ :id node
-                        + model $ * 10 time
-                        , 0
-                      , :f 0
+                , :transforms $ retained/TransformSampler :motions $ map nodes
+                  fn (node)
+                    if
+                      = |mixed-path $ :id node
+                      retained/TransformMotion :trs $ retained/TrsMotion :x
+                        motion/ScalarDescriptor :id |mixed-path-x :version 1 :motion $ motion/ScalarMotion :time 10 model
+                        , :y zero :rotation zero :scale-x one :scale-y one :pivot $ motion/Vec2 :x 0 :y 0
+                      retained/TransformMotion :constant $ scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.retained-component/ExecutionDeclaration

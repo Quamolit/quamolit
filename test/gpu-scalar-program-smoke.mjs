@@ -9,6 +9,7 @@ import * as lowering from "../target/js/gpu-component/quamolit.motion-gpu.mjs";
 import { dispose_renderer_$x_ } from "../target/js/gpu-component/quamolit.gpu-component.mjs";
 import { start, start_mixed } from "../target/js/gpu-component/quamolit.test.retained-component-fixture.mjs";
 import { sample_plan_at } from "../target/js/gpu-component/quamolit.retained-component.mjs";
+import { start_component as startTreeComponent } from "../target/js/gpu-component/quamolit.examples.binary-tree.mjs";
 import { extreme_plan } from "../target/js/gpu-component/quamolit.test.gpu-component-fixture.mjs";
 const tags = core.init_tags([
   "slots",
@@ -447,7 +448,7 @@ test("宽高共享标量编码：零尺寸合法，负端点整层回退，两�
   }
 });
 
-test("不支持算子/目标/CPU 变换均明确回退；重复绑定不能只保留一项", () => {
+test("不支持算子/目标/CPU或标准变换均明确回退；重复绑定不能只保留一项", () => {
   assert.deepEqual(js(program.prepare_slot(withMotion(en(motion.ScalarMotion, "time", 1, 0)))), [
     "fallback",
     "scalar-kernel-not-supported",
@@ -456,7 +457,13 @@ test("不支持算子/目标/CPU 变换均明确回退；重复绑定不能只�
     "fallback",
     "scalar-target-not-supported",
   ]);
-  assert.deepEqual(js(program.prepare_program(start_mixed(0, 40, false, 100))), ["fallback", "cpu-transform-required"]);
+  assert.deepEqual(js(program.prepare_program(start_mixed(0, 40, false, 100))), [
+    "fallback",
+    "standard-transform-kernel-not-supported",
+  ]);
+  // 实际 Calcit Binary Tree 仍使用 CPU 回调，不能把新标准数据接线误当成任意闭包 GPU 化。
+  const cpu = startTreeComponent(0, 1);
+  assert.deepEqual(js(program.prepare_program(cpu)), ["fallback", "cpu-transform-required"]);
   const duplicate = set(base(), "slots", new core.CalcitSliceList([slot(), slot()]));
   assert.deepEqual(js(program.prepare_program(duplicate)), [
     "fallback",
