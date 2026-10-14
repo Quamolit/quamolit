@@ -4,7 +4,7 @@
 
 ## 当前事实与下一项交付
 
-2026-10-15 核对：主线基线 `6ac6d0e` 已合并 Calcit/runtime 0.29.3、js-ffi 0.2.3 与27个命名 entry；旧发布 alpha.4 仍基于0.28.0。新的0.30.0-alpha.3配套工具链是独立候选，来源、迁移和实际验收统一见[版本合同](calcit-027-upgrade.md)，不把候选或未合并功能PR当作主线/正式发布。功能通过不等于稳定API、全画质或性能达标。
+2026-10-15 核对：主线 `b175f84` 已包含 #240 的 Calcit/runtime 0.30.0-alpha.3、js-ffi 0.2.3 与27个命名 entry，default与独立消费者边界不变；#228已接通共享字体/图片、重试/版本竞态、Arc命中/保留alpha/Presence及文字墨迹解析接口。工具链来源与实际验收见[版本合同](calcit-027-upgrade.md)。旧发布alpha.4仍基于0.28.0，本轮不发版；功能通过不等于稳定API、全画质或性能达标，云端SKIP不算硬件通过。
 
 ### 阶段矩阵
 
@@ -30,11 +30,11 @@
 | 资源与设备恢复 | 逻辑 identity/generation、共享租约、图片加载与迟到清理 | 实例 buffer、texture runner 与受限 device loss/rebuild 已验证 | [资源注册表](resource-registry.md)、`test:consumer`/`test:webgpu-instances`；font 已接加载队列与迟到隔离，共享宿主、idle重入与精确释放随[已合并 #205](https://github.com/Quamolit/quamolit/pull/205)；glyph/geometry/pipeline 回收及自动运行时接线仍未完整验收 |
 | 命中与指针捕获 | 纯 Calcit HitPlan/PointerState；支持基础叶图元、逆变换/clip、Drag 捕获/释放 | 复用逻辑 CPU 路由；没有 GPU picking | [路由合同](scene-pointer.md)、`test:scene-hit`/`test:scene-pointer-browser`；嵌套禁用随[已合并 #200](https://github.com/Quamolit/quamolit/pull/200)，polygon/cubic 描边、版本化矩形 instances 命中及逻辑捕获提交协调随[已合并 #202](https://github.com/Quamolit/quamolit/pull/202)合并；完整应用接线、病态曲线全域及完整 ID 访问计数仍未完成 |
 | Canvas UI + GPU 层 | 显式 RenderLayer，统一时间/视口、声明顺序与整层回退 | 单根实例层可与 UI 同屏，不自动拆任意 Scene | [分层契约与门禁](layer-composition.md)；#177 的默认后端/成本决策未完成，跨层 capture 与 GPU 文字不在现有合同 |
-| 模块与真实入口 | 单个 Calcit 模块，inline/file 随安装内嵌；主 Snapshot 与独立消费者分工明确 | 同一模块可消费受支持 GPU 入口，无手工宿主 JS 导入 | [FFI](calcit-first-ffi.md)、[消费者](isolated-consumer.md)；[已合并 #201](https://github.com/Quamolit/quamolit/pull/201)贯通普通 compile/release 并隔离演示调度器；[Calcit #1665](https://github.com/calcit-lang/calcit/issues/1665)已关闭，0.29.3归并候选使用27个命名entry，尚不把候选算作主线交付或分发隔离 |
+| 模块与真实入口 | 单个 Calcit 模块，inline/file 随安装内嵌；主 Snapshot 与独立消费者分工明确 | 同一模块可消费受支持 GPU 入口，无手工宿主 JS 导入 | [FFI](calcit-first-ffi.md)、[消费者](isolated-consumer.md)；#201贯通普通compile/release，#227已将27个命名entry合入主线；default仍为诊断，独立消费者保留独立Snapshot，entry不是分发隔离；新tag消费仍待验证 |
 
-当前优先补齐 #34/#53 的图形与交互功能，不扩展性能优化。主线工具链与入口归并已合并；0.30候选须独立完成准确head的编译、发布、导航、干净消费与Actions。未合并的标准变换/颜色等功能按各自PR验证，不混入工具链升级。随后继续同一看板的字体/图片、退出/重入、capture与resize联合场景，不新增平行demo或资源层。
+当前优先补齐#34/#53的真实图形/交互功能，不扩展性能优化。已合并工具链、入口和资源产物不能再列为待开发前置；沿现有组件/资源/导航与消费者完善联合出口，不新增平行demo、资源层、runner或job。用户已授权按依赖顺序合并自身Actions全绿且无冲突的PR，不授权发版，Vite保持运行；未合并的标准变换/颜色等功能仍按各自PR验证。
 
-下一条贯通链路为实际UI的退出/重入、resize/DPR、capture与外部字体/图片租约。看板联合候选复用公共ImageResourceHost、FontResourceHost及单一registry/queue，在Calcit投影两张共享缩略卡片、处理完成/释放、失败同identity重试与显式图片version切换；两个并发槽支持新版本先就绪/旧decode后到，当前操作不被旧任务拖住。原生语义与22项浏览器、统一发布导航已通过；默认画面/旧动画不变，未新建demo或资源层。前置#226/#227与联合候选未合并、未发布，不把本地验证当主线交付。#223的字体投影、父子/类型意图和精确端点回归保留；下一步收口候选消费/PR验证、一般多图与字体版本UI。精确文字命中、完整类型/重排矩阵、全指针ID访问、排版/路径缓存、GPU文字与栅格化仍未完成，不能关闭#34/#51/#53/M2/M3；性能调优暂缓。
+最新本地切片将实际看板标题接公共Calcit文字测量/HitPlan提交，并在同一DashboardMedia增加FontSpec版本刷新，不改变原画面与动画意图。既有两项DPR用例验证同时间ready/失败、暂停resize、capture/退出/重入，以及v3先ready/v2后到、图片所有权不变、多版本关闭与真实按钮恢复；完整看板25项、compile/release和导航76项及增强后的静态看板用例通过。旧近似框负例会失败，恢复后复验通过；没有放宽容差。本地尚未推送或建PR，不能计为主线Actions或新tag能力；当前证据集中#53与[layered-dashboard](layered-dashboard.md)。完整类型/重排/指针矩阵、查询/布局/glyph/路径缓存计数、GPU文字/栅格化和发布后tag消费仍未完成，不关闭#34/#51/#53/M2/M3。
 
 并行于功能主线，#204首批工程减法已随#207合并，移除24个退役`quamolit.app.*`，不删除旧库API或减少11个demo/门禁。[API迁移清单](api-contract.md#仍保留的旧入口退役登记)现登记仍保留15项的仓内定义调用、import-only、替代入口和退役门槛/阶段；原始逐定义查询只在忽略目录。仓外使用者未全面核对，不能据仓内无调用删除公开入口；`retained-path`仍服务Binary Tree。新抽象/粒度规则沿已有模板/AGENTS，不增状态页、扫描框架、命令或job。
 
@@ -59,7 +59,7 @@
 
 公共 API 的稳定性仍以[合同](api-contract.md)为准；矩阵中的可运行实验 API 不自动成为稳定接口。#144 的 MSAA/解析覆盖率只有临时硬件实验，不是默认 renderer 或正式 DPR/性能验收，不能用整数参考的零差异掩盖小数/重叠中间帧差异。
 
-三路径正式报告的原始环境为 Calcit/runtime 0.27.0、Apple M1 Pro/Metal-3，并非当前0.28.0新测结果。CPU 全量采样明确不达60 FPS；GPU 时间采样的零位置上传不等于全面帧率达标，供电/刷新率、baseline 与 #144 画质合同仍未完整验收。次要问题登记 issue；不为追求阶段关闭扩展优化或放宽画质。
+三路径正式报告的原始环境为 Calcit/runtime 0.27.0、Apple M1 Pro/Metal-3，并非当前0.29.3新测结果。CPU 全量采样明确不达60 FPS；GPU 时间采样的零位置上传不等于全面帧率达标，供电/刷新率、baseline 与 #144 画质合同仍未完整验收。次要问题登记 issue；不为追求阶段关闭扩展优化或放宽画质。
 
 ## 实现顺序与跨阶段边界
 

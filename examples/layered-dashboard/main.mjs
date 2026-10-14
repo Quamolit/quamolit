@@ -18,7 +18,7 @@ export function mountDemo() {
   let model = dashboard.replay_events(events, time);
   let horizon = 1;
   let scene;
-  const tags = init_tags(["task", "revision", "token"]);
+  const tags = init_tags(["task", "revision", "token", "font-spec"]);
   const defaultFontSource = "local('PingFangSC-Regular'), local('Noto Sans CJK SC'), local('WenQuanYi Zen Hei')";
   let fontEnabled = false;
   let imagesEnabled = false;
@@ -28,7 +28,7 @@ export function mountDemo() {
   let fontPromise = Promise.resolve();
   const mediaJobs = new Map();
   function intentModel() {
-    return dashboard.with_images(dashboard.with_font(model, fontEnabled), imagesEnabled, dashboard.media_image_source(fonts));
+    return dashboard.with_images(dashboard.with_font(model, fontEnabled, fonts.get(tags["font-spec"])), imagesEnabled, dashboard.media_image_source(fonts));
   }
   function pumpMedia() {
     let task = fonts.get(tags.task);
@@ -81,7 +81,7 @@ export function mountDemo() {
     }
     const intent = intentModel();
     fonts = dashboard.sync_media_$x_(fonts, intent);
-    const displayModel = dashboard.image_ready_$q_(fonts) ? intent : dashboard.with_font(model, fontEnabled);
+    const displayModel = dashboard.image_ready_$q_(fonts) ? intent : dashboard.with_font(model, fontEnabled, fonts.get(tags["font-spec"]));
     scene = dashboard.frame_at(displayModel, time, width, height);
     dashboard.commit_scene_$x_(canvas, context, scene, bounds.width / width, bounds.height / height);
     fontPromise = pumpMedia();
@@ -105,6 +105,7 @@ export function mountDemo() {
     status.textContent = `t=${time.toFixed(2)} · ${width}×${height} · ${state.nodeCount} 节点 · 捕获 ${state.captured ?? "无"}`;
     status.dataset.result = "pass";
     document.querySelector("#font-enable").disabled = fontEnabled;
+    document.querySelector("#font-version").disabled = !fontEnabled;
     document.querySelector("#images-enable").disabled = imagesEnabled;
     document.querySelector("#images-retry").disabled = !imagesEnabled || !state.imageError;
     document.querySelector("#images-version").disabled = !imagesEnabled;
@@ -153,7 +154,7 @@ export function mountDemo() {
     const capture = pointer.capture;
     return { time, width: canvas.width, height: canvas.height, nodeCount: data.nodes.length, playing, paints, pending: scheduler.pending,
       visible: prior?.visible ?? true, chartVisible: prior?.["chart-visible"] ?? true, lineChart: prior?.["line-chart"] ?? false, events: log, scene: data, pointer,
-      fontEnabled, imagesEnabled, imageVersion: to_js_data(dashboard.media_image_source(fonts)).version,
+      fontEnabled, fontVersion: to_js_data(fonts.get(tags["font-spec"])).version, imagesEnabled, imageVersion: to_js_data(dashboard.media_image_source(fonts)).version,
       imageReady: dashboard.image_ready_$q_(fonts), imageError: dashboard.image_error(fonts), mediaError: dashboard.media_error(fonts), fonts: to_js_data(fonts),
       captured: capture[0] === "captured" ? capture[1] : null };
   }
@@ -168,6 +169,13 @@ export function mountDemo() {
     if (disposed) return snapshot();
     if (!imagesEnabled) { imagesEnabled = true; draw(); }
     await fontPromise;
+    return snapshot();
+  }
+  async function setFontSource(source = defaultFontSource) {
+    if (disposed) return snapshot();
+    fonts = dashboard.select_media_font(fonts);
+    fontSource = source; fontEnabled = true;
+    draw(); await fontPromise;
     return snapshot();
   }
   async function retryImages() {
@@ -213,6 +221,7 @@ export function mountDemo() {
   document.querySelector("#reset").onclick = reset;
   document.querySelector("#presence-toggle").onclick = () => setVisible(!snapshot().visible);
   document.querySelector("#font-enable").onclick = () => enableFont();
+  document.querySelector("#font-version").onclick = () => setFontSource();
   document.querySelector("#images-enable").onclick = () => enableImages();
   document.querySelector("#images-retry").onclick = () => retryImages();
   document.querySelector("#images-version").onclick = () => setImageSource();
@@ -249,7 +258,7 @@ export function mountDemo() {
     resolution?.removeEventListener("change", watchDpr);
     if (window.layeredDashboardDemo === api) delete window.layeredDashboardDemo;
   }
-  const api = { seek, play, pause: stop, snapshot, setVisible, setChartVisible, setChartVariant, reset, enableFont, enableImages, retryImages, setImageSource, dispose };
+  const api = { seek, play, pause: stop, snapshot, setVisible, setChartVisible, setChartVariant, reset, enableFont, setFontSource, enableImages, retryImages, setImageSource, dispose };
   window.layeredDashboardDemo = api;
   draw();
   if (!params.has("t") && !matchMedia("(prefers-reduced-motion: reduce)").matches) play();

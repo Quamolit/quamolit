@@ -40,10 +40,17 @@ for (const dpr of [1, 2]) {
           for (let y = title.y - title.size / 2 + 1; y < title.y + title.size / 2; y++) {
             if (y < box.top - 0.5 || y > box.bottom + 0.5) negative.push(point(title.x + 10, y));
           }
-          return { state, box, inside, outside: negative[0], titleId: titleNode.id };
+          return {
+            state,
+            box,
+            inside,
+            outside: negative[0] ?? point(box.left - 2, (box.top + box.bottom) / 2),
+            approximateFalsePositive: negative.length > 0,
+            titleId: titleNode.id,
+          };
         });
       const check = async (probe) => {
-        expect(probe.outside).toBeDefined(); // 旧字符数/字号近似框的假阳性，不能默默跳过。
+        expect(probe.outside).toBeDefined();
         await page.mouse.move(probe.inside.x, probe.inside.y);
         expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).pointer["hover-node"]).toBe(
           probe.titleId,
@@ -53,7 +60,9 @@ for (const dpr of [1, 2]) {
           probe.titleId,
         );
       };
-      await check(await probes());
+      const initial = await probes();
+      expect(initial.approximateFalsePositive).toBe(true); // 固定monospace的旧近似框负例必须存在。
+      await check(initial);
       await page.evaluate(() => {
         const Original = FontFace;
         let release;
@@ -76,6 +85,7 @@ for (const dpr of [1, 2]) {
       const waiting = await probes();
       expect(waiting.state.fonts.host.accepted).toBe(0);
       expect(waiting.state.time).toBe(1);
+      expect(waiting.approximateFalsePositive).toBe(true);
       await check(waiting);
       await page.evaluate(async () => {
         window.fontHitGate.release();
@@ -116,6 +126,77 @@ for (const dpr of [1, 2]) {
       const resized = await probes();
       expect(resized.state.time).toBe(1);
       await check(resized);
+      await page.evaluate(() => window.layeredDashboardDemo.enableImages());
+      await page.evaluate(() => {
+        const Original = FontFace;
+        let release, began;
+        const gate = new Promise((resolve) => {
+          release = resolve;
+        });
+        const started = new Promise((resolve) => {
+          began = resolve;
+        });
+        window.FontFace = class extends Original {
+          load() {
+            const loaded = super.load();
+            if (this.family.includes(":2:")) {
+              began();
+              return loaded.then((face) => gate.then(() => face));
+            }
+            return loaded;
+          }
+        };
+        window.fontVersionGate = {
+          release,
+          started,
+          restore: () => {
+            window.FontFace = Original;
+          },
+        };
+        window.fontVersionPending = window.layeredDashboardDemo.setFontSource(
+          "local('Courier New'), local('Liberation Mono')",
+        );
+      });
+      await page.evaluate(() => window.fontVersionGate.started);
+      const replacementWaiting = await probes();
+      expect(replacementWaiting.state.fontVersion).toBe(2);
+      expect(replacementWaiting.state.time).toBe(1);
+      await check(replacementWaiting);
+      await page.evaluate(() => window.layeredDashboardDemo.setFontSource("local('Arial'), local('Liberation Sans')"));
+      const latest = await probes();
+      expect(latest.state.fontVersion).toBe(3);
+      expect(latest.state.fonts.host.accepted).toBe(2);
+      expect(latest.state.imageReady).toBe(true);
+      expect(latest.state.imageVersion).toBe(1);
+      expect(latest.state.fonts.images.created).toBe(1);
+      expect(latest.state.events).toEqual(waiting.state.events);
+      expect(
+        latest.state.scene.nodes
+          .filter((node) => node.content[0] === "text")
+          .every((node) => node.content[1].font.version === 3),
+      ).toBe(true);
+      await check(latest);
+      const beforeLate = await page.evaluate(() => ({
+        state: window.layeredDashboardDemo.snapshot(),
+        pixels: document.querySelector("canvas").toDataURL(),
+      }));
+      await page.evaluate(async () => {
+        window.fontVersionGate.release();
+        await window.fontVersionPending;
+        window.fontVersionGate.restore();
+      });
+      const afterLate = await page.evaluate(() => ({
+        state: window.layeredDashboardDemo.snapshot(),
+        pixels: document.querySelector("canvas").toDataURL(),
+        oldInstalled: [...document.fonts].some((face) => face.family.includes(":2:")),
+      }));
+      expect(afterLate.state.fontVersion).toBe(3);
+      expect(afterLate.state.fonts.revision).toBe(beforeLate.state.fonts.revision);
+      expect(afterLate.state.paints).toBe(beforeLate.state.paints);
+      expect(afterLate.state.fonts.host.accepted).toBe(2);
+      expect(afterLate.state.fonts.images).toEqual(beforeLate.state.fonts.images);
+      expect(afterLate.oldInstalled).toBe(false);
+      expect(afterLate.pixels).toBe(beforeLate.pixels);
       await page.mouse.move(resized.inside.x, resized.inside.y);
       await page.mouse.down();
       expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).pointer.capture).toEqual([
@@ -145,6 +226,17 @@ for (const dpr of [1, 2]) {
         api.seek(1.9);
       });
       await check(await probes());
+      const closedVersions = await page.evaluate(() => {
+        const api = window.layeredDashboardDemo;
+        api.dispose();
+        api.dispose();
+        return { state: api.snapshot(), nativeFonts: document.fonts.size };
+      });
+      expect(closedVersions.state.fonts.host.handles).toEqual([]);
+      expect(closedVersions.state.fonts.host.released).toBe(closedVersions.state.fonts.host.accepted);
+      expect(closedVersions.state.fonts.images.released).toBe(closedVersions.state.fonts.images.created);
+      expect(closedVersions.state.fonts.references).toEqual([]);
+      expect(closedVersions.nativeFonts).toBe(0);
       // 失败分支必须以实际fallback墨迹命中，不能保留上次挂载的字体计划。
       await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
       await page.evaluate(async () => {
@@ -156,6 +248,17 @@ for (const dpr of [1, 2]) {
       expect(failed.state.fonts.host.accepted).toBe(0);
       expect(failed.state.time).toBe(1);
       await check(failed);
+      // 按钮真正使用新版本恢复失败字体，不偷偷在version=1下换来源。
+      await page.evaluate(() => {
+        document.querySelector("#panel").hidden = false;
+      });
+      await page.getByRole("button", { name: "刷新字体（新版本）", exact: true }).click();
+      await expect.poll(() => page.evaluate(() => window.layeredDashboardDemo.snapshot().fonts.host.accepted)).toBe(1);
+      expect((await probes()).state.fontVersion).toBe(2);
+      await page.evaluate(() => {
+        document.querySelector("#panel").hidden = true;
+      });
+      await check(await probes());
     } finally {
       await context.close();
     }

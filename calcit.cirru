@@ -4904,6 +4904,7 @@
             :task $ :: 'Option 'quamolit.resource-load-queue/ResourceLoadTask
             :revision 'Number
             :closed? 'Bool
+            :font-spec 'quamolit.scene-ir/FontSpec
           :examples $ []
           :schema $ :: 'StructDef
         'VisibilityEvent $ %{} 'CodeEntry (:doc |)
@@ -5251,7 +5252,7 @@
             :args $ []
         'initial-media $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initial-media (url)
-            DashboardMedia :registry (resource/initial-registry 1123201) :queue (queue/initial-load-queue 2 4) :host (font/initial-font-resource-host) :images (image/initial-image-resource-host) :descriptor (image/image-descriptor |dashboard-cover 1 url 650 432) :references (font/empty-font-references) :task (%none) :revision 0 :closed? false
+            DashboardMedia :registry (resource/initial-registry 1123201) :queue (queue/initial-load-queue 2 4) :host (font/initial-font-resource-host) :images (image/initial-image-resource-host) :descriptor (image/image-descriptor |dashboard-cover 1 url 650 432) :references (font/empty-font-references) :task (%none) :revision 0 :closed? false :font-spec $ dashboard-font
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.examples.layered-dashboard/DashboardMedia
@@ -5524,7 +5525,7 @@
             match
               :kind $ :identity task
               (:font)
-                DashboardLoadResult :font $ js-await $ font/run-font-load-task! (dashboard-font) source task
+                DashboardLoadResult :font $ js-await $ font/run-font-load-task! (:font-spec state) source task
               (:image)
                 DashboardLoadResult :image $ js-await $ image/run-image-load-task! (:descriptor state) task
               _ $ raise |unsupported-dashboard-resource
@@ -5578,6 +5579,15 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number 'Number 'Number
+        'select-media-font $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn select-media-font (state)
+            assert |dashboard-media-closed $ not $ :closed? state
+            struct-with state $ :font-spec $ struct-with (:font-spec state)
+              :version $ inc $ :version (:font-spec state)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.examples.layered-dashboard/DashboardMedia
+            :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia
         'select-media-image $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn select-media-image (state url)
             assert |dashboard-media-closed $ not $ :closed? state
@@ -5674,9 +5684,9 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
         'with-font $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn with-font (model enabled)
+          :code $ quote $ defn with-font (model enabled selected-font)
             let
-                spec $ if enabled (dashboard-font) (scene/default-font)
+                spec $ if enabled selected-font $ scene/default-font
               struct-with model $ :items $ map (:items model)
                 fn (item)
                   let
@@ -5690,7 +5700,7 @@
                       _ item
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
-            :args $ [] 'quamolit.presence/PresenceModel 'Bool
+            :args $ [] 'quamolit.presence/PresenceModel 'Bool 'quamolit.scene-ir/FontSpec
         'with-images $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn with-images (model enabled source)
             if (not enabled) model $ struct-with model $ :items
