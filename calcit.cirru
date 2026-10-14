@@ -9699,7 +9699,11 @@
               =
                 :versions $ :source program
                 :versions plan
-              not $ retained/transform-active? $ :transform-sampler plan
+              match (:transform-sampler plan)
+                (:cpu _) false
+                _ $ =
+                  :transform-sampler $ :source program
+                  :transform-sampler plan
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.gpu-scalar-program/ScalarProgram 'quamolit.retained-component/ComponentPlan

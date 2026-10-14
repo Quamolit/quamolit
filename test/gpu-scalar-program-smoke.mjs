@@ -457,6 +457,10 @@ test("标准TRS冷准备保留五轴与pivot；单位冷矩阵避免重复变换
   assert.equal(prepared.tag.value, "ready");
   const value = prepared.extra[0],
     params = js(get(value, "parameters"));
+  for (const time of [1, 0, 0.5, 0.25, 1])
+    assert.equal(program.reusable_$q_(value, sample_plan_at(source, time)), true);
+  assert.equal(program.reusable_$q_(value, trsPlan({ scale: -1 })), false, "改变标准描述不能复用旧GPU参数");
+  assert.equal(program.reusable_$q_(value, base()), false, "同版本切换变换类型仍不可复用");
   assert.deepEqual(
     params.filter((p) => p.axis >= 8).map((p) => p.axis),
     [8, 9, 10, 11, 12, 13, 14],
