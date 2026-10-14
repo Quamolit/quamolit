@@ -382,6 +382,13 @@
           :code $ quote $ defstruct InstancesMetrics (:boundary-calls 'Number) (:canvas-calls 'Number) (:instances 'Number) (:position-bytes-read 'Number)
           :examples $ []
           :schema $ :: 'StructDef
+        'NativeTextInkHost $ %{} 'CodeEntry
+          :doc "|临时原生TextMetrics只读投影，等待js-ffi PR177合并并发布正式tag后换用上游CanvasTextInkMetricsHost。不是Quamolit渲染器或任意JS对象解码。"
+          :code $ quote $ deftrait NativeTextInkHost (:left 'Number) (:right 'Number) (:ascent 'Number) (:descent 'Number)
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+            :names $ {} (:ascent |actualBoundingBoxAscent) (:descent |actualBoundingBoxDescent) (:left |actualBoundingBoxLeft) (:right |actualBoundingBoxRight)
+          :schema $ :: 'Trait
         'color-css $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn color-css (color)
             hint-fn $ {}
@@ -651,6 +658,48 @@
                 , "|\"QuamolitFont:0:UI\\\"\\\\Family\", \"UI\\\"\\\\Family\", monospace"
               , &unit
             :tags $ #{} :font :scene
+        'measure-text-hit! $ %{} 'CodeEntry
+          :doc "|按draw-text!的字体别名/left/middle/ltr约定原生测量一次，恢复宿主状态；异常也restore，不画图、不加载字体、不更新Model。返回纯Calcit度量快照，缺字段或非法值明确失败。"
+          :code $ quote $ defn measure-text-hit! (context text)
+            do
+              assert |invalid-scene-text $ scene/valid-content? $ scene/SceneContent :text text
+              context .save!
+              let
+                  metrics $ try
+                    do
+                      js-set context :font $ str (:size text) "|px " $ font-family-css (:font text)
+                      js-set context :text-align |left
+                      js-set context :text-baseline |middle
+                      js-set context :direction |ltr
+                      let
+                          native $ js-cast
+                            context .measure-text $ :text text
+                            , NativeTextInkHost
+                          measured $ hit/TextHitMetrics :font (:font text) :size (:size text) :text (:text text) :left (native :left) :right (native :right) :ascent (native :ascent) :descent $ native :descent
+                        hit/text-hit-bounds text measured
+                        , measured
+                    fn (error) (context .restore!) (raise error)
+                context .restore!
+                , metrics
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/TextHitMetrics)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/TextNode
+            :features $ #{} :js-ffi
+        'measure-text-hit-plan! $ %{} 'CodeEntry
+          :doc "|将既有HitPlan所有交互文字接原生测量；非文字候选保持身份，查询不测量。没有自动cache，字体ready/fallback变化后调用方须重新提交，不能仅按时间判断。"
+          :code $ quote $ defn measure-text-hit-plan! (context plan)
+            struct-with plan $ :candidates $ map (:candidates plan)
+              fn (candidate)
+                match
+                  :content $ :node candidate
+                  (:text text)
+                    struct-with candidate $ :text-bounds $ Option :some
+                      hit/text-hit-bounds text $ measure-text-hit! context text
+                  _ candidate
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-hit/HitPlan
+            :features $ #{} :js-ffi
         'raw-draw-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-draw-instances! (context positions start amount width height fill-style alpha) (raise |js-only-canvas-instances)
           :examples $ []
@@ -680,7 +729,7 @@
       :ns $ %{} 'NsEntry
         :doc "|Calcit 编写的基础 Canvas2D 参考绘制；Scene 解释保留在 Quamolit，不在 js-ffi 宿主层。"
         :code $ quote $ ns quamolit.canvas-reference
-          :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene) (js-ffi.contract :as contract)
+          :require (js-ffi.canvas-batches :as canvas) (quamolit.scene-ir :as scene) (js-ffi.contract :as contract) (quamolit.scene-hit :as hit)
     'quamolit.canvas-scene $ %{} 'FileEntry
       :defs $ {}
         'CanvasLayerHost $ %{} 'CodeEntry
@@ -12866,6 +12915,8 @@
                 :a $ :stroke path
               (:text text)
                 :a $ :fill text
+              (:arc arc)
+                :a $ :stroke arc
               _ $ raise |presence-requires-flat-leaf
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
@@ -15266,7 +15317,7 @@
             :args $ [] (:: 'List 'quamolit.scene-ir/SceneNode) (:: 'List 'quamolit.motion/ScalarDescriptor) 'Number $ :: 'List 'quamolit.retained-component/BoundScalar
             :return $ :: 'List 'quamolit.retained-component/BoundScalar
         'draw-plan! $ %{} 'CodeEntry
-          :doc "|统一 Canvas 提交：按 Scene 顺序绘制矩形与折线，先标量更新再局部仿射变换；不支持组/实例时绘制前拒绝。"
+          :doc "|统一 Canvas 提交：按声明层序绘制原生平面叶图元（含 Arc）；先采样标量再应用局部仿射变换。group、instances、image 或非空 parent 在绘制前拒绝；不声称一般嵌套图层或 GPU Arc 支持。"
           :code $ quote $ defn draw-plan! (context plan)
             assert |unsupported-component-canvas-scene $ every?
               :nodes $ :scene plan
@@ -15694,7 +15745,12 @@
               (:polygon polygon) (raise |unsupported-polygon-binding)
               (:cubic-path path) (raise |unsupported-cubic-path-binding)
               (:circle circle) (raise |unsupported-circle-binding)
-              (:arc arc) (raise |unsupported-arc-binding)
+              (:arc arc)
+                match target
+                  (:alpha)
+                    scene-ir/SceneContent :arc $ struct-with arc $ :stroke
+                      struct-with (:stroke arc) (:a value)
+                  _ $ raise |unsupported-arc-binding
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
             :args $ [] 'quamolit.scene-ir/SceneContent 'quamolit.scene-ir/ScalarTarget 'Number
@@ -16353,6 +16409,7 @@
           :code $ quote $ defstruct HitCandidate (:node 'quamolit.scene-ir/SceneNode)
             :curve-parts $ :: 'List 'quamolit.scene-hit/CubicStrokePart
             :instance-points $ :: 'List 'quamolit.motion/Vec2
+            :text-bounds $ :: 'Option 'quamolit.scene-ir/ClipRect
           :examples $ []
           :schema $ :: 'StructDef
         'HitOutcome $ %{} 'CodeEntry (:doc |)
@@ -16379,6 +16436,67 @@
           :code $ quote $ defenum PointProjection (:singular) (:point 'Number 'Number)
           :examples $ []
           :schema $ :: 'EnumDef
+        'TextHitMetrics $ %{} 'CodeEntry
+          :doc "|不含宿主句柄的原生文字墨迹度量快照。font/size/text必须与绘制相同；四个有符号距离对应left/middle/ltr绘制约定，不是advance width或glyph轮廓。调用方在字体ready/version变化后更新快照。"
+          :code $ quote $ defstruct TextHitMetrics (:font 'quamolit.scene-ir/FontSpec) (:size 'Number) (:text 'String) (:left 'Number) (:right 'Number) (:ascent 'Number) (:descent 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        'arc-endpoint-hit? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-endpoint-hit? (arc angle x y)
+            let
+                dx $ - x $ + (:cx arc)
+                  * (:radius arc) (cos angle)
+                dy $ - y $ + (:cy arc)
+                  * (:radius arc) (sin angle)
+                half-width $ / (:width arc) 2
+              <=
+                + (* dx dx) (* dy dy)
+                * half-width half-width
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/ArcNode 'Number 'Number 'Number
+        'arc-hit? $ %{} 'CodeEntry
+          :doc "|原生开放圆弧描边的纯 Calcit 命中：方向和跨零角域、整圆、零长度及圆头；没有折线离散或整圆降级。通过 HitPlan 复用祖先逆变换、clip、disabled 与绘制层序，零宽不命中。"
+          :code $ quote $ defn arc-hit? (arc x y)
+            let
+                start $ :start-angle arc
+                end $ :end-angle arc
+                ccw $ :counterclockwise arc
+                raw-span $ if ccw (- start end) (- end start)
+                tau 6.283185307179586
+                remainder $ - raw-span $ * tau
+                  floor $ / raw-span tau
+                span $ if
+                  or (>= raw-span tau)
+                    and (not= raw-span 0) (= remainder 0)
+                  , tau $ if (< remainder 0) (+ remainder tau) remainder
+                dx $ - x $ :cx arc
+                dy $ - y $ :cy arc
+                distance $ sqrt $ + (* dx dx) (* dy dy)
+                radial-offset $ - distance $ :radius arc
+                half-width $ / (:width arc) 2
+                direction $ if ccw -1 1
+                after-start $ * direction $ -
+                  * (cos start) dy
+                  * (sin start) dx
+                before-end $ * direction $ -
+                  * dx $ sin end
+                  * dy $ cos end
+                in-sweep $ if (>= span tau) true $ if (<= span 3.141592653589793)
+                  and (>= after-start 0) (>= before-end 0)
+                  or (>= after-start 0) (>= before-end 0)
+              and
+                > (:width arc) 0
+                if (= span 0) (arc-endpoint-hit? arc start x y)
+                  or
+                    and in-sweep
+                      >= radial-offset $ - 0 half-width
+                      <= radial-offset half-width
+                    and (< span tau)
+                      or (arc-endpoint-hit? arc start x y) (arc-endpoint-hit? arc end x y)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'quamolit.scene-ir/ArcNode 'Number 'Number
         'butt-segment-hit? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn butt-segment-hit? (from to width x y)
             let
@@ -16442,6 +16560,15 @@
                           (:none) false
                       (:cubic-path _)
                         compiled-cubic-hit? (:curve-parts candidate) local-x local-y
+                      (:text _)
+                        match (:text-bounds candidate)
+                          (:some bounds)
+                            and
+                              > (:width bounds) 0
+                              > (:height bounds) 0
+                              point-in-rect? local-x local-y (:x bounds) (:y bounds) (:width bounds) (:height bounds)
+                          (:none)
+                            local-hit? (:content node) local-x local-y
                       _ $ local-hit? (:content node) local-x local-y
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -16612,7 +16739,7 @@
                 (:cubic-path path)
                   compile-cubic-parts (:segments path) (:start path) (:start path) (:width path) (empty-cubic-parts)
                 _ $ empty-cubic-parts
-              , :instance-points $ empty-hit-points
+              , :instance-points (empty-hit-points) :text-bounds $ Option :none
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitCandidate)
             :args $ [] 'quamolit.scene-ir/SceneNode
@@ -16675,7 +16802,9 @@
           :code $ quote $ defn compile-resolved-hit-candidate (node lookup)
             match (:content node)
               (:instances instances)
-                HitCandidate :node node :curve-parts (empty-cubic-parts) :instance-points $ resolve-instance-hit-points (:source instances) lookup
+                HitCandidate :node node :curve-parts (empty-cubic-parts) :instance-points
+                  resolve-instance-hit-points (:source instances) lookup
+                  , :text-bounds $ Option :none
               _ $ compile-hit-candidate node
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitCandidate)
@@ -16991,7 +17120,8 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
             :args $ [] $ :: 'List 'quamolit.motion/Vec2
-        'local-hit? $ %{} 'CodeEntry (:doc |)
+        'local-hit? $ %{} 'CodeEntry
+          :doc "|无度量的旧文字入口仍按字宽近似；精确文字须在compile-hit-plan后调用resolve-text-hit-plan，查询使用候选中的墨迹边界。其他图元保留独立几何合同。"
           :code $ quote $ defn local-hit? (content x y)
             match content
               (:rect rect)
@@ -17025,6 +17155,7 @@
                   polygon-hit? (:points polygon) x y
                   closed-stroke-hit? (:points polygon) (:width polygon) x y
               (:cubic-path path) (cubic-path-hit? path x y)
+              (:arc arc) (arc-hit? arc x y)
               _ false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -17227,6 +17358,56 @@
               {} (:return 'quamolit.scene-hit/InstanceHitSource)
                 :args $ [] 'quamolit.scene-ir/InstanceSource
             :return $ :: 'List 'quamolit.motion/Vec2
+        'resolve-text-hit-plan $ %{} 'CodeEntry
+          :doc "|在既有HitPlan上解析所有交互文字的精确墨迹矩形；也可接compile-hit-plan-with-positions。仅编译阶段调用lookup，指针查询不测量；调用方须在内容/字体ready/版本变化后重解析。缺失或过期度量不得近似补齐。"
+          :code $ quote $ defn resolve-text-hit-plan (plan lookup)
+            struct-with plan $ :candidates $ map (:candidates plan)
+              fn (candidate)
+                match
+                  :content $ :node candidate
+                  (:text text)
+                    struct-with candidate $ :text-bounds $ Option :some
+                      text-hit-bounds text $ lookup text
+                  _ candidate
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'quamolit.scene-hit/HitPlan $ :: 'Fn
+              {} (:return 'quamolit.scene-hit/TextHitMetrics)
+                :args $ [] 'quamolit.scene-ir/TextNode
+          :tests $ [] $ %{} 'TestEntry (:name |ink-plan-transform-clip-and-zero-area)
+            :code $ quote $ let
+                font $ scene/default-font
+                text $ scene/TextNode :x 10 :y 20 :size 24 :text "|中文j" :fill
+                  motion/ColorRgba :r 1 :g 1 :b 1 :a 1
+                  , :font font
+                metrics $ TextHitMetrics :font font :size 24 :text "|中文j" :left 3 :right 47 :ascent 12 :descent 8
+                root $ scene/SceneNode :id |root :parent | :key |root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group
+                  scene/GroupNode :transform (matrix 0 2 -2 0 100 100) :clip
+                    scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 40 :height 30
+                    , :opacity 0
+                leaf $ scene/SceneNode :id |text :parent |root :key |text :bindings ([]) :interaction (scene/SceneInteraction :target |text-action) :content $ scene/SceneContent :text text
+                original $ compile-hit-plan $ scene/SceneDocument :nodes ([] root leaf)
+                plan $ resolve-text-hit-plan original $ fn (value) metrics
+              is= (:nodes original) (:nodes plan)
+              is= (Option :none)
+                :text-bounds $ &list:nth (:candidates original) 0
+              match (hit-test-plan plan 60 116)
+                (:hit result)
+                  is= |text-action $ :target result
+                (:miss _) (is= |hit |miss)
+              match (hit-test-plan plan 60 184)
+                (:miss visited) (is= 1 visited)
+                (:hit _) (is= |miss |hit)
+              match (hit-test-plan plan 98 116)
+                (:miss visited) (is= 1 visited)
+                (:hit _) (is= |miss |hit)
+              let
+                  empty-plan $ resolve-text-hit-plan original $ fn (value)
+                    struct-with metrics (:left 0) (:right 0) (:ascent 0) (:descent 0)
+                match (hit-test-plan empty-plan 60 120)
+                  (:miss visited) (is= 1 visited)
+                  (:hit _) (is= |empty |hit)
+            :tags $ #{} :scene-hit
         'scan-candidates $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scan-candidates (nodes candidates visited x y)
             if (empty? candidates) (HitOutcome :miss visited)
@@ -17289,10 +17470,78 @@
               (:polyline _) true
               (:polygon _) true
               (:cubic-path _) true
+              (:arc _) true
               _ false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneContent
+        'text-hit-bounds $ %{} 'CodeEntry
+          :doc "|纯Calcit墨迹矩形：x-left、y-ascent、left+right、ascent+descent。保留负距离，验证度量身份与有限边界；位置不进入测量身份，移动可以复用度量。"
+          :code $ quote $ defn text-hit-bounds (text metrics)
+            do
+              assert |stale-text-hit-metrics $ and
+                = (:font text) (:font metrics)
+                = (:size text) (:size metrics)
+                = (:text text) (:text metrics)
+              assert |invalid-text-hit-metrics $ and
+                motion/finite-number? $ :left metrics
+                motion/finite-number? $ :right metrics
+                motion/finite-number? $ :ascent metrics
+                motion/finite-number? $ :descent metrics
+                >=
+                  + (:left metrics) (:right metrics)
+                  , 0
+                >=
+                  + (:ascent metrics) (:descent metrics)
+                  , 0
+              let
+                  left $ - (:x text) (:left metrics)
+                  top $ - (:y text) (:ascent metrics)
+                  width $ + (:left metrics) (:right metrics)
+                  height $ + (:ascent metrics) (:descent metrics)
+                assert |invalid-text-hit-bounds $ and (motion/finite-number? left) (motion/finite-number? top) (motion/finite-number? width) (motion/finite-number? height)
+                scene/ClipRect :x left :y top :width width :height height
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/ClipRect)
+            :args $ [] 'quamolit.scene-ir/TextNode 'quamolit.scene-hit/TextHitMetrics
+          :tests $ []
+            %{} 'TestEntry (:name |signed-ink-distances-and-position-reuse)
+              :code $ quote $ let
+                  font $ scene/default-font
+                  text $ scene/TextNode :x 10 :y 20 :size 24 :text "|中文j" :fill
+                    motion/ColorRgba :r 1 :g 1 :b 1 :a 1
+                    , :font font
+                  metrics $ TextHitMetrics :font font :size 24 :text "|中文j" :left 3 :right 47 :ascent 12 :descent 8
+                is=
+                  scene/ClipRect :x 7 :y 8 :width 50 :height 20
+                  text-hit-bounds text metrics
+                is=
+                  scene/ClipRect :x 103 :y 25 :width 10 :height 4
+                  text-hit-bounds
+                    struct-with text (:x 100) (:y 30)
+                    struct-with metrics (:left -3) (:right 13) (:ascent 5) (:descent -1)
+                is=
+                  scene/ClipRect :x 10 :y 20 :width 0 :height 0
+                  text-hit-bounds text $ struct-with metrics (:left 0) (:right 0) (:ascent 0) (:descent 0)
+              :tags $ #{} :scene-hit
+            %{} 'TestEntry (:name |stale-or-invalid-metrics-rejected)
+              :code $ quote $ let
+                  font $ scene/default-font
+                  text $ scene/TextNode :x 10 :y 20 :size 24 :text "|中文j" :fill
+                    motion/ColorRgba :r 1 :g 1 :b 1 :a 1
+                    , :font font
+                  metrics $ TextHitMetrics :font font :size 24 :text "|中文j" :left 3 :right 47 :ascent 12 :descent 8
+                is-throws $ text-hit-bounds text $ struct-with metrics (:text |other)
+                is-throws $ text-hit-bounds text $ struct-with metrics (:size 25)
+                is-throws $ text-hit-bounds text $ struct-with metrics
+                  :font $ struct-with font $ :version 1
+                is-throws $ text-hit-bounds text $ struct-with metrics (:left -48)
+                is-throws $ text-hit-bounds text $ struct-with metrics (:descent -13)
+                is-throws $ text-hit-bounds text $ struct-with metrics
+                  :left $ / 1 0
+                is-throws $ text-hit-bounds text $ struct-with metrics
+                  :ascent $ / 0 0
+              :tags $ #{} :scene-hit
         'triangle-hit? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn triangle-hit? (a b c x y)
             let
@@ -17348,7 +17597,7 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.scene-hit
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion)
-            calcit.test :refer $ is=
+            calcit.test :refer $ is= is-throws
     'quamolit.scene-ir $ %{} 'FileEntry
       :defs $ {}
         'ArcNode $ %{} 'CodeEntry (:doc |)
@@ -17665,6 +17914,7 @@
                     = (content-kind content) |rect
                     = (content-kind content) |polyline
                     = (content-kind content) |text
+                    = (content-kind content) |arc
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/ScalarBinding 'quamolit.scene-ir/SceneContent
@@ -19606,6 +19856,23 @@
           :require (quamolit.replay-archive :as archive) (quamolit.fixed-step :as fixed)
     'quamolit.test.retained-component-fixture $ %{} 'FileEntry
       :defs $ {}
+        'arc-presence-document $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-presence-document ()
+            let
+                node $ &list:nth
+                  :nodes $ :scene $ declare-fading-arc 0 40 0 false 100
+                  , 0
+                content $ match (:content node)
+                  (:arc arc)
+                    scene/SceneContent :arc $ struct-with arc $ :stroke
+                      struct-with (:stroke arc) (:a 0.6)
+                  _ $ raise |expected-arc-fixture
+              scene/SceneDocument :nodes $ [] $ struct-with node (:content content)
+                :bindings $ []
+                :interaction $ scene/SceneInteraction :target |arc-action
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
+            :args $ []
         'declare-demo $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-demo (props model input resources viewport)
             let
@@ -19628,6 +19895,22 @@
               component/ComponentDeclaration :scene
                 scene/SceneDocument :nodes $ concat tiles $ :nodes (:scene moving)
                 , :motions $ :motions moving
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'declare-fading-arc $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-fading-arc (props model input resources viewport)
+            let
+                content $ scene/SceneContent :arc $ scene/ArcNode :cx 64 :cy 64 :radius 40 :start-angle 0.2 :end-angle 2.4 :counterclockwise false :width 8 :stroke
+                  motion/ColorRgba :r 1 :g 0.2 :b 0 :a 1
+                node $ scene/SceneNode :id |fading-arc :parent | :key |fading-arc :content content :bindings
+                  [] $ scene/ScalarBinding :target (scene/ScalarTarget :alpha) :motion-id |arc-alpha :version 1
+                  , :interaction $ scene/SceneInteraction :none
+                descriptor $ motion/ScalarDescriptor :id |arc-alpha :version 1 :motion $ motion/ScalarMotion :tween
+                  motion/ScalarTween :start 0 :duration 1 :from 1 :to 0 :easing $ motion/Easing :linear
+              component/ComponentDeclaration :scene
+                scene/SceneDocument :nodes $ [] node
+                , :motions $ [] descriptor
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'Number 'Number 'Number 'Bool 'Number
@@ -19681,8 +19964,37 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ []
-          :tests $ [] $ %{} 'TestEntry (:name |retained-component-replay)
-            :code $ quote $ assert= true (main!)
+          :tests $ []
+            %{} 'TestEntry (:name |retained-component-replay)
+              :code $ quote $ assert= true (main!)
+            %{} 'TestEntry (:name |arc-alpha-native)
+              :code $ quote $ let
+                  initial $ start-fading-arc 0
+                  sampled $ retained/sample-plan-at initial 0.5
+                  old-node $ &list:nth
+                    :nodes $ :scene initial
+                    , 0
+                  new-node $ &list:nth
+                    :nodes $ :scene sampled
+                    , 0
+                is= 1 $ :declarations sampled
+                is= 1 $ :plan-builds sampled
+                is= (:slots initial) (:slots sampled)
+                is= true $ scene/valid-binding?
+                  scene/ScalarBinding :target (scene/ScalarTarget :alpha) :motion-id |arc-alpha :version 1
+                  :content old-node
+                is= false $ scene/valid-binding?
+                  scene/ScalarBinding :target (scene/ScalarTarget :width) :motion-id |arc-alpha :version 1
+                  :content old-node
+                match (:content new-node)
+                  (:arc arc)
+                    is= 0.5 $ :a $ :stroke arc
+                  _ $ is= |arc |other
+                match (:content old-node)
+                  (:arc arc)
+                    is= 1 $ :a $ :stroke arc
+                  _ $ is= |arc |other
+              :tags $ #{} :retained-component
         'make-request $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn make-request (time model ready viewport) (badge/make-request time model ready viewport)
           :examples $ []
@@ -19733,34 +20045,66 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.presence/PresenceModel 'Number
-          :tests $ [] $ %{} 'TestEntry (:name |presence-binding-continuity)
-            :code $ quote $ let
-                exiting $ presence-exit
-                midpoint $ presence-plan exiting 0.5
-                revived $ :model $ presence/reconcile-presence exiting (presence-document) 0.5 1 (motion/Easing :linear)
-                resumed $ presence-plan revived 0.5
-                completed $ presence/settle-presence exiting 1
-              is= 2 $ count $ :nodes (:scene midpoint)
-              is= 0.5 $ presence-component/leaf-alpha $ :content
-                &list:nth
-                  :nodes $ :scene midpoint
-                  , 0
-              is= 0.25 $ presence-component/leaf-alpha $ :content
-                &list:nth
-                  :nodes $ :scene midpoint
-                  , 1
-              is= (:scene midpoint)
-                struct-with (:scene resumed)
-                  :nodes $ map
+          :tests $ []
+            %{} 'TestEntry (:name |presence-binding-continuity)
+              :code $ quote $ let
+                  exiting $ presence-exit
+                  midpoint $ presence-plan exiting 0.5
+                  revived $ :model $ presence/reconcile-presence exiting (presence-document) 0.5 1 (motion/Easing :linear)
+                  resumed $ presence-plan revived 0.5
+                  completed $ presence/settle-presence exiting 1
+                is= 2 $ count $ :nodes (:scene midpoint)
+                is= 0.5 $ presence-component/leaf-alpha $ :content
+                  &list:nth
+                    :nodes $ :scene midpoint
+                    , 0
+                is= 0.25 $ presence-component/leaf-alpha $ :content
+                  &list:nth
+                    :nodes $ :scene midpoint
+                    , 1
+                is= (:scene midpoint)
+                  struct-with (:scene resumed)
+                    :nodes $ map
+                      :nodes $ :scene resumed
+                      fn (node)
+                        struct-with node $ :interaction $ scene/SceneInteraction :none
+                is= 2 $ count $ :released completed
+                is= 0 $ count $ :released
+                  presence/settle-presence (:model completed) 1
+                is= false $ presence/presence-needs-frame? (:model completed) 1
+                is-throws $ retained/sample-plan-at midpoint $ / 1 0
+              :tags $ #{} :presence-component
+            %{} 'TestEntry (:name |arc-presence-original-alpha)
+              :code $ quote $ let
+                  document $ arc-presence-document
+                  exiting $ :model $ presence/reconcile-presence (presence/start-presence document)
+                    scene/SceneDocument :nodes $ []
+                    , 0 1 (motion/Easing :linear)
+                  midpoint $ presence-plan exiting 0.5
+                  revived $ :model $ presence/reconcile-presence exiting document 0.5 1 (motion/Easing :linear)
+                  resumed $ presence-plan revived 0.5
+                  complete $ presence/settle-presence exiting 1
+                  tree-declaration $ presence-component/declare-tree exiting (binding/empty-descriptors) ([] |fading-arc)
+                  tree-scene $ binding/resolve-scene (:scene tree-declaration) (:motions tree-declaration) 0.5
+                is= 0.6 $ presence-component/tree-alpha $ :content
+                  &list:nth (:nodes document) 0
+                is= 0.3 $ presence-component/leaf-alpha $ :content
+                  &list:nth
+                    :nodes $ :scene midpoint
+                    , 0
+                is= 0.3 $ presence-component/leaf-alpha $ :content
+                  &list:nth (:nodes tree-scene) 0
+                is=
+                  :content $ &list:nth
+                    :nodes $ :scene midpoint
+                    , 0
+                  :content $ &list:nth
                     :nodes $ :scene resumed
-                    fn (node)
-                      struct-with node $ :interaction $ scene/SceneInteraction :none
-              is= 2 $ count $ :released completed
-              is= 0 $ count $ :released
-                presence/settle-presence (:model completed) 1
-              is= false $ presence/presence-needs-frame? (:model completed) 1
-              is-throws $ retained/sample-plan-at midpoint $ / 1 0
-            :tags $ #{} :presence-component
+                    , 0
+                is= 1 $ count $ :released complete
+                is= 0 $ count $ :released
+                  presence/settle-presence (:model complete) 1
+              :tags $ #{} :presence-component
         'reference-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reference-at (time model ready viewport)
             :scene $ component/sample-component-at (make-request time model ready viewport) declare-demo
@@ -19778,6 +20122,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'start-fading-arc $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-fading-arc (time)
+            retained/build-component-plan (make-request time 40 false 100) declare-fading-arc
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number
         'start-mixed $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-mixed (time model ready viewport)
             retained/build-execution-plan (make-request time model ready viewport) declare-mixed
@@ -19813,6 +20163,12 @@
             quamolit.scene-binding :as binding
     'quamolit.test.scene-hit-fixture $ %{} 'FileEntry
       :defs $ {}
+        'arc-content $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn arc-content (start end ccw width)
+            scene/SceneContent :arc $ scene/ArcNode :cx 0 :cy 0 :radius 20 :start-angle start :end-angle end :counterclockwise ccw :width width :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneContent)
+            :args $ [] 'Number 'Number 'Bool 'Number
         'cubic-stroke-content $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn cubic-stroke-content ()
             scene/SceneContent :cubic-path $ scene/CubicPathNode :start (motion/Vec2 :x 20 :y 70) :segments
@@ -20153,6 +20509,18 @@
                   (:miss visited) (is= 1 visited)
                   (:hit _) (is= |miss |hit)
               :tags $ #{} :scene-hit
+            %{} 'TestEntry (:name |arc-direction-cap-and-empty)
+              :code $ quote $ do
+                is= true $ hit/local-hit? (arc-content 0 1.5707963267948966 false 4) 20 -1
+                is= false $ hit/local-hit? (arc-content 0 1.5707963267948966 false 4) -20 0
+                is= true $ hit/local-hit? (arc-content 0 1.5707963267948966 true 4) -20 0
+                is= false $ hit/local-hit? (arc-content 0 1.5707963267948966 false 4) 0 0
+                is= true $ hit/local-hit? (arc-content 5 1 false 4) 20 0
+                is= true $ hit/local-hit? (arc-content 0 6.283185307179586 false 4) -20 0
+                is= true $ hit/local-hit? (arc-content 0 -6.283185307179586 false 4) 20 0
+                is= true $ hit/local-hit? (arc-content 1 1 false 4) 10.806046117362795 16.82941969615793
+                is= false $ hit/local-hit? (arc-content 0 2 false 0) 20 0
+              :tags $ #{} :scene-hit
         'verify-pointer-routing $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn verify-pointer-routing () true
           :examples $ []
@@ -20358,6 +20726,34 @@
                 is= (pointer/PointerDispatch :none) (:dispatch routed)
                 is= | $ hit/effective-target (:nodes disabled)
                   &list:nth (:nodes disabled) 3
+              :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |arc-target-capture-disable)
+              :code $ quote $ let
+                  leaf $ scene/SceneNode :id |arc :parent | :key |arc :bindings ([]) :interaction (scene/SceneInteraction :target |arc-action) :content $ arc-content 0 2 false 4
+                  document $ scene/SceneDocument :nodes $ [] leaf
+                  plan $ hit/compile-hit-plan document
+                  down $ pointer/route-pointer plan (pointer/initial-pointer-state)
+                    pointer-input 7 (pointer/PointerPhase :down) 20 0
+                  disabled $ hit/compile-hit-plan $ scene/SceneDocument :nodes
+                    [] $ struct-with leaf $ :interaction (scene/SceneInteraction :disabled)
+                is= 1 $ hit/candidate-count plan
+                match (:dispatch down)
+                  (:none) (is= |routed |none)
+                  (:routed route)
+                    let
+                        captured $ pointer/capture-target (:state down) route |arc-action
+                        moved $ pointer/route-pointer plan captured $ pointer-input 7 (pointer/PointerPhase :move) 400 400
+                        reconciled $ pointer/reconcile-pointer-state disabled $ :state moved
+                      is= |arc $ :source-node route
+                      match (:dispatch moved)
+                        (:none) (is= |routed |none)
+                        (:routed movement)
+                          do
+                            is= true $ :captured movement
+                            is= |arc $ :source-node movement
+                      is= true $ :capture-released reconciled
+                      is= (pointer/PointerCapture :none)
+                        :capture $ :state reconciled
               :tags $ #{} :scene-pointer
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.scene-hit-fixture
