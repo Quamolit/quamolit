@@ -1,6 +1,6 @@
 # Calcit 工具链升级与版本合同
 
-2026-10-14 升级候选使用已发布的 Calcit 稳定版 `0.29.3`、匹配的 `@calcit/procs@0.29.3` 和 js-ffi `0.2.2`。根项目、独立消费者、`deps.cirru`、npm runtime、Yarn resolution、锁文件和中英文入口同步；不接受仅升级本机 CLI。沿用本页与现有门禁，不另建升级测试体系。主线及旧alpha仍为0.28.0，不能把候选声明当作已完成验收。
+2026-10-14 升级候选使用已发布的 Calcit 稳定版 `0.29.3`、匹配的 `@calcit/procs@0.29.3` 和 js-ffi `0.2.3`。根项目、独立消费者、`deps.cirru`、npm runtime、Yarn resolution、锁文件和中英文入口同步；不接受仅升级本机 CLI。沿用本页与现有门禁，不另建升级测试体系。主线及旧alpha仍为0.28.0，不能把候选声明当作已完成验收。
 
 本机全局CLI为0.29.0-alpha.17，不用于正式0.29.3验收；官方release的两个可执行资产均为Linux，因此macOS从官方0.29.3 crate构建隔离CLI（`--locked --no-default-features`，本项目使用JS目标，非WASM验收）。不覆盖用户全局安装。named entry 创建的上游#1665已经关闭，工具链门禁通过后另做入口归并，不混入本升级PR。
 
@@ -8,7 +8,9 @@
 
 `yarn test:runtime` 同时检查当前 `calcit --version`、根项目与消费者的 `:calcit-version`、两处 `@calcit/procs` 声明和实际安装版本，以及从 js-ffi 包位置解析到的 runtime。全部必须为 `0.29.3`；另用 `caps verify --toolchain` 检查模块与 runtime。
 
-js-ffi 0.2.2声明Calcit0.29.1；根 `resolutions` 统一到兼容稳定runtime0.29.3，保持单例，不改变平台API与Quamolit业务代码的归属。pointed-prompt更新到正式0.0.17，修复旧版本已退役的join-str引用；不是无依据的依赖批量升级。
+同一门禁还比较根deps中的js-ffi模块tag、npm Git tag、实际npm包版本与实际Calcit模块版本，四者必须一致；不能仅通过runtime resolution掩盖平台代码版本分裂。
+
+js-ffi 0.2.3已于本轮发布并声明Calcit/runtime0.29.3，新增受检宿主与callback边界；根 `resolutions` 保持统一runtime单例，不改变平台API与Quamolit业务代码的归属。它不含尚未合并/发布的Canvas surface PR #175，Quamolit不能提前调用该候选接口。pointed-prompt更新到正式0.0.17，修复旧版本已退役的join-str引用；不是无依据的依赖批量升级。
 
 本轮局部迁移：普通nil谓词改为non-nil?，保留Option.some?；FontFace采用identical?而非值比较；旧矩形夹具显式检查尺寸数值，nil/false仍取原默认值、0保留，非法字符串拒绝；tracked-transform的Map读取显式匹配Option，不伪装成Struct。看板两处defref由core-api-0.29-v1的machine-applicable证明迁移，重复预览为空。
 

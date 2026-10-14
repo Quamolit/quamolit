@@ -1,7 +1,7 @@
 {
   "version": "0.0.18-alpha.1",
   "dependencies": {
-    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.2",
+    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.3",
     "@calcit/procs": "0.29.3",
     "@quamolit/touch-control": "^0.0.13"
   },
