@@ -3,6 +3,106 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { readScalarSample } from "./host/gpu-scalar-readback.mjs";
 
+async function verifyTransformGpuSurface(page, artifacts) {
+  const frames = [],
+    url = new URL(page.url());
+  url.search = "?motion=transform-gpu";
+  for (const dpr of [1, 2]) {
+    const context = await page
+        .context()
+        .browser()
+        .newContext({ deviceScaleFactor: dpr, viewport: { width: 1000, height: 700 } }),
+      stage = await context.newPage(),
+      errors = [];
+    stage.on("pageerror", (error) => errors.push(error.message));
+    try {
+      await stage.goto(url.href);
+      await stage.waitForFunction(
+        () =>
+          window.consumer?.snapshot().mode === "transform-gpu" &&
+          ["ready", "fallback", "failed"].includes(window.consumer.snapshot().recovery.phase[0]),
+      );
+      const initial = await stage.evaluate(() => window.consumer.snapshot());
+      if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") assert.equal(initial.backend, "gpu");
+      for (const size of [
+        { width: 1000, height: 700 },
+        { width: 390, height: 844 },
+      ]) {
+        await stage.setViewportSize(size);
+        await stage.waitForFunction(() => {
+          const s = window.consumer.snapshot().surface;
+          return (
+            s.width === Math.round(innerWidth * devicePixelRatio) &&
+            s.height === Math.round(innerHeight * devicePixelRatio)
+          );
+        });
+        const result = await stage.evaluate(async () => {
+          const state = window.consumer.set({ time: 0.25 }),
+            canvas = document.querySelector("canvas"),
+            bitmap = await createImageBitmap(canvas),
+            capture = document.createElement("canvas");
+          capture.width = canvas.width;
+          capture.height = canvas.height;
+          const ctx = capture.getContext("2d");
+          ctx.fillStyle = "white";
+          ctx.fillRect(0, 0, capture.width, capture.height);
+          ctx.drawImage(bitmap, 0, 0);
+          bitmap.close();
+          const s = 0.25 * 0.25 * (3 - 2 * 0.25),
+            angle = -0.4 + 0.8 * s,
+            scale = 0.7 + 0.35 * s,
+            dx = (98 - 125) * scale,
+            dy = (70.8 - 84) * scale,
+            world = [
+              32 * s + 125 + Math.cos(angle) * dx - Math.sin(angle) * dy,
+              -12 * s + 84 + Math.sin(angle) * dx + Math.cos(angle) * dy,
+            ],
+            fit = Math.min(canvas.width / 320, canvas.height / 180),
+            left = (canvas.width - 320 * fit) / 2,
+            top = (canvas.height - 180 * fit) / 2;
+          const pixels = [world, [20, 105]].map(([x, y]) => [
+            ...ctx.getImageData(Math.floor(left + x * fit), Math.floor(top + y * fit), 1, 1).data,
+          ]);
+          return { state, pixels, css: [canvas.clientWidth, canvas.clientHeight] };
+        });
+        assert.deepEqual(result.css, [size.width, size.height]);
+        assert.deepEqual(result.state.surface, { width: size.width * dpr, height: size.height * dpr, dpr });
+        assert.deepEqual(
+          result.pixels,
+          [
+            [235, 71, 153, 255],
+            [102, 102, 102, 255],
+          ],
+          "原生表面必须按逻辑viewport绘制，不能只增大buffer却仍画在左上角",
+        );
+        assert.equal(result.state.declarations, initial.declarations);
+        assert.equal(result.state.builds, initial.builds);
+        if (result.state.backend === "gpu") {
+          for (const key of ["cold-record-bytes", "cold-parameter-bytes"])
+            assert.equal(result.state.metrics[key], initial.metrics[key]);
+          assert.equal(result.state.metrics["record-bytes"], 0);
+          assert.equal(result.state.metrics["parameter-bytes"], 0);
+        }
+        await stage.click("#panel-toggle");
+        await stage.screenshot({ path: join(artifacts, `trs-native-dpr${dpr}-${size.width}.png`), fullPage: true });
+        await stage.click("#panel-toggle");
+        frames.push({
+          dpr,
+          ...size,
+          backend: result.state.backend,
+          surface: result.state.surface,
+          pixels: result.pixels,
+        });
+      }
+      assert.deepEqual(errors, []);
+      await stage.evaluate(() => window.consumer.setMode("transform"));
+    } finally {
+      await context.close();
+    }
+  }
+  return frames;
+}
+
 async function verifyTransformGpuPage(page, artifacts) {
   await page.evaluate(() => {
     window.consumer.set({ time: 0, model: 40, ready: false, viewport: 100 });
@@ -110,10 +210,12 @@ async function verifyTransformGpuPage(page, artifacts) {
   await page.evaluate(() => window.consumer.setMode("transform"));
   assert.equal(await page.locator("canvas").count(), 1);
   assert.equal(await page.locator("#gpu-loss").isDisabled(), true, "离开GPU模式必须释放宿主");
+  const fullscreen = await verifyTransformGpuSurface(page, artifacts);
   return {
     unavailable: "PASS",
     selectedBackend: initial.backend,
     frames,
+    fullscreen,
     scope: "同页切换、偏心实色内区、失效/恢复/精度回退；非完整边缘画质或性能验收",
   };
 }

@@ -11,6 +11,7 @@ import {
   prepare_gpu,
   install_gpu_$x_,
   update_gpu_$x_,
+  configure_gpu_viewport_$x_,
   start_mirror,
   update_mirror,
   start_layered,
@@ -212,6 +213,7 @@ function snapshot() {
     ...(mode === "transform-gpu"
       ? {
           backend: canvasKind,
+          surface: { width: canvas.width, height: canvas.height, dpr: window.devicePixelRatio || 1 },
           metrics: gpuState?.metrics ?? null,
           adapter: gpuState?.adapter ?? null,
           recovery: to_js_data(gpuRecoveryState),
@@ -246,16 +248,27 @@ function show() {
     const scale = Math.min(w / 320, h / 180);
     context.setTransform(scale, 0, 0, scale, (w - 320 * scale) / 2, (h - 180 * scale) / 2);
   }
+  if (fullscreen && mode === "transform-gpu" && gpuState) {
+    const size = canvas.getBoundingClientRect(),
+      dpr = window.devicePixelRatio || 1,
+      width = Math.max(1, Math.round(size.width * dpr)),
+      height = Math.max(1, Math.round(size.height * dpr));
+    if (!gpuState.viewportConfigured || canvas.width !== width || canvas.height !== height) {
+      try {
+        configure_gpu_viewport_$x_(gpuState.batch, width, height, 320, 180);
+      } catch (error) {
+        return fallbackToCanvas(error.message);
+      }
+      gpuState.viewportConfigured = true;
+    }
+  }
   if (mode === "transform-gpu" && gpuState) {
     const host = gpuState.batch,
       beforeRecords = host.uploadedBytes,
       beforeParameters = host.parameterBytes,
       updated = update_gpu_$x_(host, gpuState.program, plan);
     if (updated.tag.value !== "ready") {
-      disposeGpu();
-      replaceCanvas("canvas");
-      document.querySelector("#gpu-note").textContent = `GPU 整层回退：${updated.extra[0]}`;
-      return show();
+      return fallbackToCanvas(updated.extra[0]);
     }
     gpuState.program = updated.extra[0];
     gpuState.metrics = {
@@ -295,6 +308,12 @@ function show() {
   const { scene, transforms, ...counts } = snapshot();
   document.querySelector("#status").textContent = JSON.stringify(counts, null, 2);
   return snapshot();
+}
+function fallbackToCanvas(reason) {
+  disposeGpu();
+  replaceCanvas("canvas");
+  document.querySelector("#gpu-note").textContent = `GPU 整层回退：${reason}`;
+  return show();
 }
 function set(next = {}) {
   if (mode.startsWith("instances")) {

@@ -90,6 +90,12 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.scene-ir/SceneDocument
             :return $ :: 'List 'quamolit.scene-ir/SceneDiagnostic
+        'configure-gpu-viewport! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn configure-gpu-viewport! (host width height logical-width logical-height) (batch/configure-viewport! host width height logical-width logical-height)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.gpu-component/RectRendererHost 'Number 'Number 'Number 'Number
+            :features $ #{} :js-ffi
         'create-batch-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-batch-gpu! (canvas device format capacity) (batch/create-renderer! canvas device format capacity)
           :examples $ []
