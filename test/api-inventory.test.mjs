@@ -11,7 +11,28 @@ import {
   verifyTypeCoverage,
   readmeExamples,
   verifyHostBoundary,
+  verifyLegacyLedger,
 } from "../scripts/api-inventory.mjs";
+
+test("旧入口退役登记覆盖当前legacy，拒绝缺项、残留、重复与空条件", () => {
+  const rows = [
+    { namespace: "quamolit.alias", status: "legacy" },
+    { namespace: "quamolit.scene-ir", status: "experimental" },
+  ];
+  const line = "| `quamolit.alias` | 22；已核对仓内调用 | scene-ir | L；M3 |";
+  const wrap = (body) => `<!-- legacy-retirement:start -->\n${body}\n<!-- legacy-retirement:end -->`;
+  assert.doesNotThrow(() => verifyLegacyLedger(rows, wrap(line)));
+  for (const bad of [
+    "",
+    wrap(""),
+    wrap(line + "\n" + line),
+    wrap(line.replace("scene-ir |", " |")),
+    wrap(line.replace("L；M3", "")),
+    wrap(line + "\n" + line.replace("quamolit.alias", "quamolit.removed")),
+  ])
+    assert.throws(() => verifyLegacyLedger(rows, bad));
+  assert.throws(() => verifyLegacyLedger([{ namespace: "quamolit.alias", status: "experimental" }], wrap(line)));
+});
 
 test("正式宿主拒绝测试、演示和本地编译产物，不以正常平台调用冒充失败", () => {
   assert.doesNotThrow(() => verifyHostBoundary("(ctx,x,y)=>ctx.fillRect(x,y,1,1)", "canvas.mjs"));

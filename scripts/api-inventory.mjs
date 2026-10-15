@@ -47,6 +47,22 @@ export function verifyCoverage(rows, names) {
   assert.deepEqual(missing, [], `新命名空间未分类: ${missing.join(", ")}`);
   assert.deepEqual(stale, [], `清单包含已移除命名空间: ${stale.join(", ")}`);
 }
+export function verifyLegacyLedger(rows, document) {
+  const section = document.match(/<!-- legacy-retirement:start -->([\s\S]*?)<!-- legacy-retirement:end -->/);
+  assert.ok(section, "缺少旧入口退役登记边界");
+  const names = [];
+  for (const line of section[1].split("\n")) {
+    const row = line.match(/^\| `(quamolit\.[\w.$-]+)` \|/);
+    if (!row) continue;
+    const cells = line.split("|").slice(2, -1);
+    assert.equal(cells.length, 3, `退役登记列数错误: ${row[1]}`);
+    assert.ok(cells.every((cell) => cell.trim()), `退役登记缺调用方/迁移目标/条件: ${row[1]}`);
+    names.push(row[1]);
+  }
+  assert.equal(new Set(names).size, names.length, "退役登记重复namespace");
+  assert.deepEqual(names.sort(), rows.filter((row) => row.status === "legacy").map((row) => row.namespace).sort(),
+    "旧入口退役登记与legacy分类不一致");
+}
 export function consumerViolations(rows, declaration) {
   assert.match(declaration, /NS declaration:/);
   const imports = [...declaration.matchAll(/\((quamolit\.[\w.$-]+)\s+:(?:as|refer|default)\b/g)].map(
@@ -184,6 +200,7 @@ export async function main(args = process.argv.slice(2)) {
   for (const row of rows) await access(resolve(root, row.doc));
   const docPath = resolve(root, "docs/api-contract.md");
   const document = await readFile(docPath, "utf8");
+  verifyLegacyLedger(rows, document);
   const section = /<!-- api-inventory:start -->[\s\S]*?<!-- api-inventory:end -->/;
   assert.ok(section.test(document), "缺少文档清单边界");
   const rendered = renderInventory(rows);
