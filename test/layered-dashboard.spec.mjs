@@ -1,5 +1,270 @@
 import { expect, test } from "@playwright/test";
 
+for (const dpr of [1, 2]) {
+  test(`标题精确文字命中随同时间字体ready和暂停resize重提交 DPR${dpr}`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: dpr });
+    const page = await context.newPage();
+    try {
+      await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+      await page.evaluate(() => {
+        document.querySelector("#panel").hidden = true;
+      });
+      const probes = () =>
+        page.evaluate(() => {
+          const state = window.layeredDashboardDemo.snapshot();
+          const titleNode = state.scene.nodes.find((node) => node.id.endsWith("/5:title"));
+          const title = titleNode.content[1];
+          const transform = state.scene.nodes.find((node) => node.id.endsWith("/9:dashboard")).content[1].transform;
+          const canvas = document.querySelector("canvas");
+          const bounds = canvas.getBoundingClientRect();
+          const ctx = canvas.getContext("2d");
+          ctx.save();
+          ctx.font = `${title.size}px ${title.font.family ? JSON.stringify(`QuamolitFont:${title.font.version}:${title.font.family}`) + ", " : ""}monospace`;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.direction = "ltr";
+          const ink = ctx.measureText(title.text);
+          ctx.restore();
+          const box = {
+            left: title.x - ink.actualBoundingBoxLeft,
+            right: title.x + ink.actualBoundingBoxRight,
+            top: title.y - ink.actualBoundingBoxAscent,
+            bottom: title.y + ink.actualBoundingBoxDescent,
+          };
+          const point = (x, y) => ({
+            x: bounds.left + ((transform.a * x + transform.c * y + transform.e) * bounds.width) / canvas.width,
+            y: bounds.top + ((transform.b * x + transform.d * y + transform.f) * bounds.height) / canvas.height,
+          });
+          const inside = point((box.left + box.right) / 2, (box.top + box.bottom) / 2);
+          const negative = [];
+          for (let y = title.y - title.size / 2 + 1; y < title.y + title.size / 2; y++) {
+            if (y < box.top - 0.5 || y > box.bottom + 0.5) negative.push(point(title.x + 10, y));
+          }
+          return {
+            state,
+            box,
+            inside,
+            outside: negative[0] ?? point(box.left - 2, (box.top + box.bottom) / 2),
+            approximateFalsePositive: negative.length > 0,
+            titleId: titleNode.id,
+          };
+        });
+      const check = async (probe) => {
+        expect(probe.outside).toBeDefined();
+        await page.mouse.move(probe.inside.x, probe.inside.y);
+        expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).pointer["hover-node"]).toBe(
+          probe.titleId,
+        );
+        await page.mouse.move(probe.outside.x, probe.outside.y);
+        expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).pointer["hover-node"]).not.toBe(
+          probe.titleId,
+        );
+      };
+      const initial = await probes();
+      expect(initial.approximateFalsePositive).toBe(true); // 固定monospace的旧近似框负例必须存在。
+      await check(initial);
+      await page.evaluate(() => {
+        const Original = FontFace;
+        let release;
+        const gate = new Promise((resolve) => {
+          release = resolve;
+        });
+        window.FontFace = class extends Original {
+          load() {
+            return super.load().then((face) => gate.then(() => face));
+          }
+        };
+        window.fontHitGate = {
+          release,
+          restore: () => {
+            window.FontFace = Original;
+          },
+        };
+        window.fontHitPending = window.layeredDashboardDemo.enableFont("local('Arial'), local('Liberation Sans')");
+      });
+      const waiting = await probes();
+      expect(waiting.state.fonts.host.accepted).toBe(0);
+      expect(waiting.state.time).toBe(1);
+      expect(waiting.approximateFalsePositive).toBe(true);
+      await check(waiting);
+      await page.evaluate(async () => {
+        window.fontHitGate.release();
+        await window.fontHitPending;
+        window.fontHitGate.restore();
+      });
+      const ready = await probes();
+      expect(ready.state.fonts.host.accepted).toBe(1);
+      expect(ready.state.time).toBe(waiting.state.time);
+      expect(ready.state.events).toEqual(waiting.state.events);
+      expect(ready.state.playing).toBe(false);
+      expect(Math.abs(ready.box.right - waiting.box.right)).toBeGreaterThan(1);
+      await check(ready);
+      // 选取新旧字体边界之间的位置，检测同时间ready后继续用fallback计划的错误。
+      const changed = { x: (ready.inside.x + waiting.inside.x) / 2, y: ready.inside.y };
+      const boundaryProbe = await page.evaluate(
+        ({ oldBox, newBox }) => {
+          const s = window.layeredDashboardDemo.snapshot();
+          const m = s.scene.nodes.find((n) => n.id.endsWith("/9:dashboard")).content[1].transform;
+          const canvas = document.querySelector("canvas"),
+            b = canvas.getBoundingClientRect();
+          const x = (oldBox.right + newBox.right) / 2,
+            y = (newBox.top + newBox.bottom) / 2;
+          return {
+            x: b.left + ((m.a * x + m.e) * b.width) / canvas.width,
+            y: b.top + ((m.d * y + m.f) * b.height) / canvas.height,
+            expected: x < newBox.right,
+          };
+        },
+        { oldBox: waiting.box, newBox: ready.box },
+      );
+      await page.mouse.move(boundaryProbe.x, boundaryProbe.y);
+      expect(
+        (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).pointer["hover-node"] === ready.titleId,
+      ).toBe(boundaryProbe.expected);
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await expect.poll(() => page.evaluate(() => window.layeredDashboardDemo.snapshot().width)).toBe(1440 * dpr);
+      const resized = await probes();
+      expect(resized.state.time).toBe(1);
+      await check(resized);
+      await page.evaluate(() => window.layeredDashboardDemo.enableImages());
+      await page.evaluate(() => {
+        const Original = FontFace;
+        let release, began;
+        const gate = new Promise((resolve) => {
+          release = resolve;
+        });
+        const started = new Promise((resolve) => {
+          began = resolve;
+        });
+        window.FontFace = class extends Original {
+          load() {
+            const loaded = super.load();
+            if (this.family.includes(":2:")) {
+              began();
+              return loaded.then((face) => gate.then(() => face));
+            }
+            return loaded;
+          }
+        };
+        window.fontVersionGate = {
+          release,
+          started,
+          restore: () => {
+            window.FontFace = Original;
+          },
+        };
+        window.fontVersionPending = window.layeredDashboardDemo.setFontSource(
+          "local('Courier New'), local('Liberation Mono')",
+        );
+      });
+      await page.evaluate(() => window.fontVersionGate.started);
+      const replacementWaiting = await probes();
+      expect(replacementWaiting.state.fontVersion).toBe(2);
+      expect(replacementWaiting.state.time).toBe(1);
+      await check(replacementWaiting);
+      await page.evaluate(() => window.layeredDashboardDemo.setFontSource("local('Arial'), local('Liberation Sans')"));
+      const latest = await probes();
+      expect(latest.state.fontVersion).toBe(3);
+      expect(latest.state.fonts.host.accepted).toBe(2);
+      expect(latest.state.imageReady).toBe(true);
+      expect(latest.state.imageVersion).toBe(1);
+      expect(latest.state.fonts.images.created).toBe(1);
+      expect(latest.state.events).toEqual(waiting.state.events);
+      expect(
+        latest.state.scene.nodes
+          .filter((node) => node.content[0] === "text")
+          .every((node) => node.content[1].font.version === 3),
+      ).toBe(true);
+      await check(latest);
+      const beforeLate = await page.evaluate(() => ({
+        state: window.layeredDashboardDemo.snapshot(),
+        pixels: document.querySelector("canvas").toDataURL(),
+      }));
+      await page.evaluate(async () => {
+        window.fontVersionGate.release();
+        await window.fontVersionPending;
+        window.fontVersionGate.restore();
+      });
+      const afterLate = await page.evaluate(() => ({
+        state: window.layeredDashboardDemo.snapshot(),
+        pixels: document.querySelector("canvas").toDataURL(),
+        oldInstalled: [...document.fonts].some((face) => face.family.includes(":2:")),
+      }));
+      expect(afterLate.state.fontVersion).toBe(3);
+      expect(afterLate.state.fonts.revision).toBe(beforeLate.state.fonts.revision);
+      expect(afterLate.state.paints).toBe(beforeLate.state.paints);
+      expect(afterLate.state.fonts.host.accepted).toBe(2);
+      expect(afterLate.state.fonts.images).toEqual(beforeLate.state.fonts.images);
+      expect(afterLate.oldInstalled).toBe(false);
+      expect(afterLate.pixels).toBe(beforeLate.pixels);
+      await page.mouse.move(resized.inside.x, resized.inside.y);
+      await page.mouse.down();
+      expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).pointer.capture).toEqual([
+        "captured",
+        1,
+        "title",
+        resized.titleId,
+      ]);
+      const exiting = await page.evaluate(() => {
+        const api = window.layeredDashboardDemo;
+        api.setVisible(false);
+        api.pause();
+        return api.snapshot();
+      });
+      expect(exiting.captured).toBeNull();
+      expect(exiting.pointer["hover-node"]).not.toBe(resized.titleId);
+      await page.mouse.up();
+      await page.mouse.move(changed.x, changed.y);
+      expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).pointer["hover-node"]).not.toBe(
+        resized.titleId,
+      );
+      await page.evaluate(() => {
+        const api = window.layeredDashboardDemo;
+        api.seek(1.3);
+        api.setVisible(true);
+        api.pause();
+        api.seek(1.9);
+      });
+      await check(await probes());
+      const closedVersions = await page.evaluate(() => {
+        const api = window.layeredDashboardDemo;
+        api.dispose();
+        api.dispose();
+        return { state: api.snapshot(), nativeFonts: document.fonts.size };
+      });
+      expect(closedVersions.state.fonts.host.handles).toEqual([]);
+      expect(closedVersions.state.fonts.host.released).toBe(closedVersions.state.fonts.host.accepted);
+      expect(closedVersions.state.fonts.images.released).toBe(closedVersions.state.fonts.images.created);
+      expect(closedVersions.state.fonts.references).toEqual([]);
+      expect(closedVersions.nativeFonts).toBe(0);
+      // 失败分支必须以实际fallback墨迹命中，不能保留上次挂载的字体计划。
+      await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
+      await page.evaluate(async () => {
+        document.querySelector("#panel").hidden = true;
+        await window.layeredDashboardDemo.enableFont("local('QuamolitMissingFont-TextHitRegression')");
+      });
+      const failed = await probes();
+      expect(failed.state.mediaError).not.toBe("");
+      expect(failed.state.fonts.host.accepted).toBe(0);
+      expect(failed.state.time).toBe(1);
+      await check(failed);
+      // 按钮真正使用新版本恢复失败字体，不偷偷在version=1下换来源。
+      await page.evaluate(() => {
+        document.querySelector("#panel").hidden = false;
+      });
+      await page.getByRole("button", { name: "刷新字体（新版本）", exact: true }).click();
+      await expect.poll(() => page.evaluate(() => window.layeredDashboardDemo.snapshot().fonts.host.accepted)).toBe(1);
+      expect((await probes()).state.fontVersion).toBe(2);
+      await page.evaluate(() => {
+        document.querySelector("#panel").hidden = true;
+      });
+      await check(await probes());
+    } finally {
+      await context.close();
+    }
+  });
+}
+
 test("两个旧decode占槽时，新版本等待排队且不越过有界背压", async ({ page }) => {
   await page.goto("http://127.0.0.1:5180/examples/layered-dashboard/index.html?t=1");
   const result = await page.evaluate(async () => {

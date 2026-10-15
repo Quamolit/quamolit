@@ -604,12 +604,25 @@ test("静态发布看板可独立切换图表子组件并从同页导航卸载",
     (await page.evaluate(() => window.layeredDashboardDemo.seek(Number(document.querySelector("#time").max))))
       .nodeCount,
   ).toBe(28);
+  const nativeFontsBefore = await page.evaluate(() => document.fonts.size);
+  const refreshFont = page.getByRole("button", { name: "刷新字体（新版本）", exact: true });
+  await expect(refreshFont).toBeDisabled();
+  await page.getByRole("button", { name: "启用字体资源", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.layeredDashboardDemo.snapshot().fonts.host.accepted)).toBe(1);
+  const beforeFont = await page.evaluate(() => window.layeredDashboardDemo.snapshot());
+  await refreshFont.click();
+  await expect.poll(() => page.evaluate(() => window.layeredDashboardDemo.snapshot().fonts.host.accepted)).toBe(2);
+  const afterFont = await page.evaluate(() => window.layeredDashboardDemo.snapshot());
+  expect(afterFont.fontVersion).toBe(2);
+  expect(afterFont.time).toBe(beforeFont.time);
+  expect(afterFont.events).toEqual(beforeFont.events);
   await page
     .getByRole("navigation", { name: "演示导航" })
     .getByRole("button", { name: /所有演示/ })
     .click();
   await expect(page.locator("#app")).toHaveAttribute("data-view", "gallery");
   expect(await page.evaluate(() => "layeredDashboardDemo" in window)).toBe(false);
+  expect(await page.evaluate(() => document.fonts.size)).toBe(nativeFontsBefore);
   expect(await page.locator("canvas").evaluate((canvas) => canvas === window.nestedChartCanvas)).toBe(true);
 });
 

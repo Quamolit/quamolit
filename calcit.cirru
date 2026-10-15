@@ -4904,6 +4904,7 @@
             :task $ :: 'Option 'quamolit.resource-load-queue/ResourceLoadTask
             :revision 'Number
             :closed? 'Bool
+            :font-spec 'quamolit.scene-ir/FontSpec
           :examples $ []
           :schema $ :: 'StructDef
         'VisibilityEvent $ %{} 'CodeEntry (:doc |)
@@ -4984,16 +4985,16 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
             :args $ [] 'Number 'Number 'Number 'Number
         'commit-scene! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn commit-scene! (element document scale-x scale-y)
+          :code $ quote $ defn commit-scene! (element context document scale-x scale-y)
             let
-                next-plan $ css-hit-plan document scale-x scale-y
+                next-plan $ canvas-reference/measure-text-hit-plan! context $ css-hit-plan document scale-x scale-y
                 reconciled $ pointer-browser/reconcile-pointer-surface! (pointer-browser/pointer-surface-host element) next-plan @*dashboard-pointer
               reset! *dashboard-pointer $ :state reconciled
               reset! *dashboard-plan next-plan
               , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.browser/DomElementHost 'quamolit.scene-ir/SceneDocument 'Number 'Number
+            :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument 'Number 'Number
             :features $ #{} :js-ffi
         'complete-media! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn complete-media! (state result)
@@ -5251,7 +5252,7 @@
             :args $ []
         'initial-media $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initial-media (url)
-            DashboardMedia :registry (resource/initial-registry 1123201) :queue (queue/initial-load-queue 2 4) :host (font/initial-font-resource-host) :images (image/initial-image-resource-host) :descriptor (image/image-descriptor |dashboard-cover 1 url 650 432) :references (font/empty-font-references) :task (%none) :revision 0 :closed? false
+            DashboardMedia :registry (resource/initial-registry 1123201) :queue (queue/initial-load-queue 2 4) :host (font/initial-font-resource-host) :images (image/initial-image-resource-host) :descriptor (image/image-descriptor |dashboard-cover 1 url 650 432) :references (font/empty-font-references) :task (%none) :revision 0 :closed? false :font-spec $ dashboard-font
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.examples.layered-dashboard/DashboardMedia
@@ -5320,7 +5321,10 @@
                     if
                       = (:id item) |chart
                       struct-with item $ :interaction $ scene/SceneInteraction :target |chart
-                      , item
+                      if
+                        = (:id item) |title
+                        struct-with item $ :interaction $ scene/SceneInteraction :target |title
+                        , item
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number 'Number 'Number
@@ -5521,7 +5525,7 @@
             match
               :kind $ :identity task
               (:font)
-                DashboardLoadResult :font $ js-await $ font/run-font-load-task! (dashboard-font) source task
+                DashboardLoadResult :font $ js-await $ font/run-font-load-task! (:font-spec state) source task
               (:image)
                 DashboardLoadResult :image $ js-await $ image/run-image-load-task! (:descriptor state) task
               _ $ raise |unsupported-dashboard-resource
@@ -5575,6 +5579,15 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
             :args $ [] 'Number 'Number 'Number
+        'select-media-font $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn select-media-font (state)
+            assert |dashboard-media-closed $ not $ :closed? state
+            struct-with state $ :font-spec $ struct-with (:font-spec state)
+              :version $ inc $ :version (:font-spec state)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.examples.layered-dashboard/DashboardMedia
+            :args $ [] 'quamolit.examples.layered-dashboard/DashboardMedia
         'select-media-image $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn select-media-image (state url)
             assert |dashboard-media-closed $ not $ :closed? state
@@ -5671,9 +5684,9 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
         'with-font $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn with-font (model enabled)
+          :code $ quote $ defn with-font (model enabled selected-font)
             let
-                spec $ if enabled (dashboard-font) (scene/default-font)
+                spec $ if enabled selected-font $ scene/default-font
               struct-with model $ :items $ map (:items model)
                 fn (item)
                   let
@@ -5687,7 +5700,7 @@
                       _ item
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
-            :args $ [] 'quamolit.presence/PresenceModel 'Bool
+            :args $ [] 'quamolit.presence/PresenceModel 'Bool 'quamolit.scene-ir/FontSpec
         'with-images $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn with-images (model enabled source)
             if (not enabled) model $ struct-with model $ :items
@@ -5732,7 +5745,7 @@
             :tags $ #{} :layered-dashboard
       :ns $ %{} 'NsEntry (:doc "|图表型 UI 动画：以嵌套矩形裁剪展示数据揭示，以隔离组透明度保证重叠图元只整体合成一次。")
         :code $ quote $ ns quamolit.examples.layered-dashboard
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-scene :as canvas-scene) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.presence :as presence) (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as pointer-browser) (js-ffi.browser :as dom) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as queue) (quamolit.image-resource-runner :as image)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-scene :as canvas-scene) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.presence :as presence) (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as pointer-browser) (js-ffi.browser :as dom) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as resource) (quamolit.resource-load-queue :as queue) (quamolit.image-resource-runner :as image) (quamolit.canvas-reference :as canvas-reference)
     'quamolit.examples.raining $ %{} 'FileEntry
       :defs $ {}
         'build-drops $ %{} 'CodeEntry (:doc |)

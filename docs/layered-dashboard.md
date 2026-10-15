@@ -52,6 +52,16 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 
 ## Scene 能力与完整预检
 
+### 真实标题的文字命中
+
+原有标题增加独立 `title` 交互目标，不改变文字、画面或出入动画。`commit-scene!` 使用当前 Canvas context 调用公共 Calcit `measure-text-hit-plan!`，先解析同一 sampled Scene 的文字墨迹边界，再提交 CSS HitPlan、协调捕获，最后绘制。测量仍由 Calcit 配置字体、left/middle/ltr并恢复context；JS仅传入既有context，不实现边界计算或字体状态机。每次Scene提交重新测量交互文字，因此同时间字体ready/失败及暂停resize/DPR不会沿用旧边界；这是正确性接线，不是布局缓存或性能优化。
+
+既有 `test:layered-dashboard` 增加DPR1/2两项真实标题门禁：原生墨迹内正例、旧字号近似框的假阳性负例、延迟FontFace完成后同时间/同版本边界改变、暂停resize、标题捕获与父级退出立即释放、重入及加载失败fallback。参考独立使用原生Canvas测量和矩阵投影，不读取实际HitPlan生成期望；原23项资源/像素/生命周期回归保留。其他没有解析的便利命中入口仍为近似，文字布局/glyph缓存不因本切片完成。
+
+“刷新字体（新版本）”与`setFontSource(source)`继续使用同一看板及共享媒体队列。`DashboardMedia.font-spec`由Calcit持有，`select-media-font`显式递增version；Scene投影与任务启动均使用该FontSpec，任务领取时保留来源和版本，不在旧identity下换字体。默认仍是version1、未启用，不改变原画面。刷新不修改时间或显隐日志，等待/失败仍走通用fallback；错误后可用新版本重新加载。它不是同identity自动重试，亦未提供完整多字体选择器。
+
+同两项DPR门禁再检查version2加载受阻时version3先ready，旧version2完成后不安装、增加revision/绘制次数或覆盖像素；Scene全部文字使用version3，仍可正确命中、捕获和退出。真实浮层按钮验证加载失败后version1→2并恢复，源切换只由平台参数驱动，租约、版本与队列判定留在Calcit。旧无引用FontFace可留在原有有界idle缓存，只有驱逐/关闭才删除；不能把租约归还误称同步物理释放。
+
 以下区分完整 `canvas-scene/draw-document!` 与受限 GPU 消费者，不能把单图层能力拼成任意 Scene 都支持的承诺。
 
 | SceneContent | Canvas document | 现有 WebGPU 路径 / 不支持时 |
