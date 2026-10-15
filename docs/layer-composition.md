@@ -14,6 +14,29 @@
 
 `compile-hit-layers(frame)` 按逆绘制顺序生成独立 `LayerHitPlan`，`hit-test-layers` 查询实际像素坐标，`hit-at` 把 CSS 指针坐标按统一 DPR 换算一次。结果是 `Option<LayerHit>`，包含 layer-id 与原 Scene 的 HitResult。不同层可以有相同节点 ID；事件所有者必须同时带层 ID。绘制不建立命中区域；示例在声明变化时重建命中计划，事件只查询计划。密集 instances picking、跨层冒泡/捕获仍不在本接口范围，不宣称 #34 完成。
 
+## 专用入口的种类矩阵
+
+以下为合法、无绑定、单根节点的种类准入，不是任意参数或资源可用性承诺。Y表示该入口接受此种类；N表示整层回退/明确拒绝，不能删除不支持节点再绘制余下部分。矩形列对应`gpu-component/prepare-plan`，图片列对应`webgpu-images/render-decision`，实例列对应`layers/backend-for`的`:gpu-instances`策略；它们是不同入口，不拼成一个通用GPU renderer。
+
+<!-- scene-capabilities:start -->
+| SceneContent | Canvas document | GPU矩形 | GPU图片 | GPU实例 |
+| --- | --- | --- | --- | --- |
+| `group` | Y | N | Y | N |
+| `rect` | Y | Y | N | N |
+| `instances` | N | N | N | Y |
+| `polyline` | Y | N | N | N |
+| `text` | Y | N | N | N |
+| `image` | Y | N | Y | N |
+| `polygon` | Y | N | N | N |
+| `cubic-path` | Y | N | N | N |
+| `circle` | Y | N | N | N |
+| `arc` | Y | N | N | N |
+<!-- scene-capabilities:end -->
+
+Canvas document不接受instances，但现有独立Canvas实例入口可承担该受限回退；图片仍需匹配资源。矩形GPU只接受顶层矩形及其有效采样变换、f32预算，嵌套组不支持。图片GPU仅支持opacity=1的组、可表达的裁剪/矩阵，像素非整数裁剪及旋转裁剪按[图片合同](webgpu-scene-images.md)整层回退；种类通过不代表资源/视口已经预检。实例GPU要求恰好一个无绑定的根instances，混合/空/嵌套不接受。所有入口先区分非法Scene与合法但不支持，不能用正常fallback吞掉非法声明。
+
+已有`test:layers`在同一motion entry中核对实际SceneContent枚举、十种有效payload与本表，调用四条公共能力/决策入口，检查无GPU回退、诊断身份和声明不变。它不增加runner/命令/job，不证明GPU执行、画质或任意参数组合；DPR/裁剪/资源预检和真实Metal仍由各原门禁负责。
+
 ## 实际消费者
 
 示例的实例布局、声明、文字/图表 Scene 和绘制选择由 Calcit 定义。JS 只管理 DOM、时钟、TypedArray 搬运及设备生命周期。底层是 125×80 个静态实例，不是 10k 独立运动；时间驱动上层看板缩放、淡入、裁剪揭示。CSS px 坐标的 UI 使用根 DPR 矩阵，实例数据使用实际像素坐标。

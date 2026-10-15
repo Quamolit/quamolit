@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import * as core from "../target/js/motion/calcit.core.mjs";
 import * as layers from "../target/js/motion/quamolit.layers.mjs";
 import * as scene from "../target/js/motion/quamolit.scene-ir.mjs";
 import * as gpu from "../target/js/motion/quamolit.webgpu-batches.mjs";
+import * as rectangles from "../target/js/motion/quamolit.gpu-component.mjs";
+import * as images from "../target/js/motion/quamolit.webgpu-images.mjs";
+import * as canvas from "../target/js/motion/quamolit.canvas-scene.mjs";
+import * as motion from "../target/js/motion/quamolit.motion.mjs";
+import { start } from "../target/js/motion/quamolit.test.retained-component-fixture.mjs";
 import { scene_document_at } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
 const tags = core.init_tags([
@@ -32,6 +38,117 @@ const frame = (
   entries = list(layer("instances", "gpu-instances"), layer("ui", "canvas", document)),
   time = 0.5,
 ) => make(layers.LayerFrame, { time, viewport: view, layers: entries });
+
+test("文档能力矩阵覆盖全部真实 Scene 标签，专用后端明确整层回退而非漏绘", () => {
+  const tag = (name) => core.init_tags([name])[name];
+  const record = (type, fields) =>
+    core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([key, value]) => [tag(key), value]));
+  const variant = (type, name, ...values) => core._PCT__$o__$o_(type, tag(name), ...values);
+  const color = record(motion.ColorRgba, { r: 1, g: 0.5, b: 0.25, a: 1 });
+  const point = (x, y) => record(motion.Vec2, { x, y });
+  const identity = record(scene.Matrix2D, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+  const payloads = {
+    group: record(scene.GroupNode, { transform: identity, clip: variant(scene.ClipSpec, "none"), opacity: 1 }),
+    rect: record(scene.RectNode, { x: 1, y: 2, width: 10, height: 20, fill: color }),
+    instances: record(scene.InstanceNode, {
+      source: record(scene.InstanceSource, { id: "points", version: 1, count: 2 }),
+      width: 4,
+      height: 6,
+      fill: color,
+    }),
+    polyline: record(scene.PolylineNode, { points: list(point(0, 0), point(10, 10)), width: 2, stroke: color }),
+    text: record(scene.TextNode, { x: 1, y: 2, size: 12, text: "中文", fill: color, font: scene.default_font() }),
+    image: record(scene.ImageNode, {
+      source: record(scene.ImageSource, { id: "picture", version: 1, width: 8, height: 8 }),
+      matrix: identity,
+      sx: 0,
+      sy: 0,
+      sw: 8,
+      sh: 8,
+      dx: 1,
+      dy: 2,
+      dw: 8,
+      dh: 8,
+    }),
+    polygon: record(scene.PolygonNode, {
+      points: list(point(0, 0), point(10, 0), point(5, 10)),
+      width: 1,
+      fill: color,
+      stroke: color,
+    }),
+    "cubic-path": record(scene.CubicPathNode, {
+      start: point(0, 0),
+      segments: list(
+        record(scene.CubicSegment, { "control-1": point(0, 10), "control-2": point(10, 0), end: point(10, 10) }),
+      ),
+      width: 2,
+      stroke: color,
+    }),
+    circle: record(scene.CircleNode, { cx: 10, cy: 10, radius: 5, width: 1, fill: color, stroke: color }),
+    arc: record(scene.ArcNode, {
+      cx: 10,
+      cy: 10,
+      radius: 5,
+      "start-angle": 5,
+      "end-angle": 1,
+      counterclockwise: false,
+      width: 2,
+      stroke: color,
+    }),
+  };
+  // 固定的0.29.3 runtime枚举元数据：新增标签不能悄悄漏出本矩阵。
+  const kinds = scene.SceneContent.prototype.fields.map((field) => field.value).sort();
+  assert.deepEqual(Object.keys(payloads).sort(), kinds);
+  const markdown = readFileSync(new URL("../docs/layer-composition.md", import.meta.url), "utf8");
+  const section = markdown.match(/<!-- scene-capabilities:start -->([\s\S]*?)<!-- scene-capabilities:end -->/);
+  assert.ok(section, "缺少能力矩阵");
+  const rows = [...section[1].matchAll(/^\| `([\w-]+)` \| ([YN]) \| ([YN]) \| ([YN]) \| ([YN]) \|$/gm)];
+  assert.deepEqual(rows.map((row) => row[1]).sort(), kinds, "文档缺项、残留、重复或非法状态");
+  const documents = new Map();
+  for (const [_, kind, cpu, rectGpu, imageGpu, instanceGpu] of rows) {
+    const node = record(scene.SceneNode, {
+      id: kind,
+      key: kind,
+      parent: "",
+      content: variant(scene.SceneContent, kind, payloads[kind]),
+      bindings: list(),
+      interaction: variant(scene.SceneInteraction, "none"),
+    });
+    const doc = record(scene.SceneDocument, { nodes: list(node) });
+    documents.set(kind, doc);
+    const before = plain(doc);
+    assert.equal(scene.validate_scene(doc), true, kind);
+    assert.equal(canvas.content_supported_$q_(node.get(tag("content"))), cpu === "Y", `Canvas:${kind}`);
+    const plan = start(0, 40, false, 100).assoc(tag("scene"), doc).assoc(tag("transforms"), list());
+    const result = plain(rectangles.prepare_plan(plan));
+    assert.equal(result[0] === "rects", rectGpu === "Y", `矩形:${kind}`);
+    assert.deepEqual(
+      plain(rectangles.diagnose_plan(plan)),
+      rectGpu === "Y" ? [] : [{ id: kind, key: kind, kind, reason: `unsupported-node:${kind}` }],
+    );
+    assert.equal(images.supported_document_$q_(doc), imageGpu === "Y", `图片:${kind}`);
+    assert.deepEqual(
+      plain(images.render_decision(doc, identity, true)),
+      imageGpu === "Y" ? ["webgpu"] : ["canvas", "unsupported-image-layer"],
+    );
+    assert.deepEqual(plain(images.render_decision(doc, identity, false)), ["canvas", "webgpu-unavailable"]);
+    assert.equal(layers.gpu_instances_$q_(doc), instanceGpu === "Y", `实例:${kind}`);
+    assert.deepEqual(
+      plain(layers.backend_for(layer(kind, "gpu-instances", doc), true)),
+      instanceGpu === "Y" ? ["webgpu"] : ["canvas", "unsupported-instance-layer"],
+    );
+    assert.deepEqual(plain(layers.backend_for(layer(kind, "gpu-instances", doc), false)), [
+      "canvas",
+      "webgpu-unavailable",
+    ]);
+    assert.deepEqual(plain(doc), before, kind);
+  }
+  const mixed = record(scene.SceneDocument, {
+    nodes: list(documents.get("image").get(tags.nodes).get(0), documents.get("arc").get(tags.nodes).get(0)),
+  });
+  assert.equal(images.supported_document_$q_(mixed), false, "支持的图片不能掩盖同层Arc");
+  assert.deepEqual(plain(images.render_decision(mixed, identity, true)), ["canvas", "unsupported-image-layer"]);
+});
 
 test("统一视口保留 CSS 尺寸，物理像素只按 DPR 舍入一次", () => {
   assert.deepEqual(plain(layers.viewport(800.25, 600.25, 2)), {
