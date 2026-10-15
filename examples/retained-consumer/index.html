@@ -9,7 +9,7 @@
   button { padding: 9px 14px; margin: 10px 4px 10px 0; }
   pre { padding: 20px; background: #172b42; color: #d7efff; border-radius: 12px; }
   body.stage { margin: 0; padding: 0; max-width: none; overflow: hidden; }
-  .stage canvas { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; border: 0; image-rendering: auto; }
+  .stage canvas { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; border: 0; image-rendering: auto; object-fit: contain; }
   .stage #panel { position: fixed; z-index: 2; top: 64px; left: 16px; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 88px); overflow: auto; box-sizing: border-box; padding: 20px; background: #eef3f8ed; border: 1px solid #bccbd9; border-radius: 16px; box-shadow: 0 12px 40px #172b421a; }
   .stage #panel h1 { font-size: 24px; margin-top: 0; }
   @media (min-width: 800px) { .stage #panel { left: auto; right: 16px; } }
@@ -25,12 +25,13 @@
 <section id="panel" aria-label="动画控制面板">
 <h1>组件写在 Calcit，时间由你控制</h1>
 <p>独立安装 Quamolit · Calcit 组件计划、Canvas 参考与 WebGPU 实例图层</p>
-<div><button data-mode="mixed">线性矩形 + 折线</button><button data-mode="dual">位置与尺寸渐变</button><button data-mode="alpha">矩形透明度渐入</button><button data-mode="transform">卡片旋转与缩放</button><button data-mode="mirror">往返轨道</button><button data-mode="layered">嵌套图表与隔离透明度</button><button data-mode="presence">Presence 生命周期</button><button data-mode="instances">10k Canvas 实例</button><button data-mode="instances-gpu">10k CPU → GPU</button><button data-mode="instances-scalar">10k GPU 时间采样</button><button id="gpu-loss" disabled>模拟 device loss</button></div>
+<div><button data-mode="mixed">线性矩形 + 折线</button><button data-mode="dual">位置与尺寸渐变</button><button data-mode="alpha">矩形透明度渐入</button><button data-mode="transform">卡片旋转与缩放</button><button data-mode="transform-gpu">GPU 卡片旋转与缩放</button><button data-mode="mirror">往返轨道</button><button data-mode="layered">嵌套图表与隔离透明度</button><button data-mode="presence">Presence 生命周期</button><button data-mode="instances">10k Canvas 实例</button><button data-mode="instances-gpu">10k CPU → GPU</button><button data-mode="instances-scalar">10k GPU 时间采样</button><button id="gpu-loss" disabled>模拟 device loss</button></div>
 <div><label><input type="checkbox" id="independent">全部 10k 实例独立动画</label></div>
 <div><button data-time="0">起点 0</button><button data-time="0.25">¼ 帧</button><button data-time="0.5">中间帧</button><button data-time="1">终点 1</button><button data-time="1.5">返回中间帧 1.5</button><button data-time="2">周期起点 2</button><button id="model">Model + 1</button><button id="ready">资源 ready</button><button id="viewport">宽度版本 + 100</button></div>
 <div><button data-presence="reordered">稳定 key 重排</button><button data-presence="without-a">移除橙色卡片</button><button data-presence="full">重入橙色卡片</button><button data-presence="settle">显式结算</button></div>
 <pre id="status"></pre>
 <p id="gpu-note" role="status"></p>
+<p>“GPU 卡片旋转与缩放”与 Canvas 按钮使用同一 Calcit 声明。固定时间、Model/资源/宽度更新和模拟 device loss 均可操作；不可用或精度域不支持时整层回退。舞台铺满页面并保持320×180构图比例；GPU示例当前采用固定320×180绘制缓冲，不将放大画面冒充原生DPR或完整边缘画质验收。</p>
 <p>三种 10k 路径共用 Calcit Vec2 Motion：Canvas 参考、CPU 采样后上传 80 kB、GPU 参数常驻后每帧只更新 16 B 时间/视口。GPU 时间采样自动启用独立动画；不支持时整层回退 Canvas。尚未进行正式性能验收；默认单脏记录模式仍为 8 B。</p>
 <p>组件动画的声明、时间采样、版本失效、Scene 遍历均来自 Calcit。Presence 模式可重排、移除、重入并在任意时间取帧；退出项立刻停止交互，只有显式结算才发出一次释放通知。10k 模式使用像素对齐网格，Calcit 函数在任意时间生成其中一个实例的位置；Canvas 参考和 WebGPU 消费同一版本化源。初始上传 80 kB，连续时间变更只上传 8 B，重复绘制不上传位置。</p>
 <p>位置与尺寸渐变的同源 GPU 绘制、非整数数值和上传量由独立消费者硬件门禁验证；混合折线目前明确回退，不会被静默删除。WebGPU 无法初始化时可见地回退 Canvas。</p>

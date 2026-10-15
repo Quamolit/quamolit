@@ -3,8 +3,122 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { readScalarSample } from "./host/gpu-scalar-readback.mjs";
 
+async function verifyTransformGpuPage(page, artifacts) {
+  await page.evaluate(() => {
+    window.consumer.set({ time: 0, model: 40, ready: false, viewport: 100 });
+    window.__trsGpuDescriptor = Object.getOwnPropertyDescriptor(navigator, "gpu");
+    Object.defineProperty(navigator, "gpu", { configurable: true, value: undefined });
+  });
+  let unavailable;
+  try {
+    unavailable = await page.evaluate(() => window.consumer.setMode("transform-gpu"));
+    assert.equal(unavailable.backend, "canvas", "无WebGPU时不能漏绘或保留旧GPU画面");
+    assert.equal(unavailable.gpuResources, 0);
+    assert.deepEqual(
+      await page.evaluate(() => [
+        ...document.querySelector("canvas").getContext("2d").getImageData(20, 105, 1, 1).data,
+      ]),
+      [102, 102, 102, 255],
+      "回退必须实际绘制静态图元，不只更新状态",
+    );
+    assert.notEqual(await page.locator("#gpu-note").textContent(), "");
+    await page.screenshot({ path: join(artifacts, "trs-page-no-webgpu.png"), fullPage: true });
+  } finally {
+    await page.evaluate(async () => {
+      if (window.__trsGpuDescriptor) Object.defineProperty(navigator, "gpu", window.__trsGpuDescriptor);
+      else delete navigator.gpu;
+      delete window.__trsGpuDescriptor;
+      await window.consumer.setMode("transform");
+    });
+  }
+  const initial = await page.evaluate(() => window.consumer.setMode("transform-gpu")),
+    frames = [];
+  if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") assert.equal(initial.backend, "gpu");
+  if (initial.backend === "gpu") {
+    for (const time of [1, 0, 0.5, 0.25, 1]) {
+      const state = await page.evaluate((time) => window.consumer.set({ time }), time);
+      assert.equal(state.declarations, initial.declarations);
+      assert.equal(state.builds, initial.builds);
+      assert.equal(state.gpuResources, 1);
+      assert.equal(state.metrics["record-bytes"], 0);
+      assert.equal(state.metrics["parameter-bytes"], 0);
+      const pixels = await page.evaluate(async () => {
+        const state = window.consumer.snapshot(),
+          t = Math.max(0, Math.min(1, state.time)),
+          s = t * t * (3 - 2 * t),
+          angle = -0.4 + 0.8 * s,
+          scale = 0.7 + 0.35 * s,
+          px = 120 + state.viewport / 20,
+          py = 44 + state.model,
+          dx = (80 + 0.2 * (80 + state.viewport / 10) - px) * scale,
+          dy = (22 + state.model + 8.8 - py) * scale,
+          x = 32 * s + px + Math.cos(angle) * dx - Math.sin(angle) * dy,
+          y = -12 * s + py + Math.sin(angle) * dx + Math.cos(angle) * dy,
+          bitmap = await createImageBitmap(document.querySelector("canvas")),
+          capture = document.createElement("canvas");
+        capture.width = 320;
+        capture.height = 180;
+        const context = capture.getContext("2d");
+        context.drawImage(bitmap, 0, 0);
+        bitmap.close();
+        return [
+          [x, y],
+          [0, 0],
+          [20, 105],
+        ].map(([x, y]) => [...context.getImageData(Math.floor(x), Math.floor(y), 1, 1).data]);
+      });
+      assert.deepEqual(
+        pixels,
+        [
+          [235, 71, 153, 255],
+          [255, 255, 255, 255],
+          [102, 102, 102, 255],
+        ],
+        "偏心内区必须随真正的vertex旋转缩放，不只测试compute probe",
+      );
+      frames.push({ time, pixels, metrics: state.metrics });
+      if ([0, 0.5, 1].includes(time))
+        await page.screenshot({ path: join(artifacts, `trs-page-${time}.png`), fullPage: true });
+    }
+    for (const change of [{ model: 41 }, { ready: true }, { viewport: 200 }]) {
+      const state = await page.evaluate((change) => window.consumer.set(change), change);
+      assert.ok(state.metrics["record-bytes"] > 0);
+      assert.ok(state.metrics["parameter-bytes"] > 0);
+      assert.equal(state.gpuResources, 1);
+    }
+    const beforeLoss = await page.evaluate(() => window.consumer.snapshot());
+    await page.evaluate(() => window.consumer.simulateGpuLoss("trs-visible-page-loss"));
+    const recovered = await page.evaluate(() => window.consumer.snapshot());
+    assert.equal(recovered.backend, "gpu");
+    assert.equal(recovered.recovery.generation, beforeLoss.recovery.generation + 1);
+    assert.equal(recovered.gpuResources, 1);
+    for (const key of ["time", "model", "ready", "viewport"]) assert.equal(recovered[key], beforeLoss[key]);
+    const outsideDomain = await page.evaluate(() => window.consumer.set({ time: 1e9 }));
+    assert.equal(outsideDomain.backend, "canvas");
+    assert.equal(outsideDomain.gpuResources, 0);
+    assert.match(await page.locator("#gpu-note").textContent(), /scalar-precision-budget/);
+    await page.evaluate(() => window.consumer.set({ time: 0.25 }));
+    const reopened = await page.evaluate(() => window.consumer.setMode("transform-gpu"));
+    assert.equal(reopened.backend, "gpu");
+    assert.equal(reopened.gpuResources, 1);
+  } else {
+    assert.equal(initial.gpuResources, 0);
+    assert.notEqual(await page.locator("#gpu-note").textContent(), "");
+  }
+  await page.evaluate(() => window.consumer.setMode("transform"));
+  assert.equal(await page.locator("canvas").count(), 1);
+  assert.equal(await page.locator("#gpu-loss").isDisabled(), true, "离开GPU模式必须释放宿主");
+  return {
+    unavailable: "PASS",
+    selectedBackend: initial.backend,
+    frames,
+    scope: "同页切换、偏心实色内区、失效/恢复/精度回退；非完整边缘画质或性能验收",
+  };
+}
+
 // 在已安装并搬移的消费者产物执行，不引用作者 target 或框架测试 namespace。
 export async function verifyTransformGpuConsumerBrowser(page, artifacts) {
+  const visiblePage = await verifyTransformGpuPage(page, artifacts);
   await page.addScriptTag({ content: `globalThis.__quamolitTrsProbe=${readScalarSample.toString()}` });
   const report = await page.evaluate(async () => {
     const adapter = await navigator.gpu?.requestAdapter();
@@ -115,6 +229,7 @@ export async function verifyTransformGpuConsumerBrowser(page, artifacts) {
       device.destroy();
     }
   });
+  report.visiblePage = visiblePage;
   if (report.result === "SKIP") return report;
   assert.deepEqual(report.errors, []);
   assert.equal(report.samples.length, 135);

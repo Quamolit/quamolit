@@ -1154,6 +1154,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'quamolit.scene-ir/FontSpec
+        'update-gpu! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-gpu! (host program plan) (gpu/update-program! host program plan)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
+            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/ScalarProgram 'quamolit.retained-component/ComponentPlan
+            :features $ #{} :js-ffi
         'update-layered $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-layered (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare-layered

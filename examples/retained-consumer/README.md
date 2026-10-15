@@ -16,7 +16,9 @@ calcit query def app.main/update-plan --raw
 
 从 Quamolit 根目录可运行 `yarn vite examples/retained-consumer --host 127.0.0.1 --port 5183` 查看页面。Vite 只是开发服务器，不是 Calcit 消费者的运行时依赖。点击时间按钮可乱序查看中间帧，在相同时间修改 Model、资源 ready 与宽度版本，观察声明次数及画面更新。
 
-开发中的“卡片旋转与缩放”或 `?motion=transform` 由Calcit `declare-transform` 声明平移、弧度旋转、缩放与局部支点；`TransformSampler :motions` 不保存闭包。矩阵按T(x,y)·T(pivot)·R·S·T(-pivot)采样，时间变化复用Scene和几何；Model/资源/视口在同时间变化仍重声明。原“线性矩形+折线”的20+10×time平移也已改用标准数据，默认效果不变。页面/生产代码只引用Calcit模块，界面仍显示Canvas参考。后续GPU候选已增加受限TRS参数与shader，角度及世界坐标精度域见[GPU合同](../../docs/gpu-scalar-program.md)；混合折线依然完整回退，不为GPU漏画任何节点。
+开发中的“卡片旋转与缩放”或 `?motion=transform` 由Calcit `declare-transform` 声明平移、弧度旋转、缩放与局部支点；`TransformSampler :motions` 不保存闭包。矩阵按T(x,y)·T(pivot)·R·S·T(-pivot)采样，时间变化复用Scene和几何；Model/资源/视口在同时间变化仍重声明。原“线性矩形+折线”的20+10×time平移也已改用标准数据，默认效果不变。页面只导入本应用的Calcit编译产物，不手工引入框架JS。
+
+同一页面新增“GPU 卡片旋转与缩放”或 `?motion=transform-gpu`，调用同一声明；更新复用/重新安装/精度拒绝由公共Calcit `gpu-scalar-program/update-program!` 决定。时间按钮、Model/资源/宽度版本与模拟device loss均可操作；无WebGPU或超出精度域时整层回退Canvas，返回Canvas模式会释放GPU。Canvas元素铺满窗口，保持320×180构图比例；GPU示例暂用固定320×180绘制缓冲，放大后不等于原生DPR画质。角度与世界坐标精度域见[GPU合同](../../docs/gpu-scalar-program.md)，混合折线仍完整回退，不为GPU漏画节点。此候选尚未合并/发布；既有安装/搬移门禁承担同页切换、实际偏心内区画面、失效与恢复，不新增测试命令。
 
 当前 `deps.cirru` 固定的候选包含TRS GPU、缓存复用与配套0.30工具链，尚非已合并/发布版本。`test:consumer` 已覆盖独立安装/编译搬移、1000帧、支点独立公式、原生Canvas零差异及真实Metal的普通/镜像/零缩放135点、27帧；硬件缺失单列SKIP，REQUIRE_GPU时应失败。`start-transform-scale` 与默认声明共享实现，不另建renderer、测试命令或导航页面；已移除重复的根项目TRS硬件用例，纯lowering/数值负例继续保留。颜色/布局候选仍分别验证，不能用单一pin混称包含所有能力；对齐实际main后再收口PR。
 

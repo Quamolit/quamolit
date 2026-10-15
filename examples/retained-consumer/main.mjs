@@ -8,6 +8,9 @@ import {
   update_alpha,
   start_transform,
   update_transform,
+  prepare_gpu,
+  install_gpu_$x_,
+  update_gpu_$x_,
   start_mirror,
   update_mirror,
   start_layered,
@@ -93,12 +96,20 @@ let time = 0,
   ready = false,
   viewport = 100;
 const requestedMode = new URLSearchParams(location.search).get("motion");
-let mode = ["mixed", "dual", "alpha", "transform", "mirror", "layered", "presence", "instances", "instances-gpu", "instances-scalar"].includes(
-  requestedMode,
-)
-  ? requestedMode
-  : "mixed";
+const componentModes = {
+  mixed: [start, update_plan],
+  dual: [start_dual, update_dual],
+  alpha: [start_alpha, update_alpha],
+  transform: [start_transform, update_transform],
+  "transform-gpu": [start_transform, update_transform],
+  mirror: [start_mirror, update_mirror],
+  layered: [start_layered, update_layered],
+};
+const modes = [...Object.keys(componentModes), "presence", "instances", "instances-gpu", "instances-scalar"];
+const usesGpu = (value) => ["transform-gpu", "instances-gpu", "instances-scalar"].includes(value);
+let mode = modes.includes(requestedMode) ? requestedMode : "mixed";
 if (mode === "instances-gpu" || mode === "instances-scalar") mode = "instances";
+if (mode === "transform-gpu") mode = "transform";
 let presenceModel = presence_initial(),
   presenceVersion = 1,
   presencePhase = "full",
@@ -106,12 +117,7 @@ let presenceModel = presence_initial(),
 let plan =
   mode === "presence"
     ? presence_plan(presenceModel, time, presenceVersion)
-    : (mode === "transform" ? start_transform : mode === "mirror" ? start_mirror : mode === "layered" ? start_layered : mode === "alpha" ? start_alpha : mode === "dual" ? start_dual : start)(
-        time,
-        model,
-        ready,
-        viewport,
-      );
+    : componentModes[mode][0](time, model, ready, viewport);
 // Float32Array 是宿主提供的数据源；实例声明与实际 Canvas 绘制都走消费者的 Calcit 公共入口。
 const instanceCount = to_js_data(instances_declaration()).source.count;
 const positions = createInstancePositions(instanceCount);
@@ -203,6 +209,15 @@ function snapshot() {
     transformSamples: plan.get(tags["transform-samples"]),
     transforms: to_js_data(plan.get(tags.transforms)),
     scene: to_js_data(plan.get(tags.scene)),
+    ...(mode === "transform-gpu"
+      ? {
+          backend: canvasKind,
+          metrics: gpuState?.metrics ?? null,
+          adapter: gpuState?.adapter ?? null,
+          recovery: to_js_data(gpuRecoveryState),
+          gpuResources: gpuResources.size,
+        }
+      : {}),
   };
 }
 function show() {
@@ -231,7 +246,26 @@ function show() {
     const scale = Math.min(w / 320, h / 180);
     context.setTransform(scale, 0, 0, scale, (w - 320 * scale) / 2, (h - 180 * scale) / 2);
   }
-  if (mode === "instances-scalar" && gpuState) {
+  if (mode === "transform-gpu" && gpuState) {
+    const host = gpuState.batch,
+      beforeRecords = host.uploadedBytes,
+      beforeParameters = host.parameterBytes,
+      updated = update_gpu_$x_(host, gpuState.program, plan);
+    if (updated.tag.value !== "ready") {
+      disposeGpu();
+      replaceCanvas("canvas");
+      document.querySelector("#gpu-note").textContent = `GPU 整层回退：${updated.extra[0]}`;
+      return show();
+    }
+    gpuState.program = updated.extra[0];
+    gpuState.metrics = {
+      "record-bytes": host.uploadedBytes - beforeRecords,
+      "parameter-bytes": host.parameterBytes - beforeParameters,
+      "cold-record-bytes": host.uploadedBytes,
+      "cold-parameter-bytes": host.parameterBytes,
+      "uniform-bytes": 16,
+    };
+  } else if (mode === "instances-scalar" && gpuState) {
     const host = gpuState.batch;
     const recordsBefore = host.uploadedBytes,
       parametersBefore = host.parameterBytes;
@@ -276,11 +310,11 @@ function set(next = {}) {
     return show();
   }
   const request = { time, model, ready, viewport, ...next };
-  const updated = (
-    mode === "transform" ? update_transform : mode === "mirror" ? update_mirror : mode === "layered" ? update_layered : mode === "alpha" ? update_alpha : mode === "dual" ? update_dual : update_plan
-  )(plan, request.time, request.model, request.ready, request.viewport);
+  const updated = componentModes[mode][1](plan, request.time, request.model, request.ready, request.viewport);
   ({ time, model, ready, viewport } = request);
   plan = updated;
+  if (mode === "transform-gpu")
+    gpuRecoveryState = gpu_recovery_update_version(gpuRecoveryState, plan.get(tags["plan-builds"]));
   return show();
 }
 function replaceCanvas(kind) {
@@ -328,7 +362,7 @@ async function executeGpuRecoveryActions(actions) {
       replaceCanvas("canvas");
       document.querySelector("#gpu-note").textContent =
         `${kind === "show-fallback" ? "GPU 回退" : "GPU 失败"}：${detail}${gpuReleaseWarning}`;
-      if (mode.startsWith("instances")) show();
+      if (mode.startsWith("instances") || mode === "transform-gpu") show();
       continue;
     }
     if (kind === "probe") {
@@ -353,19 +387,21 @@ async function executeGpuRecoveryActions(actions) {
       try {
         if (!resource) throw Error("GPU candidate 已失效");
         replaceCanvas("gpu");
-        resource.kind = mode === "instances-scalar" ? "scalar" : "positions";
+        resource.kind = mode === "instances-scalar" || mode === "transform-gpu" ? "scalar" : "positions";
         if (resource.kind === "scalar") {
-          independentMotions ??= independent_instance_motions();
-          const prepared = prepare_independent_gpu(independentMotions, time);
+          if (mode !== "transform-gpu") independentMotions ??= independent_instance_motions();
+          const prepared =
+            mode === "transform-gpu" ? prepare_gpu(plan) : prepare_independent_gpu(independentMotions, time);
           if (prepared.tag.value !== "ready") throw Error(`GPU 动画整层回退：${prepared.extra[0]}`);
           resource.program = prepared.extra[0];
           resource.batch = create_gpu_$x_(
             canvas,
             resource.device,
             navigator.gpu.getPreferredCanvasFormat(),
-            instanceCount,
+            mode === "transform-gpu" ? 2 : instanceCount,
           );
-          install_independent_gpu_$x_(resource.batch, resource.program, time);
+          if (mode === "transform-gpu") install_gpu_$x_(resource.batch, resource.program);
+          else install_independent_gpu_$x_(resource.batch, resource.program, time);
         } else
           resource.batch = await create_instances_gpu_$x_(
             canvas,
@@ -401,7 +437,7 @@ async function executeGpuRecoveryActions(actions) {
           ),
         );
       });
-      if (mode === "instances-gpu" || mode === "instances-scalar") show();
+      if (usesGpu(mode)) show();
     }
   }
 }
@@ -413,21 +449,13 @@ function disposeGpu() {
   void commitGpuRecovery(gpu_recovery_close(gpuRecoveryState));
 }
 async function setMode(next) {
-  if (
-    !["mixed", "dual", "alpha", "transform", "mirror", "layered", "presence", "instances", "instances-gpu", "instances-scalar"].includes(next)
-  )
-    throw Error("unknown-consumer-mode");
+  if (!modes.includes(next)) throw Error("unknown-consumer-mode");
   // 更换声明时建立新计划，不能让相同版本错误复用另一个声明的结构。
   const nextPlan = next.startsWith("instances")
     ? plan
     : next === "presence"
       ? presence_plan(presenceModel, time, presenceVersion)
-      : (next === "transform" ? start_transform : next === "mirror" ? start_mirror : next === "layered" ? start_layered : next === "alpha" ? start_alpha : next === "dual" ? start_dual : start)(
-          time,
-          model,
-          ready,
-          viewport,
-        );
+      : componentModes[next][0](time, model, ready, viewport);
   if (next !== mode || !next.startsWith("instances")) disposeGpu();
   mode = next;
   plan = nextPlan;
@@ -435,8 +463,10 @@ async function setMode(next) {
     independent = true;
     document.querySelector("#independent").checked = true;
   } else if (mode.startsWith("instances")) updateInstanceTime(time);
-  if (next === "instances-gpu" || next === "instances-scalar") {
-    await commitGpuRecovery(gpu_recovery_open(gpuRecoveryState, instanceVersion));
+  if (usesGpu(next)) {
+    await commitGpuRecovery(
+      gpu_recovery_open(gpuRecoveryState, next === "transform-gpu" ? plan.get(tags["plan-builds"]) : instanceVersion),
+    );
     // install / fallback 动作已绘制这一帧；不能再 show() 覆盖首次上传计数。
     return snapshot();
   } else replaceCanvas("canvas");
@@ -497,4 +527,4 @@ if (fullscreen) {
   watchResolution();
 }
 show();
-if (requestedMode === "instances-gpu" || requestedMode === "instances-scalar") void setMode(requestedMode);
+if (usesGpu(requestedMode)) void setMode(requestedMode);
