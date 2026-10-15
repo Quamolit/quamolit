@@ -36,6 +36,12 @@ Apple/Metal-3（software=false）实际验证 t=1→0→0.5→0.25→1，每帧 
 
 同一硬件的有界数值读回复用 renderer 的 `scalarSource` 与已安装 storage 参数，不另写测试版 WGSL。t=0.37 得到 94.80000305175781（独立线性公式 94.8）；t=0.81 得到 112.4000015258789（112.4）；t=0.4999999 得到 100（99.999996）；t=-0.1/1.1 得到 80/120。全部满足既定 `1e-5 + 1e-5*abs(expected)`，未放宽阈值。五次共读回 40 B，每次诊断临时分配三个 buffer 并释放；测试专用 compute 不是正常绘制路径，不计稳态帧资源和吞吐。当前仅证明这个线性绑定，不能外推所有 smoothstep/双轴或整个精度域。
 
+## 原生尺寸呈现
+
+`quamolit.gpu-component/configure-viewport!(host, physicalWidth, physicalHeight, logicalWidth, logicalHeight)` 将逻辑可见视口等比居中映射到实际绘制表面。Calcit检查正整数物理尺寸、逻辑尺寸的有限性及保守范围[1e-6,1e30]，计算矩形；定义级inline仅应用canvas尺寸、设备上限及f32 ABI边界，原提交入口调用原生[setViewport](https://www.w3.org/TR/webgpu/#dom-gpurenderpassencoder-setviewport)。未配置时保留原像素坐标行为，配置后须重绘；逻辑视口外仍按GPU clip volume裁剪，不是任意父组变换/裁剪支持。
+
+resize/DPR不重建Scene、几何或Motion参数，时间uniform仍16B，pipeline/buffer数量不变；实际表面占用和填充面积随窗口×DPR增长，不宣称性能提升。独立示例仅在GPU卡片模式启用，其他10k历史页面不冒称已迁移。既有消费者同时检验桌面/窄屏、DPR1/2及运行中DPR切换的表面尺寸、实色内区、版本/缓存和Canvas回退。原始世界坐标数值预算不改；投影后屏幕误差、分数边缘、跨后端栅格与其他设备仍归#144/#41，不以原生缓冲尺寸替代完整画质验收。
+
 ## 已有测试与下一交付
 
 两点镜像轨道复用相同参数布局：easing 2/3 编码往返 linear/smoothstep，WGSL 用 floor 周期映射处理负时间；首帧 easing 控制两个方向，奇数段长取末值，偶数段长取首值。零段长镜像按 CPU 规则归一化为末值常量；原始尺寸/alpha/参数域检查先执行。重复轨道的不连续周期边界和多段轨道仍回退。镜像的预算系数采用16ε（原clamp为8ε），为周期减除/归约多留余量，保持现有数值容差和 O(1) 时间门禁；大时间或小值大增幅仍可能拒绝。现有固定seed f32模型同时检查mirror，不能代替硬件验收。独立消费者的往返模式及双轴子专项复用安装、搬移、版本失效、释放与数值读回，无新renderer/命令/job。

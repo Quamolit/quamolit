@@ -94,6 +94,36 @@ async function verifyTransformGpuSurface(page, artifacts) {
           pixels: result.pixels,
         });
       }
+      if (dpr === 1) {
+        const cdp = await context.newCDPSession(stage);
+        await cdp.send("Emulation.setDeviceMetricsOverride", {
+          width: 390,
+          height: 844,
+          deviceScaleFactor: 2,
+          mobile: false,
+        });
+        await stage.waitForFunction(
+          () => window.consumer.snapshot().surface.width === 780 && window.consumer.snapshot().surface.height === 1688,
+        );
+        const changed = await stage.evaluate(() => window.consumer.snapshot());
+        assert.equal(changed.time, 0.25, "DPR通知不能推进动画时间");
+        assert.equal(changed.declarations, initial.declarations);
+        assert.equal(changed.builds, initial.builds);
+        assert.equal(changed.surface.dpr, 2);
+        if (changed.backend === "gpu") {
+          for (const key of ["cold-record-bytes", "cold-parameter-bytes"])
+            assert.equal(changed.metrics[key], initial.metrics[key]);
+        }
+        frames.push({
+          dpr: 2,
+          width: 390,
+          height: 844,
+          transition: "DPR-only",
+          backend: changed.backend,
+          surface: changed.surface,
+        });
+        await cdp.detach();
+      }
       assert.deepEqual(errors, []);
       await stage.evaluate(() => window.consumer.setMode("transform"));
     } finally {
