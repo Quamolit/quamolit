@@ -1,6 +1,7 @@
 // 浏览器入口只负责 DOM、事件传输、时钟与视口。Model/命中/过渡/重放/绘制在 Calcit。
 import * as todo from "../../target/js/todolist/quamolit.examples.todolist.mjs";
 import { draw_plan_$x_ } from "../../target/js/todolist/quamolit.retained-component.mjs";
+import { contain_matrix, frame_matrix } from "../../target/js/todolist/quamolit.scene-ir.mjs";
 import { init_tags, to_js_data } from "../../target/js/todolist/calcit.core.mjs";
 import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
 export function mountDemo() {
@@ -39,11 +40,13 @@ function draw() {
   document.querySelector("#list-viewport").hidden = !compact || scrollLimit === 0;
   // 桌面保留历史构图；窄屏使用 CSS px 的 Calcit 布局，backing store 仍按 DPR。
   const count = data().rows.length, stageHeight = Math.max(760, count*64+240);
-  view = {scale:Math.min(width/900,height/stageHeight), x:width/2, y:height/2};
+  const desktop = to_js_data(contain_matrix(width,height,900,stageHeight,0.5,0.5));
+  view = {scale:desktop.a, x:desktop.e, y:desktop.f};
   view.y -= Math.max(0,(count-6)*32)*view.scale;
   ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,width,height);
   if (compact) {
-    view = {scale:dpr,x:width/2,y:0};
+    const compactFrame = to_js_data(frame_matrix(width,height,dpr,0.5,0,0,0));
+    view = {scale:compactFrame.a,x:compactFrame.e,y:compactFrame.f};
     compactScene = todo.compact_document(plan,Math.max(300,bounds.width),scroll);
     interactionPlan = todo.compact_hit_plan(compactScene);
     todo.draw_compact_$x_(ctx,compactScene,width,height,dpr);

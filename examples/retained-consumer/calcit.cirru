@@ -460,18 +460,13 @@
         'fit-layered-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn fit-layered-document (document width height)
             let
-                scale $ if
-                  < (/ width 320) (/ height 180)
-                  / width 320
-                  / height 180
+                fitted $ scene/contain-matrix width height 320 180 0.5 0.5
                 nodes $ :nodes document
                 root $ &list:nth nodes 0
                 root-content $ match (:content root)
                   (:group g)
                     scene/SceneContent :group $ struct-with g $ :transform
-                      scene/Matrix2D :a scale :b 0 :c 0 :d scale :e
-                        + (/ width 2) (* -144 scale)
-                        , :f $ + (/ height 2) (* -74 scale)
+                      scene/frame-matrix width height (:a fitted) 0.5 0.5 -144 -74
                   _ $ raise |invalid-layered-root
               struct-with document $ :nodes $ assoc nodes 0
                 struct-with root $ :content root-content

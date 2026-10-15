@@ -22,7 +22,9 @@ CSS 宽度小于720px使用现有示例namespace中的 `compact-document(plan, w
 
 窄屏长列表通过浮层“列表视窗”滑块或Canvas滚轮浏览，滚动只改视窗，不写入输入日志、不推进动画时间；非有限滚动值在修改状态前拒绝。`compact-scroll-limit`根据实际采样变换计算上限，暂停resize/DPR只更新视窗与backing store。浏览器验收还实际触摸滚动后最后一行，避免只检查Scene而遗漏末端可操作性。`draw-compact!`沿公共canvas-scene入口安装DPR根变换与视窗裁剪，不以CSS放大低分辨率画布。
 
-复用原Node/Chromium门禁：320/390/600px纯Calcit布局与四类命中，DPR1/2真实touch tap、独立原生全RGBA零差异、长中英文内容、多行视窗、暂停resize及返回桌面Model不变。独立参考按既有采样计划读取动画结果，布局与原生绘制公式独立；动画数值/打断继续由原门禁验收。当前投影会重建展示Scene，不声称布局缓存/性能优化；尚未提取为Finder公共布局辅助，也不提供触屏拖动惯性。宽度低于300px按300px最低构图裁切，是明确未覆盖范围；不提前关闭#117/M3。
+呈现矩阵现在复用公共Calcit `scene-ir/frame-matrix` / `contain-matrix`，与Finder共享显式viewport/缩放/锚点合同；实际窄屏根组与事件逆变换使用相同呈现值。共享的是呈现原语，不是把两种作品的布局或scroll模型合并。主Viewport投影、换行和意图不变，不因此声称触屏惯性、缓存或300px以下布局已完成。
+
+复用原Node/Chromium门禁：320/390/600px纯Calcit布局与四类命中，DPR1/2真实touch tap、独立原生全RGBA零差异、长中英文内容、多行视窗、暂停resize及返回桌面Model不变。独立参考按既有采样计划读取动画结果，布局与原生绘制公式独立；动画数值/打断继续由原门禁验收。当前投影会重建展示Scene，不声称布局缓存/性能优化，也不提供触屏拖动惯性。宽度低于300px按300px最低构图裁切，是明确未覆盖范围；不提前关闭#117/M3。
 
 ## 时钟与日志
 

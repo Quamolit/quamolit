@@ -28,6 +28,8 @@
 
 ## 全屏舞台与 DOM 浮层
 
+公共实验入口 `scene-ir/frame-matrix(width, height, scale, anchor-x, anchor-y, offset-x, offset-y)` 返回纯数据 `Matrix2D`：视口width/height为实际像素，anchor为视口比例，offset为内容坐标，平移是viewport×anchor + scale×offset；`contain-matrix(width, height, logical-width, logical-height, anchor-x, anchor-y)`选择两轴较小比例，再调用同一构造。尺寸/比例须有限且为正，锚点/偏移须有限，输出溢出或比例下溢成零会拒绝。二者无DOM/GPU句柄，不负责时钟、scroll策略、缓存或一般排版。TodoList和Finder的桌面contain、窄屏CSS-px+DPR呈现共用这些Calcit入口，TodoList实际根组绘制也使用同一矩阵；各自换行/卡片重排保留专属布局，不硬凑通用布局器。画面/Model/触摸语义仍由原作品门禁验收。
+
 - 动画 Canvas 覆盖整个页面视口，位于导航和控制面板之后；不是嵌在侧栏旁的剩余空间，也不是要求调用浏览器 Fullscreen API。允许较大的可滚动 DOM 浮层，但提供可收起/恢复按钮和键盘焦点。
 - Canvas CSS 尺寸与 backing store 分开：实际像素按视口 × DPR 更新。暂停时 resize/DPR 变化仍重绘，不重置时间/Model。禁止只用 CSS 拉伸低分辨率位图。
 - 每个作品明确 responsive 或 contain 的构图策略、逻辑坐标和指针逆变换；视口参与组件声明时必须更新对应版本。同一时间的视口变化不能被缓存吞掉。

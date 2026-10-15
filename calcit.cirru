@@ -7389,11 +7389,9 @@
             assert |invalid-todo-compact-dpr $ and (motion/finite-number? dpr) (> dpr 0)
             let
                 root $ scene/SceneNode :id |compact-root :key |compact-root :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group
-                  scene/GroupNode :opacity 1 :transform
-                    scene/Matrix2D :a dpr :b 0 :c 0 :d dpr :e (/ width 2) :f 0
-                    , :clip $ scene/ClipSpec :rect $ scene/ClipRect :x
-                      negate $ / width $ * 2 dpr
-                      , :y 0 :width (/ width dpr) :height (/ height dpr)
+                  scene/GroupNode :opacity 1 :transform (scene/frame-matrix width height dpr 0.5 0 0 0) :clip $ scene/ClipSpec :rect $ scene/ClipRect :x
+                    negate $ / width $ * 2 dpr
+                    , :y 0 :width (/ width dpr) :height (/ height dpr)
                 children $ map (:nodes document)
                   fn (child)
                     if
@@ -17800,6 +17798,25 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/SceneNode $ :: 'List 'quamolit.scene-ir/SceneNode
+        'contain-matrix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn contain-matrix (width height logical-width logical-height anchor-x anchor-y)
+            assert |invalid-contain-bounds $ and (finite-number? logical-width) (finite-number? logical-height) (> logical-width 0) (> logical-height 0)
+            let
+                horizontal $ / width logical-width
+                vertical $ / height logical-height
+              frame-matrix width height
+                if (< horizontal vertical) horizontal vertical
+                , anchor-x anchor-y 0 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |contain-aspect-anchor)
+            :code $ quote $ let
+                matrix $ contain-matrix 1000 500 800 1000 0.38 0.5
+              assert |contain-aspect $ = matrix $ Matrix2D :a 0.5 :b 0 :c 0 :d 0.5 :e 380 :f 250
+              assert |contain-css-equivalent $ = (contain-matrix 500 250 800 1000 0.38 0.5)
+                Matrix2D :a 0.25 :b 0 :c 0 :d 0.25 :e 190 :f 125
+            :tags $ #{} :scene
         'content-kind $ %{} 'CodeEntry
           :doc "|Stable content kind for identity and diagnostics."
           :code $ quote $ defn content-kind (content)
@@ -17862,6 +17879,23 @@
               assert |versions-isolated $ not= (font-host-family font-a) (font-host-family font-b)
               , &unit
             :tags $ #{} :font :scene
+        'frame-matrix $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn frame-matrix (width height scale anchor-x anchor-y offset-x offset-y)
+            assert |invalid-frame-viewport $ and (finite-number? width) (finite-number? height) (> width 0) (> height 0)
+            assert |invalid-frame-projection $ and (finite-number? scale) (> scale 0) (finite-number? anchor-x) (finite-number? anchor-y) (finite-number? offset-x) (finite-number? offset-y)
+            let
+                x $ + (* width anchor-x) (* scale offset-x)
+                y $ + (* height anchor-y) (* scale offset-y)
+              assert |invalid-frame-translation $ and (finite-number? x) (finite-number? y)
+              Matrix2D :a scale :b 0 :c 0 :d scale :e x :f y
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/Matrix2D)
+            :args $ [] 'Number 'Number 'Number 'Number 'Number 'Number 'Number
+          :tests $ [] $ %{} 'TestEntry (:name |frame-anchor-offset)
+            :code $ quote $ assert |frame-anchor-offset
+              = (frame-matrix 1000 500 2 0.5 0 -10 20)
+                Matrix2D :a 2 :b 0 :c 0 :d 2 :e 480 :f 40
+            :tags $ #{} :scene
         'last-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn last-node (nodes)
             if
