@@ -7,13 +7,13 @@
 ```sh
 yarn test:consumer
 # 默认安装当前 HEAD；尚未推送时可先指定已发布/已推送的前置产物：
-QUAMOLIT_CONSUMER_REF=25c5555041c9c9ac644dd5637e20688633a542bd yarn test:consumer
+QUAMOLIT_CONSUMER_REF=66eec11be72d60e3b8a875c9e9932427d55c58b2 yarn test:consumer
 # 发布后的验收传入实际包含所需 API 的新 tag；不能用本轮颜色 fixture 混测旧 alpha。
 # 桌面硬件专项：出现 SKIP 也会失败，不可用普通 PASS 替代真实 GPU 证据。
 QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 ```
 
-前提：Calcit/runtime 0.29.3、js-ffi 0.2.3、caps、Node.js 24、仓库依赖及固定 Chromium 已安装，有 GitHub/npm 网络访问权限。CI 对 PR head SHA 安装，不把先发布 alpha 当作验证前提；发布后应显式传入新 tag 重跑。当前颜色消费者要求 #238 的 `with-rect-color-motion`（已推送前置25c5555），已发布alpha.4不含该API；重验历史tag须使用与之匹配的历史fixture，不静默跳过新功能。
+前提：配套 Calcit/runtime 0.30.0-alpha.3、js-ffi 0.2.3、caps、Node.js 24、仓库依赖及固定 Chromium 已安装，有 GitHub/npm 网络访问权限。CI 对 PR head SHA 安装，不把先发布 alpha 当作验证前提；发布后应显式传入新 tag 重跑。当前颜色消费者要求 #238 的 `with-rect-color-motion` 和 #234 的 `contain-matrix`；静态 pin 66eec11 同时包含新主线工具链、呈现矩阵与颜色 API，不能退回只含其中一项的旧候选。已发布alpha.4不含这些新API；重验历史tag须使用与之匹配的历史fixture，不静默跳过新功能。
 
 门禁由 `test/isolated-consumer.mjs` 执行：
 
