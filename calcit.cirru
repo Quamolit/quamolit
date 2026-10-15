@@ -9797,6 +9797,24 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
             :args $ [] 'quamolit.gpu-component/RectRecord (:: 'List 'quamolit.gpu-scalar-program/ScalarParameter) 'Number
+        'update-program! $ %{} 'CodeEntry
+          :doc "|推进已安装的标准动画程序：相同来源复用并仅提交时间；依赖改变则完整准备/安装。精度域或算子不支持时在上传前返回fallback，由调用方整层回退；不销毁宿主，也不自动转译CPU闭包。"
+          :code $ quote $ defn update-program! (host program plan)
+            if (reusable? program plan)
+              if
+                time-supported? program $ :time plan
+                do
+                  draw-at! host program $ :time plan
+                  ProgramResult :ready program
+                ProgramResult :fallback |scalar-precision-budget
+              match (prepare-program plan)
+                (:fallback reason) (ProgramResult :fallback reason)
+                (:ready next-program)
+                  do (install-program! host next-program) (ProgramResult :ready next-program)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
+            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/ScalarProgram 'quamolit.retained-component/ComponentPlan
+            :features $ #{} :js-ffi
         'write-parameter! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn write-parameter! (host p)
             let

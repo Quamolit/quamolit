@@ -494,6 +494,45 @@ test("标准TRS冷准备保留五轴与pivot；单位冷矩阵避免重复变换
   assert.equal(program.prepare_program(trsPlan({ scale: -1 })).tag.value, "ready", "镜像与穿越零缩放保留");
 });
 
+test("公共更新入口由Calcit复用或重装程序；不支持计划及越界时间在写入前回退", () => {
+  const source = trsPlan(),
+    value = program.prepare_program(source).extra[0],
+    m = mock(),
+    host = program.create_renderer_$x_(m.canvas, m.device, "bgra8unorm", 128);
+  try {
+    program.install_program_$x_(host, value);
+    const cold = m.writes.length,
+      records = host.uploadedBytes,
+      parameters = host.parameterBytes;
+    for (let frame = 0; frame < 1000; frame++) {
+      const result = program.update_program_$x_(host, value, sample_plan_at(source, frame / 1000));
+      assert.equal(result.tag.value, "ready");
+      assert.equal(result.extra[0], value, "时间变化必须返回同一个已安装程序");
+    }
+    assert.equal(m.writes.length - cold, 1000);
+    assert.ok(m.writes.slice(cold).every((w) => w.bytes === 16));
+    assert.equal(host.uploadedBytes, records);
+    assert.equal(host.parameterBytes, parameters);
+    const beforeRejected = m.writes.length;
+    assert.deepEqual(js(program.update_program_$x_(host, value, sample_plan_at(source, 1e9))), [
+      "fallback",
+      "scalar-precision-budget",
+    ]);
+    assert.equal(m.writes.length, beforeRejected);
+    const changed = program.update_program_$x_(host, value, trsPlan({ scale: -1 }));
+    assert.equal(changed.tag.value, "ready");
+    assert.notEqual(changed.extra[0], value, "标准描述改变必须准备并安装新程序");
+    assert.ok(host.parameterBytes > parameters);
+    const afterInstall = m.writes.length;
+    const fallback = program.update_program_$x_(host, changed.extra[0], start_mixed(0, 40, false, 100));
+    assert.equal(fallback.tag.value, "fallback");
+    assert.match(fallback.extra[0], /unsupported-node:polyline/);
+    assert.equal(m.writes.length, afterInstall, "不支持节点不能半帧上传/绘制");
+  } finally {
+    dispose_renderer_$x_(host);
+  }
+});
+
 test("TRS误差预算包含几何绑定及三角函数规范误差；独立f32模型不冒充硬件", () => {
   const source = trsPlan(),
     value = program.prepare_program(source).extra[0],
