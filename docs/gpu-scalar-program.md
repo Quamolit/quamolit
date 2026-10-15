@@ -40,7 +40,7 @@ Apple/Metal-3（software=false）实际验证 t=1→0→0.5→0.25→1，每帧 
 
 `quamolit.gpu-component/configure-viewport!(host, physicalWidth, physicalHeight, logicalWidth, logicalHeight)` 将逻辑可见视口等比居中映射到实际绘制表面。Calcit检查正整数物理尺寸、逻辑尺寸的有限性及保守范围[1e-6,1e30]，计算矩形；定义级inline仅应用canvas尺寸、设备上限及f32 ABI边界，原提交入口调用原生[setViewport](https://www.w3.org/TR/webgpu/#dom-gpurenderpassencoder-setviewport)。未配置时保留原像素坐标行为，配置后须重绘；逻辑视口外仍按GPU clip volume裁剪，不是任意父组变换/裁剪支持。
 
-resize/DPR不重建Scene、几何或Motion参数，时间uniform仍16B，pipeline/buffer数量不变；实际表面占用和填充面积随窗口×DPR增长，不宣称性能提升。独立示例仅在GPU卡片模式启用，其他10k历史页面不冒称已迁移。既有消费者同时检验桌面/窄屏、DPR1/2及运行中DPR切换的表面尺寸、实色内区、版本/缓存和Canvas回退。原始世界坐标数值预算不改；投影后屏幕误差、分数边缘、跨后端栅格与其他设备仍归#144/#41，不以原生缓冲尺寸替代完整画质验收。
+resize/DPR不重建Scene、几何或Motion参数，时间uniform仍16B，pipeline/buffer数量不变；实际表面占用和填充面积随窗口×DPR增长，不宣称性能提升。独立示例仅在GPU卡片模式启用，其他10k历史页面不冒称已迁移。既有消费者检验桌面/窄屏、DPR1/2及CSS尺寸不变的DPR切换后resize通知：表面尺寸、实色内区、版本/缓存和Canvas回退。CDP可能只改DPR值却不发media-query/resize通知；完全无通知的自动检测仍归#50，不增设轮询或冒充通过。原始世界坐标数值预算不改；投影后屏幕误差、分数边缘、跨后端栅格与其他设备仍归#144/#41，不以原生缓冲尺寸替代完整画质验收。
 
 ## 已有测试与下一交付
 

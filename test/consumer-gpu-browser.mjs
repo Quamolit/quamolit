@@ -102,6 +102,10 @@ async function verifyTransformGpuSurface(page, artifacts) {
           deviceScaleFactor: 2,
           mobile: false,
         });
+        // CDP可能只改DPR值而不触发浏览器通知（既有#50边界）。
+        // 保持CSS尺寸不变，显式发送应用应处理的原生resize通知；不手工调用show或推进时间。
+        const beforeNotification = await stage.evaluate(() => window.consumer.snapshot().surface);
+        await stage.evaluate(() => window.dispatchEvent(new Event("resize")));
         await stage.waitForFunction(
           () => window.consumer.snapshot().surface.width === 780 && window.consumer.snapshot().surface.height === 1688,
         );
@@ -118,7 +122,8 @@ async function verifyTransformGpuSurface(page, artifacts) {
           dpr: 2,
           width: 390,
           height: 844,
-          transition: "DPR-only",
+          transition: "DPR-only + resize notification",
+          beforeNotification,
           backend: changed.backend,
           surface: changed.surface,
         });

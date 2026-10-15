@@ -535,6 +535,7 @@ document.querySelector("#gpu-loss").onclick = () => void simulateGpuLoss("用户
 if (fullscreen) {
   resizeObserver = new ResizeObserver(show);
   resizeObserver.observe(canvas);
+  window.addEventListener("resize", show);
   // 跨显示器/缩放可能仅改变 DPR；不以动画推进触发重绘。
   let resolution;
   function watchResolution() {
