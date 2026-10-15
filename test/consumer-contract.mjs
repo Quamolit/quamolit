@@ -716,6 +716,7 @@ export function formatConsumerSummary(report) {
     ["双轴 smoothstep", report.gpuDualBrowser],
     ["单脏记录 10k", report.gpuInstancesBrowser],
     ["独立动画 10k", report.independentInstances?.browser],
+    ["标准 TRS", report.transformGpuBrowser],
   ];
   const counts = { PASS: 0, SKIP: 0, NOT_RUN: 0 };
   const text = (value) => String(value).replace(/[\\`|<>\r\n]/g, " ");

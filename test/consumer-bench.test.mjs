@@ -17,15 +17,17 @@ test("关键链路摘要单列 SKIP，缺失/软件 GPU 不能伪装通过", () 
     result: "PASS",
     gpuBrowser: evidence,
     gpuDualBrowser: evidence,
+    transformGpuBrowser: evidence,
     gpuInstancesBrowser: { result: "SKIP", reason: "adapter-unavailable" },
     independentInstances: { browser: { result: "SKIP", reason: "software-adapter" } },
   };
   const summary = formatConsumerSummary(report);
-  assert.match(summary, /PASS 2，SKIP 2，未执行 0/);
+  assert.match(summary, /PASS 3，SKIP 2，未执行 0/);
   assert.match(summary, /adapter-unavailable/);
   assert.match(summary, /software-adapter/);
   assert.match(summary, /SKIP ≠ 硬件通过/);
-  assert.match(formatConsumerSummary({ result: "FAIL" }), /未执行 4/);
+  assert.match(formatConsumerSummary({ result: "FAIL" }), /未执行 5/);
+  assert.throws(() => formatConsumerSummary({ ...report, transformGpuBrowser: undefined }), /缺少硬件专项/);
   assert.match(formatConsumerSummary({ result: "NOT_RUN" }), /NOT_RUN/);
   assert.throws(() => formatConsumerSummary({ result: "PASS" }), /缺少硬件专项/);
   assert.throws(() => formatConsumerSummary({ ...report, gpuBrowser: { result: "SKIP" } }), /缺少原因/);

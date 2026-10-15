@@ -24,6 +24,7 @@ import {
   verifyGpuConsumerBrowser,
   verifyGpuInstancesConsumerBrowser,
   verifyIndependentGpuConsumerBrowser,
+  verifyTransformGpuConsumerBrowser,
 } from "./consumer-gpu-browser.mjs";
 import { runConsumerBench } from "./consumer-bench.mjs";
 import { verifyFfiRecompile } from "./consumer-ffi-recompile.mjs";
@@ -768,7 +769,16 @@ try {
   ));
   const independentGpuBrowser = await verifyIndependentGpuConsumerBrowser(page, artifacts);
   hardwareEvidence.independentInstances = { browser: independentGpuBrowser };
+  const transformGpuBrowser = (hardwareEvidence.transformGpuBrowser = await verifyTransformGpuConsumerBrowser(
+    page,
+    artifacts,
+  ));
   if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") {
+    assert.equal(
+      transformGpuBrowser.result,
+      "PASS",
+      `要求TRS真实GPU，但专项未运行：${JSON.stringify(transformGpuBrowser)}`,
+    );
     assert.equal(gpuBrowser.result, "PASS", `要求真实 GPU，但专项未运行：${JSON.stringify(gpuBrowser)}`);
     assert.equal(gpuDualBrowser.result, "PASS", `要求双轴真实 GPU，但专项未运行：${JSON.stringify(gpuDualBrowser)}`);
     assert.equal(
@@ -841,6 +851,7 @@ try {
     gpuBrowser,
     gpuDualBrowser,
     gpuInstancesBrowser,
+    transformGpuBrowser,
     benchmark,
     ffiRecompile,
     negativeControl: [
@@ -883,6 +894,7 @@ try {
         gpuBrowser,
         gpuDualBrowser,
         gpuInstancesBrowser,
+        transformGpuBrowser,
         modules: modules.size,
         artifacts,
         runtime,

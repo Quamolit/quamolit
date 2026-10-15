@@ -351,7 +351,13 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'Number 'Number 'Number 'Bool 'Number
         'declare-transform $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn declare-transform (props model input ready viewport)
+          :code $ quote $ defn declare-transform (props model input ready viewport) (declare-transform-scale props model input ready viewport 1.05)
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.retained-component/ExecutionDeclaration
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+        'declare-transform-scale $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-transform-scale (props model input ready viewport scale-end)
             let
                 base $ declare props model input ready viewport
                 tween $ fn (id from to)
@@ -361,7 +367,7 @@
                   motion/ScalarDescriptor :id id :version 1 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from from :to to :easing (motion/Easing :smoothstep)
                 width $ + 80 $ / viewport 10
                 y $ + props model input
-                scale $ tween |card-scale 0.7 1.05
+                scale $ tween |card-scale 0.7 scale-end
                 transform $ retained/TransformMotion :trs $ retained/TrsMotion :x (tween |card-x 0 32) :y (tween |card-y 0 -12) :rotation (tween |card-angle -0.4 0.4) :scale-x scale :scale-y scale :pivot
                   motion/Vec2 :x
                     + 80 $ / width 2
@@ -388,7 +394,7 @@
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.retained-component/ExecutionDeclaration
-            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+            :args $ [] 'Number 'Number 'Number 'Bool 'Number 'Number
         'dispose-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn dispose-gpu! (host) (batch/dispose-renderer! host)
           :examples $ []
@@ -1107,6 +1113,17 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] 'Number 'Number 'Bool 'Number
+        'start-transform-scale $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-transform-scale (time model ready viewport scale-end)
+            retained/build-execution-plan (request time model ready viewport)
+              fn (props model input ready viewport)
+                hint-fn $ {}
+                  :args $ [] 'Number 'Number 'Number 'Bool 'Number
+                  :return 'quamolit.retained-component/ExecutionDeclaration
+                declare-transform-scale props model input ready viewport scale-end
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number 'Number 'Bool 'Number 'Number
         'submit-batch! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn submit-batch! (host prepared)
             batch/submit-update! host $ :delta prepared

@@ -3,6 +3,135 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { readScalarSample } from "./host/gpu-scalar-readback.mjs";
 
+// 在已安装并搬移的消费者产物执行，不引用作者 target 或框架测试 namespace。
+export async function verifyTransformGpuConsumerBrowser(page, artifacts) {
+  await page.addScriptTag({ content: `globalThis.__quamolitTrsProbe=${readScalarSample.toString()}` });
+  const report = await page.evaluate(async () => {
+    const adapter = await navigator.gpu?.requestAdapter();
+    if (!adapter) return { result: "SKIP", reason: "adapter-unavailable" };
+    const identity = {
+      vendor: adapter.info.vendor,
+      architecture: adapter.info.architecture,
+      device: adapter.info.device,
+      description: adapter.info.description,
+    };
+    if (
+      adapter.isFallbackAdapter ||
+      adapter.info.isFallbackAdapter ||
+      /swiftshader|software|llvmpipe/i.test(Object.values(identity).join(" "))
+    )
+      return { result: "SKIP", reason: "software-adapter", adapter: identity };
+    const app = await import("/target/js/app/app.main.mjs"),
+      api = await import("/target/js/app/quamolit.gpu-scalar-program.mjs"),
+      core = await import("/target/js/app/calcit.core.mjs"),
+      fields = core.init_tags(["frame", "records", "parameters"]),
+      device = await adapter.requestDevice(),
+      errors = [],
+      samples = [],
+      frames = [],
+      uploads = [];
+    device.addEventListener("uncapturederror", (event) => errors.push(event.error.message));
+    device.pushErrorScope("validation");
+    const canvas = document.createElement("canvas"),
+      capture = document.createElement("canvas");
+    for (const target of [canvas, capture]) {
+      target.width = 320;
+      target.height = 180;
+    }
+    const context = capture.getContext("2d");
+    let host;
+    try {
+      host = app.create_gpu_$x_(canvas, device, navigator.gpu.getPreferredCanvasFormat(), 2);
+      for (const scaleEnd of [1.05, -1, 0]) {
+        const plan = app.start_transform_scale(0, 40, false, 100, scaleEnd),
+          prepared = app.prepare_gpu(plan);
+        if (prepared.tag.value !== "ready") throw Error(`unexpected-trs-fallback:${prepared.extra[0]}`);
+        const program = prepared.extra[0],
+          envelope = core.to_js_data(
+            api.trs_precision(program.get(fields.frame).get(fields.records).get(1), program.get(fields.parameters), 1),
+          );
+        app.install_gpu_$x_(host, program);
+        const coldRecords = host.uploadedBytes,
+          coldParameters = host.parameterBytes;
+        for (let frame = 0; frame < 1000; frame++) app.draw_gpu_$x_(host, program, (frame % 101) / 100);
+        if (host.uploadedBytes !== coldRecords || host.parameterBytes !== coldParameters)
+          throw Error("trs-hot-parameter-upload");
+        uploads.push({
+          scaleEnd,
+          hotRecordBytes: host.uploadedBytes - coldRecords,
+          hotParameterBytes: host.parameterBytes - coldParameters,
+        });
+        for (const time of [1, 0, 0.5, 0.25, 1, 0.37, 0.81, -0.1, 1.1]) {
+          app.draw_gpu_$x_(host, program, time);
+          const t = Math.max(0, Math.min(1, time)),
+            s = t * t * (3 - 2 * t),
+            scale = 0.7 + (scaleEnd - 0.7) * s,
+            angle = -0.4 + 0.8 * s,
+            pivot = [125, 84];
+          const expectedPoint = ([px, py]) => {
+            const dx = (px - pivot[0]) * scale,
+              dy = (py - pivot[1]) * scale;
+            return [
+              32 * s + pivot[0] + Math.cos(angle) * dx - Math.sin(angle) * dy,
+              -12 * s + pivot[1] + Math.sin(angle) * dx + Math.cos(angle) * dy,
+            ];
+          };
+          const bitmap = await createImageBitmap(canvas);
+          context.clearRect(0, 0, 320, 180);
+          context.drawImage(bitmap, 0, 0);
+          bitmap.close();
+          if (scaleEnd === 1.05) {
+            const [cx, cy] = expectedPoint(pivot),
+              pixel = [...context.getImageData(Math.floor(cx), Math.floor(cy), 1, 1).data];
+            if (pixel.join(",") !== "235,71,153,255") throw Error(`trs-center-pixel:${time}:${pixel}`);
+          }
+          frames.push({ time, scaleEnd, png: capture.toDataURL() });
+          const bound = 0.125 * (envelope.x + envelope.y * Math.abs(time));
+          if (!(bound > 0 && bound <= 0.125)) throw Error(`trs-error-budget:${bound}`);
+          for (const point of [[80, 62], [170, 62], [80, 106], [170, 106], pivot]) {
+            const actual = await globalThis.__quamolitTrsProbe(host, 1, time, 0, point),
+              expected = expectedPoint(point);
+            for (let axis = 0; axis < 2; axis++)
+              if (Math.abs(actual[axis] - expected[axis]) > bound)
+                throw Error(`trs-world-error:${JSON.stringify({ time, scaleEnd, point, actual, expected, bound })}`);
+            if (Math.abs(actual[0] + 1 - expected[0]) <= bound) throw Error("trs-translation-negative-control");
+            samples.push({ time, scaleEnd, point, actual, expected, bound });
+          }
+        }
+      }
+      const validation = await device.popErrorScope();
+      if (validation) errors.push(validation.message);
+      return {
+        result: "PASS",
+        adapter: identity,
+        errors,
+        samples,
+        frames,
+        uploads,
+        scope: "独立安装的Calcit声明与同源shader；世界坐标预算及实色内区，旋转边缘完整栅格仍归#144",
+      };
+    } finally {
+      if (host) app.dispose_gpu_$x_(host);
+      device.destroy();
+    }
+  });
+  if (report.result === "SKIP") return report;
+  assert.deepEqual(report.errors, []);
+  assert.equal(report.samples.length, 135);
+  assert.equal(report.frames.length, 27);
+  assert.equal(report.uploads.length, 3);
+  for (const upload of report.uploads) {
+    assert.equal(upload.hotRecordBytes, 0);
+    assert.equal(upload.hotParameterBytes, 0);
+  }
+  for (const [index, frame] of report.frames.entries()) {
+    const filename = `trs-frame-${index}-gpu.png`;
+    await writeFile(join(artifacts, filename), Buffer.from(frame.png.split(",")[1], "base64"));
+    frame.png = filename;
+  }
+  return report;
+}
+
 export async function verifyIndependentGpuConsumerBrowser(page, artifacts) {
   await page.addScriptTag({ content: `globalThis.__quamolitScalarProbe = ${readScalarSample.toString()}` });
   const report = await page.evaluate(async () => {
