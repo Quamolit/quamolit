@@ -75,7 +75,7 @@ test("真实 Calcit 预处理拒绝实例表/renderer 句柄混用和普通 List
     const command = ["edit", "transaction", "--code", JSON.stringify(ops), "--format", "json"];
     const dry = JSON.parse(execFileSync(bin, [...command, "--dry-run"], options));
     execFileSync(bin, [...command, "--expect-revision", dry.original_revision], options);
-    const result = spawnSync(bin, ["analyze", "check-public", "--ns", ns], options);
+    const result = spawnSync(bin, ["--check-only", "--ns", ns], options);
     assert.equal(result.error, undefined);
     assert.notEqual(result.status, 0, "非法类型不能编译通过");
     const output = result.stdout + result.stderr;

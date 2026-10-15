@@ -96,7 +96,7 @@ try {
   const resolvedModule = await realpath(join(source, ".calcit/modules/quamolit"));
   assert.notEqual(resolvedModule, await realpath(root), "不能链接作者工作树");
   run("yarn", ["install", "--immutable"], source);
-  run("calcit", ["analyze", "check-public", "--ns", "app.main"], source);
+  run("calcit", ["--check-only", "--ns", "app.main", "--summary-only"], source);
   run("calcit", ["--emit-path", "target/js/app/", "js"], source);
   const ffiRecompile = await verifyFfiRecompile({ source, resolvedModule, temporary, run });
   const output = join(source, "target/js/app");

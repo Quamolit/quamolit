@@ -3499,7 +3499,7 @@
             :args $ [] 'String 'String 'Number 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.drag-demo
-          :require ([] quamolit.scene-ir :as scene) ([] quamolit.motion :as motion) ([] quamolit.canvas-reference :as reference) ([] quamolit.scene-hit :as hit) ([] quamolit.scene-pointer :as pointer) ([] quamolit.scene-pointer-browser :as pointer-browser) ([] js-ffi.browser :as dom)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference) (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as pointer-browser) (js-ffi.browser :as dom)
     'quamolit.examples.finder $ %{} 'FileEntry
       :defs $ {}
         'FinderEvent $ %{} 'CodeEntry (:doc |)
@@ -19696,19 +19696,19 @@
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.motion-fixture
           :require
-            [] quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color ScalarComposeOp ScalarComposition sample-scalar-composition CpuScalarDescriptor CpuGpuStatus CpuScalarRegistry register-cpu-scalar sample-cpu-scalar
-            [] quamolit.fixed-step :refer $ start-simulation advance-simulation
-            [] quamolit.direct-frame :as direct-frame
-            [] quamolit.host-clock :as host-clock
-            [] quamolit.scene-ir :as scene-ir
-            [] quamolit.scene-diff :as scene-diff
-            [] quamolit.scene-binding :as scene-binding
-            [] quamolit.transition :as transition
-            [] quamolit.presence :as presence
-            [] quamolit.motion-gpu :as motion-gpu
-            [] quamolit.canvas-reference :as canvas-reference
-            [] quamolit.gpu-vec2-translation :as gpu-translation
-            [] quamolit.webgpu-batches :as webgpu-batches
+            quamolit.motion :refer $ Easing ScalarTween ScalarMotion ScalarDescriptor sample-scalar Vec2 Vec2Tween Vec2Motion Vec2Descriptor sample-vec2 ScalarKeyframe ScalarTrack TrackLoop ColorRgba ColorTween ColorMotion ColorDescriptor sample-color ScalarComposeOp ScalarComposition sample-scalar-composition CpuScalarDescriptor CpuGpuStatus CpuScalarRegistry register-cpu-scalar sample-cpu-scalar
+            quamolit.fixed-step :refer $ start-simulation advance-simulation
+            quamolit.direct-frame :as direct-frame
+            quamolit.host-clock :as host-clock
+            quamolit.scene-ir :as scene-ir
+            quamolit.scene-diff :as scene-diff
+            quamolit.scene-binding :as scene-binding
+            quamolit.transition :as transition
+            quamolit.presence :as presence
+            quamolit.motion-gpu :as motion-gpu
+            quamolit.canvas-reference :as canvas-reference
+            quamolit.gpu-vec2-translation :as gpu-translation
+            quamolit.webgpu-batches :as webgpu-batches
             quamolit.webgpu-texture-runner :as texture-runner
     'quamolit.test.playback-fixture $ %{} 'FileEntry
       :defs $ {}
