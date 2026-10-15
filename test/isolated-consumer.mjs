@@ -9,6 +9,7 @@ import { createServer } from "vite";
 import { chromium } from "@playwright/test";
 import {
   verifyConsumer,
+  verifyTransformConsumer,
   verifyFontConsumer,
   verifyFontConsumerBrowser,
   verifyCurveConsumer,
@@ -178,6 +179,11 @@ try {
     "反例：下游曲线命中失效必须被检出",
   );
   counts.layered = verifyLayeredConsumer(app, core);
+  assert.throws(
+    () => verifyTransformConsumer({ ...app, update_transform: (plan) => plan }, core),
+    /AssertionError/,
+    "停止标准变换CPU采样的反例必须失败",
+  );
   assert.throws(
     () => verifyLayeredConsumer({ ...app, update_layered: (plan) => plan }, core),
     /AssertionError/,
@@ -548,6 +554,76 @@ try {
   }
   const sameTime = await page.evaluate(() => window.consumer.set({ time: 0.25, ready: false }));
   assert.ok(Math.abs(sameTime.scene.nodes[1].content[1].fill.r - (1.055 * 0.25 ** (1 / 2.4) - 0.055)) < 1e-12);
+  await page.click('[data-mode="transform"]');
+  const standardTransformBrowser = [];
+  let transformInput = { model: 40, ready: false, viewport: 100 };
+  for (const [index, request] of [
+    ...[1, 0, 0.5, 0.25, 1].map((time) => ({ time })),
+    { time: 0.25, model: 41 },
+    { time: 0.25, ready: true },
+    { time: 0.25, viewport: 200 },
+  ].entries()) {
+    const time = request.time;
+    transformInput = { ...transformInput, ...request };
+    await page.evaluate((input) => window.consumer.set(input), transformInput);
+    const comparison = await page.evaluate(({ time, model, ready, viewport }) => {
+      const actual = document.querySelector("canvas"),
+        reference = document.createElement("canvas");
+      reference.width = 320;
+      reference.height = 180;
+      const context = reference.getContext("2d");
+      context.fillStyle = "rgb(102,102,102)";
+      context.fillRect(16, 100, 288, 12);
+      const t = Math.max(0, Math.min(1, time)),
+        s = t * t * (3 - 2 * t),
+        scale = 0.7 + 0.35 * s;
+      context.translate(32 * s, -12 * s);
+      const px = 120 + viewport / 20,
+        py = 44 + model;
+      context.translate(px, py);
+      context.rotate(-0.4 + 0.8 * s);
+      context.scale(scale, scale);
+      context.translate(-px, -py);
+      context.fillStyle = ready ? "rgb(0,179,102)" : "rgb(235,71,153)";
+      context.fillRect(80, 22 + model, 80 + viewport / 10, 44);
+      const a = actual.getContext("2d").getImageData(0, 0, 320, 180).data,
+        b = reference.getContext("2d").getImageData(0, 0, 320, 180).data;
+      let differences = 0,
+        maximum = 0;
+      for (let i = 0; i < a.length; i++) {
+        differences += a[i] !== b[i];
+        maximum = Math.max(maximum, Math.abs(a[i] - b[i]));
+      }
+      return {
+        differences,
+        maximum,
+        actual: actual.toDataURL(),
+        expected: reference.toDataURL(),
+        state: window.consumer.snapshot(),
+      };
+    }, transformInput);
+    for (const name of ["actual", "expected"])
+      await writeFile(
+        join(artifacts, `transform-${index}-${name}.png`),
+        Buffer.from(comparison[name].split(",")[1], "base64"),
+      );
+    assert.equal(comparison.state.mode, "transform");
+    assert.equal(
+      comparison.differences,
+      0,
+      JSON.stringify({ time, differences: comparison.differences, maximum: comparison.maximum }),
+    );
+    standardTransformBrowser.push({
+      ...transformInput,
+      differences: comparison.differences,
+      maximum: comparison.maximum,
+      declarations: comparison.state.declarations,
+      builds: comparison.state.builds,
+    });
+    assert.equal(comparison.state.declarations, standardTransformBrowser[0].declarations + Math.max(0, index - 4));
+    if ([0, 0.5, 1].includes(time))
+      await page.screenshot({ path: join(artifacts, `transform-${time}-ui.png`), fullPage: true });
+  }
   await page.click('[data-mode="mirror"]');
   for (const [time, x] of [
     [1, 120],
@@ -772,6 +848,7 @@ try {
     resolvedModule,
     modules: [...modules].sort(),
     counts,
+    standardTransformBrowser,
     fontCounts,
     fontBrowser,
     curveCounts,
@@ -827,6 +904,7 @@ try {
         result: "PASS",
         candidate,
         counts,
+        standardTransformBrowser,
         instancesCounts,
         presenceCounts,
         recoveryCounts,

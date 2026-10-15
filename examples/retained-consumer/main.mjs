@@ -8,6 +8,8 @@ import {
   update_alpha,
   start_color,
   update_color,
+  start_transform,
+  update_transform,
   start_mirror,
   update_mirror,
   start_layered,
@@ -93,7 +95,7 @@ let time = 0,
   ready = false,
   viewport = 100;
 const requestedMode = new URLSearchParams(location.search).get("motion");
-let mode = ["mixed", "dual", "alpha", "color", "mirror", "layered", "presence", "instances", "instances-gpu", "instances-scalar"].includes(
+let mode = ["mixed", "dual", "alpha", "color", "transform", "mirror", "layered", "presence", "instances", "instances-gpu", "instances-scalar"].includes(
   requestedMode,
 )
   ? requestedMode
@@ -106,7 +108,7 @@ let presenceModel = presence_initial(),
 let plan =
   mode === "presence"
     ? presence_plan(presenceModel, time, presenceVersion)
-    : (mode === "color" ? start_color : mode === "mirror" ? start_mirror : mode === "layered" ? start_layered : mode === "alpha" ? start_alpha : mode === "dual" ? start_dual : start)(
+    : (mode === "color" ? start_color : mode === "transform" ? start_transform : mode === "mirror" ? start_mirror : mode === "layered" ? start_layered : mode === "alpha" ? start_alpha : mode === "dual" ? start_dual : start)(
         time,
         model,
         ready,
@@ -277,7 +279,7 @@ function set(next = {}) {
   }
   const request = { time, model, ready, viewport, ...next };
   const updated = (
-    mode === "color" ? update_color : mode === "mirror" ? update_mirror : mode === "layered" ? update_layered : mode === "alpha" ? update_alpha : mode === "dual" ? update_dual : update_plan
+    mode === "color" ? update_color : mode === "transform" ? update_transform : mode === "mirror" ? update_mirror : mode === "layered" ? update_layered : mode === "alpha" ? update_alpha : mode === "dual" ? update_dual : update_plan
   )(plan, request.time, request.model, request.ready, request.viewport);
   ({ time, model, ready, viewport } = request);
   plan = updated;
@@ -414,7 +416,7 @@ function disposeGpu() {
 }
 async function setMode(next) {
   if (
-    !["mixed", "dual", "alpha", "color", "mirror", "layered", "presence", "instances", "instances-gpu", "instances-scalar"].includes(next)
+    !["mixed", "dual", "alpha", "color", "transform", "mirror", "layered", "presence", "instances", "instances-gpu", "instances-scalar"].includes(next)
   )
     throw Error("unknown-consumer-mode");
   // 更换声明时建立新计划，不能让相同版本错误复用另一个声明的结构。
@@ -422,7 +424,7 @@ async function setMode(next) {
     ? plan
     : next === "presence"
       ? presence_plan(presenceModel, time, presenceVersion)
-      : (next === "color" ? start_color : next === "mirror" ? start_mirror : next === "layered" ? start_layered : next === "alpha" ? start_alpha : next === "dual" ? start_dual : start)(
+      : (next === "color" ? start_color : next === "transform" ? start_transform : next === "mirror" ? start_mirror : next === "layered" ? start_layered : next === "alpha" ? start_alpha : next === "dual" ? start_dual : start)(
           time,
           model,
           ready,

@@ -8,6 +8,10 @@
 
 新统一入口为 `build-execution-plan(request, declare)` / `update-execution-plan(plan, request, declare)`；声明返回 `ExecutionDeclaration { component: ComponentDeclaration, transforms: TransformSampler }`。`TransformSampler :none` 只有标量更新，`:cpu sample` 提供纯函数 `sample(time) -> List<Matrix2D>`，数量与 Scene 节点一致、顺序相同，矩阵分量有限。闭包只在执行声明/运行计划，不进入可序列化 Scene/Motion IR。CPU 闭包不自动转 WGSL。
 
+本地开发中的标准变换入口为 `TransformSampler :motions List<TransformMotion>`，列表按 Scene 节点顺序一一对应、数量不符直接拒绝。`TransformMotion :constant Matrix2D` 保留静态矩阵，`:trs TrsMotion` 保存五个 ScalarDescriptor（x/y、rotation、scale-x/y）和局部 pivot Vec2，不保存回调。平移为CSS像素、角度为顺时针弧度，矩阵为 `T(x,y) · T(pivot) · R · S · T(-pivot)`：先以支点缩放，再旋转，再平移；零缩放与镜像允许，非有限输入或运算溢出拒绝。绝对时间、常量/tween/轨道语义直接复用标量Motion；描述改变仍须提升组件的实际依赖版本，不能只改字段后沿用旧版本。
+
+当前这部分仅接通纯 Calcit CPU 矩阵参考及保留计划，不是已发布或已合并的GPU变换能力。GPU时间program对标准列表明确返回 `standard-transform-kernel-not-supported`，任意CPU回调保留原 `cpu-transform-required`；不能将数据化误报为WGSL实现。现有混合折线的平移已改用标准数据，原1000帧共享/版本失效/像素门禁继续验证。[独立消费者](../examples/retained-consumer/README.md)在同页新增卡片旋转/缩放/支点模式，声明与采样完全在Calcit，使用候选安装、编译搬移及原生Canvas参考验证；GPU kernel、Metal误差域与同源执行仍待完成，不新增平行renderer或测试框架。
+
 两种动画都返回同一个 `ComponentPlan`，共用 `sample-plan-at`；新增 `draw-plan!` 按声明顺序混合绘制顶层矩形与折线，先应用标量绑定再复合各节点局部变换。支持任意有限绝对时间，同时间六类版本变化均重建，替换声明/闭包必须提升 component/motion 版本。更换 Model、资源等不能只调用时间采样入口。构建/采样失败不污染旧计划。
 
 旧 `build-component-plan` / `update-component-plan` 保留为无变换的兼容入口；新执行声明必须成对使用新的构建/更新入口，不用旧更新函数重建包含变换的计划。变换更新共享静态节点、局部几何与预编译标量槽位，`transform-samples` 单独记录采样调用次数。绘制先拒绝 group/instances/子节点，不提供裁剪或隔离组透明度。
