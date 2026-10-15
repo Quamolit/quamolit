@@ -258,6 +258,15 @@ try {
   const url = server.resolvedUrls.local[0];
   browser = await chromium.launch({ headless: process.env.QUAMOLIT_CONSUMER_HEADED !== "1" });
   page = await browser.newPage({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 1 });
+  // 两条 Canvas 参考都固定 CPU backing，避免 readback 次数触发自动切换后
+  // 把 Chromium 不同栅格器的旋转边缘当作 Calcit 变换差异；保留整帧零差异。
+  // 仅限读回型测试页面，不改变发布页面或 WebGPU context。
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (kind, options) {
+      return original.call(this, kind, kind === "2d" ? { ...options, willReadFrequently: true } : options);
+    };
+  });
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("requestfailed", (request) => errors.push(`${request.url()} ${request.failure()?.errorText}`));
   page.on("request", (request) => requests.push(request.url()));
