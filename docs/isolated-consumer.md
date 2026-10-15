@@ -14,7 +14,7 @@ QUAMOLIT_CONSUMER_REF=0.0.18-alpha.3 yarn test:consumer
 QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 ```
 
-前提：Calcit/runtime 0.28.0、js-ffi 0.2.1-alpha.11、caps、Node.js 24、仓库依赖及固定 Chromium 已安装，有 GitHub/npm 网络访问权限。CI 对 PR head SHA 安装，不把先发布 alpha 当作验证前提；发布后应显式传入新 tag 重跑。
+前提：使用根项目及消费者deps/lockfile声明的配套工具链（候选为Calcit/runtime0.30.0-alpha.3、js-ffi0.2.3；准确主线/发布边界见[版本合同](calcit-027-upgrade.md)）、caps、Node.js24及固定Chromium，有GitHub/npm网络访问权限。CI对PR head SHA安装，不把先发布alpha当作验证前提；发布后应显式传入新tag重跑。
 
 门禁由 `test/isolated-consumer.mjs` 执行：
 
@@ -42,8 +42,8 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | GPU 片段消费 | Quamolit 的 `gpu-component-create.mjs` 以定义级 `:file` 嵌入；搬移后的消费者仅通过 `app.main` 创建、安装、绘制及释放 GPU 计划，无原始宿主文件依赖 |
 | JS-only 显式重编译 | file：只改副本 `canvas-rect-batches.mjs`，未编译仍绘制10000次，编译后故障可见且零提交。inline：CLI只改副本 `gpu-component/raw-dispose!` 的JS元数据，旧产物仍执行四项释放且重复调用幂等；编译后故障在释放前被检出。两阶段均比较生成模块哈希，消费者Snapshot/共享缓存不变；结果集中于 `ffiRecompile.file/inline`，替代旧报告的 `fileRecompile` 字段 |
 | GPU 实例片段消费 | `quamolit.webgpu-batches/raw-create!` 以定义级 `:file` 嵌入 `webgpu-rect-batch-create.js` 单函数表达式；消费者编译产物搬移后不含 `src/host`，仍可创建、绘制、释放 10k 图层 |
-| GPU ABI 计数 | 原生设备 mock：两个矩形单绑定冷启动上传128B records、352B parameters（五槽布局）；1000时间帧只上传16000B uniform，records/parameters均0B；1 pipeline、3 buffers，重复释放只销毁一次；不执行shader，不算硬件验收 |
-| GPU 反例与失效 | 停止时间 uniform 写入会失败；同时间 Model/资源/视口变化不能复用旧程序；无效时间没有上传副作用；原混合折线场景明确返回 `cpu-transform-required`，不静默漏绘 |
+| GPU ABI 计数 | 原生设备mock：两个矩形单绑定冷启动上传128B records、1056B parameters（当前16槽布局）；1000时间帧只上传16000B uniform，records/parameters均0B，1 pipeline/3 buffers；不执行shader，不算硬件验收。五槽352B是历史布局，不外推为当前占用 |
+| GPU 反例与失效 | 停止时间uniform写入会失败；同时间Model/资源/视口变化不能复用旧程序；新公共Calcit update-program! 在不支持算子或时间精度域时于写入前返回fallback；原混合折线场景明确返回unsupported-node:polyline，不静默漏绘 |
 | GPU 浏览器专项 | 搬移后的同一矩形声明在非软件 adapter 比较 8 帧 × 230400 通道，默认精确像素；覆盖乱序/重复及同时间三类失效和上传量。无 GPU/软件 adapter 明确 SKIP，单独写入报告 |
 | 画面 | 实际画布 320×180、DPR=1；矩形内部粉色/绿色、静态横条灰色、变换折线蓝色与外部透明像素精确比较；另保存 Presence 退出中间帧与结算后画面 |
 | 公共 10k 动态实例 | 消费者 Calcit `instance-frame-at` 在绝对时间生成一个实例位置；`register-patch!` 仅复制 8 B。Node 连续 100 次更新、释放旧公开版本后 live 恒为 1，最终卸载为 0。页面 Canvas/GPU 模式保留同一 `(id,version)` 源、单 Canvas 舞台和可见的 GPU 不可用回退 |
@@ -51,7 +51,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 | 独立 10k 三路径 | 同一 Calcit 源驱动 Canvas / CPU→GPU / GPU 时间采样。Node 核对全部 CPU 坐标与 20000 个 GPU 参数；参数常驻的 1000 帧只写 uniform 16000 B，records/parameters 不上传，1 pipeline/3 buffers；非法数量、重复身份、精度域及伪造程序在上传前拒绝。页面复用已有 generation 恢复协议。硬件专项对 3 个索引 × 5 个乱序时间共读回 120 B，使用实际 WGSL、独立公式和既定 `1e-5+1e-5*abs(expected)`；两条 GPU 完整帧和 Canvas 整数端点零差异。Canvas 中间帧单列差异图/统计及 #144 待验收状态；无硬件单独 SKIP。未验收完整跨后端画质合同或正式性能 |
 | 真实 GPU 动态画面 | Apple/Metal-3 上独立消费者的像素对齐 10k 源，初始/补丁/同版本/跳版本位置上传为 80000/8/0/80000 B；四个时间点采样像素和终点整幅 320×180 RGBA 均与 Canvas 参考精确一致，差异图全零。headless 无 adapter 单独 SKIP |
 
-当前切片使用 Calcit 0.28.0；搬移后的可达编译闭包按每次报告的 `modules` 列表核对，不沿用旧候选的数量。唯一 npm 直接依赖是 Calcit runtime。不声称这是最小体积，namespace 级依赖仍可能引入未使用的函数。
+当前工具链来源与配套合同见[版本合同](calcit-027-upgrade.md)；搬移后的可达编译闭包按每次报告的modules列表核对，不沿用旧候选数量。唯一npm直接依赖是Calcit runtime。不声称最小体积，namespace级依赖仍可能引入未使用函数。
 
 当前 10k 独立源在 Apple/Metal-3、320×180/DPR 1：两条 GPU 路径 `[1,0,0.5,0.25,1]` 的整帧均为零差异；Canvas 的整数端点也是零差异。读回参考显式使用 `willReadFrequently: true`，避免不同读回顺序影响参考统计。t=0.5/0.25 相对该 Canvas 参考分别有 32299/31249 个差异像素，最大通道差 210/205、平均通道差 12.8672/14.2957（0–255），非白覆盖像素差 -9772/-7599。这不是 sampler 数值失败，也不是可忽略的 1 LSB；中间帧仍按 #144 等待合同决策，不设新容差。`independent-frame-<序号>-{scalarPng,cpuGpuPng,canvasPng,diffPng}.png` 与全部统计复用同一忽略报告/CI artifact。
 
@@ -63,7 +63,7 @@ QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 
 同一个独立消费者已接 [帧测量](consumer-performance.md)：`bench:consumer` 对两矩形使用 Canvas、CPU 采样后 GPU 绘制、GPU 标准采样；另报静态 10k Canvas，以及同源单脏记录动态 10k Canvas/GPU 的逐帧样本。GPU 动态模式只更新一个实例，不能作为 10k 独立运动或完整性能验收。
 
-线性/双轴专项各比较 8 帧完整画面；位置与尺寸专项另在 .37/.81/.4999999/-.1/1.1/0/1 读回 WGSL x/y/width/height，遵循 `1e-5+1e-5*abs(expected)`，不外推整个精度域。GPU 合同使用白底，Canvas 参考合成相同白底，不修改几何或像素阈值。历史审查基线：[线性](evidence/isolated-consumer-gpu.json)、[双轴](evidence/isolated-consumer-dual-gpu.json)；当前结果以 `test-results/consumer/report.json` 的 candidate/harness、adapter 与各专项状态为准，候选库和测试源码版本不得混淆。读回 probe 仅在测试中，消费者运行时无新增文件依赖。Actions 摘要分别列出四项 GPU 专项的 PASS、SKIP 原因与未执行；mock、缺失报告和 Canvas 中间帧诊断都不记为硬件画质通过。
+线性/双轴专项各比较 8 帧完整画面；位置与尺寸专项另在 .37/.81/.4999999/-.1/1.1/0/1 读回 WGSL x/y/width/height，遵循 `1e-5+1e-5*abs(expected)`，不外推整个精度域。GPU 合同使用白底，Canvas 参考合成相同白底，不修改几何或像素阈值。历史审查基线：[线性](evidence/isolated-consumer-gpu.json)、[双轴](evidence/isolated-consumer-dual-gpu.json)；当前结果以 `test-results/consumer/report.json` 的 candidate/harness、adapter 与各专项状态为准，候选库和测试源码版本不得混淆。读回 probe 仅在测试中，消费者运行时无新增文件依赖。Actions 摘要分别列出五项GPU专项（含标准TRS）的 PASS、SKIP 原因与未执行；mock、缺失报告和 Canvas 中间帧诊断都不记为硬件画质通过。
 
 - #104 已接入生命周期、实际资源释放、device loss 重建、`:file/:inline` JS-only 显式重编译和独立运动三路径；两档尺寸正式时长报告见[同源帧测量](consumer-performance.md)。2026-10-04 已对发布 tag `0.0.18-alpha.3`（b419897）完成干净重跑：测试源码为干净3b21548，与tag仅有部署workflow/verification文档差异，生产与消费源码相同，不混入新候选。Calcit/runtime0.28.0、js-ffi0.2.1-alpha.11、Node24.19.0、Chromium153.0.8010.12；37模块安装/编译/搬移与inline/file重编译PASS，1000帧声明/构建各1，100次装卸及恢复live=0，15个嵌套Canvas帧零差异。普通headless专项SKIP；追加 `QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1` 后真实Apple/Metal-3四项均PASS。原始报告在忽略的test-results/consumer/，复现与验收记录见[#104](https://github.com/Quamolit/quamolit/issues/104)。跨后端小数中间帧合同、基线比较和完整目标判定仍未验收；未运行性能基准。
 - 重编译门禁验证显式编译，不声称watch、热更新或任意构建缓存行为已经验证；inline释放使用原生句柄mock，不冒充GPU硬件测试。没有修改caps的共享不可变缓存。
