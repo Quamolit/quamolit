@@ -36,14 +36,10 @@ async function verifyTransformGpuPage(page, artifacts) {
   if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") assert.equal(initial.backend, "gpu");
   if (initial.backend === "gpu") {
     for (const time of [1, 0, 0.5, 0.25, 1]) {
-      const state = await page.evaluate((time) => window.consumer.set({ time }), time);
-      assert.equal(state.declarations, initial.declarations);
-      assert.equal(state.builds, initial.builds);
-      assert.equal(state.gpuResources, 1);
-      assert.equal(state.metrics["record-bytes"], 0);
-      assert.equal(state.metrics["parameter-bytes"], 0);
-      const pixels = await page.evaluate(async () => {
-        const state = window.consumer.snapshot(),
+      // WebGPU当前纹理在呈现后过期；同一浏览器任务中提交和复制，
+      // 不能隔一个evaluate再读空的新纹理，也不能把它放宽成透明像素通过。
+      const { state, pixels } = await page.evaluate(async (time) => {
+        const state = window.consumer.set({ time }),
           t = Math.max(0, Math.min(1, state.time)),
           s = t * t * (3 - 2 * t),
           angle = -0.4 + 0.8 * s,
@@ -61,12 +57,18 @@ async function verifyTransformGpuPage(page, artifacts) {
         const context = capture.getContext("2d");
         context.drawImage(bitmap, 0, 0);
         bitmap.close();
-        return [
+        const pixels = [
           [x, y],
           [0, 0],
           [20, 105],
         ].map(([x, y]) => [...context.getImageData(Math.floor(x), Math.floor(y), 1, 1).data]);
-      });
+        return { state, pixels };
+      }, time);
+      assert.equal(state.declarations, initial.declarations);
+      assert.equal(state.builds, initial.builds);
+      assert.equal(state.gpuResources, 1);
+      assert.equal(state.metrics["record-bytes"], 0);
+      assert.equal(state.metrics["parameter-bytes"], 0);
       assert.deepEqual(
         pixels,
         [
