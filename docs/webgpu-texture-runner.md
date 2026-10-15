@@ -25,7 +25,11 @@ Calcit 业务状态、队列、身份、generation、安装与释放均在本仓
 - 100 次 device rebuild 始终 `live=1`，关闭后 `created=released=101、live=0`，累计上传 1616 B；
 - Chromium 真实 WebGPU API 把 2×2 红色 SVG 上传到两代 device 的 texture，分别复制读回 `[255,0,0,255]`，最终 `created=released=2、live=0`。
 
-软件 adapter 可以证明浏览器 WebGPU API 与生命周期接线正确，但不是硬件性能或恢复时延证据。当前仍未把 texture 用于 Quamolit Scene 实际采样绘制，也未实现 queue completion 后的 fence-safe 延迟 destroy；font/glyph、geometry 与 pipeline loader 继续留在 #51。
+软件adapter可证明WebGPU API与生命周期接线，不是硬件性能或恢复时延。texture已随图片Scene图层用于实际采样绘制，见[图片合同](webgpu-scene-images.md)，不要再当作未实现前置；glyph、geometry与pipeline loader继续留在#51。
+
+资源关闭区分“已提交”与“仅编码”。[WebGPU buffer销毁](https://www.w3.org/TR/webgpu/#buffer-destruction)与[texture销毁](https://www.w3.org/TR/webgpu/#texture-destruction)由浏览器保护先前已提交工作的使用期，不要求本库每次destroy前等待整个queue。已关闭宿主禁止新提交；只编码但未提交的命令不能在资源销毁后提交。显式读回、应用自建内存池槽复用、外部原生资源互操作仍须各自的完成协议，不能据此删除等待或宣称所有资源安全。
+
+现有图片GPU硬件用例沿公共Calcit图层/registry/texture宿主验证：提交实际Scene及读回复制后，不先等待queue，立即dispose图层并关闭registry；随后mapAsync读到原独立参考像素，宿主重复关闭幂等、再绘制失败、texture逻辑created=released=1/live=0。相反顺序中，已编码但未提交的buffer/texture命令在destroy后提交须得到原生validation error。它证明此受限WebGPU提交/关闭合同，不证明GPU在调用close时仍物理繁忙、显存同步回收、全资源rebuild或恢复时延；测试报告保留实际adapter，云端硬件SKIP仍非通过。
 
 2026-09-30 本机验证：Calcit 0.27.0、Node 24.19.0。`yarn test:webgpu-instances` 的 60/60 公共定义与 14 个 Node 场景通过，headless texture 用例通过，其余 5 个硬件专项在 SwiftShader 上明确 SKIP。单独运行 `yarn playwright test --config test/gpu.playwright.config.mjs test/webgpu-texture-runner.spec.mjs --headed`，取得 `apple / metal-3 / isFallbackAdapter=false`：两代 device 的像素均为 `[255,0,0,255]`，最终 `created=released=2、live=0、uploaded-bytes=32`，无 uncaptured GPU error。测试附带 JSON adapter/像素/资源计数报告。这里模拟 device 替换，未证明浏览器真实设备故障后的自动恢复与恢复时延；其他硬件未验证。
 
