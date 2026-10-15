@@ -3164,6 +3164,10 @@
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference)
     'quamolit.examples.drag-demo $ %{} 'FileEntry
       :defs $ {}
+        '*drag-client-position $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defatom *drag-client-position
+            assert-type (Option :none) (:: 'Option 'quamolit.motion/Vec2)
+          :examples $ []
         '*drag-model $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defatom *drag-model (initial)
           :examples $ []
@@ -3207,9 +3211,7 @@
           :code $ quote $ defn commit-drag-scene! (element)
             let
                 model @*drag-model
-                committed $ pointer-browser/reconcile-pointer-surface! (pointer-browser/pointer-surface-host element)
-                  hit/compile-hit-plan $ scene-at model
-                  , @*drag-pointer-state
+                committed $ pointer-browser/reconcile-pointer-surface-at! (pointer-browser/pointer-surface-host element) (view-hit-plan model @*drag-view) @*drag-pointer-state @*drag-client-position
               reset! *drag-pointer-state $ :state committed
               when (:capture-released committed)
                 reset! *drag-model $ end-pointer model $ :pointer model
@@ -3224,6 +3226,11 @@
         'current-pointer $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn current-pointer () (:pointer @*drag-model)
           :examples $ []
+        'current-pointer-state $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn current-pointer-state () @*drag-pointer-state
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerState)
+            :args $ []
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context model)
             reference/draw-reference! context $ scene-at model
@@ -3260,6 +3267,10 @@
             :features $ #{} :js-ffi
         'handle-pointer-event! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn handle-pointer-event! (surface phase event)
+            reset! *drag-client-position $ if
+              = phase $ pointer/PointerPhase :cancel
+              Option :none
+              Option :some $ motion/Vec2 :x (.-client-x event) :y $ .-client-y event
             let
                 model @*drag-model
                 raw-input $ pointer-browser/pointer-input-from-event surface phase event
@@ -3336,6 +3347,19 @@
                     , &unit
                 on-host-loss $ fn (_event)
                   if (release-drag-pointer! surface) (render!) &unit
+                on-enter $ fn (host-event)
+                  let
+                      event $ pointer-browser/pointer-event-host host-event
+                    reset! *drag-client-position $ Option :some $ motion/Vec2 :x (.-client-x event) :y (.-client-y event)
+                    render!
+                on-leave $ fn (_event)
+                  match (:capture @*drag-pointer-state)
+                    (:none)
+                      do
+                        reset! *drag-client-position $ Option :none
+                        reset! *drag-pointer-state $ pointer/state-with-hover @*drag-pointer-state $ pointer/PointerDispatch :none
+                        render!
+                    _ &unit
               reset-demo!
               dom/element-add-event-listener! element |pointerdown on-down
               dom/element-add-event-listener! element |pointermove on-move
@@ -3344,7 +3368,9 @@
               dom/element-add-event-listener! element |lostpointercapture on-lost
               dom/add-event-listener! |blur on-host-loss
               dom/add-event-listener! |pagehide on-host-loss
-              fn () (dom/element-remove-event-listener! element |pointerdown on-down) (dom/element-remove-event-listener! element |pointermove on-move) (dom/element-remove-event-listener! element |pointerup on-up) (dom/element-remove-event-listener! element |pointercancel on-cancel) (dom/element-remove-event-listener! element |lostpointercapture on-lost) (dom/remove-event-listener! |blur on-host-loss) (dom/remove-event-listener! |pagehide on-host-loss) (release-drag-pointer! surface) &unit
+              dom/element-add-event-listener! element |pointerenter on-enter
+              dom/element-add-event-listener! element |pointerleave on-leave
+              fn () (dom/element-remove-event-listener! element |pointerdown on-down) (dom/element-remove-event-listener! element |pointermove on-move) (dom/element-remove-event-listener! element |pointerup on-up) (dom/element-remove-event-listener! element |pointercancel on-cancel) (dom/element-remove-event-listener! element |lostpointercapture on-lost) (dom/remove-event-listener! |blur on-host-loss) (dom/remove-event-listener! |pagehide on-host-loss) (release-drag-pointer! surface) &unit (dom/element-remove-event-listener! element |pointerenter on-enter) (dom/element-remove-event-listener! element |pointerleave on-leave)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'js-ffi.browser/DomElementHost $ :: 'Fn
@@ -3429,10 +3455,12 @@
                 model @*drag-model
                 reconciled $ pointer/clear-pointer-capture before
                 next-model $ end-pointer model $ :pointer model
+                next-state $ pointer/state-with-hover (:state reconciled) (pointer/PointerDispatch :none)
+              reset! *drag-client-position $ Option :none
               pointer-browser/release-state-native-capture! surface before
-              reset! *drag-pointer-state $ :state reconciled
+              reset! *drag-pointer-state next-state
               reset! *drag-model next-model
-              or (:capture-released reconciled) (not= model next-model)
+              or (:capture-released reconciled) (not= model next-model) (not= before next-state)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost
@@ -3446,6 +3474,7 @@
           :code $ quote $ defn reset-demo! ()
             reset! *drag-model $ initial
             reset! *drag-pointer-state $ pointer/initial-pointer-state
+            reset! *drag-client-position $ Option :none
             , &unit
           :examples $ []
         'scene-at $ %{} 'CodeEntry (:doc |)
@@ -3497,6 +3526,23 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'Number 'Number
+        'view-hit-plan $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn view-hit-plan (model view)
+            let
+                document $ scene-at model
+                root $ scene/SceneNode :id |drag-css :key |drag-css :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group
+                  scene/GroupNode :opacity 1 :clip (scene/ClipSpec :none) :transform $ scene/Matrix2D :a (:scale-x view) :b 0 :c 0 :d (:scale-y view) :e (:x view) :f $ :y view
+              hit/compile-hit-plan $ scene/SceneDocument :nodes $ prepend
+                map (:nodes document)
+                  fn (node)
+                    if
+                      empty? $ :parent node
+                      struct-with node $ :parent |drag-css
+                      , node
+                , root
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
+            :args $ [] 'quamolit.examples.drag-demo/DragModel 'quamolit.examples.drag-demo/DragView
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.drag-demo
           :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference) (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as pointer-browser) (js-ffi.browser :as dom)
@@ -18401,6 +18447,23 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
             :args $ [] 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState
+        'reconcile-pointer-state-at $ %{} 'CodeEntry
+          :doc "|按新HitPlan与可选局部CSS位置重算hover，同时保留原身份/disabled捕获协调。none清空hover，不猜0,0；不返回业务输入投递，不按up/cancel释放有效capture，调用者须沿原输入协议处理取消与失焦。"
+          :code $ quote $ defn reconcile-pointer-state-at (plan state position)
+            let
+                reconciled $ reconcile-pointer-state plan state
+                dispatch $ match position
+                  (:none) (PointerDispatch :none)
+                  (:some point)
+                    do
+                      assert |invalid-pointer-position $ and
+                        motion/finite-number? $ :x point
+                        motion/finite-number? $ :y point
+                      hit-dispatch plan $ PointerInput :pointer-id 0 :phase (PointerPhase :move) :x (:x point) :y $ :y point
+              struct-with reconciled $ :state $ state-with-hover (:state reconciled) dispatch
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
+            :args $ [] 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState $ :: 'Option 'quamolit.motion/Vec2
         'release-phase? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-phase? (phase)
             or
@@ -18509,6 +18572,7 @@
         :code $ quote $ ns quamolit.scene-pointer
           :require (quamolit.scene-ir :as scene) (quamolit.scene-hit :as hit)
             calcit.test :refer $ is=
+            quamolit.motion :as motion
     'quamolit.scene-pointer-browser $ %{} 'FileEntry
       :defs $ {}
         'PointerBoundsHost $ %{} 'CodeEntry (:doc |)
@@ -18633,6 +18697,25 @@
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState
             :features $ #{} :js-ffi
+        'reconcile-pointer-surface-at! $ %{} 'CodeEntry
+          :doc "|Scene提交时按可选client CSS位置重算hover，每次读取元素当前边界，不乘DPR。只接纯数据Vec2，不保存PointerEvent/DOM；none停止hover，不复活旧位置。捕获按身份/disabled协调，原生release仍精确一次，无synthetic DOM事件。"
+          :code $ quote $ defn reconcile-pointer-surface-at! (surface plan state position)
+            let
+                local $ match position
+                  (:none) (Option :none)
+                  (:some client)
+                    let
+                        bounds $ surface .get-pointer-bounds
+                      Option :some $ motion/Vec2 :x
+                        - (:x client) (.-left bounds)
+                        , :y $ - (:y client) (.-top bounds)
+                reconciled $ pointer/reconcile-pointer-state-at plan state local
+              when (:capture-released reconciled) (release-state-native-capture! surface state)
+              , reconciled
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
+            :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-hit/HitPlan 'quamolit.scene-pointer/PointerState $ :: 'Option 'quamolit.motion/Vec2
+            :features $ #{} :js-ffi
         'release-native-capture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-native-capture! (surface input routed)
             let
@@ -18669,7 +18752,7 @@
             :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.scene-pointer-browser
-          :require (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (js-ffi.contract :as contract)
+          :require (quamolit.scene-hit :as hit) (quamolit.scene-pointer :as pointer) (js-ffi.contract :as contract) (quamolit.motion :as motion)
     'quamolit.test.component-fixture $ %{} 'FileEntry
       :defs $ {}
         'declare-badge $ %{} 'CodeEntry (:doc |)
@@ -20754,6 +20837,26 @@
                       is= true $ :capture-released reconciled
                       is= (pointer/PointerCapture :none)
                         :capture $ :state reconciled
+              :tags $ #{} :scene-pointer
+            %{} 'TestEntry (:name |stationary-position-reconcile)
+              :code $ quote $ fn ()
+                let
+                    plan $ hit/compile-hit-plan $ routing-scene
+                    initial $ pointer/initial-pointer-state
+                    at-a $ pointer/reconcile-pointer-state-at plan initial $ Option :some (motion/Vec2 :x 20 :y 20)
+                    at-b $ pointer/reconcile-pointer-state-at plan (:state at-a)
+                      Option :some $ motion/Vec2 :x 120 :y 20
+                    unknown $ pointer/reconcile-pointer-state-at plan (:state at-b) (Option :none)
+                    down $ pointer/route-pointer plan initial $ pointer-input 7 (pointer/PointerPhase :down) 20 20
+                    captured $ pointer/capture-dispatch (:state down) (:dispatch down)
+                    outside $ pointer/reconcile-pointer-state-at plan captured $ Option :some (motion/Vec2 :x 1000 :y 1000)
+                  is= |a $ :hover-node $ :state at-a
+                  is= |b $ :hover-node $ :state at-b
+                  is= | $ :hover-node $ :state unknown
+                  is= | $ :hover-node $ :state outside
+                  is= (pointer/PointerCapture :captured 7 |a-action |a)
+                    :capture $ :state outside
+                  is= false $ :capture-released outside
               :tags $ #{} :scene-pointer
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.test.scene-hit-fixture

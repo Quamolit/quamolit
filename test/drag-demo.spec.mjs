@@ -18,6 +18,118 @@ async function logicalPoint(page, x, y) {
   );
 }
 
+for (const dpr of [1, 2]) {
+  test(`静止鼠标的视图提交重算hover，capture与取消独立 DPR${dpr}`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: dpr });
+    const page = await context.newPage();
+    try {
+      await ready(page);
+      const point = await logicalPoint(page, -45, -25);
+      await page.mouse.move(point.x, point.y);
+      const before = await page.evaluate(() => {
+        window.hoverInputs = 0;
+        const canvas = document.querySelector("canvas");
+        for (const type of ["pointermove", "pointerdown", "pointerup", "pointercancel"])
+          canvas.addEventListener(type, () => {
+            window.hoverInputs++;
+          });
+        return window.dragDemo.snapshot();
+      });
+      expect(before.pointerState["hover-node"]).toBe("drag-rect");
+      const resize = (width, height) =>
+        page.evaluate(
+          ({ width, height }) => {
+            const canvas = document.querySelector("canvas");
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+            window.hoverInputs = 0;
+            window.dragDemo.draw();
+            return {
+              state: window.dragDemo.snapshot(),
+              inputs: window.hoverInputs,
+              native: canvas.hasPointerCapture(1),
+            };
+          },
+          { width, height },
+        );
+      const moved = await resize(1440, 1000);
+      expect(moved.inputs).toBe(0);
+      expect(moved.state.pointerState["hover-node"]).toBe("");
+      expect(moved.state.model).toEqual(before.model);
+      expect(moved.state.width).toBe(1440 * dpr);
+      const covered = await resize(1280, 900);
+      expect(covered.inputs).toBe(0);
+      expect(covered.state.pointerState["hover-node"]).toBe("drag-rect");
+      const translated = await page.evaluate(() => {
+        document.querySelector("canvas").style.transform = "translate(100px,80px)";
+        window.hoverInputs = 0;
+        window.dragDemo.draw();
+        return { state: window.dragDemo.snapshot(), inputs: window.hoverInputs };
+      });
+      expect(translated.inputs).toBe(0);
+      expect(translated.state.pointerState["hover-node"]).toBe("");
+      expect(translated.state.model).toEqual(before.model);
+      const untranslated = await page.evaluate(() => {
+        document.querySelector("canvas").style.transform = "";
+        window.hoverInputs = 0;
+        window.dragDemo.draw();
+        return { state: window.dragDemo.snapshot(), inputs: window.hoverInputs };
+      });
+      expect(untranslated.inputs).toBe(0);
+      expect(untranslated.state.pointerState["hover-node"]).toBe("drag-rect");
+      await page.mouse.down();
+      const captured = await resize(1440, 1000);
+      expect(captured.inputs).toBe(0);
+      expect(captured.state.captured).toBe(1);
+      expect(captured.native).toBe(true);
+      expect(captured.state.pointerState["hover-node"]).toBe("");
+      const cancelled = await page.evaluate(() => {
+        const canvas = document.querySelector("canvas");
+        canvas.dispatchEvent(new PointerEvent("pointercancel", { pointerId: 1, bubbles: true }));
+        window.dragDemo.draw();
+        return { state: window.dragDemo.snapshot(), native: canvas.hasPointerCapture(1) };
+      });
+      expect(cancelled.state.captured).toBeNull();
+      expect(cancelled.native).toBe(false);
+      expect(cancelled.state.pointerState["hover-node"]).toBe("");
+      expect((await resize(1280, 900)).state.pointerState["hover-node"]).toBe("");
+      await page.mouse.up();
+      await page.mouse.move(point.x, point.y);
+      expect((await page.evaluate(() => window.dragDemo.snapshot())).pointerState["hover-node"]).toBe("drag-rect");
+      const blurred = await page.evaluate(() => {
+        window.dispatchEvent(new Event("blur"));
+        window.dragDemo.draw();
+        return window.dragDemo.snapshot();
+      });
+      expect(blurred.pointerState["hover-node"]).toBe("");
+      expect((await resize(1280, 900)).state.pointerState["hover-node"]).toBe("");
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.move(-10, -10);
+      expect(
+        (
+          await page.evaluate(() => {
+            window.dragDemo.draw();
+            return window.dragDemo.snapshot();
+          })
+        ).pointerState["hover-node"],
+      ).toBe("");
+      const disposed = await page.evaluate(({ x, y }) => {
+        const api = window.dragDemo,
+          canvas = document.querySelector("canvas");
+        api.dispose();
+        api.dispose();
+        canvas.dispatchEvent(new PointerEvent("pointerenter", { pointerId: 1, clientX: x, clientY: y }));
+        canvas.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: x, clientY: y }));
+        return api.snapshot();
+      }, point);
+      expect(disposed.pointerState["hover-node"]).toBe("");
+      expect(disposed.captured).toBeNull();
+    } finally {
+      await context.close();
+    }
+  });
+}
+
 test("真实指针跨矩形边界拖动、滑块夹取和捕获释放", async ({ page }, testInfo) => {
   await ready(page);
   const start = await page.evaluate(() => window.dragDemo.snapshot());

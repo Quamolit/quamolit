@@ -4,6 +4,10 @@ import {
   to_js_data as toJsData,
   init_tags as initTags,
   _PCT__$o__$o_ as enumValue,
+  _PCT_some as some,
+  _PCT_none as none,
+  arrayToList,
+  _$n__PCT__$M_ as record,
 } from "../target/js/scene-pointer-browser/calcit.core.mjs";
 import {
   exercise_browser_capture_$x_ as exerciseBrowserCapture,
@@ -15,14 +19,132 @@ import {
   pointer_event_host as pointerEventHost,
   pointer_surface_host as pointerSurfaceHost,
   reconcile_pointer_surface_$x_ as reconcileSurface,
+  reconcile_pointer_surface_at_$x_ as reconcileSurfaceAt,
 } from "../target/js/scene-pointer-browser/quamolit.scene-pointer-browser.mjs";
 import {
   PointerPhase,
   route_pointer as routePointer,
   initial_pointer_state as initialState,
   capture_dispatch as captureDispatch,
+  reconcile_pointer_state_at as reconcileAt,
 } from "../target/js/scene-pointer-browser/quamolit.scene-pointer.mjs";
-import { pointer_input as pointerInput } from "../target/js/scene-pointer-browser/quamolit.test.scene-hit-fixture.mjs";
+import {
+  pointer_input as pointerInput,
+  routing_scene as routingScene,
+  routing_scene_without_a as withoutA,
+} from "../target/js/scene-pointer-browser/quamolit.test.scene-hit-fixture.mjs";
+import { Vec2 } from "../target/js/scene-pointer-browser/quamolit.motion.mjs";
+import { SceneContent } from "../target/js/scene-pointer-browser/quamolit.scene-ir.mjs";
+import { compile_hit_plan as compilePlan, matrix } from "../target/js/scene-pointer-browser/quamolit.scene-hit.mjs";
+
+test("无输入的几何协调更新hover而不因移开释放有效capture", () => {
+  const tags = initTags([
+    "state",
+    "dispatch",
+    "down",
+    "move",
+    "capture",
+    "capture-released",
+    "hover-node",
+    "nodes",
+    "content",
+    "group",
+    "transform",
+    "x",
+    "y",
+  ]);
+  const at = (x, y) => some(record(Vec2, tags.x, x, tags.y, y));
+  const document = routingScene(),
+    plan = compilePlan(document);
+  const down = routePointer(plan, initialState(), pointerInput(7, enumValue(PointerPhase, tags.down), 20, 20));
+  const hovered = down.getRequired(tags.state),
+    captured = captureDispatch(hovered, down.getRequired(tags.dispatch));
+  const nodes = document.getRequired(tags.nodes).toArray();
+  const movedRoot = nodes[0].assoc(
+    tags.content,
+    enumValue(
+      SceneContent,
+      tags.group,
+      nodes[0].getRequired(tags.content).extra[0].assoc(tags.transform, matrix(1, 0, 0, 1, 100, 0)),
+    ),
+  );
+  const moved = compilePlan(document.assoc(tags.nodes, arrayToList([movedRoot, ...nodes.slice(1)])));
+  const state = (result) => toJsData(result.getRequired(tags.state));
+  assert.equal(state(reconcileAt(moved, hovered, at(20, 20)))["hover-node"], "");
+  assert.equal(state(reconcileAt(moved, initialState(), at(120, 20)))["hover-node"], "a");
+  assert.equal(state(reconcileAt(plan, hovered, none()))["hover-node"], "", "未知位置不能猜0,0重新命中");
+  const kept = reconcileAt(moved, captured, at(20, 20));
+  assert.deepEqual(state(kept).capture, ["captured", 7, "a-action", "a"]);
+  assert.equal(state(kept)["hover-node"], "");
+  assert.equal(kept.getRequired(tags["capture-released"]), false);
+  const ended = reconcileAt(compilePlan(withoutA()), captured, at(20, 20));
+  assert.equal(ended.getRequired(tags["capture-released"]), true);
+  assert.deepEqual(state(ended).capture, ["none"]);
+  assert.equal(
+    reconcileAt(compilePlan(withoutA()), ended.getRequired(tags.state), at(20, 20)).getRequired(
+      tags["capture-released"],
+    ),
+    false,
+  );
+  assert.equal(toJsData(hovered)["hover-node"], "a", "旧状态保持不可变");
+  for (const value of [NaN, Infinity, -Infinity]) assert.throws(() => reconcileAt(plan, hovered, at(value, 20)));
+});
+
+test("静止client位置按元素最新边界重投影，未知位置不读取元素边界", () => {
+  const tags = initTags(["state", "dispatch", "down", "capture-released", "x", "y"]);
+  const position = some(record(Vec2, tags.x, 120, tags.y, 70));
+  const plan = compilePlan(routingScene());
+  let left = 100,
+    reads = 0,
+    owner = 7,
+    releases = 0;
+  const surface = {
+    getBoundingClientRect() {
+      reads++;
+      return { left, top: 50 };
+    },
+    hasPointerCapture(id) {
+      return owner === id;
+    },
+    releasePointerCapture(id) {
+      assert.equal(id, owner);
+      owner = null;
+      releases++;
+    },
+  };
+  const first = reconcileSurfaceAt(surface, plan, initialState(), position);
+  assert.equal(toJsData(first.getRequired(tags.state))["hover-node"], "a");
+  left = 200;
+  const moved = reconcileSurfaceAt(surface, plan, first.getRequired(tags.state), position);
+  assert.equal(toJsData(moved.getRequired(tags.state))["hover-node"], "");
+  assert.equal(reads, 2);
+  left = 100;
+  assert.equal(
+    toJsData(reconcileSurfaceAt(surface, plan, moved.getRequired(tags.state), position).getRequired(tags.state))[
+      "hover-node"
+    ],
+    "a",
+  );
+  const beforeNone = reads;
+  assert.equal(
+    toJsData(reconcileSurfaceAt(surface, plan, first.getRequired(tags.state), none()).getRequired(tags.state))[
+      "hover-node"
+    ],
+    "",
+  );
+  assert.equal(reads, beforeNone);
+  const down = routePointer(plan, initialState(), pointerInput(7, enumValue(PointerPhase, tags.down), 20, 20));
+  const captured = captureDispatch(down.getRequired(tags.state), down.getRequired(tags.dispatch));
+  left = 200;
+  const kept = reconcileSurfaceAt(surface, plan, captured, position);
+  assert.equal(kept.getRequired(tags["capture-released"]), false);
+  assert.equal(releases, 0);
+  const removed = compilePlan(withoutA());
+  const ended = reconcileSurfaceAt(surface, removed, kept.getRequired(tags.state), position);
+  assert.equal(ended.getRequired(tags["capture-released"]), true);
+  reconcileSurfaceAt(surface, removed, ended.getRequired(tags.state), position);
+  assert.equal(releases, 1);
+});
 
 test("提交实例计划立即协调原生捕获；保留、释放与重复提交有独立断言", () => {
   const tags = initTags(["state", "dispatch", "down", "capture-released", "capture"]);
