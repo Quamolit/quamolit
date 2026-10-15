@@ -4,7 +4,7 @@
 
 当前标准标量子集为常量、`scale * time + offset`、`ScalarTween`（linear、smoothstep，含 `duration=0` 跳变），以及最多 16 个采样点的 `ScalarTrack`。轨道计划原样保留有序帧、重复时间和 clamp/repeat/mirror 模式；超过 16 帧返回 `keyframe-capacity-exceeded`。16 是本阶段的显式计划容量，不是 GPU 性能最优值；未来 #52 仍需决定缓冲布局、索引与数据上传策略。`lower-composition` 支持恰好两片可降低标量叶子的 add、multiply、mix；嵌套组合在原有 IR 结构上不可表示。
 
-`lower-vec2` 支持 Vec2 常量与共享进度的 Vec2 tween，保留同一个 ID/version 与带类型的两个端点。`lower-cpu-scalar` 始终返回描述符里的 CPU-only 诊断，绝不转译注册回调。颜色、资源输入尚未进入此 GPU 子集，仍由 CPU 参考路径处理。计划中的 `:supported` 仅表示已落在受限数据子集内，不表示当前环境能用 WebGPU，也不表示已经执行了 WGSL。
+`lower-vec2` 支持 Vec2 常量与共享进度的 Vec2 tween，保留同一个 ID/version 与带类型的两个端点。`lower-cpu-scalar` 始终返回描述符里的 CPU-only 诊断，绝不转译注册回调。这里没有直接降低 ColorDescriptor 的入口；矩形颜色通过[组件声明桥接](component-sample.md)展开为线性RGB与独立alpha，再使用标量入口，不是任意颜色表达式均可GPU化。资源输入不由这个lowering处理。计划中的 `:supported` 仅表示已落在受限数据子集内，不表示当前环境能用 WebGPU，也不表示已经执行了 WGSL。
 
 空 ID、非有限/负数/非整数版本、无效持续时间、数值和轨道属于输入错误，会抛错；合法但不受支持的表达式才返回 `:unsupported`。CPU 自定义描述还需非空 callback ID，回退理由不得为空。编译器不得静默改变语义。
 
@@ -27,7 +27,7 @@
 
 恰好两点的 clamp/mirror 轨道由 Calcit 冷准备归一化为现有参数，使用首关键帧的 easing；末帧 easing 不参与该段插值。clamp 的重复时间保留“时间点前取首值，到点后右侧胜出”，非恒定零时长跳变仍被精度预算拒绝。mirror 用 floor 将任意有限时间映射到两倍段长的往返周期，包含负时间；奇数周期端点取末值、偶数端点取首值。零段长镜像按 CPU 合同归一化为末值常量。镜像的误差预算额外为周期除法/归约预留余量，验收容差不变；超过预算整层回退。多段和 repeat 仍整层回退，repeat 的不连续周期边界待独立精度合同。复用原 buffer、pipeline 和 uniform，不在时间帧进行 CPU 轨道采样。
 
-当前矩形目标为x/y/填充alpha/width/height；宽高端点须非负，group opacity仍整层回退，alpha不能代替隔离组透明度。颜色、旋转、缩放和任意Calcit闭包不由这个标量执行器处理。已有Vec2 tween实例路径使用同一参数编码，但不自动继承全部候选算子。GPU数值按既定`1e-5+1e-5*abs(expected)`验证；实际硬件证据、乱序时间与支持域见标量合同，不将其他设备或整个数值域视为已验证。
+当前矩形目标为x/y/填充alpha/width/height以及linear-red/linear-green/linear-blue；宽高端点须非负，alpha和线性光RGB端点在[0,1]，RGB采样后编码为sRGB。group opacity仍整层回退，alpha不能代替隔离组透明度；旋转、缩放和任意Calcit闭包不由这个标量执行器处理。颜色constant/tween的组件桥接、独立消费者linear/smoothstep与剩余组合边界见[标量合同](gpu-scalar-program.md)，不能用颜色内区验证推断全部透明叠加或#144画质完成。已有Vec2 tween实例路径使用同一参数编码，但不自动继承全部候选算子。GPU数值按既定`1e-5+1e-5*abs(expected)`验证；实际硬件证据、乱序时间与支持域见标量合同，不将其他设备或整个数值域视为已验证。
 
 `prepare-program`的逐绑定回退沿用`ProgramResult :fallback String`，在原原因后附加`;key=<逻辑key>;target=<目标>;motion=<算子>`，例如`scalar-kernel-not-supported;key=badge;target=:x;motion=:time`。该文本用于显示诊断，不是分号可解析协议（key可含任意字符）；低层`prepare-slot`仍返回原原因。重复绑定也定位该节点；整层结构、自定义变换或整体精度预算的拒绝仍是计划级原因。调用方必须回退整个计划，不得丢掉失败绑定后绘制其余部分。
 

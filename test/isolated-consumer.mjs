@@ -188,6 +188,11 @@ try {
   const recoveryCounts = verifyRecoveryConsumer(app, core);
   const gpuCounts = verifyGpuConsumer(app, core);
   const gpuDualCounts = verifyDualGpuConsumer(app, core);
+  assert.throws(
+    () => verifyDualGpuConsumer({ ...app, update_color: (plan) => plan }, core),
+    /AssertionError/,
+    "反例：停止颜色 CPU 参考更新必须失败",
+  );
   gpuDualCounts.mirror = verifyGpuConsumer(app, core, "mirror");
   assert.throws(
     () => verifyGpuConsumer({ ...app, update_mirror: (plan) => plan }, core, "mirror"),
@@ -519,6 +524,30 @@ try {
     assert.equal(pixelAlpha, Math.round(255 * time * time * (3 - 2 * time)));
     if (time === 0.5) await page.screenshot({ path: join(artifacts, "alpha-frame-0.5.png"), fullPage: true });
   }
+  await page.click('[data-mode="color"]');
+  for (const time of [1, 0, 0.5, 0.25, 1]) {
+    await page.click(`[data-time="${time}"]`);
+    const frame = await page.evaluate(() => window.consumer.snapshot());
+    assert.equal(frame.mode, "color");
+    const ratio = time * time * (3 - 2 * time); // 此时既有资源开关为 ready。
+    const encode = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
+    const expected = [ratio, 1 - ratio, 0.25 + 0.5 * ratio].map((v) => Math.round(255 * encode(v))).concat(255);
+    assert.deepEqual(
+      await page.evaluate(
+        (time) => [
+          ...document
+            .querySelector("canvas")
+            .getContext("2d")
+            .getImageData(82 + 40 * time, 65, 1, 1).data,
+        ],
+        time,
+      ),
+      expected,
+    );
+    if (time === 0.5) await page.screenshot({ path: join(artifacts, "color-frame-0.5.png"), fullPage: true });
+  }
+  const sameTime = await page.evaluate(() => window.consumer.set({ time: 0.25, ready: false }));
+  assert.ok(Math.abs(sameTime.scene.nodes[1].content[1].fill.r - (1.055 * 0.25 ** (1 / 2.4) - 0.055)) < 1e-12);
   await page.click('[data-mode="mirror"]');
   for (const [time, x] of [
     [1, 120],
@@ -656,7 +685,7 @@ try {
   const scalarGpu = await page.evaluate(() => window.consumer.setMode("instances-scalar"));
   if (scalarGpu.recovery.phase[0] === "ready") {
     assert.equal(scalarGpu.metrics["cold-record-bytes"], 640000);
-    assert.equal(scalarGpu.metrics["cold-parameter-bytes"], 2240000);
+    assert.equal(scalarGpu.metrics["cold-parameter-bytes"], 10000 * (256 + 2 * 32));
     for (const time of [1, 0, 0.5, 0.25, 1]) {
       const state = await page.evaluate((time) => window.consumer.set({ time }), time);
       assert.equal(state.source.copiedBytes, 0);

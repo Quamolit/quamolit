@@ -12,7 +12,7 @@ function nativeDevice() {
   const device = {
     limits: { maxBufferSize: 1e7, maxStorageBufferBindingSize: 1e7 },
     createShaderModule({ code }) {
-      assert.ok(code.includes("sampleMotion(motions[instance*5u]"));
+      assert.ok(code.includes("sampleMotion(motions[instance*8u]"));
       return {};
     },
     createRenderPipeline() {
@@ -124,7 +124,7 @@ export function verifyIndependentGpuConsumer(app, core) {
     assert.throws(() => app.draw_independent_gpu_$x_(host, program, 0), /not-installed/);
     app.install_independent_gpu_$x_(host, program, 0);
     assert.equal(host.uploadedBytes, 640000);
-    assert.equal(host.parameterBytes, 2240000);
+    assert.equal(host.parameterBytes, 3200000);
     const cold = m.writes.length;
     for (let index = 0; index < 1000; index++)
       app.draw_independent_gpu_$x_(host, program, [1, 0, 0.5, 0.25, 1][index % 5]);
@@ -133,7 +133,7 @@ export function verifyIndependentGpuConsumer(app, core) {
     assert.ok(hot.every((w) => w.bytes === 16 && w.label === "Quamolit component viewport"));
     assert.deepEqual(m.draws.at(-1), [6, 10000]);
     assert.equal(host.uploadedBytes, 640000);
-    assert.equal(host.parameterBytes, 2240000);
+    assert.equal(host.parameterBytes, 3200000);
     const before = m.writes.length;
     const beforeTime = host.viewScratch[2],
       beforeDraws = m.draws.length;
@@ -158,7 +158,7 @@ export function verifyIndependentGpuConsumer(app, core) {
     instances: 10000,
     parameters: 20000,
     coldRecordBytes: 640000,
-    coldParameterBytes: 2240000,
+    coldParameterBytes: 3200000,
     hotFrames: 1000,
     hotPositionBytes: 0,
     hotUniformBytes: 16000,
@@ -202,7 +202,7 @@ export function verifyGpuConsumer(app, core, mode = false) {
     app.install_gpu_$x_(host, program);
     const coldWrites = m.writes.length;
     assert.equal(host.uploadedBytes, 128);
-    assert.equal(host.parameterBytes, 352);
+    assert.equal(host.parameterBytes, 544);
     for (let frame = 0; frame < 1000; frame++) {
       // 无逐帧 update_rects/CPU sampler；只传已安装 program 和绝对时间。
       app.draw_gpu_$x_(host, program, mirror ? (frame % 501) / 100 - 2.5 : (frame % 101) / 100);
@@ -211,7 +211,7 @@ export function verifyGpuConsumer(app, core, mode = false) {
     assert.equal(hotWrites.length, 1000);
     assert.ok(hotWrites.every((w) => w.bytes === 16 && w.label === "Quamolit component viewport"));
     assert.equal(host.uploadedBytes, 128);
-    assert.equal(host.parameterBytes, 352);
+    assert.equal(host.parameterBytes, 544);
     assert.equal(m.buffers.length, 3);
     assert.equal(m.counts().pipelines, 1);
     assert.equal(m.draws.length, 1001);
@@ -258,7 +258,7 @@ export function verifyGpuConsumer(app, core, mode = false) {
     backend: "native-device-mock",
     frames: 1000,
     coldRecordsBytes: 128,
-    coldParametersBytes: 352,
+    coldParametersBytes: 544,
     hotRecordsBytes: 0,
     hotParametersBytes: 0,
     hotUniformBytes: 16000,
@@ -288,14 +288,14 @@ export function verifyDualGpuConsumer(app, core) {
     assert.deepEqual(
       parameters.map((p) => [p.offset, p.values]),
       [
-        [160, [80, 144, 0, 1, 1, 1, 0, 0]],
-        [192, [62, 94, 0, 1, 1, 1, 0, 0]],
-        [256, [40, 104, 0, 1, 1, 1, 0, 0]],
-        [288, [20, 52, 0, 1, 1, 1, 0, 0]],
+        [256, [80, 144, 0, 1, 1, 1, 0, 0]],
+        [288, [62, 94, 0, 1, 1, 1, 0, 0]],
+        [352, [40, 104, 0, 1, 1, 1, 0, 0]],
+        [384, [20, 52, 0, 1, 1, 1, 0, 0]],
       ],
       "x/y/width/height 使用独立参数槽，不覆盖 alpha 槽",
     );
-    assert.equal(host.parameterBytes, 448);
+    assert.equal(host.parameterBytes, 640);
     const coldWrites = m.writes.length;
     for (let i = 0; i < 1000; i++) app.draw_gpu_$x_(host, program, (i % 101) / 100);
     assert.equal(m.writes.length - coldWrites, 1000);
@@ -318,7 +318,7 @@ export function verifyDualGpuConsumer(app, core) {
     const before = m.writes.length;
     const linear = app.prepare_gpu(app.start_rects(0, 40, false, 100)).extra[0];
     app.install_gpu_$x_(host, linear);
-    assert.equal(m.writes[before].bytes, 320);
+    assert.equal(m.writes[before].bytes, 512);
     assert.ok(
       m.writes[before].values.every((v) => v === 0),
       "切回单轴必须清除旧 y/width/height 动画槽",
@@ -331,10 +331,61 @@ export function verifyDualGpuConsumer(app, core) {
     backend: "native-device-mock",
     mode: "smoothstep-xy-size",
     frames: 1000,
-    coldParametersBytes: 448,
+    coldParametersBytes: 640,
     hotParametersBytes: 0,
     hotUniformBytes: 16000,
     buffers: 3,
     alpha: verifyGpuConsumer(app, core, true),
+    color: verifyColorGpuConsumer(app, core),
   };
+}
+
+function verifyColorGpuConsumer(app, core) {
+  const tags = core.init_tags(["scene", "declarations", "plan-builds", "parameters"]);
+  const source = app.start_color(0, 40, false, 100),
+    before = core.to_js_data(source);
+  const prepared = app.prepare_gpu(source);
+  assert.equal(prepared.tag.value, "ready");
+  const program = prepared.extra[0];
+  const parameters = core.to_js_data(program.get(tags.parameters));
+  assert.deepEqual(
+    parameters.map((p) => p.axis),
+    [0, 5, 6, 7, 2],
+  );
+  const m = nativeDevice(),
+    host = app.create_gpu_$x_(m.canvas, m.device, "bgra8unorm", 2);
+  try {
+    app.install_gpu_$x_(host, program);
+    assert.equal(host.parameterBytes, 672);
+    const cold = m.writes.length;
+    for (let i = 0; i < 1000; i++) app.draw_gpu_$x_(host, program, [1, 0, 0.5, 0.25, 1][i % 5]);
+    assert.equal(m.writes.length - cold, 1000);
+    assert.ok(m.writes.slice(cold).every((w) => w.bytes === 16 && w.label === "Quamolit component viewport"));
+    const encode = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
+    for (const ready of [false, true]) {
+      for (const time of [1, 0, 0.5, 0.25, 1, 0.37, 0.81]) {
+        const plan = app.update_color(source, time, 40, ready, 100);
+        const scene = core.to_js_data(plan.get(tags.scene)),
+          fill = scene.nodes[1].content[1].fill;
+        const t = ready ? time * time * (3 - 2 * time) : time;
+        for (const [channel, linear] of [
+          ["r", t],
+          ["g", 1 - t],
+          ["b", 0.25 + 0.5 * t],
+        ]) {
+          assert.ok(Math.abs(fill[channel] - encode(linear)) < 1e-12, `${ready}/${time}/${channel}`);
+        }
+        assert.equal(fill.a, 1);
+        assert.equal(scene.nodes[1].content[1].x, 80 + 40 * time);
+        assert.equal(app.gpu_reusable_$q_(program, plan), !ready);
+      }
+    }
+    assert.equal(source.get(tags.declarations), 1);
+    assert.equal(source.get(tags["plan-builds"]), 1);
+    assert.deepEqual(core.to_js_data(source), before);
+  } finally {
+    app.dispose_gpu_$x_(host);
+  }
+  assert.ok(m.buffers.every((b) => b.destroyed === 1));
+  return { frames: 1000, coldParametersBytes: 672, hotParametersBytes: 0, hotUniformBytes: 16000 };
 }

@@ -1,14 +1,18 @@
 # 标量 Motion 到公共 GPU 计划（开发中）
 
-推进 #52，消费 #118 的 ComponentPlan/矩形批次候选，不另造组件或 Scene。已接入参数常驻和 vertex shader 采样；已有真实 GPU 像素、线性及双轴 smoothstep 非整数读回，以及独立消费者分发验证。完整精度域与性能验收仍在开发，不以这些诊断帧代表完整数值等价。
+推进#52，复用已合并的ComponentPlan/矩形批次，不另造组件或Scene。参数常驻与vertex shader采样、原子集的GPU像素/数值和独立消费者分发已有证据。下述八槽线性RGB属于[候选#238](https://github.com/Quamolit/quamolit/pull/238)，未合并或发布；完整颜色组合与性能验收仍未完成。
 
 `quamolit.gpu-scalar-program/prepare-program(plan)` 返回 `ProgramResult :ready ScalarProgram` 或 `:fallback reason`。ready 保存同一来源计划、矩形帧和 ScalarParameter 列表。通过既有 `motion-gpu/lower-scalar` 检查描述符，再将明确支持的矩形 x/y/alpha/width/height constant、linear/smoothstep tween 或两点 clamp/mirror 轨道转成参数。轨道复用 tween 编码与 shader，段 easing 取首帧；重复时间保留“时间点前取首值，到点后右侧胜出”，非恒定零时长跳变仍被原精度预算拒绝。多段及 repeat 未实现，仍明确回退。alpha 是填充透明度替换，端点须在 `[0,1]`，不是 group opacity；隔离组、CPU 自定义变换、其他目标/算子及不支持的节点仍整层回退，不返回部分有效绑定。
 
-参数逻辑布局为 `index, axis, start, duration, from, to, easing, padding`，共8个Number。axis 0/1/2/3/4 对应 x/y/alpha/width/height，easing 0/1 对应 clamp linear/smoothstep，2/3 对应 mirror linear/smoothstep。constant归一化为相同from/to、duration=0；零时长在 time<start 时取from，否则取to，shader在除法前处理分支。storage buffer按节点保留五个32B槽，每槽为from/to/start/duration、enabled/easing/0/0；位置为index×160+axis×32，不在shader中搜索绑定。alpha交给原预乘混合；宽高在既有顶点路径中生成矩形，不改变绘制顺序。
+参数逻辑布局为`index,axis,start,duration,from,to,easing,padding`。axis0/1/2/3/4对应x/y/alpha/width/height，5/6/7对应矩形`linear-red/linear-green/linear-blue`；easing0/1为clamp linear/smoothstep，2/3为mirror。constant、零时长与原精度预算不变。storage每节点八个32B槽：from/to/start/duration、enabled/easing/0/0，地址为index×256+axis×32。RGB槽保存线性光通道，采样后编码sRGB并按Canvas的8位规则取整；alpha仍为直通道透明度，不做色域转换。静态未绑定的通道保留原值，层序不变。
 
-五槽共用原buffer与pipeline，不增加资源数量，但参数容量从每节点96B增为160B。10k现有双轴负载的参数冷安装为1600000B清零+640000B写入=2240000B，热帧仍仅16B uniform。历史硬件/正式基准按当时源码保留，不冒充五槽布局的新性能报告；本轮是功能扩展，不声称加速。
+八槽共用原buffer/pipeline，宿主仍为3个buffer，但参数容量由每节点160B增至256B。当前65节点的Calcit声明含原x与四个RGBA绑定，本机实际冷安装为16640B清零+160B写入=16800B，时间帧参数/记录不重写，仍仅16B uniform。25c5555的干净独立消费者已实测10k双轴为2560000B清零+640000B写入=3200000B，candidate=harness、dirty=false，原Metal画面/读回合同通过；旧2240000B报告仅属历史布局。此处是功能扩展，不声称加速。
 
-宽高复用已有 `ScalarTarget :width/:height` 与标量描述，不新增公开 API。端点须非负（零合法），否则以 `scalar-size-negative` 整层回退；已支持的 linear/smoothstep 单段不会在非负端点间超调。颜色、旋转/缩放与 group opacity 仍不在此子集中。现有 `?motion=dual` 消费者同时声明 x/y/width/height，测试复用原合同、参数槽清理、8个整数画面及7个非整数/边界样本；数值读回额外检查宽高，容差不变。
+宽高复用已有`ScalarTarget :width/:height`；非负端点、原精度拒绝与图层回退不变。旋转/缩放与group opacity仍未支持。原`?motion=dual`消费者的位移/宽高、数值及画面合同不变，必须在新布局下重验，不能只更新字节期望。
+
+线性RGB绑定输入为[0,1]线性光值，不是编码sRGB数字；低层调用者可用`motion/srgb-to-linear`转换颜色端点。应用优先用纯Calcit的`component-sample/with-rect-color-motion`添加已有`ColorDescriptor`，不手工拆通道；constant/tween桥接及冲突规则见[组件声明](component-sample.md)。CPU复用现有`linear-to-srgb`，GPU使用同一分段编码规则，避免把sRGB通道直接算术混合后当作标准颜色渐变。越界端点以`scalar-color-outside-unit-interval`回退，CPU仍明确拒绝。独立消费者`?motion=color`在同页使用该入口，linear/smoothstep颜色版本切换复用原双轴硬件专项：11帧含同时间版本失效、整帧零差异和独立内区公式，7个smoothstep时间点的21个线性通道读回使用原数值容差；原门禁不放宽。GPU完整常量/轨道/透明叠加组合、完整精度域与正式tag分发仍未完成。
+
+本地Apple/Metal-3诊断：`declare-colored-demo`用公共颜色描述和桥接构建保留计划，1→0→0.5→0.25→1的5个不透明内区像素与独立sRGB参考实际零差异，连续3轮通过。新夹具预设RGB≤1级8位转换差、alpha精确255，未改变原整图零差异门禁。0.37/0.81/0.4999999/-0.1/1.1的15个线性值读回满足既定`1e-5+1e-5*abs(expected)`；声明/计划构建各1次。临时仅把`:file`中的输出改为未经编码的线性值，重新codegen后真实像素断言失败（中点128而非188），恢复后复验；不是自比较或仅修改期望。此为仓库内Calcit到后端的功能验证，不替代干净安装或完整#144画质；原始JSON仅在忽略artifact，测量数据本身不作为测试PASS结论。
 
 参数预检要求 f32 有限、绝对值及 start+duration 不超过 1e30；正 duration 至少 1e-30，排除 f32 下溢与过大中间值。除此之外，Calcit 冷准备计算保守精度预算，不能只凭有限性接受大绝对时间/短时长。
 
@@ -20,7 +24,7 @@
 
 `create-renderer!` 复用现有定义级 file 的资源构造器，仅选择 scalar shader 变体；创建返回及公共安装/绘制/释放参数统一使用 [RectRendererHost](gpu-component-plan.md)，不增加包装对象。`install-program!` 冷安装先验证完整来源、清除旧槽、上传参数和初始记录，再绘制；`draw-at!(host,program,time)` 在精度检查后仅更新 16 B time/viewport uniform 并提交。必须传入该 host 当前安装的 program；一个 renderer 只由一个调用方维护安装历史。版本变化、提交失败或设备重建后重新安装，不能在未安装或已释放的对象上绘制。动态 `draw-at!` 不在 CPU 采样 Motion；对照页的另外两块 Canvas 仍独立采样。拒绝的时间帧在任何上传前失败，页面据此整层回退。
 
-Apple/Metal-3（software=false）实际验证 t=1→0→0.5→0.25→1，每帧 230400 通道零差异；同时间 Model、资源 ready、视口版本变化后也零差异。65 节点冷安装记录 4160 B，参数清零 4160 B 加一个绑定 32 B；时间帧记录与参数均 0 B，另加 uniform 16 B。1 pipeline / 3 buffers。真实执行发现过 WGSL `from` 保留字导致 shader 失败，已更名修复；mock 不证明 WGSL 能编译。
+以下两段保留早期布局的历史硬件观察，不代表八槽候选的新测量。Apple/Metal-3（software=false）验证t=1→0→0.5→0.25→1，每帧230400通道零差异，同时间Model/资源/视口变化后也零差异。当时65节点记录4160B、参数清零4160B加32B绑定，热帧仅16B uniform，1 pipeline/3 buffers。WGSL曾因保留字失败，已修复；mock不证明实际shader编译。
 
 同一硬件的有界数值读回复用 renderer 的 `scalarSource` 与已安装 storage 参数，不另写测试版 WGSL。t=0.37 得到 94.80000305175781（独立线性公式 94.8）；t=0.81 得到 112.4000015258789（112.4）；t=0.4999999 得到 100（99.999996）；t=-0.1/1.1 得到 80/120。全部满足既定 `1e-5 + 1e-5*abs(expected)`，未放宽阈值。五次共读回 40 B，每次诊断临时分配三个 buffer 并释放；测试专用 compute 不是正常绘制路径，不计稳态帧资源和吞吐。当前仅证明这个线性绑定，不能外推所有 smoothstep/双轴或整个精度域。
 
