@@ -8651,6 +8651,30 @@
           :schema $ :: 'Fn $ {}
             :args $ [] (:: 'List 'quamolit.gpu-component/RectRecord) (:: 'List 'quamolit.gpu-component/RectRecord) 'Number $ :: 'List 'quamolit.gpu-component/RectWrite
             :return $ :: 'List 'quamolit.gpu-component/RectWrite
+        'configure-viewport! $ %{} 'CodeEntry
+          :doc "|按实际像素尺寸与逻辑坐标系配置等比居中viewport。物理尺寸为正整数且不超过设备限制，逻辑尺寸在[1e-6,1e30]；只更新表面/呈现，不重装几何或Motion参数。配置后须由调用方重绘；不承诺跨后端边缘像素等价。"
+          :code $ quote $ defn configure-viewport! (host width height logical-width logical-height)
+            assert |invalid-gpu-viewport $ and (f32/finite-f32? width) (f32/finite-f32? height) (f32/finite-f32? logical-width) (f32/finite-f32? logical-height) (> width 0) (> height 0)
+              = width $ floor width
+              = height $ floor height
+              >= logical-width 0.000001
+              <= logical-width 1e30
+              >= logical-height 0.000001
+              <= logical-height 1e30
+            let
+                sx $ / width logical-width
+                sy $ / height logical-height
+                scale $ if (<= sx sy) sx sy
+                view-width $ * logical-width scale
+                view-height $ * logical-height scale
+              raw-viewport! (unsafe-coerce host 'JsObject) width height logical-width logical-height
+                / (- width view-width) 2
+                / (- height view-height) 2
+                , view-width view-height
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'quamolit.gpu-component/RectRendererHost 'Number 'Number 'Number 'Number
+            :features $ #{} :js-ffi
         'create-renderer! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-renderer! (canvas device format capacity)
             unsafe-coerce
@@ -8809,9 +8833,19 @@
           :code $ quote $ defn raw-draw! (host instance-count) &unit
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
-            :js $ {} $ :inline "|(h,count)=>{\nif(h.disposed)throw Error('gpu-component-disposed');\nif(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-component-capacity');\nconst {width,height}=h.canvas;\nif(!Number.isSafeInteger(width)||width<=0||!Number.isSafeInteger(height)||height<=0)throw Error('gpu-component-viewport');\nh.viewScratch[0]=width;h.viewScratch[1]=height;h.device.queue.writeBuffer(h.params,0,h.viewScratch);\nconst encoder=h.device.createCommandEncoder(),pass=encoder.beginRenderPass({colorAttachments:[{view:h.context.getCurrentTexture().createView(),loadOp:'clear',storeOp:'store',clearValue:{r:1,g:1,b:1,a:1}}]});\nif(count>0){pass.setPipeline(h.pipeline);pass.setBindGroup(0,h.bindGroup);pass.setVertexBuffer(0,h.vertices);pass.draw(6,count);h.draws++;}\npass.end();h.device.queue.submit([encoder.finish()]);h.submits++;\n}"
+            :js $ {} $ :inline "|(h,count)=>{\nif(h.disposed)throw Error('gpu-component-disposed');\nif(!Number.isSafeInteger(count)||count<0||count>h.capacity)throw Error('gpu-component-capacity');\nconst {width,height}=h.canvas;\nif(!Number.isSafeInteger(width)||width<=0||!Number.isSafeInteger(height)||height<=0)throw Error('gpu-component-viewport');\nh.viewScratch[0]=h.logicalWidth??width;h.viewScratch[1]=h.logicalHeight??height;h.device.queue.writeBuffer(h.params,0,h.viewScratch);\nconst encoder=h.device.createCommandEncoder(),pass=encoder.beginRenderPass({colorAttachments:[{view:h.context.getCurrentTexture().createView(),loadOp:'clear',storeOp:'store',clearValue:{r:1,g:1,b:1,a:1}}]});\nif(h.viewport)pass.setViewport(...h.viewport,0,1);\nif(count>0){pass.setPipeline(h.pipeline);pass.setBindGroup(0,h.bindGroup);pass.setVertexBuffer(0,h.vertices);pass.draw(6,count);h.draws++;}\npass.end();h.device.queue.submit([encoder.finish()]);h.submits++;\n}"
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'Number
+            :features $ #{} :js-ffi
+        'raw-viewport! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn raw-viewport!
+            host width height logical-width logical-height x y view-width view-height
+            , &unit
+          :examples $ []
+          :ffi $ {} (:backend :js) (:target :browser)
+            :js $ {} $ :inline "|(h,width,height,lw,lh,x,y,vw,vh)=>{\nif(h.disposed)throw Error('gpu-component-disposed');\nif(width>h.device.limits.maxTextureDimension2D||height>h.device.limits.maxTextureDimension2D)throw Error('gpu-viewport-device-limit');\nconst w=Math.min(width,Math.fround(vw)),v=Math.min(height,Math.fround(vh));\nconst left=Math.max(0,Math.min(Math.fround(x),width-w)),top=Math.max(0,Math.min(Math.fround(y),height-v));\nif(h.canvas.width!==width)h.canvas.width=width;\nif(h.canvas.height!==height)h.canvas.height=height;\nh.logicalWidth=lw;h.logicalHeight=lh;h.viewport=[left,top,w,v];\n}"
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'JsObject 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number
             :features $ #{} :js-ffi
         'raw-write! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn raw-write!

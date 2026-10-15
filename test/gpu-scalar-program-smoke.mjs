@@ -6,7 +6,7 @@ import * as motion from "../target/js/gpu-component/quamolit.motion.mjs";
 import * as scene from "../target/js/gpu-component/quamolit.scene-ir.mjs";
 import * as program from "../target/js/gpu-component/quamolit.gpu-scalar-program.mjs";
 import * as lowering from "../target/js/gpu-component/quamolit.motion-gpu.mjs";
-import { dispose_renderer_$x_ } from "../target/js/gpu-component/quamolit.gpu-component.mjs";
+import { configure_viewport_$x_, dispose_renderer_$x_ } from "../target/js/gpu-component/quamolit.gpu-component.mjs";
 import {
   start,
   start_mixed,
@@ -611,9 +611,10 @@ test("检查完整参数域；起点有效但终点越界也不能交给 GPU", (
 function mock() {
   const writes = [],
     buffers = [],
-    shaders = [];
+    shaders = [],
+    viewports = [];
   const device = {
-    limits: { maxBufferSize: 1e7, maxStorageBufferBindingSize: 1e7 },
+    limits: { maxBufferSize: 1e7, maxStorageBufferBindingSize: 1e7, maxTextureDimension2D: 8192 },
     createShaderModule(v) {
       shaders.push(v.code);
       return {};
@@ -642,7 +643,16 @@ function mock() {
     createCommandEncoder() {
       return {
         beginRenderPass() {
-          return { setPipeline() {}, setBindGroup() {}, setVertexBuffer() {}, draw() {}, end() {} };
+          return {
+            setViewport(...args) {
+              viewports.push(args);
+            },
+            setPipeline() {},
+            setBindGroup() {},
+            setVertexBuffer() {},
+            draw() {},
+            end() {},
+          };
         },
         finish() {
           return {};
@@ -673,8 +683,43 @@ function mock() {
       };
     },
   };
-  return { device, canvas, writes, buffers, shaders };
+  return { device, canvas, writes, buffers, shaders, viewports };
 }
+
+test("原生表面尺寸与逻辑viewport分离；resize不重装参数，非法尺寸无副作用", () => {
+  const m = mock(),
+    host = program.create_renderer_$x_(m.canvas, m.device, "bgra8unorm", 128),
+    value = program.prepare_program(trsPlan()).extra[0];
+  try {
+    program.install_program_$x_(host, value);
+    const records = host.uploadedBytes,
+      parameters = host.parameterBytes;
+    configure_viewport_$x_(host, 2000, 1400, 320, 180);
+    program.draw_at_$x_(host, value, 0.5);
+    assert.deepEqual([m.canvas.width, m.canvas.height], [2000, 1400]);
+    assert.deepEqual(m.viewports.at(-1), [0, 137.5, 2000, 1125, 0, 1]);
+    assert.deepEqual(m.writes.at(-1).values, [320, 180, 0.5, 0]);
+    configure_viewport_$x_(host, 780, 1688, 320, 180);
+    program.draw_at_$x_(host, value, 0.25);
+    assert.deepEqual(m.viewports.at(-1), [0, 624.625, 780, 438.75, 0, 1]);
+    assert.equal(host.uploadedBytes, records);
+    assert.equal(host.parameterBytes, parameters);
+    assert.equal(m.buffers.length, 3);
+    const before = [m.canvas.width, m.canvas.height, ...host.viewport];
+    for (const args of [
+      [0, 180, 320, 180],
+      [1.5, 180, 320, 180],
+      [10000, 180, 320, 180],
+      [320, 180, 0, 180],
+      [320, 180, NaN, 180],
+    ]) {
+      assert.throws(() => configure_viewport_$x_(host, ...args), /invalid-gpu-viewport|gpu-viewport-device-limit/);
+      assert.deepEqual([m.canvas.width, m.canvas.height, ...host.viewport], before);
+    }
+  } finally {
+    dispose_renderer_$x_(host);
+  }
+});
 
 test("编译后 file/inline 调用：参数常驻，1000 时间帧只更新 uniform", () => {
   const m = mock(),
