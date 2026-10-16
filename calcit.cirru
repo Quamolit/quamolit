@@ -21673,14 +21673,18 @@
             :args $ []
         'hsl $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hsl (h s l & alpha)
-            if (empty? alpha)
-              str |hsl $ h |, s |%, l |%
+            if (empty? alpha) (str "|hsl(" h |, s |%, l "|%)")
               let
                   a $ &list:first alpha
-                str |hsla $ h |, s |%, l |%, a |
+                str "|hsla(" h |, s |%, l |%, a "|)"
           :examples $ []
           :schema $ :: 'Fn $ {} (:rest 'Dynamic) (:return 'String)
             :args $ [] 'Dynamic 'Dynamic 'Dynamic
+          :tests $ [] $ %{} 'TestEntry (:name |formats-css-color)
+            :code $ quote $ do
+              assert= "|hsl(200,70%,80%)" $ hsl 200 70 80
+              assert= "|hsla(0,0%,0%,0.5)" $ hsl 0 0 0 0.5
+            :tags $ #{} :unit
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.util.string
     'quamolit.util.time $ %{} 'FileEntry
