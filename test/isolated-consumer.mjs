@@ -24,6 +24,7 @@ import {
   verifyGpuConsumerBrowser,
   verifyGpuInstancesConsumerBrowser,
   verifyIndependentGpuConsumerBrowser,
+  verifyTransformGpuConsumerBrowser,
 } from "./consumer-gpu-browser.mjs";
 import { runConsumerBench } from "./consumer-bench.mjs";
 import { verifyFfiRecompile } from "./consumer-ffi-recompile.mjs";
@@ -274,6 +275,13 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("requestfailed", (request) => errors.push(`${request.url()} ${request.failure()?.errorText}`));
   page.on("request", (request) => requests.push(request.url()));
+  // 测量和分享会直接打开实例模式；不能只验证从默认组件页面点击切换。
+  await page.goto(`${url}?fixture=1&motion=instances`);
+  await page.waitForFunction(() => window.consumer?.snapshot().mode === "instances");
+  const directInstances = await page.evaluate(() => window.consumer.snapshot());
+  assert.equal(directInstances.source.count, 10000);
+  assert.equal(directInstances.metrics["canvas-calls"], 10000);
+  assert.equal(await page.locator("canvas").count(), 1);
   await page.goto(`${url}?fixture=1`);
   await page.waitForFunction(() => window.consumer);
   const fontBrowser = await verifyFontConsumerBrowser(page, artifacts);
@@ -770,7 +778,7 @@ try {
   const scalarGpu = await page.evaluate(() => window.consumer.setMode("instances-scalar"));
   if (scalarGpu.recovery.phase[0] === "ready") {
     assert.equal(scalarGpu.metrics["cold-record-bytes"], 640000);
-    assert.equal(scalarGpu.metrics["cold-parameter-bytes"], 10000 * (256 + 2 * 32));
+    assert.equal(scalarGpu.metrics["cold-parameter-bytes"], 10000 * (512 + 2 * 32));
     for (const time of [1, 0, 0.5, 0.25, 1]) {
       const state = await page.evaluate((time) => window.consumer.set({ time }), time);
       assert.equal(state.source.copiedBytes, 0);
@@ -806,7 +814,16 @@ try {
   ));
   const independentGpuBrowser = await verifyIndependentGpuConsumerBrowser(page, artifacts);
   hardwareEvidence.independentInstances = { browser: independentGpuBrowser };
+  const transformGpuBrowser = (hardwareEvidence.transformGpuBrowser = await verifyTransformGpuConsumerBrowser(
+    page,
+    artifacts,
+  ));
   if (process.env.QUAMOLIT_CONSUMER_REQUIRE_GPU === "1") {
+    assert.equal(
+      transformGpuBrowser.result,
+      "PASS",
+      `要求TRS真实GPU，但专项未运行：${JSON.stringify(transformGpuBrowser)}`,
+    );
     assert.equal(gpuBrowser.result, "PASS", `要求真实 GPU，但专项未运行：${JSON.stringify(gpuBrowser)}`);
     assert.equal(gpuDualBrowser.result, "PASS", `要求双轴真实 GPU，但专项未运行：${JSON.stringify(gpuDualBrowser)}`);
     assert.equal(
@@ -879,6 +896,7 @@ try {
     gpuBrowser,
     gpuDualBrowser,
     gpuInstancesBrowser,
+    transformGpuBrowser,
     benchmark,
     ffiRecompile,
     negativeControl: [
@@ -921,6 +939,7 @@ try {
         gpuBrowser,
         gpuDualBrowser,
         gpuInstancesBrowser,
+        transformGpuBrowser,
         modules: modules.size,
         artifacts,
         runtime,
