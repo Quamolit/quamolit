@@ -15,7 +15,7 @@
 | T2：本机硬件 | `QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer` | macOS/Metal 实际画面、上传和恢复；无非软件 adapter 必须失败，不能将 SKIP 算通过 |
 | T3：阶段测量 | `yarn bench:consumer` | 正式预热 5 s / 采样 30 s / 3 轮；只验收报告实际包含的负载，不进日常 CI |
 
-这不是完整脚本分层盘点，也不替代既有 CI 回归。新增功能尽量沿同一消费者验证成功、回退和释放，底层纯语义保留独立单测；新增命令/job/主题文档须说明现有链路无法承接的原因。计数、画质和帧耗时分开报告，次要边界登记 issue。现有 visual workflow 从消费者报告生成四项硬件专项摘要，分别统计 PASS、SKIP 和未执行，并显示 adapter/原因；报告缺失不记为通过，要求硬件时的失败报告保留已得到的 SKIP。摘要只覆盖这条关键链路，不冒充全部 Playwright 用例的 SKIP 总数。[PR 模板](../.github/PULL_REQUEST_TEMPLATE.md)要求声明硬件、容差及新增复杂度的理由，不替代实际验证。
+这不是完整脚本分层盘点，也不替代既有 CI 回归。新增功能尽量沿同一消费者验证成功、回退和释放，底层纯语义保留独立单测；新增命令/job/主题文档须说明现有链路无法承接的原因。计数、画质和帧耗时分开报告，次要边界登记 issue。现有 visual workflow 从消费者报告生成五项硬件专项摘要（含标准TRS），分别统计 PASS、SKIP 和未执行，并显示 adapter/原因；报告缺失不记为通过，要求硬件时的失败报告保留已得到的 SKIP。摘要只覆盖这条关键链路，不冒充全部 Playwright 用例的 SKIP 总数。[PR 模板](../.github/PULL_REQUEST_TEMPLATE.md)要求声明硬件、容差及新增复杂度的理由，不替代实际验证。
 
 `test:demo-nav` 的既有共享调度矩阵覆盖三个图表页面及 Binary Tree、Curve、Solar、Clock、Raining、Finder、Icons、Layered Dashboard、Layer Composition：自动到终点、空闲至少2秒、输入唤醒、暂停 resize、伴随尺寸通知的 DPR 1→2、导航卸载后无待执行帧。它们复用同一个 `DemandFrameScheduler`，不改变 Calcit 动画/模型；Raining 保留固定 tick，尺寸通知即使未跨 tick 也重绘。同步 seek/截图及分层后端切换接口保持同步；分层页面在隐藏/pagehide 时暂停，不自动追帧。TodoList 的未来日志与 Folding Fan 的异步图片唤醒分别在原作品门禁验证取消、迟到隔离和空闲，详情见各自主题文档。Table/Drag 的事件驱动绘制、其他诊断页及全体页面无通知 DPR-only 场景仍待 #50 收口；此矩阵不证明全部示例、GPU或性能已验收。Layer Composition 保留既有250ms DPR值变化兜底，不将该轮询冒充零宿主活动或扩大到所有页面。
 

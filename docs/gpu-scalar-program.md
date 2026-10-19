@@ -1,14 +1,26 @@
 # 标量 Motion 到公共 GPU 计划（开发中）
 
-推进#52，复用已合并的ComponentPlan/矩形批次，不另造组件或Scene。参数常驻与vertex shader采样、原子集的GPU像素/数值和独立消费者分发已有证据。下述八槽线性RGB属于[候选#238](https://github.com/Quamolit/quamolit/pull/238)，未合并或发布；完整颜色组合与性能验收仍未完成。
+推进#52，复用ComponentPlan/矩形批次，不另造组件或Scene。线性RGB已随#238合并；本切片在配套0.30.1-alpha.5上加入标准TRS，保留颜色槽、同源CPU参考和整层回退。候选未合并或发布前不计入main；完整精度/栅格化与性能验收仍未完成。
 
 `quamolit.gpu-scalar-program/prepare-program(plan)` 返回 `ProgramResult :ready ScalarProgram` 或 `:fallback reason`。ready 保存同一来源计划、矩形帧和 ScalarParameter 列表。通过既有 `motion-gpu/lower-scalar` 检查描述符，再将明确支持的矩形 x/y/alpha/width/height constant、linear/smoothstep tween 或两点 clamp/mirror 轨道转成参数。轨道复用 tween 编码与 shader，段 easing 取首帧；重复时间保留“时间点前取首值，到点后右侧胜出”，非恒定零时长跳变仍被原精度预算拒绝。多段及 repeat 未实现，仍明确回退。alpha 是填充透明度替换，端点须在 `[0,1]`，不是 group opacity；隔离组、CPU 自定义变换、其他目标/算子及不支持的节点仍整层回退，不返回部分有效绑定。
 
-参数逻辑布局为`index,axis,start,duration,from,to,easing,padding`。axis0/1/2/3/4对应x/y/alpha/width/height，5/6/7对应矩形`linear-red/linear-green/linear-blue`；easing0/1为clamp linear/smoothstep，2/3为mirror。constant、零时长与原精度预算不变。storage每节点八个32B槽：from/to/start/duration、enabled/easing/0/0，地址为index×256+axis×32。RGB槽保存线性光通道，采样后编码sRGB并按Canvas的8位规则取整；alpha仍为直通道透明度，不做色域转换。静态未绑定的通道保留原值，层序不变。
+参数逻辑布局为`index,axis,start,duration,from,to,easing,padding`。axis0/1/2/3/4对应x/y/alpha/width/height，5/6/7对应矩形`linear-red/linear-green/linear-blue`，8–14对应TRS的tx/ty/angle/sx/sy/px/py；15未用。easing0/1为clamp linear/smoothstep，2/3为mirror。storage每节点十六个32B槽：from/to/start/duration、enabled/easing/0/0，地址为index×512+axis×32。RGB保持单位域校验、线性光插值与sRGB的8位编码，不因接入TRS被覆盖或放宽；alpha仍独立，静态通道和声明层序不变。
 
-八槽共用原buffer/pipeline，宿主仍为3个buffer，但参数容量由每节点160B增至256B。当前65节点的Calcit声明含原x与四个RGBA绑定，本机实际冷安装为16640B清零+160B写入=16800B，时间帧参数/记录不重写，仍仅16B uniform。25c5555的干净独立消费者已实测10k双轴为2560000B清零+640000B写入=3200000B，candidate=harness、dirty=false，原Metal画面/读回合同通过；旧2240000B报告仅属历史布局。此处是功能扩展，不声称加速。
+十六槽复用原pipeline与3个buffer，冷参数成本为512×节点数+32×绑定数；10k双轴预期为5,760,000B，须由当前消费者重验。热时间帧仍仅16B uniform。容量增加是功能成本，不是性能提升；此前八槽3,200,000B及更早2,240,000B报告属于历史布局，不能当当前测量或计算加速比。
 
-宽高复用已有`ScalarTarget :width/:height`；非负端点、原精度拒绝与图层回退不变。旋转/缩放与group opacity仍未支持。原`?motion=dual`消费者的位移/宽高、数值及画面合同不变，必须在新布局下重验，不能只更新字节期望。
+宽高复用已有`ScalarTarget :width/:height`；非负端点、原精度拒绝与图层回退不变。标准TRS见下节，group opacity仍不支持。原`?motion=dual/color`的数值及画面合同在新布局下保留，不能只更新字节期望。
+
+## 标准 TRS 与实际呈现
+
+`TransformSampler :motions` 中的 `TransformMotion :trs` 由Calcit降低为五轴标量描述及两个固定pivot参数；vertex执行T(x,y)·T(pivot)·R·S·T(-pivot)。角度为顺时针弧度，当前端点限[-3,3]；负/零缩放合法。不支持的描述、CPU闭包、非矩形或超预算计划整层回退。动态TRS记录的冷矩阵归一为单位矩阵，避免CPU采样矩阵再次叠加；常量矩阵保持原值。
+
+`update-program!(host, installed-program, plan)` 由Calcit决定相同来源/六类版本/标准变换描述是否复用；可复用时返回同一程序并提交时间，不可复用则完整准备和安装，算子/精度拒绝在上传前返回fallback。host仍须持有传入的已安装程序，异常或设备恢复后重建，不能混用另一renderer的身份。时间相等不吞掉依赖变化。
+
+TRS冷准备传播标量量化、几何/支点、缩放与WGSL sin/cos规范误差（绝对2^-11）；接受范围要求每轴世界坐标预算不超过0.125。该预算不是所有DPR/投影下的CSS像素上界，更不等于跨后端旋转边缘逐像素一致。超大支点/时间等明确拒绝；CPU任意函数不自动转换WGSL。
+
+`gpu-component/configure-viewport!(host, physical-width, physical-height, logical-width, logical-height)` 用公共`scene-ir/contain-matrix`等比居中配置表面，物理尺寸须为正整数且不超过设备限制，逻辑尺寸限[1e-6,1e30]。只改表面与逻辑uniform，不重装几何/Motion；配置后须重绘。同页GPU卡片按窗口×DPR配置实际buffer，不把320×180缓冲放大冒充原生呈现；无通知DPR-only仍归#50。
+
+独立消费者`?motion=transform-gpu`与Canvas按钮使用同一Calcit声明及现有恢复协议；页面为诊断仍更新ComponentPlan并显示采样计数，不能以零位置上传声称没有CPU采样或帧率达标。纯时间提交入口的1000帧复用、颜色联用、负/零缩放及原生DPR证据由既有`test:consumer`承接；完整画质归#144，其他设备未验证。
 
 线性RGB绑定输入为[0,1]线性光值，不是编码sRGB数字；低层调用者可用`motion/srgb-to-linear`转换颜色端点。应用优先用纯Calcit的`component-sample/with-rect-color-motion`添加已有`ColorDescriptor`，不手工拆通道；constant/tween桥接及冲突规则见[组件声明](component-sample.md)。CPU复用现有`linear-to-srgb`，GPU使用同一分段编码规则，避免把sRGB通道直接算术混合后当作标准颜色渐变。越界端点以`scalar-color-outside-unit-interval`回退，CPU仍明确拒绝。独立消费者`?motion=color`在同页使用该入口，linear/smoothstep颜色版本切换复用原双轴硬件专项：11帧含同时间版本失效、整帧零差异和独立内区公式，7个smoothstep时间点的21个线性通道读回使用原数值容差；原门禁不放宽。GPU完整常量/轨道/透明叠加组合、完整精度域与正式tag分发仍未完成。
 

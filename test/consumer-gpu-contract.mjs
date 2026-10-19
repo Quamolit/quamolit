@@ -172,7 +172,7 @@ export function verifyGpuConsumer(app, core, mode = false) {
     mirror = mode === "mirror";
   assert.deepEqual(
     core.to_js_data(app.prepare_gpu(app.start(0, 40, false, 100))),
-    ["fallback", "standard-transform-kernel-not-supported"],
+    ["fallback", "unsupported-node:polyline"],
     "混合场景不能为通过 GPU 验收静默漏画折线",
   );
   const source = (mirror ? app.start_mirror : alpha ? app.start_alpha : app.start_rects)(0, 40, false, 100);

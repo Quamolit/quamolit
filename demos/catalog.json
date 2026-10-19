@@ -204,7 +204,7 @@
       "path": "examples/retained-consumer/index.html",
       "title": "独立 Calcit 消费者",
       "group": "public",
-      "summary": "独立安装统一组件入口；位置/尺寸、线性光颜色、标准旋转缩放、alpha、镜像往返与嵌套图表同页切换，1000 帧复用、产物搬移和明确 GPU 回退，无内部 JS 导入。",
+      "summary": "独立安装统一组件入口；位置/尺寸、线性光颜色、Canvas/GPU旋转缩放、alpha、镜像往返与嵌套图表同页切换，原生DPR、恢复与明确整层回退，无内部 JS 导入。",
       "status": "独立消费",
       "docs": "docs/isolated-consumer.md",
       "compile": "consumer"

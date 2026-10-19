@@ -16,11 +16,13 @@ calcit query def app.main/update-plan --raw
 
 从 Quamolit 根目录可运行 `yarn vite examples/retained-consumer --host 127.0.0.1 --port 5183` 查看页面。Vite 只是开发服务器，不是 Calcit 消费者的运行时依赖。点击时间按钮可乱序查看中间帧，在相同时间修改 Model、资源 ready 与宽度版本，观察声明次数及画面更新。
 
-“卡片旋转与缩放”或 `?motion=transform` 由 Calcit `declare-transform` 声明平移、弧度旋转、缩放与局部支点；`TransformSampler :motions` 不保存闭包。标准矩阵按T(x,y)·T(pivot)·R·S·T(-pivot)采样，时间变化复用Scene和几何；Model/资源/视口在同时间变化仍重声明。原“线性矩形+折线”的20+10×time平移也已改用标准数据，默认效果不变。页面/生产代码只引用Calcit模块；GPU时间采样当前返回 `standard-transform-kernel-not-supported`，仍显示Canvas参考，不能当成GPU变换已交付。
+“卡片旋转与缩放”或 `?motion=transform` 由 Calcit `declare-transform` 声明平移、弧度旋转、缩放与局部支点；`TransformSampler :motions` 不保存闭包。标准矩阵按T(x,y)·T(pivot)·R·S·T(-pivot)采样，时间变化复用Scene和几何；Model/资源/视口在同时间变化仍重声明。原“线性矩形+折线”的20+10×time平移也已改用标准数据，默认效果不变。
+
+同页“GPU卡片旋转与缩放”或`?motion=transform-gpu`消费相同声明，通过公共Calcit `prepare-program`、`install-program!`与`update-program!`驱动既有renderer；消费者本地对应`prepare-gpu`等类型化函数。GPU不可用、精度域拒绝或设备失败均整层回退，模拟device loss后可恢复；离开模式释放宿主。按窗口×DPR建立原生表面，逻辑320×180居中contain，resize不重装动画参数。JS仅连接DOM和宿主动作，公共库只需Calcit导入，inline/file随模块编译，不手工引入宿主JS。该页面仍采样计划作诊断，不是零CPU变换或性能验收；完整旋转边缘和投影误差域仍未完成。
 
 当前 `deps.cirru` 的静态 pin 同时包含标准变换、线性光颜色、公共呈现矩阵和配套0.30工具链，尚非发布版本。安装、编译搬移、1000帧、支点独立公式和原生Canvas旋转缩放对照复用 `test:consumer`，不另建renderer、测试命令或导航页面；旧tag不能代替该组合的消费验收。
 
-原页面的“矩形透明度渐入”或 `?motion=alpha` 使用 Calcit `declare-alpha` 复用原两矩形 Scene，以两点 clamp 关键帧声明0→1的smoothstep alpha；GPU冷准备归一化到已有tween内核。界面显示Canvas参考，GPU采样/上传/数值和画面对照复用已有双轴硬件专项，多段、repeat 与group opacity仍不支持。八槽布局的冷安装内存/字节变化见[GPU合同](../../docs/gpu-scalar-program.md)，旧性能样本仍属于旧源码。
+原页面的“矩形透明度渐入”或 `?motion=alpha` 使用 Calcit `declare-alpha` 复用原两矩形 Scene，以两点 clamp 关键帧声明0→1的smoothstep alpha；GPU冷准备归一化到已有tween内核。界面显示Canvas参考，GPU采样/上传/数值和画面对照复用已有双轴硬件专项，多段、repeat 与group opacity仍不支持。十六槽布局的冷安装成本见[GPU合同](../../docs/gpu-scalar-program.md)，旧性能样本仍属于旧源码。
 
 “线性光颜色渐变”或 `?motion=color` 仍在同一页面：Calcit `declare-color` 调用公共 `with-rect-color-motion`，传入 ColorDescriptor 而非手工拆 RGB。颜色在 linear-sRGB 插值，alpha 独立，位置原绑定不变；资源 ready 从版本1的linear改为版本2的smoothstep，在¼帧切换可直观看到同时间失效。安装/编译/搬移、1000热帧、整图零差异及shader数值读回复用原独立消费者门禁，无新宿主JS依赖；该诊断不是新的艺术作品或完整GPU颜色/透明叠加画质验收。
 
