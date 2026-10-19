@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { to_js_data as toJsData } from "../target/js/tidal-bloom/calcit.core.mjs";
+import * as core from "../target/js/tidal-bloom/calcit.core.mjs";
 import {
   declare_progress as declareProgress,
   initial_model as initialModel,
@@ -14,13 +15,192 @@ import {
   set_view as setView,
   view_active_$q_ as viewActive,
   view_position_at as viewPositionAt,
+  start_timeline as startTimeline,
+  update_timeline as updateTimeline,
+  declare_timeline as declareTimeline,
+  timeline_request as timelineRequest,
+  start_interactive as startInteractive,
+  update_interactive as updateInteractive,
+  interactive_request as interactiveRequest,
+  declare_flow as declareFlow,
 } from "../target/js/tidal-bloom/quamolit.examples.tidal-bloom.mjs";
+import {
+  sample_plan_at as samplePlanAt,
+  build_execution_plan as buildExecution,
+  update_execution_plan as updateExecution,
+} from "../target/js/tidal-bloom/quamolit.retained-component.mjs";
+
+function assertTimelineReference(plan, time, expected = frame(time)) {
+  const actual = toJsData(plan).scene;
+  assert.deepEqual(
+    actual.nodes.map((item) => item.id),
+    expected.nodes.map((item) => item.id),
+    `节点与卸载时点 ${time}`,
+  );
+  const near = (left, right, path) => {
+    if (typeof left === "number" && typeof right === "number") {
+      assert.ok(Math.abs(left - right) < 1e-10, `${time} ${path}: ${left} != ${right}`);
+    } else if (Array.isArray(left)) {
+      assert.equal(left.length, right.length, path);
+      left.forEach((value, index) => near(value, right[index], `${path}/${index}`));
+    } else if (left !== null && typeof left === "object") {
+      assert.deepEqual(Object.keys(left), Object.keys(right), path);
+      for (const key of Object.keys(left)) near(left[key], right[key], `${path}/${key}`);
+    } else assert.equal(left, right, path);
+  };
+  for (let index = 0; index < actual.nodes.length; index++) {
+    near(actual.nodes[index].content, expected.nodes[index].content, actual.nodes[index].id);
+    assert.deepEqual(actual.nodes[index].interaction, expected.nodes[index].interaction);
+  }
+}
+
+test("完整时间轴保留全部节点渐变和卸载；乱序及同时间失效对照原投影", () => {
+  let plan = startTimeline(0);
+  for (const time of [0, 0.325, 1.4, 3.7, 7, 3.55, 3.8, 3.95, 3.98, 4.16, 4.65, 5.23, 8, 1.4]) {
+    plan = updateTimeline(plan, time, 0, 0);
+    assertTimelineReference(plan, time);
+  }
+  const before = toJsData(plan);
+  const modelChanged = updateTimeline(plan, 1.4, 1, 0);
+  assert.equal(toJsData(modelChanged).declarations, before.declarations + 1);
+  assertTimelineReference(modelChanged, 1.4);
+  const viewportChanged = updateTimeline(modelChanged, 1.4, 1, 1);
+  assert.equal(toJsData(viewportChanged)["plan-builds"], toJsData(modelChanged)["plan-builds"] + 1);
+  assertTimelineReference(viewportChanged, 1.4);
+  assert.deepEqual(toJsData(plan), before, "失效不修改旧计划");
+});
+
+test("完整概览和分析各1000时间帧只声明/构建一次，静态节点与绑定槽共享", () => {
+  for (const [start, step] of [
+    [0.2, 0.0027],
+    [4.66, 0.0022],
+  ]) {
+    let declarationCalls = 0;
+    const declare = (...args) => {
+      declarationCalls++;
+      return declareTimeline(...args);
+    };
+    let plan = buildExecution(timelineRequest(start, 0, 0), declare);
+    const initial = plan;
+    for (let index = 0; index < 1000; index++) {
+      const time = start + ((index * 37) % 1000) * step;
+      plan = updateExecution(plan, timelineRequest(time, 0, 0), declare);
+      assertTimelineReference(plan, time);
+    }
+    const result = toJsData(plan);
+    assert.equal(result.declarations, 1);
+    assert.equal(result["plan-builds"], 1);
+    assert.equal(declarationCalls, 1, "核对真实声明回调，不只信计划中的计数");
+    const keys = core.init_tags(["slots", "scene", "nodes"]);
+    assert.equal(plan.get(keys.slots), initial.get(keys.slots));
+    assert.equal(plan.get(keys.scene).get(keys.nodes).get(0), initial.get(keys.scene).get(keys.nodes).get(0));
+    const same = samplePlanAt(plan, result.time);
+    assert.equal(toJsData(same)["binding-samples"], result["binding-samples"]);
+  }
+});
 
 const frame = (time) => toJsData(sceneAt(time));
 const node = (scene, id) => scene.nodes.find((entry) => entry.id === id);
 const content = (scene, id) => node(scene, id).content[1];
 const interactiveFrame = (model, time) => toJsData(interactiveSceneAt(model, time));
 const seriesFrame = (view, series, time) => toJsData(interactiveSceneWithSeriesAt(view, series, time));
+
+test("完整交互保留计划在双日志反向打断、历史乱序和所有拓扑阈值上对照旧投影", () => {
+  let view = initialModel(0);
+  for (const [target, time] of [
+    [1, 0],
+    [0, 0.3],
+    [1, 0.6],
+    [0, 2],
+    [1, 3.2],
+  ])
+    view = setView(view, target, time);
+  let series = initialSeriesModel(0);
+  for (const [target, time] of [
+    [1, 0.7],
+    [0, 1.15],
+    [1, 2.3],
+  ])
+    series = setSeries(series, target, time);
+  let plan = startInteractive(view, series, 0, 1, 0);
+  for (const time of [0, 0.3, 0.6, 0.7, 1, 1.15, 1.4, 1.8, 2, 2.3, 3.2, 4.4, 1, 0, 4.4]) {
+    plan = updateInteractive(plan, view, series, time, 1, 0);
+    assertTimelineReference(plan, time, seriesFrame(view, series, time));
+  }
+  for (const boundary of [0, 0.38, 0.42, 0.56, 0.57, 0.69, 0.72, 1]) {
+    for (const position of [boundary, Math.max(0, boundary - 1e-12), Math.min(1, boundary + 1e-12)]) {
+      const shared = initialModel(position),
+        data = initialSeriesModel(0.37);
+      const sharedPlan = startInteractive(shared, data, 0, 0, 0);
+      assertTimelineReference(sharedPlan, 0, seriesFrame(shared, data, 0));
+    }
+  }
+  const before = toJsData(plan);
+  assert.throws(() => updateInteractive(plan, view, series, NaN, 1, 0));
+  assert.throws(() => updateInteractive(plan, view, series, -1, 1, 0));
+  assert.deepEqual(toJsData(plan), before, "失败不修改旧计划");
+});
+
+test("完整交互概览及动态图表各1000帧实际声明一次，时间帧共享槽位和静态节点", () => {
+  const view = setView(initialModel(0), 1, 0);
+  const series = setSeries(initialSeriesModel(0), 1, 0.8);
+  for (const [start, step] of [
+    [0.01, 0.00038],
+    [0.9, 0.000299],
+  ]) {
+    let calls = 0;
+    const declare = (...args) => {
+      calls++;
+      return declareFlow(...args);
+    };
+    let plan = buildExecution(interactiveRequest(view, series, start, 1, 0), declare);
+    const initial = plan,
+      keys = core.init_tags(["slots", "scene", "nodes"]);
+    for (let index = 0; index < 1000; index++) {
+      const time = start + ((index * 37) % 1000) * step;
+      plan = updateExecution(plan, interactiveRequest(view, series, time, 1, 0), declare);
+      assertTimelineReference(plan, time, seriesFrame(view, series, time));
+      assert.equal(plan.get(keys.slots), initial.get(keys.slots));
+      assert.equal(plan.get(keys.scene).get(keys.nodes).get(0), initial.get(keys.scene).get(keys.nodes).get(0));
+    }
+    assert.equal(calls, 1);
+    assert.equal(toJsData(plan).declarations, 1);
+    assert.equal(toJsData(plan)["plan-builds"], 1);
+  }
+});
+
+test("同时间输入/尺寸失效与固定历史前缀失效正确，不将重复时间吞掉", () => {
+  const view = initialModel(1);
+  const visitors = initialSeriesModel(0);
+  let plan = startInteractive(view, visitors, 0.5, 0, 0);
+  const old = toJsData(plan);
+  const revenue = setSeries(visitors, 1, 0.5);
+  plan = updateInteractive(plan, view, revenue, 0.5, 1, 0);
+  assert.equal(toJsData(plan).declarations, old.declarations + 1);
+  assertTimelineReference(plan, 0.5, seriesFrame(view, revenue, 0.5));
+  const beforeResize = toJsData(plan);
+  plan = updateInteractive(plan, view, revenue, 0.5, 1, 1);
+  assert.equal(toJsData(plan).declarations, beforeResize.declarations + 1);
+  const data = setSeries(revenue, 0, 1.2);
+  const positions = [1.4, 0.1, 0.6, 0.8, 1.2, 1.4, 0.6];
+  let previousRevision = -1;
+  for (const time of positions) {
+    const previous = toJsData(plan);
+    plan = updateInteractive(plan, view, data, time, 2, 1);
+    const current = toJsData(plan);
+    if (previousRevision >= 0)
+      assert.equal(current.declarations, previous.declarations + Number(previousRevision !== current.versions.motion));
+    previousRevision = current.versions.motion;
+    assertTimelineReference(plan, time, seriesFrame(view, data, time));
+  }
+  let toggle = initialModel(0);
+  for (let index = 0; index < 100; index++) {
+    toggle = setView(toggle, index % 2 === 0 ? 1 : 0, index * 1.2);
+    const time = index * 1.2 + 1.2;
+    plan = updateInteractive(plan, toggle, visitors, time, index + 3, 1);
+    assertTimelineReference(plan, time, seriesFrame(toggle, visitors, time));
+  }
+});
 
 test("图表 UI 组件进场、退场和真实增删按绝对时间可乱序重放", () => {
   const start = frame(0);

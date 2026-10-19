@@ -82,6 +82,23 @@ const slot = () => get(base(), "slots").get(0);
 const tween = () => core._$n_enum_$o_nth(get(get(slot(), "descriptor"), "motion"), 1);
 const withMotion = (m) => set(slot(), "descriptor", set(get(slot(), "descriptor"), "motion", m));
 const prepare = (t) => program.prepare_slot(withMotion(en(motion.ScalarMotion, "tween", t)));
+
+test("sRGB通道不会被误作线性光GPU参数，明确拒绝该目标", () => {
+  const targets = core.init_tags(["srgb-red", "srgb-green", "srgb-blue"]);
+  for (const target of Object.values(targets)) {
+    const encoded = core._PCT__$o__$o_(scene.ScalarTarget, target);
+    const bound = set(withMotion(en(motion.ScalarMotion, "constant", 0.5)), "target", encoded);
+    assert.equal(program.axis_of(bound), -1);
+    assert.deepEqual(js(program.prepare_slot(bound)), ["fallback", "scalar-target-not-supported"]);
+    const source = set(base(), "slots", new core.CalcitSliceList([bound]));
+    const before = js(source);
+    assert.deepEqual(js(program.prepare_program(source)), [
+      "fallback",
+      `scalar-target-not-supported;key=badge;target=:${target.value};motion=:constant`,
+    ]);
+    assert.deepEqual(js(source), before, "整层回退不修改旧计划");
+  }
+});
 const keyframeTrack = (frames, loop = "clamp") =>
   core._$n__PCT__$M_(
     motion.ScalarTrack,

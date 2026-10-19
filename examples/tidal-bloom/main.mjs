@@ -1,11 +1,11 @@
 // 页面只负责时钟、画布和浮层；UI 组件、布局及渐变帧都来自 Calcit。
 import {
-  draw_$x_,
-  draw_interactive_with_series_$x_,
   initial_model,
   initial_series_model,
-  interactive_scene_with_series_at,
-  scene_at,
+  start_interactive,
+  update_interactive,
+  start_timeline,
+  update_timeline,
   series_active_$q_,
   series_position_at,
   set_series,
@@ -14,9 +14,12 @@ import {
   view_active_$q_,
   view_position_at,
 } from "../../target/js/tidal-bloom/quamolit.examples.tidal-bloom.mjs";
-import { to_js_data } from "../../target/js/tidal-bloom/calcit.core.mjs";
+import { init_tags, to_js_data } from "../../target/js/tidal-bloom/calcit.core.mjs";
+import { draw_plan_$x_ } from "../../target/js/tidal-bloom/quamolit.retained-component.mjs";
 
 import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
+
+const planFields = init_tags(["declarations", "plan-builds"]);
 
 export function mountDemo() {
   const canvas = document.querySelector("canvas");
@@ -40,6 +43,10 @@ export function mountDemo() {
   let anchor = 0;
   let started = 0;
   let paints = 0;
+  let flowPlan = null;
+  let modelVersion = 0;
+  let viewportVersion = 0;
+  let viewportKey = "";
   const scheduler = new DemandFrameScheduler({
     requestFrame: (callback) => requestAnimationFrame(callback),
     cancelFrame: (handle) => cancelAnimationFrame(handle),
@@ -51,11 +58,28 @@ export function mountDemo() {
     scheduler.resume();
   }
 
+  function updatePlan() {
+    if (mode === "interactive") {
+      flowPlan = flowPlan === null
+        ? start_interactive(model, seriesModel, time, modelVersion, viewportVersion)
+        : update_interactive(flowPlan, model, seriesModel, time, modelVersion, viewportVersion);
+    } else {
+      flowPlan = flowPlan === null
+        ? start_timeline(time)
+        : update_timeline(flowPlan, time, 0, viewportVersion);
+    }
+  }
+
   function draw() {
     const bounds = canvas.getBoundingClientRect();
     const dpr = devicePixelRatio || 1;
     const width = Math.max(1, Math.round(bounds.width * dpr));
     const height = Math.max(1, Math.round(bounds.height * dpr));
+    const nextViewportKey = `${bounds.width}/${bounds.height}/${dpr}`;
+    if (nextViewportKey !== viewportKey) {
+      if (viewportKey !== "") viewportVersion++;
+      viewportKey = nextViewportKey;
+    }
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
@@ -66,8 +90,8 @@ export function mountDemo() {
     // 桌面右置以避开控制浮层；窄屏居中整个工作台。
     const centerX = width / 2 - (bounds.width < 680 ? 110 * scale : 0);
     context.setTransform(scale, 0, 0, scale, centerX, height / 2);
-    if (mode === "interactive") draw_interactive_with_series_$x_(context, model, seriesModel, time);
-    else draw_$x_(context, time);
+    updatePlan();
+    draw_plan_$x_(context, flowPlan);
     paints++;
     slider.disabled = mode === "interactive";
     if (mode === "timeline") slider.value = String(time);
@@ -78,6 +102,7 @@ export function mountDemo() {
     status.textContent = mode === "interactive"
       ? `交互切换 · ${position < 0.01 ? "概览" : position > 0.99 ? "图表分析" : `过渡 ${(position * 100).toFixed(0)}%`} · ${seriesPosition < 0.01 ? "访客" : seriesPosition > 0.99 ? "营收" : `数据渐变 ${(seriesPosition * 100).toFixed(0)}%`} · 绘制 ${paints}`
       : `t = ${time.toFixed(2)} s · ${time < 3.55 ? "概览" : time < 4.16 ? "视图切换" : "图表分析"} · 绘制 ${paints}`;
+    status.textContent += ` · 保留声明 ${flowPlan.get(planFields.declarations)} / 构建 ${flowPlan.get(planFields["plan-builds"])}`;
     status.dataset.result = "pass";
   }
 
@@ -140,6 +165,7 @@ export function mountDemo() {
       mode = "interactive";
     }
     model = set_view(model, target, time);
+    modelVersion++;
     draw();
     if (view_active_$q_(model, time)) play();
     return snapshot();
@@ -155,13 +181,16 @@ export function mountDemo() {
       mode = "interactive";
     }
     seriesModel = set_series(seriesModel, target, time);
+    modelVersion++;
     draw();
     if (view_active_$q_(model, time) || series_active_$q_(seriesModel, time)) play();
     return snapshot();
   }
 
   function snapshot() {
-    const scene = to_js_data(mode === "interactive" ? interactive_scene_with_series_at(model, seriesModel, time) : scene_at(time));
+    if (flowPlan === null) updatePlan();
+    const retained = to_js_data(flowPlan);
+    const scene = retained.scene;
     const node = (id) => scene.nodes.find((entry) => entry.id === id);
     return {
       time,
@@ -176,6 +205,11 @@ export function mountDemo() {
       width: canvas.width,
       height: canvas.height,
       nodeCount: scene.nodes.length,
+      retained: retained ? {
+        declarations: retained.declarations,
+        planBuilds: retained["plan-builds"],
+        bindingSamples: retained["binding-samples"],
+      } : null,
       heroWidth: node("hero-card")?.content[1].width ?? null,
       queueX: node("queue-card")?.content[1].x ?? null,
       progressWidth: node("hero-progress")?.content[1].width ?? null,
@@ -237,6 +271,7 @@ export function mountDemo() {
     listeners.abort();
     observer.disconnect();
     resolution?.removeEventListener("change", watchDpr);
+    flowPlan = null;
     if (window.tidalBloomDemo === api) delete window.tidalBloomDemo;
     if (window.metricFlowDemo === api) delete window.metricFlowDemo;
   };

@@ -10,6 +10,64 @@ import {
   scene_document_at as sceneDocumentAt,
 } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
+test("文字 x/y 绑定保留字体与内容，重复或不支持的目标仍拒绝", () => {
+  const tag = (name) => core.init_tags([name])[name];
+  const make = (type, fields) => core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([k, v]) => [tag(k), v]));
+  const en = (type, name, ...values) => core._PCT__$o__$o_(type, tag(name), ...values);
+  const list = (values) => new core.CalcitSliceList(values);
+  const shape = make(scene.TextNode, {
+    x: 12,
+    y: 34,
+    size: 14,
+    text: "moving label",
+    font: scene.default_font(),
+    fill: make(motion.ColorRgba, { r: 0.2, g: 0.3, b: 0.4, a: 0.75 }),
+  });
+  const text = en(scene.SceneContent, "text", shape);
+  const refs = ["x", "y"].map((axis) =>
+    make(scene.ScalarBinding, { target: en(scene.ScalarTarget, axis), "motion-id": axis, version: 0 }),
+  );
+  const descriptors = ["x", "y"].map((id, index) =>
+    make(motion.ScalarDescriptor, {
+      id,
+      version: 0,
+      motion: en(motion.ScalarMotion, "time", index + 1, index * 10),
+    }),
+  );
+  const node = make(scene.SceneNode, {
+    id: "label",
+    key: "label",
+    parent: "",
+    content: text,
+    bindings: list(refs),
+    interaction: en(scene.SceneInteraction, "none"),
+  });
+  const document = make(scene.SceneDocument, { nodes: list([node]) });
+  assert.equal(scene.validate_scene(document), true);
+  for (const time of [1, 0, 0.25, -2, 1]) {
+    const result = toJsData(binding.resolve_scene(document, list(descriptors), time));
+    assert.deepEqual(result.nodes[0].content[1], { ...toJsData(shape), x: time, y: 10 + 2 * time });
+  }
+  for (const target of ["width", "height", "opacity", "linear-red"]) {
+    const unsupported = make(scene.ScalarBinding, {
+      target: en(scene.ScalarTarget, target),
+      "motion-id": "x",
+      version: 0,
+    });
+    assert.equal(scene.valid_binding_$q_(unsupported, text), false);
+    assert.throws(() => binding.apply_scalar(text, en(scene.ScalarTarget, target), 1), /unsupported-text-binding/);
+  }
+  assert.equal(scene.valid_bindings_$q_(list([refs[0], refs[0]]), text), false);
+  assert.deepEqual(toJsData(shape), {
+    x: 12,
+    y: 34,
+    size: 14,
+    text: "moving label",
+    font: toJsData(scene.default_font()),
+    fill: { r: 0.2, g: 0.3, b: 0.4, a: 0.75 },
+  });
+});
+
 test("矩形线性RGB通道用原标量声明乱序采样，不改alpha、几何或旧Scene", () => {
   const tag = (name) => core.init_tags([name])[name];
   const make = (type, fields) =>
@@ -77,6 +135,52 @@ test("矩形线性RGB通道用原标量声明乱序采样，不改alpha、几何
   });
   assert.throws(() => binding.resolve_scene(document, list([invalid, ...tweens.slice(1)]), 0));
   assert.deepEqual(toJsData(document), before);
+});
+
+test("sRGB通道保留原编码渐变，拒绝与线性光目标重复写入同一通道", () => {
+  const tag = (name) => core.init_tags([name])[name];
+  const make = (type, fields) => core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([k, v]) => [tag(k), v]));
+  const en = (type, name, ...values) => core._PCT__$o__$o_(type, tag(name), ...values);
+  const list = (values) => new core.CalcitSliceList(values);
+  const original = sceneDocumentAt(0),
+    rect = original.get(tag("nodes")).get(1);
+  const references = ["red", "green", "blue"].map((channel) =>
+    make(scene.ScalarBinding, { target: en(scene.ScalarTarget, `srgb-${channel}`), "motion-id": channel, version: 0 }),
+  );
+  const descriptors = ["red", "green", "blue"].map((id, index) =>
+    make(motion.ScalarDescriptor, {
+      id,
+      version: 0,
+      motion: en(motion.ScalarMotion, "time", [0.43, -0.16, -0.28][index], [0.42, 0.85, 0.76][index]),
+    }),
+  );
+  const document = make(scene.SceneDocument, {
+    nodes: list([rect.assoc(tag("parent"), "").assoc(tag("bindings"), list(references))]),
+  });
+  for (const time of [0, 1, 0.5, 0.25, 0.73, 0]) {
+    const actual = toJsData(binding.resolve_scene(document, list(descriptors), time)).nodes[0].content[1];
+    const expected = toJsData(rect).content[1];
+    assert.deepEqual(actual, {
+      ...expected,
+      fill: { ...expected.fill, r: 0.42 + time * 0.43, g: 0.85 + time * -0.16, b: 0.76 + time * -0.28 },
+    });
+  }
+  for (let index = 0; index < references.length; index++) {
+    const linear = make(scene.ScalarBinding, {
+      target: en(scene.ScalarTarget, ["linear-red", "linear-green", "linear-blue"][index]),
+      "motion-id": "linear",
+      version: 0,
+    });
+    for (const pair of [
+      [linear, references[index]],
+      [references[index], linear],
+    ]) {
+      assert.equal(scene.valid_bindings_$q_(list(pair), rect.get(tag("content"))), false);
+    }
+  }
+  const invalid = descriptors[0].assoc(tag("motion"), en(motion.ScalarMotion, "constant", 1.1));
+  assert.throws(() => binding.resolve_scene(document, list([invalid, ...descriptors.slice(1)]), 0));
+  assert.deepEqual(toJsData(original), toJsData(sceneDocumentAt(0)));
 });
 
 test("Scene binding samples absolute time and retains serializable references", () => {

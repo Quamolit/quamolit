@@ -5,11 +5,100 @@ async function ready(page, time = 1.4) {
   await expect(page.locator("#status")).toHaveAttribute("data-result", "pass");
 }
 
+test("时间轴、双向视图与数据系列保留绘制和旧投影的独立原生 Canvas 逐像素一致", async ({ browser }) => {
+  for (const dpr of [1, 2]) {
+    const context = await browser.newContext({ viewport: { width: 1000, height: 700 }, deviceScaleFactor: dpr });
+    const page = await context.newPage();
+    try {
+      await ready(page, 0);
+      const differences = await page.evaluate(async () => {
+        const { scene_at, initial_model, initial_series_model, interactive_scene_with_series_at } =
+          await import("/target/js/tidal-bloom/quamolit.examples.tidal-bloom.mjs");
+        const { to_js_data } = await import("/target/js/tidal-bloom/calcit.core.mjs");
+        const source = document.querySelector("canvas");
+        const reference = document.createElement("canvas");
+        const paint = reference.getContext("2d");
+        const results = [];
+        let negativeChanged = 0;
+        const compare = (time, scene) => {
+          reference.width = source.width;
+          reference.height = source.height;
+          const scale = Math.min(source.width / 1000, source.height / 700);
+          paint.setTransform(scale, 0, 0, scale, source.width / 2, source.height / 2);
+          for (const node of to_js_data(scene).nodes) {
+            const [kind, shape] = node.content;
+            const { r, g, b, a } = shape.fill;
+            paint.fillStyle = `rgba(${r * 255}, ${g * 255}, ${b * 255}, ${a})`;
+            if (kind === "rect") paint.fillRect(shape.x, shape.y, shape.width, shape.height);
+            else if (kind === "text") {
+              paint.font = `${shape.size}px monospace`;
+              paint.textAlign = "left";
+              paint.textBaseline = "middle";
+              paint.direction = "ltr";
+              paint.fillText(shape.text, shape.x, shape.y);
+            } else throw new Error(`未覆盖参考图元 ${kind}`);
+          }
+          const actual = source.getContext("2d").getImageData(0, 0, source.width, source.height).data;
+          const expected = paint.getImageData(0, 0, reference.width, reference.height).data;
+          let changed = 0;
+          for (let index = 0; index < actual.length; index++) if (actual[index] !== expected[index]) changed++;
+          results.push({ time, changed });
+          if (time === "timeline/0.325") {
+            paint.setTransform(1, 0, 0, 1, 0, 0);
+            paint.fillStyle = "red";
+            paint.fillRect(0, 0, 1, 1);
+            const wrong = paint.getImageData(0, 0, 1, 1).data;
+            for (let index = 0; index < 4; index++) if (actual[index] !== wrong[index]) negativeChanged++;
+          }
+        };
+        const demo = window.metricFlowDemo;
+        for (const time of [0, 0.325, 1.4, 3.7, 4, 5.23, 7, 1.4]) {
+          demo.seek(time);
+          compare(`timeline/${time}`, scene_at(time));
+        }
+        const interactive = (label, times) => {
+          for (const time of times) {
+            const snapshot = demo.seekInteractive(time);
+            if (!snapshot.retained) throw new Error("交互路径没有接入保留计划");
+            compare(
+              `${label}/${time}`,
+              interactive_scene_with_series_at(
+                initial_model(snapshot.position),
+                initial_series_model(snapshot.seriesPosition),
+                0,
+              ),
+            );
+          }
+        };
+        demo.chooseView(1);
+        interactive("enter", [0.2, 0.6, 0.9, 1.2]);
+        demo.chooseSeries(1);
+        interactive("series", [1.2, 1.65, 2.1]);
+        demo.seekInteractive(1.65);
+        demo.chooseSeries(0);
+        interactive("series-reverse", [1.65, 1.9, 2.55]);
+        demo.chooseView(0);
+        interactive("exit", [2.8, 3.15, 3.75]);
+        return { frames: results, negativeChanged };
+      });
+      expect(differences.frames, `DPR ${dpr}`).toEqual(differences.frames.map(({ time }) => ({ time, changed: 0 })));
+      expect(differences.negativeChanged, `DPR ${dpr} 的故意错误参考必须被检测到`).toBeGreaterThan(0);
+    } finally {
+      await context.close();
+    }
+  }
+});
+
 test("图表 UI：组件错峰出入场、真实卸载与乱序重放", async ({ page }, testInfo) => {
   await ready(page);
   const at = (time) => page.evaluate((value) => window.tidalBloomDemo.seek(value), time);
   const first = await at(1.4);
   expect(first.nodeCount).toBe(50);
+  expect(first.retained.declarations).toBe(1);
+  expect(first.retained.planBuilds).toBe(1);
+  const sameTopology = await at(2);
+  expect(sameTopology.retained.declarations).toBe(1);
+  expect(sameTopology.retained.planBuilds).toBe(1);
   const moving = await at(3.7);
   const middle = await at(4);
   const later = await at(7);
