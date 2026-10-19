@@ -275,6 +275,13 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("requestfailed", (request) => errors.push(`${request.url()} ${request.failure()?.errorText}`));
   page.on("request", (request) => requests.push(request.url()));
+  // 测量和分享会直接打开实例模式；不能只验证从默认组件页面点击切换。
+  await page.goto(`${url}?fixture=1&motion=instances`);
+  await page.waitForFunction(() => window.consumer?.snapshot().mode === "instances");
+  const directInstances = await page.evaluate(() => window.consumer.snapshot());
+  assert.equal(directInstances.source.count, 10000);
+  assert.equal(directInstances.metrics["canvas-calls"], 10000);
+  assert.equal(await page.locator("canvas").count(), 1);
   await page.goto(`${url}?fixture=1`);
   await page.waitForFunction(() => window.consumer);
   const fontBrowser = await verifyFontConsumerBrowser(page, artifacts);

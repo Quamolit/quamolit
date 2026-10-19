@@ -121,7 +121,7 @@ let presenceModel = presence_initial(),
 let plan =
   mode === "presence"
     ? presence_plan(presenceModel, time, presenceVersion)
-    : componentModes[mode][0](time, model, ready, viewport);
+    : (componentModes[mode] ?? componentModes.mixed)[0](time, model, ready, viewport);
 // Float32Array 是宿主提供的数据源；实例声明与实际 Canvas 绘制都走消费者的 Calcit 公共入口。
 const instanceCount = to_js_data(instances_declaration()).source.count;
 const positions = createInstancePositions(instanceCount);
