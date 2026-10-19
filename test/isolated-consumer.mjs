@@ -262,6 +262,15 @@ try {
   const url = server.resolvedUrls.local[0];
   browser = await chromium.launch({ headless: process.env.QUAMOLIT_CONSUMER_HEADED !== "1" });
   page = await browser.newPage({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 1 });
+  // 读回页的实际/参考 2D Canvas 使用相同 backing，避免把两种栅格器的
+  // 旋转边缘差异误当成变换错误（#144）；整帧零差异阈值保持不变。
+  // 只影响本测试页面，发布页面、OffscreenCanvas 和 WebGPU context 不变。
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (kind, options) {
+      return original.call(this, kind, kind === "2d" ? { ...options, willReadFrequently: true } : options);
+    };
+  });
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("requestfailed", (request) => errors.push(`${request.url()} ${request.failure()?.errorText}`));
   page.on("request", (request) => requests.push(request.url()));

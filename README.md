@@ -28,7 +28,7 @@ let
 
 ## 开发与验证
 
-需要 Calcit／runtime **0.30.0-alpha.3**（预发布配套工具链）、Node.js **24**、Yarn **4**；依赖以 `deps.cirru` 和 lockfile 为准，使用 node-modules linker。
+需要 Calcit／runtime **0.30.1-alpha.5**（预发布配套工具链）、Node.js **24**、Yarn **4**；依赖以 `deps.cirru` 和 lockfile 为准，使用 node-modules linker。
 
 ```sh
 corepack enable
@@ -59,7 +59,7 @@ The [standalone consumer](examples/retained-consumer/README.md) demonstrates com
 
 The experimental Scene API includes [native arcs](docs/scene-ir-core.md#原生圆弧212), declared in Calcit and drawn through typed Canvas APIs without application-side polyline tessellation. Native drawing shipped in alpha.4. Main additionally supports Calcit arc hit testing, retained alpha bindings and Presence transitions; those extensions have not shipped in a new tag. Arc GPU rendering and geometric scalar bindings remain unsupported. Do not assume main capabilities exist in an older tag.
 
-Use the paired Calcit/runtime 0.30.0-alpha.3 prerelease and Node.js 24, then run the development commands above. `yarn compile && yarn release` builds the unified gallery and animations into `dist/`; the root URL preserves shared parameters and redirects to that same page. `release:demos` uses the same configuration with a compatibility output directory. The 27 existing compilation scripts select named entries in the main Snapshot; inspect them with `calcit config show`. The default/bootstrap remains smoke-only, and the independently installed consumer retains its own Snapshot. Entries do not isolate distributed code. Navigation tests check entry/script consistency and exercise the ordinary release output, not source fallback. Follow [plan v3](docs/plan-v3.md) for milestone status.
+Use the paired Calcit/runtime 0.30.1-alpha.5 prerelease and Node.js 24, then run the development commands above. `yarn compile && yarn release` builds the unified gallery and animations into `dist/`; the root URL preserves shared parameters and redirects to that same page. `release:demos` uses the same configuration with a compatibility output directory. The 27 existing compilation scripts select named entries in the main Snapshot; inspect them with `calcit config show`. The default/bootstrap remains smoke-only, and the independently installed consumer retains its own Snapshot. Entries do not isolate distributed code. Navigation tests check entry/script consistency and exercise the ordinary release output, not source fallback. Follow [plan v3](docs/plan-v3.md) for milestone status.
 
 ## History and license
 
