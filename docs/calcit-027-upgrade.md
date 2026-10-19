@@ -1,6 +1,6 @@
 # Calcit 工具链升级与版本合同
 
-当前候选采用已发布的 Calcit / `@calcit/procs@0.30.1-alpha.5`，不是只为稳妥停在0.30旧版本；主线基线 `80c73e5` 使用0.30.0-alpha.3，旧 Quamolit alpha.4仍为0.28.0。候选不等于正式发版或milestone验收。根项目、独立消费者、deps、npm resolution、锁文件、API查询版本门禁与中英文入口同步，不只升级作者本机CLI。
+主线已随[#242](https://github.com/Quamolit/quamolit/pull/242)采用已发布的 Calcit / `@calcit/procs@0.30.1-alpha.5`，不是只为稳妥停在0.30旧版本；旧 Quamolit alpha.4仍为0.28.0。工具链合并不等于正式发版或milestone验收。根项目、独立消费者、deps、npm resolution、锁文件、API查询版本门禁与中英文入口同步，不只升级作者本机CLI。
 
 ## 版本与来源
 

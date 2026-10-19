@@ -12,7 +12,7 @@ Scene、动画时间、矩阵相乘、树遍历与绘制顺序全部由 Calcit �
 
 Model、显隐事件、乱序重放、正常播放的增量推进、终点结算、Scene投影和指针监听均在 Calcit。绘制只读Model；viewport投影保留逻辑path和当前动画意图，resize不创建新的显隐事件。先编译同一 sampled Scene 的CSS命中计划，再协调旧PointerState、保存新状态/计划，最后绘制；实际像素到CSS比例采用元素边界/像素尺寸，避免DPR取整带来的坐标偏差。root/柱图目标由Scene表达，退出开始自动disabled整个子树，不等资源终点释放。
 
-可按住柱图获得原生捕获，再调用 `setVisible(false)` 观察立即释放；恢复后不会恢复旧捕获，须重新按下。`lostpointercapture`、up/cancel、blur和卸载复用公共指针状态机，监听器与原生捕获幂等清理。当前单个统一页面对应一个该demo实例；应用内部两个atom保存已提交计划与指针状态，不是新的框架运行时。
+可按住柱图获得原生捕获，再调用 `setVisible(false)` 观察立即释放；恢复后不会恢复旧捕获，须重新按下。`lostpointercapture`、up/cancel、blur和卸载复用公共指针状态机，监听器与原生捕获幂等清理。当前单个统一页面对应一个该demo实例；应用内部保存已提交计划、指针状态与可选client位置的三个引用，不是新的框架运行时，位置不是动画Model的一部分。
 
 展示：导航 `?demo=layered-dashboard&t=1` → 隐藏 → 用时间条查看1.3秒中间帧、1.6秒终点；在1.3秒恢复可查看连续重入至1.9秒。`window.layeredDashboardDemo` 保留 seek/play/pause/snapshot，并提供setVisible/reset/dispose。显隐日志当前仅在内存，不序列化进URL；`?t=`仍是原有入场直链，刷新不会保留新日志。seek保留日志供重放，seek后新操作裁掉未来分支；重置清空日志。
 
@@ -55,6 +55,17 @@ Model、显隐事件、乱序重放、正常播放的增量推进、终点结算
 ### 真实标题的文字命中
 
 原有标题增加独立 `title` 交互目标，不改变文字、画面或出入动画。`commit-scene!` 使用当前 Canvas context 调用公共 Calcit `measure-text-hit-plan!`，先解析同一 sampled Scene 的文字墨迹边界，再提交 CSS HitPlan、协调捕获，最后绘制。测量仍由 Calcit 配置字体、left/middle/ltr并恢复context；JS仅传入既有context，不实现边界计算或字体状态机。每次Scene提交重新测量交互文字，因此同时间字体ready/失败及暂停resize/DPR不会沿用旧边界；这是正确性接线，不是布局缓存或性能优化。
+
+提交继续调用公共 `reconcile-pointer-surface-at!`，使用 Calcit `Option<Vec2>` 保存的client CSS位置，按元素当前边界重新投影。即使没有新PointerEvent，字体ready、时间采样或视口变化也会按新计划清空或重新建立hover；不会伪造业务输入或修改Model/日志。有效capture独立于hover几何，只有原身份/释放协议决定失效。enter观察位置，未捕获leave、cancel、blur/pagehide与dispose清空位置，重复提交不复活失效hover；监听器随卸载移除。完整触摸/多指针策略仍未验收，详见[指针协议](scene-pointer.md)。
+
+原有两项DPR文字门禁扩展独立原生参考，不增加测试任务或放宽容差：
+
+- 字体：选择新旧墨迹右边界之间的client点，完成前后零新输入，hover反转，时间与显隐日志不变。
+- 乱序时间：鼠标固定于标题终点位置，按0.2→1→0.55→0.2→1采样，使用原生DOMMatrix逆投影与Canvas墨迹独立判定覆盖；要求命中/未命中均出现，无新move、capture或显隐事件。
+- 动态clip：鼠标固定于第七柱内部，0.55→1→0.2→1中柱几何始终覆盖该点，仅矩形clip收放改变交互；分别检查叶身份和冒泡chart目标。
+- 宿主生命周期：同步尺寸移开/恢复清空/建立hover，CSS平移时有效native capture保留，blur/leave和重复卸载后不复活。
+
+2026-10-19在0.30.1-alpha.5上重跑：已合并旧实现编译成功，但DPR1/2都在`t=0.2`静止标题断言失败；接线后原生2项、完整浏览器25项通过。它覆盖该看板的缩放/位移/动态clip与字体，不外推一般旋转、多指针或全部应用，也不关闭#34/M3。
 
 既有 `test:layered-dashboard` 增加DPR1/2两项真实标题门禁：原生墨迹内正例、旧字号近似框的假阳性负例、延迟FontFace完成后同时间/同版本边界改变、暂停resize、标题捕获与父级退出立即释放、重入及加载失败fallback。参考独立使用原生Canvas测量和矩阵投影，不读取实际HitPlan生成期望；原23项资源/像素/生命周期回归保留。其他没有解析的便利命中入口仍为近似，文字布局/glyph缓存不因本切片完成。
 

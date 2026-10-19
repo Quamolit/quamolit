@@ -102,7 +102,7 @@ export function mountDemo() {
     const variantButton = document.querySelector("#chart-variant");
     variantButton.textContent = state.lineChart ? "切换柱状图" : "切换折线图";
     variantButton.ariaPressed = String(state.lineChart);
-    status.textContent = `t=${time.toFixed(2)} · ${width}×${height} · ${state.nodeCount} 节点 · 捕获 ${state.captured ?? "无"}`;
+    status.textContent = `t=${time.toFixed(2)} · ${width}×${height} · ${state.nodeCount} 节点 · 捕获 ${state.captured ?? "无"} · hover ${state.pointer["hover-target"] || "无"}`;
     status.dataset.result = "pass";
     document.querySelector("#font-enable").disabled = fontEnabled;
     document.querySelector("#font-version").disabled = !fontEnabled;

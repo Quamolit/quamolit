@@ -4989,6 +4989,10 @@
           :require (quamolit.layers :as layers) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.examples.layered-dashboard :as dashboard) (quamolit.canvas-reference :as canvas) (quamolit.canvas-scene :as canvas-scene) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as upload) (quamolit.webgpu-batches :as gpu)
     'quamolit.examples.layered-dashboard $ %{} 'FileEntry
       :defs $ {}
+        '*dashboard-client-position $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defatom *dashboard-client-position
+            assert-type (Option :none) (:: 'Option 'quamolit.motion/Vec2)
+          :examples $ []
         '*dashboard-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *dashboard-plan
             hit/compile-hit-plan $ scene/SceneDocument :nodes $ scene/empty-scene-nodes
@@ -5093,7 +5097,7 @@
           :code $ quote $ defn commit-scene! (element context document scale-x scale-y)
             let
                 next-plan $ canvas-reference/measure-text-hit-plan! context $ css-hit-plan document scale-x scale-y
-                reconciled $ pointer-browser/reconcile-pointer-surface! (pointer-browser/pointer-surface-host element) next-plan @*dashboard-pointer
+                reconciled $ pointer-browser/reconcile-pointer-surface-at! (pointer-browser/pointer-surface-host element) next-plan @*dashboard-pointer @*dashboard-client-position
               reset! *dashboard-pointer $ :state reconciled
               reset! *dashboard-plan next-plan
               , &unit
@@ -5289,6 +5293,10 @@
             :args $ [] 'String 'String 'quamolit.scene-ir/Matrix2D 'quamolit.scene-ir/ClipSpec 'Number
         'handle-pointer! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn handle-pointer! (surface phase event)
+            reset! *dashboard-client-position $ if
+              = phase $ pointer/PointerPhase :cancel
+              Option :none
+              Option :some $ motion/Vec2 :x (.-client-x event) :y $ .-client-y event
             let
                 before @*dashboard-pointer
                 input $ pointer-browser/pointer-input-from-event surface phase event
@@ -5365,6 +5373,7 @@
         'install-pointer! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-pointer! (element render!)
             reset! *dashboard-pointer $ pointer/initial-pointer-state
+            reset! *dashboard-client-position $ Option :none
             reset! *dashboard-plan $ hit/compile-hit-plan $ scene/SceneDocument :nodes (scene/empty-scene-nodes)
             let
                 surface $ pointer-browser/pointer-surface-host element
@@ -5386,6 +5395,21 @@
                   route! (pointer/PointerPhase :up) event
                 cancel $ fn (event)
                   route! (pointer/PointerPhase :cancel) event
+                enter $ fn (host-event)
+                  let
+                      event $ pointer-browser/pointer-event-host host-event
+                    reset! *dashboard-client-position $ Option :some $ motion/Vec2 :x (.-client-x event) :y (.-client-y event)
+                    render!
+                    , &unit
+                leave $ fn (_event)
+                  match (:capture @*dashboard-pointer)
+                    (:none)
+                      do
+                        reset! *dashboard-client-position $ Option :none
+                        reset! *dashboard-pointer $ pointer/state-with-hover @*dashboard-pointer $ pointer/PointerDispatch :none
+                        render!
+                        , &unit
+                    _ &unit
                 lost $ fn (event)
                   let
                       result $ pointer/lose-pointer-capture @*dashboard-pointer $ pointer-browser/pointer-id-from-event (pointer-browser/pointer-event-host event)
@@ -5399,10 +5423,12 @@
               dom/element-add-event-listener! element |pointermove move
               dom/element-add-event-listener! element |pointerup up
               dom/element-add-event-listener! element |pointercancel cancel
+              dom/element-add-event-listener! element |pointerenter enter
+              dom/element-add-event-listener! element |pointerleave leave
               dom/element-add-event-listener! element |lostpointercapture lost
               dom/add-event-listener! |blur blur
               dom/add-event-listener! |pagehide blur
-              fn () (dom/element-remove-event-listener! element |pointerdown down) (dom/element-remove-event-listener! element |pointermove move) (dom/element-remove-event-listener! element |pointerup up) (dom/element-remove-event-listener! element |pointercancel cancel) (dom/element-remove-event-listener! element |lostpointercapture lost) (dom/remove-event-listener! |blur blur) (dom/remove-event-listener! |pagehide blur) (release-pointer! surface)
+              fn () (dom/element-remove-event-listener! element |pointerdown down) (dom/element-remove-event-listener! element |pointermove move) (dom/element-remove-event-listener! element |pointerup up) (dom/element-remove-event-listener! element |pointercancel cancel) (dom/element-remove-event-listener! element |pointerenter enter) (dom/element-remove-event-listener! element |pointerleave leave) (dom/element-remove-event-listener! element |lostpointercapture lost) (dom/remove-event-listener! |blur blur) (dom/remove-event-listener! |pagehide blur) (release-pointer! surface)
                 reset! *dashboard-pointer $ pointer/initial-pointer-state
                 reset! *dashboard-plan $ hit/compile-hit-plan $ scene/SceneDocument :nodes (scene/empty-scene-nodes)
                 , &unit
@@ -5563,9 +5589,11 @@
             let
                 before @*dashboard-pointer
                 reconciled $ pointer/clear-pointer-capture before
+                next $ pointer/state-with-hover (:state reconciled) (pointer/PointerDispatch :none)
               pointer-browser/release-state-native-capture! surface before
-              reset! *dashboard-pointer $ :state reconciled
-              :capture-released reconciled
+              reset! *dashboard-client-position $ Option :none
+              reset! *dashboard-pointer next
+              not= before next
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-pointer-browser/PointerSurfaceHost
