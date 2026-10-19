@@ -127,11 +127,7 @@
         '>> $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn >> (states k)
             let
-                parent-cursor $ either
-                  match (&map:get states :cursor)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  []
+                parent-cursor $ .unwrap-or (&map:get states :cursor) ([])
                 branch $ match (&map:get states k)
                   (:some legacy-value) legacy-value
                   (:none) nil
@@ -14931,11 +14927,7 @@
         'rotate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp rotate (props & children)
             let
-                angle $ * pi-ratio $ either
-                  match (&map:get props :angle)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 30
+                angle $ * pi-ratio $ .unwrap-or (&map:get props :angle) 30
               group ({})
                 native-save $ {}
                 native-rotate $ &{} :angle angle
@@ -15050,51 +15042,15 @@
         'paint-arc $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-arc (ctx style coord event)
             let
-                x $ either
-                  match (&map:get style :x)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 0
-                y $ either
-                  match (&map:get style :y)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 0
-                r $ either
-                  match (&map:get style :r)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 40
-                s-angle $ * pi-ratio $ either
-                  match (&map:get style :s-angle)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 0
-                e-angle $ * pi-ratio $ either
-                  match (&map:get style :e-angle)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 300
-                line-width $ either
-                  match (&map:get style :line-width)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 4
-                counterclockwise $ either
-                  match (&map:get style :counterclockwise)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , false
-                line-cap $ either
-                  match (&map:get style :line-cap)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , |round
-                miter-limit $ either
-                  match (&map:get style :miter-limit)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 8
+                x $ .unwrap-or (&map:get style :x) 0
+                y $ .unwrap-or (&map:get style :y) 0
+                r $ .unwrap-or (&map:get style :r) 40
+                s-angle $ * pi-ratio $ .unwrap-or (&map:get style :s-angle) 0
+                e-angle $ * pi-ratio $ .unwrap-or (&map:get style :e-angle) 300
+                line-width $ .unwrap-or (&map:get style :line-width) 4
+                counterclockwise $ .unwrap-or (&map:get style :counterclockwise) false
+                line-cap $ .unwrap-or (&map:get style :line-cap) |round
+                miter-limit $ .unwrap-or (&map:get style :miter-limit) 8
               .!beginPath ctx
               .!arc ctx x y r s-angle e-angle counterclockwise
               when (non-nil? event)
@@ -15148,26 +15104,10 @@
         'paint-line $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-line (ctx style)
             let
-                x0 $ either
-                  match (&map:get style :x0)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 0
-                y0 $ either
-                  match (&map:get style :y0)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 0
-                x1 $ either
-                  match (&map:get style :x1)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 40
-                y1 $ either
-                  match (&map:get style :y1)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 40
+                x0 $ .unwrap-or (&map:get style :x0) 0
+                y0 $ .unwrap-or (&map:get style :y0) 0
+                x1 $ .unwrap-or (&map:get style :x1) 40
+                y1 $ .unwrap-or (&map:get style :y1) 40
                 line-width $ or
                   match (&map:get style :line-width)
                     (:some legacy-value) legacy-value
@@ -15257,33 +15197,17 @@
                   6 $ .!bezierCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3) (nth coords 4) (nth coords 5)
               when (&map:contains? style :stroke-style)
                 set! (.-lineWidth ctx)
-                  either
-                    match (&map:get style :line-width)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
-                    , 4
+                  .unwrap-or (&map:get style :line-width) 4
                 set! (.-strokeStyle ctx)
                   match (&map:get style :stroke-style)
                     (:some legacy-value) legacy-value
                     (:none) nil
                 set! (.-lineCap ctx)
-                  either
-                    match (&map:get style :line-cap)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
-                    , |round
+                  .unwrap-or (&map:get style :line-cap) |round
                 set! (.-lineJoin ctx)
-                  either
-                    match (&map:get style :line-join)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
-                    , |round
+                  .unwrap-or (&map:get style :line-join) |round
                 set! (.-milterLimit ctx)
-                  either
-                    match (&map:get style :milter-limit)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
-                    , 8
+                  .unwrap-or (&map:get style :milter-limit) 8
                 .!stroke ctx
               when (&map:contains? style :fill-style)
                 set! (.-fillStyle ctx)
