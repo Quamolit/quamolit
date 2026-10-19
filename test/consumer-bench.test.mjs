@@ -17,15 +17,16 @@ test("关键链路摘要单列 SKIP，缺失/软件 GPU 不能伪装通过", () 
     result: "PASS",
     gpuBrowser: evidence,
     gpuDualBrowser: evidence,
+    transformGpuBrowser: evidence,
     gpuInstancesBrowser: { result: "SKIP", reason: "adapter-unavailable" },
     independentInstances: { browser: { result: "SKIP", reason: "software-adapter" } },
   };
   const summary = formatConsumerSummary(report);
-  assert.match(summary, /PASS 2，SKIP 2，未执行 0/);
+  assert.match(summary, /PASS 3，SKIP 2，未执行 0/);
   assert.match(summary, /adapter-unavailable/);
   assert.match(summary, /software-adapter/);
   assert.match(summary, /SKIP ≠ 硬件通过/);
-  assert.match(formatConsumerSummary({ result: "FAIL" }), /未执行 4/);
+  assert.match(formatConsumerSummary({ result: "FAIL" }), /未执行 5/);
   assert.match(formatConsumerSummary({ result: "NOT_RUN" }), /NOT_RUN/);
   assert.throws(() => formatConsumerSummary({ result: "PASS" }), /缺少硬件专项/);
   assert.throws(() => formatConsumerSummary({ ...report, gpuBrowser: { result: "SKIP" } }), /缺少原因/);
@@ -83,7 +84,7 @@ test("同源独立实例测量拒绝热位置上传、重复帧上传与伪装�
     coveredPixels: 40000,
     beforeDispose: { liveVersions: 0 },
     afterDispose: { liveBuffers: 0, liveVersions: 0 },
-    coldCounters: { recordBytes: 640000, parameterBytes: 3200000 },
+    coldCounters: { recordBytes: 640000, parameterBytes: 5760000 },
     byteProbes: [1, 1, 0].map((time) => ({
       time,
       recordBytes: 0,

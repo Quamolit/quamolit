@@ -716,6 +716,7 @@ export function formatConsumerSummary(report) {
     ["双轴 smoothstep", report.gpuDualBrowser],
     ["单脏记录 10k", report.gpuInstancesBrowser],
     ["独立动画 10k", report.independentInstances?.browser],
+    ["标准 TRS", report.transformGpuBrowser],
   ];
   const counts = { PASS: 0, SKIP: 0, NOT_RUN: 0 };
   const text = (value) => String(value).replace(/[\\`|<>\r\n]/g, " ");
@@ -757,6 +758,8 @@ export function verifyTransformConsumer(app, core) {
   const original = app.start_transform(0, 40, false, 100),
     originalScene = original.get(tags.scene),
     before = core.to_js_data(original);
+  const prepared = app.prepare_gpu(original);
+  assert.equal(prepared.tag.value, "ready");
   let plan = original;
   const check = (plan, time, model = 40, viewport = 100) => {
     const t = Math.max(0, Math.min(1, time)),
@@ -786,6 +789,7 @@ export function verifyTransformConsumer(app, core) {
     plan = app.update_transform(plan, frame / 1000, 40, false, 100);
     check(plan, frame / 1000);
     assert.equal(plan.get(tags.scene), originalScene, "标准变换热帧不重建Scene");
+    assert.equal(app.gpu_reusable_$q_(prepared.extra[0], plan), true, "标准变换时间帧必须复用GPU program");
   }
   assert.equal(plan.get(tags.declarations), 1);
   assert.equal(plan.get(tags["plan-builds"]), 1);
@@ -799,10 +803,17 @@ export function verifyTransformConsumer(app, core) {
   const changed = app.update_transform(plan, 1.1, 41, true, 200);
   check(changed, 1.1, 41, 200);
   assert.equal(changed.get(tags.declarations), 2);
+  assert.equal(app.gpu_reusable_$q_(prepared.extra[0], changed), false, "同时间依赖变化不能复用旧GPU program");
   assert.equal(core.to_js_data(changed.get(tags.scene)).nodes[1].content[1].fill.g, 0.7);
-  assert.deepEqual(core.to_js_data(app.prepare_gpu(changed)), ["fallback", "standard-transform-kernel-not-supported"]);
+  assert.equal(app.prepare_gpu(changed).tag.value, "ready", "标准TRS已进入参数准备，实际GPU由硬件专项验证");
   assert.deepEqual(core.to_js_data(original), before);
-  return { frames: 1000, declarations: 1, builds: 1, transformSamples: 1001, gpu: "明确回退，尚未实现" };
+  return {
+    frames: 1000,
+    declarations: 1,
+    builds: 1,
+    transformSamples: 1001,
+    gpu: "参数准备通过；硬件见专项，不以mock代替",
+  };
 }
 
 export function verifyConsumer(app, core) {
