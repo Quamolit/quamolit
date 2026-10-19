@@ -6,8 +6,13 @@ import * as motion from "../target/js/gpu-component/quamolit.motion.mjs";
 import * as scene from "../target/js/gpu-component/quamolit.scene-ir.mjs";
 import * as program from "../target/js/gpu-component/quamolit.gpu-scalar-program.mjs";
 import * as lowering from "../target/js/gpu-component/quamolit.motion-gpu.mjs";
-import { dispose_renderer_$x_ } from "../target/js/gpu-component/quamolit.gpu-component.mjs";
-import { start, start_mixed } from "../target/js/gpu-component/quamolit.test.retained-component-fixture.mjs";
+import { configure_viewport_$x_, dispose_renderer_$x_ } from "../target/js/gpu-component/quamolit.gpu-component.mjs";
+import {
+  start,
+  start_colored,
+  start_mixed,
+  start_transform,
+} from "../target/js/gpu-component/quamolit.test.retained-component-fixture.mjs";
 import { sample_plan_at } from "../target/js/gpu-component/quamolit.retained-component.mjs";
 import { start_component as startTreeComponent } from "../target/js/gpu-component/quamolit.examples.binary-tree.mjs";
 import { extreme_plan } from "../target/js/gpu-component/quamolit.test.gpu-component-fixture.mjs";
@@ -49,6 +54,24 @@ const tags = core.init_tags([
   "linear-red",
   "linear-green",
   "linear-blue",
+  "id",
+  "transform-sampler",
+  "transforms",
+  "motions",
+  "trs",
+  "scale-x",
+  "scale-y",
+  "rotation",
+  "pivot",
+  "a",
+  "b",
+  "c",
+  "d",
+  "e",
+  "f",
+  "matrix",
+  "records",
+  "frame",
 ]);
 const js = core.to_js_data,
   get = (o, k) => o.get(tags[k]),
@@ -307,7 +330,7 @@ test("组件与实例共用参数编码：轴、索引和完整 f32 域保持同
   });
   for (const index of [-1, 0.5, NaN])
     assert.throws(() => program.make_axis_parameter(index, 0, tween()), /invalid-scalar-instance-index/);
-  for (const axis of [-1, 8, 5.5, NaN])
+  for (const axis of [-1, 15, 5.5, NaN])
     assert.throws(() => program.make_axis_parameter(0, axis, tween()), /invalid-scalar-instance-axis/);
   assert.deepEqual(js(program.make_axis_parameter(0, 0, set(tween(), "to", 1e31))), [
     "fallback",
@@ -342,9 +365,9 @@ test("矩形 alpha 使用同一 sampler，端点限于单位区间；group opaci
   try {
     program.install_program_$x_(host, prepared.extra[0]);
     const parameterWrite = m.writes.find((w) => w.label === "Quamolit scalar parameters" && w.bytes === 32);
-    assert.equal(parameterWrite.offset, 64 * 256 + 2 * 32);
+    assert.equal(parameterWrite.offset, 64 * 512 + 2 * 32);
     assert.deepEqual(parameterWrite.values, [0, 1, 0, 1, 1, 0, 0, 0]);
-    assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*8u+2u], color.a)"));
+    assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*16u+2u], color.a)"));
     const cold = m.writes.length;
     for (const time of [1, 0, 0.5, 0.25, 1]) program.draw_at_$x_(host, prepared.extra[0], time);
     assert.ok(m.writes.slice(cold).every((w) => w.bytes === 16));
@@ -382,19 +405,19 @@ test("线性RGB复用标量参数：单位域拒绝、独立槽位及同时间�
       m.writes
         .filter((write) => write.label === "Quamolit scalar parameters" && write.bytes === 32)
         .map((write) => write.offset),
-      [64 * 256 + 5 * 32, 64 * 256 + 6 * 32, 64 * 256 + 7 * 32],
+      [64 * 512 + 5 * 32, 64 * 512 + 6 * 32, 64 * 512 + 7 * 32],
     );
-    assert.equal(h.parameterBytes, 65 * 256 + 3 * 32);
+    assert.equal(h.parameterBytes, 65 * 512 + 3 * 32);
     const start = m.writes.length;
     for (const time of [1, 0, 0.5, 0.25, 1]) program.draw_at_$x_(h, prepared.extra[0], time);
     assert.ok(m.writes.slice(start).every((write) => write.bytes === 16));
-    assert.ok(m.shaders[0].includes("sampleColorChannel(motions[instance*8u+5u], color.r)"));
+    assert.ok(m.shaders[0].includes("sampleColorChannel(motions[instance*16u+5u], color.r)"));
     const beforeReset = m.writes.length;
     program.install_program_$x_(h, program.prepare_program(base()).extra[0]);
     const reset = m.writes
       .slice(beforeReset)
       .find((write) => write.label === "Quamolit scalar parameters" && write.bytes > 32);
-    assert.equal(reset.bytes, 65 * 256);
+    assert.equal(reset.bytes, 65 * 512);
     assert.ok(reset.values.every((value) => value === 0));
   } finally {
     dispose_renderer_$x_(h);
@@ -433,7 +456,7 @@ test("宽高共享标量编码：零尺寸合法，负端点整层回退，两�
     program.install_program_$x_(host, prepared.extra[0]);
     assert.deepEqual(
       m.writes.filter((w) => w.label === "Quamolit scalar parameters" && w.bytes === 32).map((w) => w.offset),
-      [64 * 256 + 96, 64 * 256 + 128],
+      [64 * 512 + 96, 64 * 512 + 128],
     );
     for (const time of [1, 0, 0.5, 0.25, 1]) {
       const sampled = sample_plan_at(source, time);
@@ -448,7 +471,7 @@ test("宽高共享标量编码：零尺寸合法，负端点整层回退，两�
   }
 });
 
-test("不支持算子/目标/CPU或标准变换均明确回退；重复绑定不能只保留一项", () => {
+test("不支持算子/目标/CPU与混合折线明确回退；重复绑定不能只保留一项", () => {
   assert.deepEqual(js(program.prepare_slot(withMotion(en(motion.ScalarMotion, "time", 1, 0)))), [
     "fallback",
     "scalar-kernel-not-supported",
@@ -459,7 +482,7 @@ test("不支持算子/目标/CPU或标准变换均明确回退；重复绑定不
   ]);
   assert.deepEqual(js(program.prepare_program(start_mixed(0, 40, false, 100))), [
     "fallback",
-    "standard-transform-kernel-not-supported",
+    "unsupported-node:polyline",
   ]);
   // 实际 Calcit Binary Tree 仍使用 CPU 回调，不能把新标准数据接线误当成任意闭包 GPU 化。
   const cpu = startTreeComponent(0, 1);
@@ -469,6 +492,184 @@ test("不支持算子/目标/CPU或标准变换均明确回退；重复绑定不
     "fallback",
     "duplicate-gpu-scalar-target;key=badge;target=:x;motion=:tween",
   ]);
+});
+
+function trsPlan({ angle = 0.4, pivot = 100, scale = 1.05 } = {}) {
+  return start_transform(0, angle, pivot, scale);
+}
+
+test("标准TRS冷准备保留五轴与pivot；单位冷矩阵避免重复变换，1000帧仅更新时间", () => {
+  const source = trsPlan(),
+    before = js(source),
+    prepared = program.prepare_program(source);
+  assert.equal(prepared.tag.value, "ready");
+  const value = prepared.extra[0],
+    params = js(get(value, "parameters"));
+  for (const time of [1, 0, 0.5, 0.25, 1])
+    assert.equal(program.reusable_$q_(value, sample_plan_at(source, time)), true);
+  assert.equal(program.reusable_$q_(value, trsPlan({ scale: -1 })), false, "改变标准描述不能复用旧GPU参数");
+  assert.equal(program.reusable_$q_(value, base()), false, "同版本切换变换类型仍不可复用");
+  assert.deepEqual(
+    params.filter((p) => p.axis >= 8).map((p) => p.axis),
+    [8, 9, 10, 11, 12, 13, 14],
+  );
+  assert.deepEqual(js(get(get(value, "frame"), "records")).at(-1).matrix, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+  assert.notDeepEqual(js(get(source, "transforms")).at(-1), { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+  const m = mock(),
+    host = program.create_renderer_$x_(m.canvas, m.device, "bgra8unorm", 128);
+  try {
+    program.install_program_$x_(host, value);
+    assert.equal(host.parameterBytes, 65 * 512 + 8 * 32);
+    const cold = m.writes.length;
+    for (let i = 0; i < 1000; i++) program.draw_at_$x_(host, value, (i % 101) / 100);
+    assert.equal(m.writes.length - cold, 1000);
+    assert.ok(m.writes.slice(cold).every((w) => w.bytes === 16));
+    assert.ok(m.shaders[0].includes("sampleTransform(origin + extent * corners[i],instance)"));
+    assert.equal(m.buffers.length, 3);
+  } finally {
+    dispose_renderer_$x_(host);
+  }
+  assert.deepEqual(js(source), before);
+  assert.deepEqual(js(program.prepare_program(trsPlan({ angle: 3.01 }))), [
+    "fallback",
+    "trs-angle-domain;key=badge;target=transform",
+  ]);
+  assert.equal(
+    program.prepare_program(trsPlan({ pivot: 10000 })).tag.value,
+    "fallback",
+    "超出世界坐标预算不可静默接受",
+  );
+  assert.equal(program.prepare_program(trsPlan({ scale: -1 })).tag.value, "ready", "镜像与穿越零缩放保留");
+});
+
+test("颜色与TRS同时降低：RGB单位域不扩张，十五个独立轴不覆盖，热帧不重装", () => {
+  const source = set(trsPlan(), "slots", get(start_colored(0), "slots"));
+  const result = program.prepare_program(source);
+  assert.equal(result.tag.value, "ready");
+  const value = result.extra[0],
+    parameters = js(get(value, "parameters"));
+  for (const axis of [0, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
+    assert.ok(
+      parameters.some((p) => p.axis === axis),
+      `missing combined axis ${axis}`,
+    );
+  for (const axis of [5, 6, 7])
+    assert.deepEqual(js(program.make_axis_parameter(0, axis, set(tween(), "to", 1.01))), [
+      "fallback",
+      "scalar-color-outside-unit-interval",
+    ]);
+  const m = mock(),
+    host = program.create_renderer_$x_(m.canvas, m.device, "bgra8unorm", 128);
+  try {
+    program.install_program_$x_(host, value);
+    const writes = m.writes.filter((w) => w.label === "Quamolit scalar parameters" && w.bytes === 32);
+    assert.equal(new Set(writes.map((w) => w.offset)).size, parameters.length);
+    assert.equal(host.parameterBytes, 65 * 512 + parameters.length * 32);
+    assert.ok(m.shaders[0].includes("sampleColorChannel(motions[instance*16u+5u], color.r)"));
+    const cold = m.writes.length;
+    for (const time of [1, 0, 0.5, 0.25, 1])
+      assert.equal(program.update_program_$x_(host, value, sample_plan_at(source, time)).extra[0], value);
+    assert.ok(m.writes.slice(cold).every((w) => w.bytes === 16));
+  } finally {
+    dispose_renderer_$x_(host);
+  }
+});
+
+test("公共更新入口由Calcit复用或重装程序；不支持计划及越界时间在写入前回退", () => {
+  const source = trsPlan(),
+    value = program.prepare_program(source).extra[0],
+    m = mock(),
+    host = program.create_renderer_$x_(m.canvas, m.device, "bgra8unorm", 128);
+  try {
+    program.install_program_$x_(host, value);
+    const cold = m.writes.length,
+      records = host.uploadedBytes,
+      parameters = host.parameterBytes;
+    for (let frame = 0; frame < 1000; frame++) {
+      const result = program.update_program_$x_(host, value, sample_plan_at(source, frame / 1000));
+      assert.equal(result.tag.value, "ready");
+      assert.equal(result.extra[0], value, "时间变化必须返回同一个已安装程序");
+    }
+    assert.equal(m.writes.length - cold, 1000);
+    assert.ok(m.writes.slice(cold).every((w) => w.bytes === 16));
+    assert.equal(host.uploadedBytes, records);
+    assert.equal(host.parameterBytes, parameters);
+    const beforeRejected = m.writes.length;
+    assert.deepEqual(js(program.update_program_$x_(host, value, sample_plan_at(source, 1e9))), [
+      "fallback",
+      "scalar-precision-budget",
+    ]);
+    assert.equal(m.writes.length, beforeRejected);
+    const changed = program.update_program_$x_(host, value, trsPlan({ scale: -1 }));
+    assert.equal(changed.tag.value, "ready");
+    assert.notEqual(changed.extra[0], value, "标准描述改变必须准备并安装新程序");
+    assert.ok(host.parameterBytes > parameters);
+    const afterInstall = m.writes.length;
+    const fallback = program.update_program_$x_(host, changed.extra[0], start_mixed(0, 40, false, 100));
+    assert.equal(fallback.tag.value, "fallback");
+    assert.match(fallback.extra[0], /unsupported-node:polyline/);
+    assert.equal(m.writes.length, afterInstall, "不支持节点不能半帧上传/绘制");
+  } finally {
+    dispose_renderer_$x_(host);
+  }
+});
+
+test("TRS误差预算包含几何绑定及三角函数规范误差；独立f32模型不冒充硬件", () => {
+  const source = trsPlan(),
+    value = program.prepare_program(source).extra[0],
+    parameters = get(value, "parameters");
+  const cost = js(program.trs_precision(get(get(value, "frame"), "records").get(64), parameters, 64));
+  const encoded = js(parameters),
+    f = Math.fround;
+  const axis = (n, time, f32) =>
+    reference(
+      encoded.find((p) => p.axis === n),
+      time,
+      f32,
+    );
+  for (const time of [1, 0, 0.5, 0.25, 1, 0.37, 0.81, -0.1, 1.1]) {
+    assert.equal(program.time_supported_$q_(value, time), true);
+    const bound = 0.125 * (cost.x + cost.y * Math.abs(time));
+    assert.ok(bound > 0 && bound <= 0.125);
+    const sampled = js(sample_plan_at(source, time)),
+      matrix = sampled.transforms[64],
+      rect = sampled.scene.nodes[64].content[1];
+    for (const [u, v] of [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+      [0.5, 0.5],
+    ]) {
+      const x = rect.x + rect.width * u,
+        y = rect.y + rect.height * v;
+      const expected = [matrix.a * x + matrix.c * y + matrix.e, matrix.b * x + matrix.d * y + matrix.f];
+      const gx = f(axis(0, time, true) + f(f(rect.width) * u)),
+        gy = f(f(rect.y) + f(f(rect.height) * v));
+      const px = axis(13, time, true),
+        py = axis(14, time, true),
+        angle = axis(10, time, true);
+      const dx = f(f(gx - px) * axis(11, time, true)),
+        dy = f(f(gy - py) * axis(12, time, true));
+      for (const signC of [-1, 1])
+        for (const signS of [-1, 1]) {
+          // 规范允许的最不利sin/cos误差，而非只用JS高精度三角函数。
+          const c = f(Math.cos(angle) + signC * 2 ** -11),
+            s = f(Math.sin(angle) + signS * 2 ** -11);
+          const actual = [
+            f(f(axis(8, time, true) + px) + f(f(c * dx) - f(s * dy))),
+            f(f(axis(9, time, true) + py) + f(f(s * dx) + f(c * dy))),
+          ];
+          for (let i = 0; i < 2; i++)
+            assert.ok(
+              Math.abs(actual[i] - expected[i]) <= bound,
+              JSON.stringify({ time, u, v, i, bound, actual, expected }),
+            );
+          assert.ok(Math.abs(actual[0] + 1 - expected[0]) > bound, "错误平移1px的反例不能通过");
+        }
+    }
+  }
+  assert.equal(program.time_supported_$q_(value, 1e9), false, "时间量化超预算必须拒绝");
 });
 
 test("检查完整参数域；起点有效但终点越界也不能交给 GPU", () => {
@@ -491,9 +692,10 @@ test("检查完整参数域；起点有效但终点越界也不能交给 GPU", (
 function mock() {
   const writes = [],
     buffers = [],
-    shaders = [];
+    shaders = [],
+    viewports = [];
   const device = {
-    limits: { maxBufferSize: 1e7, maxStorageBufferBindingSize: 1e7 },
+    limits: { maxBufferSize: 1e7, maxStorageBufferBindingSize: 1e7, maxTextureDimension2D: 8192 },
     createShaderModule(v) {
       shaders.push(v.code);
       return {};
@@ -522,7 +724,16 @@ function mock() {
     createCommandEncoder() {
       return {
         beginRenderPass() {
-          return { setPipeline() {}, setBindGroup() {}, setVertexBuffer() {}, draw() {}, end() {} };
+          return {
+            setViewport(...args) {
+              viewports.push(args);
+            },
+            setPipeline() {},
+            setBindGroup() {},
+            setVertexBuffer() {},
+            draw() {},
+            end() {},
+          };
         },
         finish() {
           return {};
@@ -553,8 +764,43 @@ function mock() {
       };
     },
   };
-  return { device, canvas, writes, buffers, shaders };
+  return { device, canvas, writes, buffers, shaders, viewports };
 }
+
+test("原生表面尺寸与逻辑viewport分离；resize不重装参数，非法尺寸无副作用", () => {
+  const m = mock(),
+    host = program.create_renderer_$x_(m.canvas, m.device, "bgra8unorm", 128),
+    value = program.prepare_program(trsPlan()).extra[0];
+  try {
+    program.install_program_$x_(host, value);
+    const records = host.uploadedBytes,
+      parameters = host.parameterBytes;
+    configure_viewport_$x_(host, 2000, 1400, 320, 180);
+    program.draw_at_$x_(host, value, 0.5);
+    assert.deepEqual([m.canvas.width, m.canvas.height], [2000, 1400]);
+    assert.deepEqual(m.viewports.at(-1), [0, 137.5, 2000, 1125, 0, 1]);
+    assert.deepEqual(m.writes.at(-1).values, [320, 180, 0.5, 0]);
+    configure_viewport_$x_(host, 780, 1688, 320, 180);
+    program.draw_at_$x_(host, value, 0.25);
+    assert.deepEqual(m.viewports.at(-1), [0, 624.625, 780, 438.75, 0, 1]);
+    assert.equal(host.uploadedBytes, records);
+    assert.equal(host.parameterBytes, parameters);
+    assert.equal(m.buffers.length, 3);
+    const before = [m.canvas.width, m.canvas.height, ...host.viewport];
+    for (const args of [
+      [0, 180, 320, 180],
+      [1.5, 180, 320, 180],
+      [10000, 180, 320, 180],
+      [320, 180, 0, 180],
+      [320, 180, NaN, 180],
+    ]) {
+      assert.throws(() => configure_viewport_$x_(host, ...args), /invalid-gpu-viewport|gpu-viewport-device-limit/);
+      assert.deepEqual([m.canvas.width, m.canvas.height, ...host.viewport], before);
+    }
+  } finally {
+    dispose_renderer_$x_(host);
+  }
+});
 
 test("编译后 file/inline 调用：参数常驻，1000 时间帧只更新 uniform", () => {
   const m = mock(),
@@ -565,16 +811,16 @@ test("编译后 file/inline 调用：参数常驻，1000 时间帧只更新 unif
   assert.throws(() => program.draw_at_$x_(h, prepared, 0), /not-installed/);
   program.install_program_$x_(h, prepared);
   assert.equal(h.uploadedBytes, 4160);
-  assert.equal(h.parameterBytes, 65 * 256 + 32);
+  assert.equal(h.parameterBytes, 65 * 512 + 32);
   const hotStart = m.writes.length;
   for (let i = 0; i < 1000; i++) program.draw_at_$x_(h, prepared, (i % 101) / 100);
   const hot = m.writes.slice(hotStart);
   assert.equal(hot.length, 1000);
   assert.ok(hot.every((w) => w.bytes === 16 && w.label === "Quamolit component viewport"));
   assert.equal(h.uploadedBytes, 4160);
-  assert.equal(h.parameterBytes, 65 * 256 + 32);
+  assert.equal(h.parameterBytes, 65 * 512 + 32);
   assert.equal(m.buffers.length, 3);
-  assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*8u]"));
+  assert.ok(m.shaders[0].includes("sampleMotion(motions[instance*16u]"));
   assert.equal(hot[25].values[2], 0.25);
   dispose_renderer_$x_(h);
   dispose_renderer_$x_(h);
