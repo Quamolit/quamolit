@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { to_js_data as toJsData } from "../target/js/tidal-bloom/calcit.core.mjs";
+import * as core from "../target/js/tidal-bloom/calcit.core.mjs";
 import {
   declare_progress as declareProgress,
   initial_model as initialModel,
@@ -14,7 +15,86 @@ import {
   set_view as setView,
   view_active_$q_ as viewActive,
   view_position_at as viewPositionAt,
+  start_timeline as startTimeline,
+  update_timeline as updateTimeline,
+  declare_timeline as declareTimeline,
+  timeline_request as timelineRequest,
 } from "../target/js/tidal-bloom/quamolit.examples.tidal-bloom.mjs";
+import {
+  sample_plan_at as samplePlanAt,
+  build_execution_plan as buildExecution,
+  update_execution_plan as updateExecution,
+} from "../target/js/tidal-bloom/quamolit.retained-component.mjs";
+
+function assertTimelineReference(plan, time) {
+  const actual = toJsData(plan).scene;
+  const expected = frame(time);
+  assert.deepEqual(
+    actual.nodes.map((item) => item.id),
+    expected.nodes.map((item) => item.id),
+    `节点与卸载时点 ${time}`,
+  );
+  const near = (left, right, path) => {
+    if (typeof left === "number" && typeof right === "number") {
+      assert.ok(Math.abs(left - right) < 1e-10, `${time} ${path}: ${left} != ${right}`);
+    } else if (Array.isArray(left)) {
+      assert.equal(left.length, right.length, path);
+      left.forEach((value, index) => near(value, right[index], `${path}/${index}`));
+    } else if (left !== null && typeof left === "object") {
+      assert.deepEqual(Object.keys(left), Object.keys(right), path);
+      for (const key of Object.keys(left)) near(left[key], right[key], `${path}/${key}`);
+    } else assert.equal(left, right, path);
+  };
+  for (let index = 0; index < actual.nodes.length; index++) {
+    near(actual.nodes[index].content, expected.nodes[index].content, actual.nodes[index].id);
+    assert.deepEqual(actual.nodes[index].interaction, expected.nodes[index].interaction);
+  }
+}
+
+test("完整时间轴保留全部节点渐变和卸载；乱序及同时间失效对照原投影", () => {
+  let plan = startTimeline(0);
+  for (const time of [0, 0.325, 1.4, 3.7, 7, 3.55, 3.8, 3.95, 3.98, 4.16, 4.65, 5.23, 8, 1.4]) {
+    plan = updateTimeline(plan, time, 0, 0);
+    assertTimelineReference(plan, time);
+  }
+  const before = toJsData(plan);
+  const modelChanged = updateTimeline(plan, 1.4, 1, 0);
+  assert.equal(toJsData(modelChanged).declarations, before.declarations + 1);
+  assertTimelineReference(modelChanged, 1.4);
+  const viewportChanged = updateTimeline(modelChanged, 1.4, 1, 1);
+  assert.equal(toJsData(viewportChanged)["plan-builds"], toJsData(modelChanged)["plan-builds"] + 1);
+  assertTimelineReference(viewportChanged, 1.4);
+  assert.deepEqual(toJsData(plan), before, "失效不修改旧计划");
+});
+
+test("完整概览和分析各1000时间帧只声明/构建一次，静态节点与绑定槽共享", () => {
+  for (const [start, step] of [
+    [0.2, 0.0027],
+    [4.66, 0.0022],
+  ]) {
+    let declarationCalls = 0;
+    const declare = (...args) => {
+      declarationCalls++;
+      return declareTimeline(...args);
+    };
+    let plan = buildExecution(timelineRequest(start, 0, 0), declare);
+    const initial = plan;
+    for (let index = 0; index < 1000; index++) {
+      const time = start + ((index * 37) % 1000) * step;
+      plan = updateExecution(plan, timelineRequest(time, 0, 0), declare);
+      assertTimelineReference(plan, time);
+    }
+    const result = toJsData(plan);
+    assert.equal(result.declarations, 1);
+    assert.equal(result["plan-builds"], 1);
+    assert.equal(declarationCalls, 1, "核对真实声明回调，不只信计划中的计数");
+    const keys = core.init_tags(["slots", "scene", "nodes"]);
+    assert.equal(plan.get(keys.slots), initial.get(keys.slots));
+    assert.equal(plan.get(keys.scene).get(keys.nodes).get(0), initial.get(keys.scene).get(keys.nodes).get(0));
+    const same = samplePlanAt(plan, result.time);
+    assert.equal(toJsData(same)["binding-samples"], result["binding-samples"]);
+  }
+});
 
 const frame = (time) => toJsData(sceneAt(time));
 const node = (scene, id) => scene.nodes.find((entry) => entry.id === id);

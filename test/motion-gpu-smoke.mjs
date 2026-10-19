@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { to_js_data as toJsData } from "../target/js/motion/calcit.core.mjs";
+import * as core from "../target/js/motion/calcit.core.mjs";
+import * as motion from "../target/js/motion/quamolit.motion.mjs";
+import { lower_scalar as lowerScalar } from "../target/js/motion/quamolit.motion-gpu.mjs";
 import {
   gpu_fade_plan as gpuFadePlan,
   gpu_keyframes_repeat_plan as gpuKeyframesRepeatPlan,
@@ -52,4 +55,25 @@ test("bounded repeated keyframes and Vec2 tween serialize without host handles",
   assert.deepEqual(vector[1].kernel[1].from, { x: 48, y: 80 });
   assert.deepEqual(vector[1].kernel[1].to, { x: 208, y: 120 });
   for (const plan of [track, vector]) assert.deepEqual(JSON.parse(JSON.stringify(plan)), plan);
+});
+
+test("组合和时间重映射明确回退 CPU，不误报为 GPU shader 能力", () => {
+  const tag = (name) => core.init_tags([name])[name];
+  const make = (type, fields) => core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([k, v]) => [tag(k), v]));
+  const en = (type, name, ...values) => core._PCT__$o__$o_(type, tag(name), ...values);
+  const scalar = (kind, ...values) =>
+    make(motion.ScalarDescriptor, { id: "scalar", version: 1, motion: en(motion.ScalarMotion, kind, ...values) });
+  const leaf = scalar("constant", 1);
+  const composition = make(motion.ScalarComposition, {
+    id: "product",
+    version: 1,
+    left: leaf,
+    right: leaf,
+    operation: en(motion.ScalarComposeOp, "multiply"),
+  });
+  for (const [descriptor, reason] of [
+    [scalar("compose", composition), "scalar-composition-kernel-not-supported"],
+    [scalar("at", leaf, leaf), "scalar-time-remap-kernel-not-supported"],
+  ])
+    assert.deepEqual(toJsData(lowerScalar(descriptor)), ["unsupported", reason]);
 });

@@ -2,7 +2,7 @@
 
 `quamolit.motion-gpu` 是描述符到受限执行计划的纯数据转换，**不是 GPU 执行器**。输入仍由 `quamolit.motion` 的 CPU 参考采样器校验；计划保留 `id`、`version`，不包含宿主句柄、任意回调或上一帧状态。调用方必须检查 `:supported plan` / `:unsupported reason`，不可把后者当作可编译 WGSL。
 
-当前标准标量子集为常量、`scale * time + offset`、`ScalarTween`（linear、smoothstep，含 `duration=0` 跳变），以及最多 16 个采样点的 `ScalarTrack`。轨道计划原样保留有序帧、重复时间和 clamp/repeat/mirror 模式；超过 16 帧返回 `keyframe-capacity-exceeded`。16 是本阶段的显式计划容量，不是 GPU 性能最优值；未来 #52 仍需决定缓冲布局、索引与数据上传策略。`lower-composition` 支持恰好两片可降低标量叶子的 add、multiply、mix；嵌套组合在原有 IR 结构上不可表示。
+当前标准标量子集为常量、`scale * time + offset`、`ScalarTween`（linear、smoothstep，含 `duration=0` 跳变），以及最多 16 个采样点的 `ScalarTrack`。轨道计划原样保留有序帧、重复时间和 clamp/repeat/mirror 模式；超过 16 帧返回 `keyframe-capacity-exceeded`。16 是本阶段的显式计划容量，不是 GPU 性能最优值。`lower-composition` 保留恰好两片可降低标量叶子的 add、multiply、mix 候选。CPU 新增的可绑定 `ScalarMotion :compose` / `:at` 分别返回 `scalar-composition-kernel-not-supported` / `scalar-time-remap-kernel-not-supported`；嵌套子描述符同样不得被静默当作已支持的叶子。矩形执行器沿用整层回退，不丢弃这些绑定。
 
 `lower-vec2` 支持 Vec2 常量与共享进度的 Vec2 tween，保留同一个 ID/version 与带类型的两个端点。`lower-cpu-scalar` 始终返回描述符里的 CPU-only 诊断，绝不转译注册回调。这里没有直接降低 ColorDescriptor 的入口；矩形颜色通过[组件声明桥接](component-sample.md)展开为线性RGB与独立alpha，再使用标量入口，不是任意颜色表达式均可GPU化。资源输入不由这个lowering处理。计划中的 `:supported` 仅表示已落在受限数据子集内，不表示当前环境能用 WebGPU，也不表示已经执行了 WGSL。
 

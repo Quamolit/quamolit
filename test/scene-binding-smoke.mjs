@@ -10,6 +10,64 @@ import {
   scene_document_at as sceneDocumentAt,
 } from "../target/js/motion/quamolit.test.motion-fixture.mjs";
 
+test("文字 x/y 绑定保留字体与内容，重复或不支持的目标仍拒绝", () => {
+  const tag = (name) => core.init_tags([name])[name];
+  const make = (type, fields) => core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([k, v]) => [tag(k), v]));
+  const en = (type, name, ...values) => core._PCT__$o__$o_(type, tag(name), ...values);
+  const list = (values) => new core.CalcitSliceList(values);
+  const shape = make(scene.TextNode, {
+    x: 12,
+    y: 34,
+    size: 14,
+    text: "moving label",
+    font: scene.default_font(),
+    fill: make(motion.ColorRgba, { r: 0.2, g: 0.3, b: 0.4, a: 0.75 }),
+  });
+  const text = en(scene.SceneContent, "text", shape);
+  const refs = ["x", "y"].map((axis) =>
+    make(scene.ScalarBinding, { target: en(scene.ScalarTarget, axis), "motion-id": axis, version: 0 }),
+  );
+  const descriptors = ["x", "y"].map((id, index) =>
+    make(motion.ScalarDescriptor, {
+      id,
+      version: 0,
+      motion: en(motion.ScalarMotion, "time", index + 1, index * 10),
+    }),
+  );
+  const node = make(scene.SceneNode, {
+    id: "label",
+    key: "label",
+    parent: "",
+    content: text,
+    bindings: list(refs),
+    interaction: en(scene.SceneInteraction, "none"),
+  });
+  const document = make(scene.SceneDocument, { nodes: list([node]) });
+  assert.equal(scene.validate_scene(document), true);
+  for (const time of [1, 0, 0.25, -2, 1]) {
+    const result = toJsData(binding.resolve_scene(document, list(descriptors), time));
+    assert.deepEqual(result.nodes[0].content[1], { ...toJsData(shape), x: time, y: 10 + 2 * time });
+  }
+  for (const target of ["width", "height", "opacity", "linear-red"]) {
+    const unsupported = make(scene.ScalarBinding, {
+      target: en(scene.ScalarTarget, target),
+      "motion-id": "x",
+      version: 0,
+    });
+    assert.equal(scene.valid_binding_$q_(unsupported, text), false);
+    assert.throws(() => binding.apply_scalar(text, en(scene.ScalarTarget, target), 1), /unsupported-text-binding/);
+  }
+  assert.equal(scene.valid_bindings_$q_(list([refs[0], refs[0]]), text), false);
+  assert.deepEqual(toJsData(shape), {
+    x: 12,
+    y: 34,
+    size: 14,
+    text: "moving label",
+    font: toJsData(scene.default_font()),
+    fill: { r: 0.2, g: 0.3, b: 0.4, a: 0.75 },
+  });
+});
+
 test("矩形线性RGB通道用原标量声明乱序采样，不改alpha、几何或旧Scene", () => {
   const tag = (name) => core.init_tags([name])[name];
   const make = (type, fields) =>

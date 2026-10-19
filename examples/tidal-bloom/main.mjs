@@ -1,11 +1,11 @@
 // 页面只负责时钟、画布和浮层；UI 组件、布局及渐变帧都来自 Calcit。
 import {
-  draw_$x_,
   draw_interactive_with_series_$x_,
   initial_model,
   initial_series_model,
   interactive_scene_with_series_at,
-  scene_at,
+  start_timeline,
+  update_timeline,
   series_active_$q_,
   series_position_at,
   set_series,
@@ -14,9 +14,12 @@ import {
   view_active_$q_,
   view_position_at,
 } from "../../target/js/tidal-bloom/quamolit.examples.tidal-bloom.mjs";
-import { to_js_data } from "../../target/js/tidal-bloom/calcit.core.mjs";
+import { init_tags, to_js_data } from "../../target/js/tidal-bloom/calcit.core.mjs";
+import { draw_plan_$x_ } from "../../target/js/tidal-bloom/quamolit.retained-component.mjs";
 
 import { DemandFrameScheduler } from "../../demos/demand-frame-scheduler.mjs";
+
+const planFields = init_tags(["declarations", "plan-builds"]);
 
 export function mountDemo() {
   const canvas = document.querySelector("canvas");
@@ -40,6 +43,9 @@ export function mountDemo() {
   let anchor = 0;
   let started = 0;
   let paints = 0;
+  let timelinePlan = null;
+  let viewportVersion = 0;
+  let viewportKey = "";
   const scheduler = new DemandFrameScheduler({
     requestFrame: (callback) => requestAnimationFrame(callback),
     cancelFrame: (handle) => cancelAnimationFrame(handle),
@@ -56,6 +62,11 @@ export function mountDemo() {
     const dpr = devicePixelRatio || 1;
     const width = Math.max(1, Math.round(bounds.width * dpr));
     const height = Math.max(1, Math.round(bounds.height * dpr));
+    const nextViewportKey = `${bounds.width}/${bounds.height}/${dpr}`;
+    if (nextViewportKey !== viewportKey) {
+      if (viewportKey !== "") viewportVersion++;
+      viewportKey = nextViewportKey;
+    }
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
@@ -67,7 +78,12 @@ export function mountDemo() {
     const centerX = width / 2 - (bounds.width < 680 ? 110 * scale : 0);
     context.setTransform(scale, 0, 0, scale, centerX, height / 2);
     if (mode === "interactive") draw_interactive_with_series_$x_(context, model, seriesModel, time);
-    else draw_$x_(context, time);
+    else {
+      timelinePlan = timelinePlan === null
+        ? start_timeline(time)
+        : update_timeline(timelinePlan, time, 0, viewportVersion);
+      draw_plan_$x_(context, timelinePlan);
+    }
     paints++;
     slider.disabled = mode === "interactive";
     if (mode === "timeline") slider.value = String(time);
@@ -77,7 +93,7 @@ export function mountDemo() {
     document.querySelector("#series-revenue").setAttribute("aria-pressed", String(seriesPosition >= 0.5));
     status.textContent = mode === "interactive"
       ? `交互切换 · ${position < 0.01 ? "概览" : position > 0.99 ? "图表分析" : `过渡 ${(position * 100).toFixed(0)}%`} · ${seriesPosition < 0.01 ? "访客" : seriesPosition > 0.99 ? "营收" : `数据渐变 ${(seriesPosition * 100).toFixed(0)}%`} · 绘制 ${paints}`
-      : `t = ${time.toFixed(2)} s · ${time < 3.55 ? "概览" : time < 4.16 ? "视图切换" : "图表分析"} · 绘制 ${paints}`;
+      : `t = ${time.toFixed(2)} s · ${time < 3.55 ? "概览" : time < 4.16 ? "视图切换" : "图表分析"} · 保留声明 ${timelinePlan.get(planFields.declarations)} / 构建 ${timelinePlan.get(planFields["plan-builds"])} · 绘制 ${paints}`;
     status.dataset.result = "pass";
   }
 
@@ -161,7 +177,8 @@ export function mountDemo() {
   }
 
   function snapshot() {
-    const scene = to_js_data(mode === "interactive" ? interactive_scene_with_series_at(model, seriesModel, time) : scene_at(time));
+    const retained = mode === "timeline" ? to_js_data(timelinePlan) : null;
+    const scene = retained?.scene ?? to_js_data(interactive_scene_with_series_at(model, seriesModel, time));
     const node = (id) => scene.nodes.find((entry) => entry.id === id);
     return {
       time,
@@ -176,6 +193,11 @@ export function mountDemo() {
       width: canvas.width,
       height: canvas.height,
       nodeCount: scene.nodes.length,
+      retained: retained ? {
+        declarations: retained.declarations,
+        planBuilds: retained["plan-builds"],
+        bindingSamples: retained["binding-samples"],
+      } : null,
       heroWidth: node("hero-card")?.content[1].width ?? null,
       queueX: node("queue-card")?.content[1].x ?? null,
       progressWidth: node("hero-progress")?.content[1].width ?? null,

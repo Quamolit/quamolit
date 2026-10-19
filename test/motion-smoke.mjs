@@ -141,6 +141,59 @@ test("bounded scalar composition stays deterministic in generated JavaScript", (
   }
 });
 
+test("组合渐变与进度驱动的错峰采样是有限深度纯数据，不依赖前帧", () => {
+  const tag = (name) => core.init_tags([name])[name];
+  const make = (type, fields) => core._$n__PCT__$M_(type, ...Object.entries(fields).flatMap(([k, v]) => [tag(k), v]));
+  const en = (type, name, ...values) => core._PCT__$o__$o_(type, tag(name), ...values);
+  const scalar = (id, kind, ...values) =>
+    make(motion.ScalarDescriptor, { id, version: 1, motion: en(motion.ScalarMotion, kind, ...values) });
+  const tween = (id, start, duration, from, to) =>
+    scalar(
+      id,
+      "tween",
+      make(motion.ScalarTween, { start, duration, from, to, easing: en(motion.Easing, "smoothstep") }),
+    );
+  const compose = (id, left, right, operation) =>
+    scalar(id, "compose", make(motion.ScalarComposition, { id, version: 1, left, right, operation }));
+  const enter = tween("enter", 0, 0.65, 0, 1);
+  const exit = tween("exit", 3, 0.8, 1, 0);
+  const visibility = compose("visibility", enter, exit, en(motion.ScalarComposeOp, "multiply"));
+  const clock = tween("view-position", 1, 2, 0, 1);
+  const stagger = scalar("chart-reveal", "at", tween("chart-stagger", 0.56, 0.31, 0, 1), clock);
+  const joint = compose("joint", visibility, stagger, en(motion.ScalarComposeOp, "multiply"));
+  const ease = (x) => {
+    const p = Math.max(0, Math.min(1, x));
+    return p * p * (3 - 2 * p);
+  };
+  for (const time of [3.5, 0, 2.4, 0.325, 2.75, -1, 4, 3.5]) {
+    const alpha = ease(time / 0.65) * (1 - ease((time - 3) / 0.8));
+    const reveal = ease((ease((time - 1) / 2) - 0.56) / 0.31);
+    assert.ok(Math.abs(motion.sample_scalar(visibility, time) - alpha) < 1e-12);
+    assert.ok(Math.abs(motion.sample_scalar(stagger, time) - reveal) < 1e-12);
+    assert.ok(Math.abs(motion.sample_scalar(joint, time) - alpha * reveal) < 1e-12);
+  }
+  const serialized = core.to_js_data(joint);
+  assert.deepEqual(JSON.parse(JSON.stringify(serialized)), serialized);
+  let nested = scalar("leaf", "constant", 1);
+  for (let depth = 0; depth < 12; depth++) nested = scalar(`at-${depth}`, "at", nested, scalar("clock", "time", 1, 0));
+  assert.equal(motion.sample_scalar(nested, 0.5), 1);
+  const tooDeep = scalar("too-deep", "at", nested, clock);
+  assert.throws(() => motion.sample_scalar(tooDeep, 0.5), /scalar-motion-depth-exceeded/);
+  for (const time of [NaN, Infinity, -Infinity])
+    assert.throws(() => motion.sample_scalar(joint, time), /invalid-motion-time/);
+  const invalidClock = scalar("clock", "constant", Infinity);
+  assert.throws(() => motion.sample_scalar(scalar("bad", "at", enter, invalidClock), 0), /invalid-motion-constant/);
+  const invalidWeight = compose("bad-weight", enter, exit, en(motion.ScalarComposeOp, "mix", 2));
+  assert.throws(() => motion.sample_scalar(invalidWeight, 0), /invalid-composition-weight/);
+  const overflow = compose(
+    "overflow",
+    scalar("a", "constant", 1e308),
+    scalar("b", "constant", 1e308),
+    en(motion.ScalarComposeOp, "multiply"),
+  );
+  assert.throws(() => motion.sample_scalar(overflow, 0), /invalid-composition-result/);
+});
+
 test("CPU custom sampler resolves by registry ID and never claims GPU lowering", () => {
   for (const [time, value] of [
     [1, 12],

@@ -6537,6 +6537,10 @@
             :at 'Number
           :examples $ []
           :schema $ :: 'StructDef
+        'FlowField $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct FlowField (:target 'quamolit.scene-ir/ScalarTarget) (:descriptor 'quamolit.motion/ScalarDescriptor)
+          :examples $ []
+          :schema $ :: 'StructDef
         'MetricFlowModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct MetricFlowModel (:initial 'Number) (:intent 'quamolit.transition/TransitionIntent)
             :events $ :: 'List 'quamolit.transition/TransitionEvent
@@ -6749,6 +6753,29 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'Number 'Number 'Number 'Number 'Number
+        'declare-timeline $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-timeline (phase model input resources viewport)
+            let
+                nodes $ concat (shell-nodes)
+                  if (< phase 2)
+                    concat (hero-nodes 42)
+                      :nodes $ :scene $ declare-progress -190 0 0 0 0
+                    []
+                  if (< phase 4) (queue-nodes 42) ([])
+                  if (< phase 5) (activity-nodes 42) ([])
+                  if (>= phase 1) (kpi-nodes 8) ([])
+                  if (>= phase 3) (chart-nodes 8) ([])
+                  if (>= phase 6) (breakdown-nodes 8) ([])
+                component $ foldl (map nodes timeline-node)
+                  component/ComponentDeclaration :scene
+                    scene/SceneDocument :nodes $ []
+                    , :motions $ []
+                  , flow-merge
+              retained/ExecutionDeclaration :component component :transforms $ retained/TransformSampler :none
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.retained-component/ExecutionDeclaration
+            :args $ [] 'Number 'Number 'Number 'Number 'Number
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context time)
             reference/draw-reference! context $ scene-at time
@@ -6767,6 +6794,68 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.examples.tidal-bloom/MetricFlowModel 'quamolit.examples.tidal-bloom/ChartSeriesModel 'Number
+        'flow-affine $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flow-affine (value scale offset)
+            flow-compose (flow-constant offset)
+              flow-compose (flow-constant scale) value $ motion/ScalarComposeOp :multiply
+              motion/ScalarComposeOp :add
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'quamolit.motion/ScalarDescriptor 'Number 'Number
+        'flow-at $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flow-at (value clock)
+            motion/ScalarDescriptor :id |at :version 0 :motion $ motion/ScalarMotion :at value clock
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'quamolit.motion/ScalarDescriptor 'quamolit.motion/ScalarDescriptor
+        'flow-compose $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flow-compose (left right operation)
+            motion/ScalarDescriptor :id |compose :version 0 :motion $ motion/ScalarMotion :compose $ motion/ScalarComposition :id |compose :version 0 :left left :right right :operation operation
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'quamolit.motion/ScalarDescriptor 'quamolit.motion/ScalarDescriptor 'quamolit.motion/ScalarComposeOp
+        'flow-constant $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flow-constant (value)
+            motion/ScalarDescriptor :id |constant :version 0 :motion $ motion/ScalarMotion :constant value
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'Number
+        'flow-field $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flow-field (id name target descriptor)
+            FlowField :target target :descriptor $ struct-with descriptor $ :id
+              str (str id |/) name
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.examples.tidal-bloom/FlowField)
+            :args $ [] 'String 'String 'quamolit.scene-ir/ScalarTarget 'quamolit.motion/ScalarDescriptor
+        'flow-field-binding $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flow-field-binding (field)
+            scene/ScalarBinding :target (:target field) :motion-id
+              :id $ :descriptor field
+              , :version 0
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/ScalarBinding)
+            :args $ [] 'quamolit.examples.tidal-bloom/FlowField
+        'flow-field-motion $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flow-field-motion (field) (:descriptor field)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'quamolit.examples.tidal-bloom/FlowField
+        'flow-merge $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flow-merge (acc part)
+            component/ComponentDeclaration :scene
+              scene/SceneDocument :nodes $ concat
+                :nodes $ :scene acc
+                :nodes $ :scene part
+              , :motions $ concat (:motions acc) (:motions part)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'quamolit.component-sample/ComponentDeclaration 'quamolit.component-sample/ComponentDeclaration
+        'flow-tween $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flow-tween (start duration from to)
+            motion/ScalarDescriptor :id |tween :version 0 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start start :duration duration :from from :to to :easing (motion/Easing :smoothstep)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'Number 'Number 'Number 'Number
         'hero-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hero-nodes (time)
             let
@@ -7060,17 +7149,178 @@
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'start-timeline $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-timeline (time)
+            retained/build-execution-plan (timeline-request time 0 0) declare-timeline
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'Number
         'text-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text-node (id label x y size fill)
             scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size size :text label :fill fill :font (scene/default-font)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneNode)
             :args $ [] 'String 'String 'Number 'Number 'Number 'quamolit.motion/ColorRgba
+        'timeline-animated? $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn timeline-animated? (id)
+            or (.starts-with? id |hero-) (.starts-with? id |queue-) (.starts-with? id |activity-) (.starts-with? id |kpi-) (.starts-with? id |chart-) (.starts-with? id |bar-) (.starts-with? id |breakdown-) (.starts-with? id |channel-)
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'String
+        'timeline-distance $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn timeline-distance (id)
+            cond
+                or (.starts-with? id |hero-) (.starts-with? id |progress/)
+                , 22
+              (.starts-with? id |queue-) 25
+              (.starts-with? id |activity-) 28
+              (.starts-with? id |kpi-) 24
+              (.starts-with? id |breakdown-) 24
+              (.starts-with? id |channel-) 16
+              true 30
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'String
+        'timeline-fields $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn timeline-fields (id x y width height alpha)
+            let
+                clock $ motion/ScalarDescriptor :id |accelerated-clock :version 0 :motion $ motion/ScalarMotion :time 14 0
+                focus $ flow-at (flow-tween 0 18 0 1) clock
+                done $ flow-at (flow-tween 18 24 0 1) clock
+                reveal $ timeline-reveal id
+                shift $ flow-affine (flow-affine reveal -1 1) (timeline-distance id) 0
+                bar? $ or (.starts-with? id |activity-bar-) (.starts-with? id |bar-value-)
+                height-motion $ timeline-height id x height focus done
+                origin-y $ if bar?
+                  flow-affine height-motion -1 $ if (.starts-with? id |activity-bar-) 213 127
+                  flow-constant y
+                alpha-motion $ cond
+                    or (= id |hero-chip) (= id |hero-chip-label)
+                    flow-compose focus reveal $ motion/ScalarComposeOp :multiply
+                  (= id |hero-draft)
+                    flow-compose (flow-affine done -1 1) reveal $ motion/ScalarComposeOp :multiply
+                  (= id |hero-done)
+                    flow-compose done reveal $ motion/ScalarComposeOp :multiply
+                  true $ flow-affine reveal alpha 0
+              concat
+                []
+                  flow-field id |alpha (scene/ScalarTarget :alpha) alpha-motion
+                  flow-field id |y (scene/ScalarTarget :y)
+                    flow-compose origin-y shift $ motion/ScalarComposeOp :add
+                if (.starts-with? id |queue-)
+                  [] $ flow-field id |x (scene/ScalarTarget :x)
+                    flow-affine focus 126 $ - x 126
+                  []
+                if bar?
+                  [] $ flow-field id |height (scene/ScalarTarget :height) height-motion
+                  []
+                cond
+                    or (= id |hero-shadow) (= id |hero-card)
+                    [] $ flow-field id |width (scene/ScalarTarget :width) (flow-affine focus 122 356)
+                  (= id |hero-progress)
+                    [] $ flow-field id |width (scene/ScalarTarget :width)
+                      flow-at (flow-tween 18 24 68 310) clock
+                  (= id |activity-progress)
+                    [] $ flow-field id |width (scene/ScalarTarget :width) (flow-affine focus 218 68)
+                  (or (= id |queue-shadow) (= id |queue-card) (= id |queue-rule) (.starts-with? id |queue-row-))
+                    [] $ flow-field id |width (scene/ScalarTarget :width)
+                      flow-affine focus -124 $ + width 124
+                  (and (.starts-with? id |channel-) (.ends-with? id |-fill))
+                    [] $ flow-field id |width (scene/ScalarTarget :width) (flow-affine reveal width 0)
+                  true $ []
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'String 'Number 'Number 'Number 'Number 'Number
+            :return $ :: 'List 'quamolit.examples.tidal-bloom/FlowField
+        'timeline-height $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn timeline-height (id x height focus done)
+            cond
+                = id |activity-bar-1
+                flow-affine focus 27 28
+              (= id |activity-bar-2) (flow-affine focus -21 52)
+              (= id |activity-bar-3) (flow-affine done 37 22)
+              (= id |activity-bar-4) (flow-affine focus 15 45)
+              (= id |activity-bar-5) (flow-affine done 25 30)
+              (= id |activity-bar-6) (flow-affine done -18 56)
+              (.starts-with? id |bar-value-)
+                flow-affine
+                  flow-tween
+                    + 4.2 $ * 0.12 $ / (+ x 176) 42
+                    , 0.8 0 1
+                  , height 0
+              true $ flow-constant height
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'String 'Number 'Number 'quamolit.motion/ScalarDescriptor 'quamolit.motion/ScalarDescriptor
+        'timeline-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn timeline-node (node)
+            let
+                fields $ if
+                  timeline-animated? $ :id node
+                  match (:content node)
+                    (:rect item)
+                      timeline-fields (:id node) (:x item) (:y item) (:width item) (:height item)
+                        :a $ :fill item
+                    (:text item)
+                      timeline-fields (:id node) (:x item) (:y item) 0 0 $ :a $ :fill item
+                    _ $ raise |unsupported-metric-flow-content
+                  []
+              component/ComponentDeclaration :scene
+                scene/SceneDocument :nodes $ [] $ struct-with node
+                  :bindings $ map fields flow-field-binding
+                , :motions $ map fields flow-field-motion
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'quamolit.scene-ir/SceneNode
+        'timeline-phase $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn timeline-phase (time)
+            assert |invalid-metric-flow-time $ motion/finite-number? time
+            cond
+                < time 3.55
+                , 0
+              (< time 3.8) 1
+              (< time 3.95) 2
+              (< time 3.98) 3
+              (< time 4.16) 4
+              (< time 4.65) 5
+              true 6
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
         'timeline-position-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn timeline-position-at (time) (tween-at 3 1.16 0 1 time)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'timeline-request $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn timeline-request (time model-version viewport-version)
+            component/ComponentRequest :id |metric-flow/timeline :time time :versions
+              direct/FrameVersions :component (timeline-phase time) :motion 0 :model model-version :input 0 :resources 0 :viewport viewport-version
+              , :props (timeline-phase time) :model 0 :input 0 :resources 0 :viewport 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'Number 'Number 'Number
+            :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'Number 'Number 'Number 'Number
+        'timeline-reveal $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn timeline-reveal (id)
+            cond
+                or (.starts-with? id |hero-) (.starts-with? id |progress/)
+                flow-compose (flow-tween 0 0.65 0 1) (flow-tween 3 0.8 1 0) (motion/ScalarComposeOp :multiply)
+              (.starts-with? id |queue-)
+                flow-compose (flow-tween 0.22 0.65 0 1) (flow-tween 3.18 0.8 1 0) (motion/ScalarComposeOp :multiply)
+              (.starts-with? id |activity-)
+                flow-compose (flow-tween 0.44 0.65 0 1) (flow-tween 3.36 0.8 1 0) (motion/ScalarComposeOp :multiply)
+              (.starts-with? id |kpi-a-) (flow-tween 3.55 0.65 0 1)
+              (.starts-with? id |kpi-b-) (flow-tween 3.8 0.65 0 1)
+              (.starts-with? id |kpi-c-) (flow-tween 4.05 0.65 0 1)
+              (.starts-with? id |breakdown-) (flow-tween 4.65 0.65 0 1)
+              (.starts-with? id |channel-organic) (flow-tween 4.85 0.7 0 1)
+              (.starts-with? id |channel-social) (flow-tween 5.05 0.7 0 1)
+              (.starts-with? id |channel-direct) (flow-tween 5.25 0.7 0 1)
+              true $ flow-tween 3.95 0.75 0 1
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'String
         'transition-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn transition-node (node alpha shift)
             match (:content node)
@@ -7102,6 +7352,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number 'Number 'Number 'Number 'Number
+        'update-timeline $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-timeline (previous time model-version viewport-version)
+            retained/update-execution-plan previous (timeline-request time model-version viewport-version) declare-timeline
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Number
         'view-active? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn view-active? (model time)
             transition/transition-active? (:intent model) time
@@ -7123,7 +7379,7 @@
             :args $ [] 'quamolit.examples.tidal-bloom/MetricFlowModel 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.examples.tidal-bloom
-          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference) (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.transition :as transition) (quamolit.ui-motion :as ui)
+          :require (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as reference) (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.transition :as transition) (quamolit.ui-motion :as ui) (quamolit.retained-component :as retained)
     'quamolit.examples.todolist $ %{} 'FileEntry
       :defs $ {}
         'Event $ %{} 'CodeEntry (:doc |)
@@ -11270,7 +11526,7 @@
           :examples $ []
           :schema $ :: 'EnumDef
         'ScalarComposition $ %{} 'CodeEntry
-          :doc "|Versioned, non-recursive composition of exactly two scalar descriptors."
+          :doc "|两个描述符的版本化组合；可通过 ScalarMotion :compose 嵌套。公共采样最多12层，每个内部节点仅有两个子描述符，拒绝超深输入。"
           :code $ quote $ defstruct ScalarComposition (:id 'String) (:version 'Number) (:left 'quamolit.motion/ScalarDescriptor) (:right 'quamolit.motion/ScalarDescriptor) (:operation 'quamolit.motion/ScalarComposeOp)
           :examples $ []
           :schema $ :: 'StructDef
@@ -11285,8 +11541,8 @@
           :examples $ []
           :schema $ :: 'StructDef
         'ScalarMotion $ %{} 'CodeEntry
-          :doc "|Closed scalar expression; no arbitrary closure in serializable data."
-          :code $ quote $ defenum ScalarMotion (:constant 'Number) (:time 'Number 'Number) (:tween 'quamolit.motion/ScalarTween) (:keyframes 'quamolit.motion/ScalarTrack)
+          :doc "|有限深度的纯数据标量表达式；compose复用两输入算子，at先采样clock再以其值采样value。不含闭包或宿主句柄；组合/时间重映射当前明确回退CPU。"
+          :code $ quote $ defenum ScalarMotion (:constant 'Number) (:time 'Number 'Number) (:tween 'quamolit.motion/ScalarTween) (:keyframes 'quamolit.motion/ScalarTrack) (:compose 'quamolit.motion/ScalarComposition) (:at 'quamolit.motion/ScalarDescriptor 'quamolit.motion/ScalarDescriptor)
           :examples $ []
           :schema $ :: 'EnumDef
         'ScalarTrack $ %{} 'CodeEntry
@@ -11536,6 +11792,30 @@
                   ColorDescriptor :id |red :version 2 :motion $ ColorMotion :constant value
                   , 0
               :tags $ #{} :motion :unit
+        'sample-composition-with-depth $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-composition-with-depth (composition time depth)
+            assert |scalar-motion-depth-exceeded $ and (>= depth 0) (<= depth 12)
+              = depth $ floor depth
+            assert |invalid-composition-time $ finite-number? time
+            assert |invalid-composition-id $ not $ empty? (:id composition)
+            assert |invalid-composition-version $ valid-motion-version? $ :version composition
+            let
+                left $ sample-scalar-with-depth (:left composition) time $ dec depth
+                right $ sample-scalar-with-depth (:right composition) time $ dec depth
+                result $ match (:operation composition)
+                  (:add) (+ left right)
+                  (:multiply) (* left right)
+                  (:mix weight)
+                    do
+                      assert |invalid-composition-weight $ unit-channel? weight
+                      +
+                        * left $ - 1 weight
+                        * right weight
+              assert |invalid-composition-result $ finite-number? result
+              , result
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.motion/ScalarComposition 'Number 'Number
         'sample-cpu-scalar $ %{} 'CodeEntry
           :doc "|Resolve and sample one CPU-only custom function at arbitrary finite seconds."
           :code $ quote $ defn sample-cpu-scalar (descriptor time registry)
@@ -11636,25 +11916,7 @@
               :tags $ #{} :motion :unit
         'sample-scalar $ %{} 'CodeEntry
           :doc "|Sample a versioned scalar descriptor without reading previous frames."
-          :code $ quote $ defn sample-scalar (descriptor time)
-            assert |invalid-motion-time $ finite-number? time
-            assert |invalid-motion-id $ not $ empty? (:id descriptor)
-            assert |invalid-motion-version $ valid-motion-version? $ :version descriptor
-            match (:motion descriptor)
-              (:constant value)
-                do
-                  assert |invalid-motion-constant $ finite-number? value
-                  , value
-              (:time scale offset)
-                do
-                  assert |invalid-motion-scale $ finite-number? scale
-                  assert |invalid-motion-offset $ finite-number? offset
-                  let
-                      value $ + offset $ * scale time
-                    assert |invalid-motion-result $ finite-number? value
-                    , value
-              (:tween tween) (sample-tween tween time)
-              (:keyframes track) (sample-track track time)
+          :code $ quote $ defn sample-scalar (descriptor time) (sample-scalar-with-depth descriptor time 12)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.motion/ScalarDescriptor 'Number
@@ -11700,26 +11962,28 @@
                   ScalarDescriptor :id |value :version 2 :motion $ ScalarMotion :constant 10
                   , 0
               :tags $ #{} :motion :unit
+            %{} 'TestEntry (:name |nested-composition-and-clock)
+              :code $ quote $ let
+                  a $ ScalarDescriptor :id |a :version 0 :motion $ ScalarMotion :constant 2
+                  b $ ScalarDescriptor :id |b :version 0 :motion $ ScalarMotion :time 2 1
+                  composition $ ScalarComposition :id |product :version 0 :left a :right b :operation $ ScalarComposeOp :multiply
+                  product $ ScalarDescriptor :id |product :version 0 :motion $ ScalarMotion :compose composition
+                  clock $ ScalarDescriptor :id |clock :version 0 :motion $ ScalarMotion :time 0.5 0
+                  nested $ ScalarDescriptor :id |nested :version 0 :motion $ ScalarMotion :at product clock
+                is= 4 $ sample-scalar nested 1
+                is= 2 $ sample-scalar nested 0
+                is= 3 $ sample-scalar nested 0.5
+                is= 6 $ sample-scalar nested 2
+                is= 4 $ sample-scalar nested 1
+                is-throws $ sample-scalar-with-depth nested 0 13
+                is-throws $ sample-scalar-with-depth nested 0 0.5
+                is-throws $ sample-scalar
+                  struct-with nested $ :version -1
+                  , 0
+              :tags $ #{} :motion :unit
         'sample-scalar-composition $ %{} 'CodeEntry
           :doc "|Sample a fixed two-input composition at arbitrary finite seconds."
-          :code $ quote $ defn sample-scalar-composition (composition time)
-            assert |invalid-composition-time $ finite-number? time
-            assert |invalid-composition-id $ not $ empty? (:id composition)
-            assert |invalid-composition-version $ valid-motion-version? $ :version composition
-            let
-                left $ sample-scalar (:left composition) time
-                right $ sample-scalar (:right composition) time
-                result $ match (:operation composition)
-                  (:add) (+ left right)
-                  (:multiply) (* left right)
-                  (:mix weight)
-                    do
-                      assert |invalid-composition-weight $ unit-channel? weight
-                      +
-                        * left $ - 1 weight
-                        * right weight
-              assert |invalid-composition-result $ finite-number? result
-              , result
+          :code $ quote $ defn sample-scalar-composition (composition time) (sample-composition-with-depth composition time 12)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.motion/ScalarComposition 'Number
@@ -11764,6 +12028,36 @@
                 is-throws $ sample-scalar-composition (make |sum 1.5) 0
                 is= 5 $ sample-scalar-composition (make |sum 2) 0
               :tags $ #{} :motion :unit
+        'sample-scalar-with-depth $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn sample-scalar-with-depth (descriptor time depth)
+            assert |scalar-motion-depth-exceeded $ and (>= depth 0) (<= depth 12)
+              = depth $ floor depth
+            assert |invalid-motion-time $ finite-number? time
+            assert |invalid-motion-id $ not $ empty? (:id descriptor)
+            assert |invalid-motion-version $ valid-motion-version? $ :version descriptor
+            match (:motion descriptor)
+              (:constant value)
+                do
+                  assert |invalid-motion-constant $ finite-number? value
+                  , value
+              (:time scale offset)
+                do
+                  assert |invalid-motion-scale $ finite-number? scale
+                  assert |invalid-motion-offset $ finite-number? offset
+                  let
+                      value $ + offset $ * scale time
+                    assert |invalid-motion-result $ finite-number? value
+                    , value
+              (:tween tween) (sample-tween tween time)
+              (:keyframes track) (sample-track track time)
+              (:compose composition) (sample-composition-with-depth composition time depth)
+              (:at value clock)
+                sample-scalar-with-depth value
+                  sample-scalar-with-depth clock time $ dec depth
+                  dec depth
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'quamolit.motion/ScalarDescriptor 'Number 'Number
         'sample-track $ %{} 'CodeEntry
           :doc "|Reference scalar keyframe sampler at arbitrary finite seconds."
           :code $ quote $ defn sample-track (track time)
@@ -12433,6 +12727,8 @@
                       gpu-keyframe-capacity
                     GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :keyframes track
                     GpuScalarLowering :unsupported |keyframe-capacity-exceeded
+                (:compose composition) (GpuScalarLowering :unsupported |scalar-composition-kernel-not-supported)
+                (:at value clock) (GpuScalarLowering :unsupported |scalar-time-remap-kernel-not-supported)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion-gpu/GpuScalarLowering)
             :args $ [] 'quamolit.motion/ScalarDescriptor
@@ -16454,10 +16750,13 @@
                       struct-with (:stroke path) (:a value)
                   _ $ raise |unsupported-polyline-binding
               (:text text)
-                match target
+                scene-ir/SceneContent :text $ match target
+                  (:x)
+                    struct-with text $ :x value
+                  (:y)
+                    struct-with text $ :y value
                   (:alpha)
-                    scene-ir/SceneContent :text $ struct-with text $ :fill
-                      struct-with (:fill text) (:a value)
+                    struct-with text $ :fill $ struct-with (:fill text) (:a value)
                   _ $ raise |unsupported-text-binding
               (:image image) (raise |unsupported-image-binding)
               (:polygon polygon) (raise |unsupported-polygon-binding)
@@ -18656,9 +18955,13 @@
                 (:opacity)
                   = (content-kind content) |group
                 (:x)
-                  = (content-kind content) |rect
+                  or
+                    = (content-kind content) |rect
+                    = (content-kind content) |text
                 (:y)
-                  = (content-kind content) |rect
+                  or
+                    = (content-kind content) |rect
+                    = (content-kind content) |text
                 (:width)
                   = (content-kind content) |rect
                 (:height)
