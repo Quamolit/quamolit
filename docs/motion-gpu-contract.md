@@ -29,6 +29,8 @@
 
 当前矩形标量目标为x/y/填充alpha/width/height以及linear-red/linear-green/linear-blue；宽高端点须非负，alpha和线性光RGB端点在[0,1]，RGB采样后编码为sRGB。标准旋转/缩放不新增ScalarTarget，而由`TransformSampler :motions`中的TRS描述复用同一参数编码和vertex执行，按独立世界坐标误差预算限制；任意Calcit闭包仍回退。group opacity仍不支持，alpha不能代替隔离组透明度。颜色与TRS支持域、独立消费及剩余组合边界见[执行合同](gpu-scalar-program.md)，不能用颜色内区验证推断全部透明叠加或#144画质完成。已有Vec2 tween实例路径使用同一参数编码，但不自动继承全部候选算子。基础标量GPU数值按既定`1e-5+1e-5*abs(expected)`验证；TRS另含三角函数误差，不将其他设备或整个数值域视为已验证。
 
+CPU新增的 `srgb-red/green/blue` 用来保留编码通道插值，与上述线性光轴不同；`axis-of` 不为它们分配GPU槽位，`prepare-slot` 返回 `scalar-target-not-supported`。不能只更换目标名后沿用线性光shader；当前真实图表还含文字、组合与时间重映射，整体使用Canvas，不宣称本次扩大GPU支持集。
+
 `prepare-program`的逐绑定回退沿用`ProgramResult :fallback String`，在原原因后附加`;key=<逻辑key>;target=<目标>;motion=<算子>`，例如`scalar-kernel-not-supported;key=badge;target=:x;motion=:time`。该文本用于显示诊断，不是分号可解析协议（key可含任意字符）；低层`prepare-slot`仍返回原原因。重复绑定也定位该节点；整层结构、自定义变换或整体精度预算的拒绝仍是计划级原因。调用方必须回退整个计划，不得丢掉失败绑定后绘制其余部分。
 
 运行 `yarn test:motion-gpu` 检查类型、16/17 帧容量边界、支持/回退分类、旧 fade 在 0/0.25/0.5/1 的 CPU 手算值、Vec2、固定组合与 JS 计划序列化。`yarn test:motion-browser` 使用与计划共用的描述符，在 Canvas 页面上检查关键帧和 Vec2 的乱序时间采样及像素。原有候选计划测试不验证 WGSL 或 WebGPU 性能；后续 #52 切片另行增加真实 GPU 采样与读回，不能把本页全部分类当作 #48/#52 整项验收完成。

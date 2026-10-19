@@ -1,9 +1,9 @@
 // 页面只负责时钟、画布和浮层；UI 组件、布局及渐变帧都来自 Calcit。
 import {
-  draw_interactive_with_series_$x_,
   initial_model,
   initial_series_model,
-  interactive_scene_with_series_at,
+  start_interactive,
+  update_interactive,
   start_timeline,
   update_timeline,
   series_active_$q_,
@@ -43,7 +43,8 @@ export function mountDemo() {
   let anchor = 0;
   let started = 0;
   let paints = 0;
-  let timelinePlan = null;
+  let flowPlan = null;
+  let modelVersion = 0;
   let viewportVersion = 0;
   let viewportKey = "";
   const scheduler = new DemandFrameScheduler({
@@ -55,6 +56,18 @@ export function mountDemo() {
   function wake(reason) {
     scheduler.request(reason);
     scheduler.resume();
+  }
+
+  function updatePlan() {
+    if (mode === "interactive") {
+      flowPlan = flowPlan === null
+        ? start_interactive(model, seriesModel, time, modelVersion, viewportVersion)
+        : update_interactive(flowPlan, model, seriesModel, time, modelVersion, viewportVersion);
+    } else {
+      flowPlan = flowPlan === null
+        ? start_timeline(time)
+        : update_timeline(flowPlan, time, 0, viewportVersion);
+    }
   }
 
   function draw() {
@@ -77,13 +90,8 @@ export function mountDemo() {
     // 桌面右置以避开控制浮层；窄屏居中整个工作台。
     const centerX = width / 2 - (bounds.width < 680 ? 110 * scale : 0);
     context.setTransform(scale, 0, 0, scale, centerX, height / 2);
-    if (mode === "interactive") draw_interactive_with_series_$x_(context, model, seriesModel, time);
-    else {
-      timelinePlan = timelinePlan === null
-        ? start_timeline(time)
-        : update_timeline(timelinePlan, time, 0, viewportVersion);
-      draw_plan_$x_(context, timelinePlan);
-    }
+    updatePlan();
+    draw_plan_$x_(context, flowPlan);
     paints++;
     slider.disabled = mode === "interactive";
     if (mode === "timeline") slider.value = String(time);
@@ -93,7 +101,8 @@ export function mountDemo() {
     document.querySelector("#series-revenue").setAttribute("aria-pressed", String(seriesPosition >= 0.5));
     status.textContent = mode === "interactive"
       ? `交互切换 · ${position < 0.01 ? "概览" : position > 0.99 ? "图表分析" : `过渡 ${(position * 100).toFixed(0)}%`} · ${seriesPosition < 0.01 ? "访客" : seriesPosition > 0.99 ? "营收" : `数据渐变 ${(seriesPosition * 100).toFixed(0)}%`} · 绘制 ${paints}`
-      : `t = ${time.toFixed(2)} s · ${time < 3.55 ? "概览" : time < 4.16 ? "视图切换" : "图表分析"} · 保留声明 ${timelinePlan.get(planFields.declarations)} / 构建 ${timelinePlan.get(planFields["plan-builds"])} · 绘制 ${paints}`;
+      : `t = ${time.toFixed(2)} s · ${time < 3.55 ? "概览" : time < 4.16 ? "视图切换" : "图表分析"} · 绘制 ${paints}`;
+    status.textContent += ` · 保留声明 ${flowPlan.get(planFields.declarations)} / 构建 ${flowPlan.get(planFields["plan-builds"])}`;
     status.dataset.result = "pass";
   }
 
@@ -156,6 +165,7 @@ export function mountDemo() {
       mode = "interactive";
     }
     model = set_view(model, target, time);
+    modelVersion++;
     draw();
     if (view_active_$q_(model, time)) play();
     return snapshot();
@@ -171,14 +181,16 @@ export function mountDemo() {
       mode = "interactive";
     }
     seriesModel = set_series(seriesModel, target, time);
+    modelVersion++;
     draw();
     if (view_active_$q_(model, time) || series_active_$q_(seriesModel, time)) play();
     return snapshot();
   }
 
   function snapshot() {
-    const retained = mode === "timeline" ? to_js_data(timelinePlan) : null;
-    const scene = retained?.scene ?? to_js_data(interactive_scene_with_series_at(model, seriesModel, time));
+    if (flowPlan === null) updatePlan();
+    const retained = to_js_data(flowPlan);
+    const scene = retained.scene;
     const node = (id) => scene.nodes.find((entry) => entry.id === id);
     return {
       time,
@@ -259,6 +271,7 @@ export function mountDemo() {
     listeners.abort();
     observer.disconnect();
     resolution?.removeEventListener("change", watchDpr);
+    flowPlan = null;
     if (window.tidalBloomDemo === api) delete window.tidalBloomDemo;
     if (window.metricFlowDemo === api) delete window.metricFlowDemo;
   };

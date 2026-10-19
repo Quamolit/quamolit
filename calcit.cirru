@@ -6541,6 +6541,10 @@
           :code $ quote $ defstruct FlowField (:target 'quamolit.scene-ir/ScalarTarget) (:descriptor 'quamolit.motion/ScalarDescriptor)
           :examples $ []
           :schema $ :: 'StructDef
+        'FlowProps $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct FlowProps (:phase 'Number) (:interactive 'Bool) (:view 'quamolit.motion/ScalarDescriptor) (:series 'quamolit.motion/ScalarDescriptor)
+          :examples $ []
+          :schema $ :: 'StructDef
         'MetricFlowModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct MetricFlowModel (:initial 'Number) (:intent 'quamolit.transition/TransitionIntent)
             :events $ :: 'List 'quamolit.transition/TransitionEvent
@@ -6731,6 +6735,39 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ColorRgba)
             :args $ [] 'Number 'Number 'Number 'Number
+        'declare-flow $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn declare-flow (props model input resources viewport)
+            let
+                phase $ :phase props
+                nodes $ concat (shell-nodes)
+                  if (< phase 2)
+                    concat (hero-nodes 42)
+                      if (:interactive props)
+                        :nodes $ :scene $ component/sample-component-at (progress-request 42) declare-progress
+                        :nodes $ :scene $ declare-progress -190 0 0 0 0
+                    []
+                  if (< phase 4) (queue-nodes 42) ([])
+                  if (< phase 5) (activity-nodes 42) ([])
+                  if (>= phase 1) (kpi-nodes 8) ([])
+                  if (>= phase 3)
+                    if (:interactive props) (chart-series-nodes 1 0) (chart-nodes 8)
+                    []
+                  if (>= phase 6) (breakdown-nodes 8) ([])
+                component $ foldl
+                  map nodes $ fn (node)
+                    hint-fn $ {}
+                      :args $ [] 'quamolit.scene-ir/SceneNode
+                      :return 'quamolit.component-sample/ComponentDeclaration
+                    flow-node node props
+                  component/ComponentDeclaration :scene
+                    scene/SceneDocument :nodes $ []
+                    , :motions $ []
+                  , flow-merge
+              retained/ExecutionDeclaration :component component :transforms $ retained/TransformSampler :none
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :return 'quamolit.retained-component/ExecutionDeclaration
+            :args $ [] 'quamolit.examples.tidal-bloom/FlowProps 'Number 'Number 'Number 'Number
         'declare-progress $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-progress (x model input resources viewport)
             let
@@ -6755,23 +6792,9 @@
             :args $ [] 'Number 'Number 'Number 'Number 'Number
         'declare-timeline $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-timeline (phase model input resources viewport)
-            let
-                nodes $ concat (shell-nodes)
-                  if (< phase 2)
-                    concat (hero-nodes 42)
-                      :nodes $ :scene $ declare-progress -190 0 0 0 0
-                    []
-                  if (< phase 4) (queue-nodes 42) ([])
-                  if (< phase 5) (activity-nodes 42) ([])
-                  if (>= phase 1) (kpi-nodes 8) ([])
-                  if (>= phase 3) (chart-nodes 8) ([])
-                  if (>= phase 6) (breakdown-nodes 8) ([])
-                component $ foldl (map nodes timeline-node)
-                  component/ComponentDeclaration :scene
-                    scene/SceneDocument :nodes $ []
-                    , :motions $ []
-                  , flow-merge
-              retained/ExecutionDeclaration :component component :transforms $ retained/TransformSampler :none
+            declare-flow
+              FlowProps :phase phase :interactive false :view (flow-constant 0) :series $ flow-constant 0
+              , model input resources viewport
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.retained-component/ExecutionDeclaration
@@ -6794,6 +6817,19 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.examples.tidal-bloom/MetricFlowModel 'quamolit.examples.tidal-bloom/ChartSeriesModel 'Number
+        'event-prefix-size $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn event-prefix-size (events time)
+            foldl events 0 $ fn (total event)
+              hint-fn $ {}
+                :args $ [] 'Number 'quamolit.transition/TransitionEvent
+                :return 'Number
+              if
+                <= (:at event) time
+                inc total
+                , total
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] (:: 'List 'quamolit.transition/TransitionEvent) 'Number
         'flow-affine $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn flow-affine (value scale offset)
             flow-compose (flow-constant offset)
@@ -6850,6 +6886,34 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
             :args $ [] 'quamolit.component-sample/ComponentDeclaration 'quamolit.component-sample/ComponentDeclaration
+        'flow-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn flow-node (node props)
+            let
+                fields $ if
+                  timeline-animated? $ :id node
+                  match (:content node)
+                    (:rect item)
+                      if (:interactive props)
+                        interactive-fields (:id node) (:y item) (:width item) (:height item)
+                          :a $ :fill item
+                          , props
+                        timeline-fields (:id node) (:x item) (:y item) (:width item) (:height item)
+                          :a $ :fill item
+                    (:text item)
+                      if (:interactive props)
+                        interactive-fields (:id node) (:y item) 0 0
+                          :a $ :fill item
+                          , props
+                        timeline-fields (:id node) (:x item) (:y item) 0 0 $ :a $ :fill item
+                    _ $ raise |unsupported-metric-flow-content
+                  []
+              component/ComponentDeclaration :scene
+                scene/SceneDocument :nodes $ [] $ struct-with node
+                  :bindings $ map fields flow-field-binding
+                , :motions $ map fields flow-field-motion
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
+            :args $ [] 'quamolit.scene-ir/SceneNode 'quamolit.examples.tidal-bloom/FlowProps
         'flow-tween $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn flow-tween (start duration from to)
             motion/ScalarDescriptor :id |tween :version 0 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start start :duration duration :from from :to to :easing (motion/Easing :smoothstep)
@@ -6894,6 +6958,18 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.tidal-bloom/ChartSeriesModel)
             :args $ [] 'Number
+        'intent-clock $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn intent-clock (initial intent events at time)
+            let
+                selected $ if (< time at)
+                  transition/replay-prefix-until
+                    transition/start-transition (:key intent) initial initial 0 0 $ motion/Easing :smoothstep
+                    , events time
+                  , intent
+              motion/ScalarDescriptor :id (:key selected) :version 0 :motion $ motion/ScalarMotion :tween $ :tween selected
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'Number 'quamolit.transition/TransitionIntent (:: 'List 'quamolit.transition/TransitionEvent) 'Number 'Number
         'interactive-analytics-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn interactive-analytics-nodes (position)
             concat
@@ -6919,6 +6995,63 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number 'Number
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'interactive-distance $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interactive-distance (id)
+            cond
+                .starts-with? id |hero-
+                , 24
+              (.starts-with? id |queue-) 26
+              (or (.starts-with? id |bar-) (= id |chart-visitors-label) (= id |chart-revenue-label))
+                , 0
+              true $ timeline-distance id
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'String
+        'interactive-fields $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interactive-fields (id y width height alpha props)
+            let
+                reveal $ interactive-reveal id props
+                series $ :series props
+                distance $ interactive-distance id
+                bar? $ .starts-with? id |bar-value-
+                bar-height $ flow-compose
+                  flow-compose
+                    flow-compose (flow-constant height) (flow-affine series -1 1) (motion/ScalarComposeOp :multiply)
+                    flow-compose
+                      flow-constant $ if bar? (series-end-height id) 0
+                      , series $ motion/ScalarComposeOp :multiply
+                    motion/ScalarComposeOp :add
+                  , reveal $ motion/ScalarComposeOp :multiply
+                alpha-motion $ cond
+                    = id |hero-draft
+                    flow-constant 0
+                  (= id |hero-done) reveal
+                  (= id |chart-visitors-label)
+                    flow-compose reveal (flow-affine series -1 1) (motion/ScalarComposeOp :multiply)
+                  (= id |chart-revenue-label)
+                    flow-compose reveal series $ motion/ScalarComposeOp :multiply
+                  true $ flow-affine reveal alpha 0
+              concat
+                if bar?
+                  []
+                    flow-field id |height (scene/ScalarTarget :height) bar-height
+                    flow-field id |y (scene/ScalarTarget :y) (flow-affine bar-height -1 127)
+                    flow-field id |red (scene/ScalarTarget :srgb-red) (flow-affine series 0.43 0.42)
+                    flow-field id |green (scene/ScalarTarget :srgb-green) (flow-affine series -0.16 0.85)
+                    flow-field id |blue (scene/ScalarTarget :srgb-blue) (flow-affine series -0.28 0.76)
+                  [] $ flow-field id |alpha (scene/ScalarTarget :alpha) alpha-motion
+                if (> distance 0)
+                  [] $ flow-field id |y (scene/ScalarTarget :y)
+                    flow-affine (flow-affine reveal -1 1) distance y
+                  []
+                if
+                  and (.starts-with? id |channel-) (.ends-with? id |-fill)
+                  [] $ flow-field id |width (scene/ScalarTarget :width) (flow-affine reveal width 0)
+                  []
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'String 'Number 'Number 'Number 'Number 'quamolit.examples.tidal-bloom/FlowProps
+            :return $ :: 'List 'quamolit.examples.tidal-bloom/FlowField
         'interactive-overview-nodes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn interactive-overview-nodes (position)
             let
@@ -6942,6 +7075,61 @@
           :schema $ :: 'Fn $ {}
             :args $ [] 'Number
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'interactive-phase $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interactive-phase (position)
+            cond
+                <= position 0.38
+                , 0
+              (< position 0.42) 1
+              (<= position 0.56) 2
+              (< position 0.57) 3
+              (< position 0.69) 4
+              (<= position 0.72) 5
+              true 6
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number
+        'interactive-request $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interactive-request (model series time model-version viewport-version)
+            let
+                position $ view-position-at model time
+                series-position $ series-position-at series time
+                phase $ interactive-phase position
+                revision $ +
+                  * 2001 $ event-prefix-size (:events model) time
+                  event-prefix-size (:events series) time
+                view-clock $ intent-clock (:initial model) (:intent model) (:events model) (:at model) time
+                series-clock $ intent-clock (:initial series) (:intent series) (:events series) (:at series) time
+              component/ComponentRequest :id |metric-flow/interactive :time time :versions
+                direct/FrameVersions :component phase :motion revision :model model-version :input 0 :resources 0 :viewport viewport-version
+                , :props
+                  FlowProps :phase phase :interactive true :view view-clock :series series-clock
+                  , :model 0 :input 0 :resources 0 :viewport 0
+          :examples $ []
+          :schema $ :: 'Fn $ {}
+            :args $ [] 'quamolit.examples.tidal-bloom/MetricFlowModel 'quamolit.examples.tidal-bloom/ChartSeriesModel 'Number 'Number 'Number
+            :return $ :: 'quamolit.component-sample/ComponentRequest 'quamolit.examples.tidal-bloom/FlowProps 'Number 'Number 'Number 'Number
+        'interactive-reveal $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn interactive-reveal (id props)
+            let
+                view $ :view props
+              cond
+                  .starts-with? id |hero-
+                  flow-at (flow-tween 0 0.42 1 0) view
+                (.starts-with? id |queue-)
+                  flow-at (flow-tween 0.12 0.45 1 0) view
+                (.starts-with? id |activity-)
+                  flow-at (flow-tween 0.24 0.45 1 0) view
+                (.starts-with? id |kpi-)
+                  flow-at (timeline-reveal id)
+                    flow-affine (flow-affine view 1 -0.38) 2 3.55
+                (or (.starts-with? id |breakdown-) (.starts-with? id |channel-))
+                  flow-at (timeline-reveal id)
+                    flow-affine (flow-affine view 1 -0.72) 5.5 4.65
+                true $ flow-at (flow-tween 0.56 0.31 0 1) view
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
+            :args $ [] 'String 'quamolit.examples.tidal-bloom/FlowProps
         'interactive-scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn interactive-scene-at (model time)
             let
@@ -7085,6 +7273,26 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.examples.tidal-bloom/ChartSeriesModel 'Number
+        'series-end-height $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn series-end-height (id)
+            cond
+                = id |bar-value-0
+                , 121
+              (= id |bar-value-1) 108
+              (= id |bar-value-2) 88
+              (= id |bar-value-3) 63
+              (= id |bar-value-4) 48
+              (= id |bar-value-5) 72
+              (= id |bar-value-6) 108
+              (= id |bar-value-7) 81
+              (= id |bar-value-8) 68
+              (= id |bar-value-9) 104
+              (= id |bar-value-10) 125
+              (= id |bar-value-11) 93
+              true $ raise |unknown-metric-flow-bar
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'String
         'series-position-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn series-position-at (model time)
             assert |invalid-series-time $ and (motion/finite-number? time) (>= time 0)
@@ -7149,6 +7357,12 @@
           :schema $ :: 'Fn $ {}
             :args $ []
             :return $ :: 'List 'quamolit.scene-ir/SceneNode
+        'start-interactive $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn start-interactive (model series time model-version viewport-version)
+            retained/build-execution-plan (interactive-request model series time model-version viewport-version) declare-flow
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.examples.tidal-bloom/MetricFlowModel 'quamolit.examples.tidal-bloom/ChartSeriesModel 'Number 'Number 'Number
         'start-timeline $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-timeline (time)
             retained/build-execution-plan (timeline-request time 0 0) declare-timeline
@@ -7252,26 +7466,6 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
             :args $ [] 'String 'Number 'Number 'quamolit.motion/ScalarDescriptor 'quamolit.motion/ScalarDescriptor
-        'timeline-node $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn timeline-node (node)
-            let
-                fields $ if
-                  timeline-animated? $ :id node
-                  match (:content node)
-                    (:rect item)
-                      timeline-fields (:id node) (:x item) (:y item) (:width item) (:height item)
-                        :a $ :fill item
-                    (:text item)
-                      timeline-fields (:id node) (:x item) (:y item) 0 0 $ :a $ :fill item
-                    _ $ raise |unsupported-metric-flow-content
-                  []
-              component/ComponentDeclaration :scene
-                scene/SceneDocument :nodes $ [] $ struct-with node
-                  :bindings $ map fields flow-field-binding
-                , :motions $ map fields flow-field-motion
-          :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
-            :args $ [] 'quamolit.scene-ir/SceneNode
         'timeline-phase $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn timeline-phase (time)
             assert |invalid-metric-flow-time $ motion/finite-number? time
@@ -7352,6 +7546,12 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number 'Number 'Number 'Number 'Number
+        'update-interactive $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn update-interactive (previous model series time model-version viewport-version)
+            retained/update-execution-plan previous (interactive-request model series time model-version viewport-version) declare-flow
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
+            :args $ [] 'quamolit.retained-component/ComponentPlan 'quamolit.examples.tidal-bloom/MetricFlowModel 'quamolit.examples.tidal-bloom/ChartSeriesModel 'Number 'Number 'Number
         'update-timeline $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-timeline (previous time model-version viewport-version)
             retained/update-execution-plan previous (timeline-request time model-version viewport-version) declare-timeline
@@ -16731,6 +16931,12 @@
                             :b $ if
                               or (= value 0) (= value 1)
                               , value $ motion/linear-to-srgb value
+                        (:srgb-red)
+                          struct-with (:fill rect) (:r value)
+                        (:srgb-green)
+                          struct-with (:fill rect) (:g value)
+                        (:srgb-blue)
+                          struct-with (:fill rect) (:b value)
                         _ $ :fill rect
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/RectNode)
@@ -18708,8 +18914,8 @@
           :examples $ []
           :schema $ :: 'StructDef
         'ScalarTarget $ %{} 'CodeEntry
-          :doc "|矩形linear-red/green/blue绑定接收[0,1]线性光通道，采样后编码为ColorRgba的直通道sRGB；其他目标的单位和支持种类不变。实验接口。"
-          :code $ quote $ defenum ScalarTarget (:x) (:y) (:width) (:height) (:opacity) (:alpha) (:linear-red) (:linear-green) (:linear-blue)
+          :doc "|实验性标量目标。矩形linear-red/green/blue接收[0,1]线性光值并编码为sRGB，srgb-red/green/blue直接替换[0,1]编码通道以保留既有UI渐变。相同通道的两种空间不能重复绑定；sRGB目标当前整层回退CPU。"
+          :code $ quote $ defenum ScalarTarget (:x) (:y) (:width) (:height) (:opacity) (:alpha) (:linear-red) (:linear-green) (:linear-blue) (:srgb-red) (:srgb-green) (:srgb-blue)
           :examples $ []
           :schema $ :: 'EnumDef
         'SceneContent $ %{} 'CodeEntry
@@ -18743,6 +18949,17 @@
           :code $ quote $ defstruct TextNode (:x 'Number) (:y 'Number) (:size 'Number) (:text 'String) (:fill 'quamolit.motion/ColorRgba) (:font 'quamolit.scene-ir/FontSpec)
           :examples $ []
           :schema $ :: 'StructDef
+        'canonical-scalar-target $ %{} 'CodeEntry
+          :doc "|仅用于重复目标检测：同一颜色通道的linear/srgb别名相等，不改变实际采样单位或GPU能力。"
+          :code $ quote $ defn canonical-scalar-target (target)
+            match target
+              (:srgb-red) (ScalarTarget :linear-red)
+              (:srgb-green) (ScalarTarget :linear-green)
+              (:srgb-blue) (ScalarTarget :linear-blue)
+              _ target
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/ScalarTarget)
+            :args $ [] 'quamolit.scene-ir/ScalarTarget
         'conflicts-with-earlier? $ %{} 'CodeEntry
           :doc "|Reject duplicate ID or sibling key in a preorder prefix."
           :code $ quote $ defn conflicts-with-earlier? (node earlier)
@@ -18909,11 +19126,27 @@
         'target-in? $ %{} 'CodeEntry (:doc "|Check for another binding of the same target.")
           :code $ quote $ defn target-in? (target bindings)
             if (empty? bindings) false $ if
-              = target $ :target $ first-binding bindings
+              = (canonical-scalar-target target)
+                canonical-scalar-target $ :target $ first-binding bindings
               , true $ recur target (rest bindings)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'quamolit.scene-ir/ScalarTarget $ :: 'List 'quamolit.scene-ir/ScalarBinding
+          :tests $ [] $ %{} 'TestEntry (:name |encoded-and-linear-channel-aliases)
+            :code $ quote $ let
+                srgb $ ScalarBinding :target (ScalarTarget :srgb-red) :motion-id |red :version 0
+                linear $ ScalarBinding :target (ScalarTarget :linear-red) :motion-id |linear :version 0
+                content $ SceneContent :rect $ RectNode :x 0 :y 0 :width 1 :height 1 :fill
+                  ColorRgba :r 0 :g 0 :b 0 :a 1
+              is= (ScalarTarget :linear-red)
+                canonical-scalar-target $ ScalarTarget :srgb-red
+              is= true $ target-in? (ScalarTarget :srgb-red) ([] linear)
+              is= true $ target-in? (ScalarTarget :linear-red) ([] srgb)
+              is= false $ target-in? (ScalarTarget :srgb-blue) ([] linear)
+              is= true $ valid-binding? srgb content
+              is= false $ valid-bindings? ([] srgb linear) content
+              is= false $ valid-bindings? ([] linear srgb) content
+            :tags $ #{} :scene :unit
         'valid-arc? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn valid-arc? (arc)
             and
@@ -18977,6 +19210,12 @@
                 (:linear-green)
                   = (content-kind content) |rect
                 (:linear-blue)
+                  = (content-kind content) |rect
+                (:srgb-red)
+                  = (content-kind content) |rect
+                (:srgb-green)
+                  = (content-kind content) |rect
+                (:srgb-blue)
                   = (content-kind content) |rect
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)

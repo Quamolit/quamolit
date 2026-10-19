@@ -2,7 +2,7 @@
 
 这是 issue #48 的局部实现，不是完整 Motion IR，也不改变现有 `quamolit.core` 绘制 API。目标是先固定一个可类型检查、可序列化、可在任意时间直接采样的 CPU 参考路径；之后颜色、有界组合及 GPU lowering 必须沿用相同的时间和身份语义。
 
-`quamolit.motion` 定义 `ScalarDescriptor { id, version, motion }`。`motion` 是封闭枚举：常量、`scale * time + offset`、`ScalarTween { start, duration, from, to, easing }`，以及关键帧轨道；easing 目前只有 linear 和 smoothstep。所有时间以秒为单位，结果为标量 `Number`。`sample-scalar descriptor time` 是纯函数，不读取上一帧，也不维护播放状态；调用方可以按 `1, 0, 0.5, 0.25, 1` 的顺序采样。`duration=0` 在 `start` 时刻切换；正时长区间在两端钳制。输入/输出中的 NaN 与无穷值会拒绝，持续时间不能为负。描述可以作为数据传递，里面没有 JS 闭包或 GPU handle。
+`quamolit.motion` 定义 `ScalarDescriptor { id, version, motion }`。`motion` 是封闭枚举：常量、`scale * time + offset`、`ScalarTween { start, duration, from, to, easing }`、关键帧轨道，以及下文的有界组合 `compose` 和时间重映射 `at`；easing 目前只有 linear 和 smoothstep。基础时间以秒为单位，结果为标量 `Number`；使用 `at` 映射为进度时须显式统一单位。`sample-scalar descriptor time` 是纯函数，不读取上一帧，也不维护播放状态；调用方可以按 `1, 0, 0.5, 0.25, 1` 的顺序采样。`duration=0` 在 `start` 时刻切换；正时长区间在两端钳制。输入/输出中的 NaN 与无穷值会拒绝，持续时间不能为负。描述可以作为数据传递，里面没有 JS 闭包或 GPU handle。
 
 所有带 ID/version 的 Motion 描述（标量、Vec2、颜色、两输入组合和 CPU 自定义标量）现在统一要求非空 ID、有限非负整数版本。独立 CPU 采样与 GPU 候选分类使用同一边界；不能让 `1.5` 或空 ID 先被采样接受、到 Scene 绑定时才失败。版本代表描述内容的修订，内容变化必须递增版本；不能在同一 ID/version 下悄悄替换内容。对于接受原始 `Number` 的结构体，这些约束由入口的运行时校验执行，静态类型仍保证它是数值而非字符串。
 
