@@ -4,7 +4,10 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { _$n__$M_ as map } from "@calcit/procs";
-import { vals } from "../target/js/app/calcit.core.mjs";
+import { vals, init_tags, CalcitSliceList } from "../target/js/app/calcit.core.mjs";
+import { hsl } from "../target/js/app/quamolit.util.string.mjs";
+import { paint_rect } from "../target/js/app/quamolit.render.paint.mjs";
+import { create_shape } from "../target/js/app/quamolit.alias.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
@@ -53,5 +56,41 @@ assert.equal(installedCalcitJsFfi, declaredJsFfiVersion, "实际 Calcit js-ffi �
 // Exercise generated core against the matching JS runtime, not just codegen.
 const values = vals(map("first", 1, "second", 1));
 assert.equal(values.toString(), "(#{} 1)");
+
+// Option 原语升级不能把 None/Some 包装体传进旧 Canvas/Shape ABI。
+assert.equal(hsl(200, 70, 50), "hsl(200,70%,50%)");
+assert.equal(hsl(200, 70, 50, 0), "hsla(200,70%,50%,0)");
+assert.equal(hsl(200, 70, 50, 0.75), "hsla(200,70%,50%,0.75)");
+const tags = init_tags(["rect", "event", "w", "h", "x", "y", "line-width"]);
+const children = new CalcitSliceList([]);
+for (const event of [null, false, 0, () => undefined]) {
+  assert.equal(create_shape(tags.rect, map(tags.event, event), children).get(tags.event), event);
+}
+assert.equal(create_shape(tags.rect, map(), children).get(tags.event), null);
+function rectangle(style) {
+  const calls = [];
+  paint_rect(
+    {
+      beginPath() {},
+      rect(...args) {
+        calls.push(args);
+      },
+    },
+    style,
+    children,
+    null,
+  );
+  assert.equal(calls.length, 1);
+  return calls[0];
+}
+assert.deepEqual(rectangle(map()), [-50, -20, 100, 40]);
+for (const value of [null, false]) {
+  assert.deepEqual(
+    rectangle(map(tags.w, value, tags.h, value, tags.x, value, tags.y, value, tags["line-width"], value)),
+    [-50, -20, 100, 40],
+  );
+}
+assert.deepEqual(rectangle(map(tags.w, 0, tags.h, 0, tags.x, 0, tags.y, 0)), [0, 0, 0, 0]);
+assert.throws(() => rectangle(map(tags.w, "invalid")), /invalid-legacy-style-number/);
 
 console.log(`Calcit CLI/runtime aligned at ${expectedVersion}`);

@@ -127,8 +127,14 @@
         '>> $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn >> (states k)
             let
-                parent-cursor $ either (&map:get states :cursor) ([])
-                branch $ &map:get states k
+                parent-cursor $ either
+                  match (&map:get states :cursor)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  []
+                branch $ match (&map:get states k)
+                  (:some legacy-value) legacy-value
+                  (:none) nil
               &map:assoc
                 either branch $ {}
                 , :cursor $ append parent-cursor k
@@ -163,8 +169,12 @@
               not $ map? props
               raise $ new js/Error |Props-expected-to-be-a-map
             %{} Shape (:name shape-name)
-              :style $ &map:get props :style
-              :event $ &map:get props :event
+              :style $ match (&map:get props :style)
+                (:some legacy-value) legacy-value
+                (:none) nil
+              :event $ match (&map:get props :event)
+                (:some legacy-value) legacy-value
+                (:none) nil
               :children children
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
@@ -177,7 +187,9 @@
               raise $ new js/Error "|Props expeced to be a map!"
             %{} Shape (:name shape-name)
               :style $ &map:dissoc props :event
-              :event $ &map:get props :event
+              :event $ match (&map:get props :event)
+                (:some legacy-value) legacy-value
+                (:none) nil
               :children $ arrange-children children
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
@@ -198,13 +210,21 @@
                     assert |expected-on-tick-and-tree $ = 2 $ count ret
                     %{} Component
                       :name $ ~ $ turn-tag comp-name
-                      :on-tick $ &list:first ret
-                      :tree $ &list:last ret
+                      :on-tick $ match (&list:first ret)
+                        (:some legacy-value) legacy-value
+                        (:none) nil
+                      :tree $ match (&list:last ret)
+                        (:some legacy-value) legacy-value
+                        (:none) nil
                 (map? ret)
                   %{} Component
                     :name $ ~ $ turn-tag comp-name
-                    :on-tick $ &map:get ret :on-tick
-                    :tree $ &map:get ret :tree
+                    :on-tick $ match (&map:get ret :on-tick)
+                      (:some legacy-value) legacy-value
+                      (:none) nil
+                    :tree $ match (&map:get ret :tree)
+                      (:some legacy-value) legacy-value
+                      (:none) nil
                 true $ raise |unknown-component
           :examples $ []
           :schema $ :: 'Macro $ {} (:rest 'Syntax)
@@ -1922,8 +1942,16 @@
         'gc-states $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gc-states (store op-data)
             let
-                cursor $ unsafe-coerce (&list:first op-data) (:: 'List 'Tag)
-                fields $ unsafe-coerce (&list:last op-data) (:: 'List 'Tag)
+                cursor $ unsafe-coerce
+                  match (&list:first op-data)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  :: 'List 'Tag
+                fields $ unsafe-coerce
+                  match (&list:last op-data)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  :: 'List 'Tag
               update-in store
                 concat ([] :states) cursor
                 fn (maybe-dict)
@@ -1937,8 +1965,14 @@
         'update-states $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-states (store op-data)
             let
-                cursor $ unsafe-coerce (&list:first op-data) (:: 'List 'Tag)
-                data $ &list:last op-data
+                cursor $ unsafe-coerce
+                  match (&list:first op-data)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  :: 'List 'Tag
+                data $ match (&list:last op-data)
+                  (:some legacy-value) legacy-value
+                  (:none) nil
               assoc-in store
                 concat ([] :states) cursor $ [] :data
                 , data
@@ -14069,7 +14103,11 @@
         'rotate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp rotate (props & children)
             let
-                angle $ * pi-ratio $ either (&map:get props :angle) 30
+                angle $ * pi-ratio $ either
+                  match (&map:get props :angle)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 30
               group ({})
                 native-save $ {}
                 native-rotate $ &{} :angle angle
@@ -14138,7 +14176,10 @@
           :schema $ :: 'Dynamic
         'get-image $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn get-image (src)
-            if (&map:contains? @*image-pool src) (&map:get @*image-pool src)
+            if (&map:contains? @*image-pool src)
+              match (&map:get @*image-pool src)
+                (:some legacy-value) legacy-value
+                (:none) nil
               let
                   image $ image-create
                 image-src! image src
@@ -14165,8 +14206,13 @@
         'paint-alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-alpha (ctx style)
             let
-                base-alpha $ &map:get @*tracked-transform :alpha
-                opacity $ * base-alpha $ bound-opacity (&map:get style :opacity)
+                base-alpha $ match (&map:get @*tracked-transform :alpha)
+                  (:some legacy-value) legacy-value
+                  (:none) nil
+                opacity $ * base-alpha $ bound-opacity
+                  match (&map:get style :opacity)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
               set! (.-globalAlpha ctx) opacity
               swap! *tracked-transform assoc :alpha opacity
           :examples $ []
@@ -14176,31 +14222,77 @@
         'paint-arc $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-arc (ctx style coord event)
             let
-                x $ either (&map:get style :x) 0
-                y $ either (&map:get style :y) 0
-                r $ either (&map:get style :r) 40
-                s-angle $ * pi-ratio $ either (&map:get style :s-angle) 0
-                e-angle $ * pi-ratio $ either (&map:get style :e-angle) 300
-                line-width $ either (&map:get style :line-width) 4
-                counterclockwise $ either (&map:get style :counterclockwise) false
-                line-cap $ either (&map:get style :line-cap) |round
-                miter-limit $ either (&map:get style :miter-limit) 8
+                x $ either
+                  match (&map:get style :x)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 0
+                y $ either
+                  match (&map:get style :y)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 0
+                r $ either
+                  match (&map:get style :r)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 40
+                s-angle $ * pi-ratio $ either
+                  match (&map:get style :s-angle)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 0
+                e-angle $ * pi-ratio $ either
+                  match (&map:get style :e-angle)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 300
+                line-width $ either
+                  match (&map:get style :line-width)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 4
+                counterclockwise $ either
+                  match (&map:get style :counterclockwise)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , false
+                line-cap $ either
+                  match (&map:get style :line-cap)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , |round
+                miter-limit $ either
+                  match (&map:get style :miter-limit)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 8
               .!beginPath ctx
               .!arc ctx x y r s-angle e-angle counterclockwise
               when (non-nil? event)
                 reset! *touch-event-areas $ prepend
                   {} (:kind :arc) (:r r)
-                    :transform $ &map:get @*tracked-transform :transform
-                    :offset $ &map:get @*tracked-transform :offset
+                    :transform $ match (&map:get @*tracked-transform :transform)
+                      (:some legacy-value) legacy-value
+                      (:none) nil
+                    :offset $ match (&map:get @*tracked-transform :offset)
+                      (:some legacy-value) legacy-value
+                      (:none) nil
                     :coord coord
                     :position $ [] x y
                   , @*touch-event-areas
               when (&map:contains? style :fill-style)
-                set! (.-fillStyle ctx) (&map:get style :fill-style)
+                set! (.-fillStyle ctx)
+                  match (&map:get style :fill-style)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
                 .!fill ctx
               when (&map:contains? style :stroke-style)
                 set! (.-lineWidth ctx) line-width
-                set! (.-strokeStyle ctx) (&map:get style :stroke-style)
+                set! (.-strokeStyle ctx)
+                  match (&map:get style :stroke-style)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
                 set! (.-lineCap ctx) line-cap
                 set! (.-miterLimit ctx) miter-limit
                 .!stroke ctx
@@ -14228,15 +14320,51 @@
         'paint-line $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-line (ctx style)
             let
-                x0 $ either (&map:get style :x0) 0
-                y0 $ either (&map:get style :y0) 0
-                x1 $ either (&map:get style :x1) 40
-                y1 $ either (&map:get style :y1) 40
-                line-width $ or (&map:get style :line-width) 4
-                stroke-style $ or (&map:get style :stroke-style) (hsl 200 70 50)
-                line-cap $ or (&map:get style :line-cap) |round
-                line-join $ or (&map:get style :line-join) |round
-                miter-limit $ or (&map:get style :miter-limit) 8
+                x0 $ either
+                  match (&map:get style :x0)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 0
+                y0 $ either
+                  match (&map:get style :y0)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 0
+                x1 $ either
+                  match (&map:get style :x1)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 40
+                y1 $ either
+                  match (&map:get style :y1)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 40
+                line-width $ or
+                  match (&map:get style :line-width)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 4
+                stroke-style $ or
+                  match (&map:get style :stroke-style)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  hsl 200 70 50
+                line-cap $ or
+                  match (&map:get style :line-cap)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , |round
+                line-join $ or
+                  match (&map:get style :line-join)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , |round
+                miter-limit $ or
+                  match (&map:get style :miter-limit)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 8
               .!beginPath ctx
               .!moveTo ctx x0 y0
               .!lineTo ctx x1 y1
@@ -14279,10 +14407,20 @@
         'paint-path $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-path (ctx style)
             let
-                points $ &map:get style :points
-                first-point $ &list:first points
+                points $ match (&map:get style :points)
+                  (:some legacy-value) legacy-value
+                  (:none) nil
+                first-point $ match (&list:first points)
+                  (:some legacy-value) legacy-value
+                  (:none) nil
               .!beginPath ctx
-              .!moveTo ctx (&list:first first-point) (&list:last first-point)
+              .!moveTo ctx
+                match (&list:first first-point)
+                  (:some legacy-value) legacy-value
+                  (:none) nil
+                match (&list:last first-point)
+                  (:some legacy-value) legacy-value
+                  (:none) nil
               &doseq
                 coords $ rest points
                 case-default (count coords) (raise |not-supported-coords)
@@ -14291,17 +14429,39 @@
                   6 $ .!bezierCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3) (nth coords 4) (nth coords 5)
               when (&map:contains? style :stroke-style)
                 set! (.-lineWidth ctx)
-                  either (&map:get style :line-width) 4
-                set! (.-strokeStyle ctx) (&map:get style :stroke-style)
+                  either
+                    match (&map:get style :line-width)
+                      (:some legacy-value) legacy-value
+                      (:none) nil
+                    , 4
+                set! (.-strokeStyle ctx)
+                  match (&map:get style :stroke-style)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
                 set! (.-lineCap ctx)
-                  either (&map:get style :line-cap) |round
+                  either
+                    match (&map:get style :line-cap)
+                      (:some legacy-value) legacy-value
+                      (:none) nil
+                    , |round
                 set! (.-lineJoin ctx)
-                  either (&map:get style :line-join) |round
+                  either
+                    match (&map:get style :line-join)
+                      (:some legacy-value) legacy-value
+                      (:none) nil
+                    , |round
                 set! (.-milterLimit ctx)
-                  either (&map:get style :milter-limit) 8
+                  either
+                    match (&map:get style :milter-limit)
+                      (:some legacy-value) legacy-value
+                      (:none) nil
+                    , 8
                 .!stroke ctx
               when (&map:contains? style :fill-style)
-                set! (.-fillStyle ctx) (&map:get style :fill-style)
+                set! (.-fillStyle ctx)
+                  match (&map:get style :fill-style)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
                 .!closePath ctx
                 .!fill ctx
           :examples $ []
@@ -14311,15 +14471,35 @@
         'paint-rect $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-rect (ctx style coord event)
             let
-                w $ legacy-number (&map:get style :w) 100
-                h $ legacy-number (&map:get style :h) 40
+                w $ legacy-number
+                  match (&map:get style :w)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 100
+                h $ legacy-number
+                  match (&map:get style :h)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 40
                 x $ -
-                  legacy-number (&map:get style :x) 0
+                  legacy-number
+                    match (&map:get style :x)
+                      (:some legacy-value) legacy-value
+                      (:none) nil
+                    , 0
                   / w 2
                 y $ -
-                  legacy-number (&map:get style :y) 0
+                  legacy-number
+                    match (&map:get style :y)
+                      (:some legacy-value) legacy-value
+                      (:none) nil
+                    , 0
                   / h 2
-                line-width $ legacy-number (&map:get style :line-width) 2
+                line-width $ legacy-number
+                  match (&map:get style :line-width)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 2
               .!beginPath ctx
               .!rect ctx x y w h
               when (non-nil? event)
@@ -14337,10 +14517,16 @@
                     &+ x $ &* 0.5 w
                     &+ y $ &* 0.5 h
               when (&map:contains? style :fill-style)
-                set! (.-fillStyle ctx) (&map:get style :fill-style)
+                set! (.-fillStyle ctx)
+                  match (&map:get style :fill-style)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
                 .!fill ctx
               when (&map:contains? style :stroke-style)
-                set! (.-strokeStyle ctx) (&map:get style :stroke-style)
+                set! (.-strokeStyle ctx)
+                  match (&map:get style :stroke-style)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
                 set! (.-lineWidth ctx) line-width
                 .!stroke ctx
           :examples $ []
@@ -21675,7 +21861,7 @@
           :code $ quote $ defn hsl (h s l & alpha)
             if (empty? alpha) (str "|hsl(" h |, s |%, l "|%)")
               let
-                  a $ &list:first alpha
+                  a $ .unwrap $ first alpha
                 str "|hsla(" h |, s |%, l |%, a "|)"
           :examples $ []
           :schema $ :: 'Fn $ {} (:rest 'Dynamic) (:return 'String)

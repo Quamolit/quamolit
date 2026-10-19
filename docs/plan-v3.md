@@ -4,7 +4,7 @@
 
 ## 当前事实与下一项交付
 
-2026-10-15 核对：主线 `b175f84` 已包含 #240 的 Calcit/runtime 0.30.0-alpha.3、js-ffi 0.2.3 与27个命名 entry，default与独立消费者边界不变；#228已接通共享字体/图片、重试/版本竞态、Arc命中/保留alpha/Presence及文字墨迹解析接口。工具链来源与实际验收见[版本合同](calcit-027-upgrade.md)。旧发布alpha.4仍基于0.28.0，本轮不发版；功能通过不等于稳定API、全画质或性能达标，云端SKIP不算硬件通过。
+2026-10-19 核对：主线 `80c73e5` 已合并 #231–#241 的精确文字命中、静止 hover、原示例屏幕矩阵、公共呈现矩阵、原生资源关闭、颜色与CPU标准TRS等切片；工具链仍为0.30.0-alpha.3。当前独立候选迁移到配套0.30.1-alpha.5及已发布依赖，来源和验收见[版本合同](calcit-027-upgrade.md)，不把候选当作主线或正式发布。27个命名entry及独立消费者边界不变；旧发布alpha.4仍基于0.28.0，本轮不发版。功能通过不等于稳定API、全画质或性能达标，云端SKIP不算硬件通过。
 
 ### 阶段矩阵
 
@@ -22,7 +22,7 @@
 
 | 能力 | Canvas / CPU 已合并基线 | WebGPU 已合并基线 | 证据、候选与限制 |
 | --- | --- | --- | --- |
-| 声明、Motion、显式时间 | ComponentPlan 与 Presence、标量/Vec2/关键帧及自定义 CPU 函数可采样 | 标准标量/Vec2 的有限子集；任意闭包不能转 WGSL | [保留组件](retained-component.md)、[GPU 标量](gpu-scalar-program.md)、`test:consumer`；mirror 扩展已随[合并 #198](https://github.com/Quamolit/quamolit/pull/198) |
+| 声明、Motion、显式时间 | ComponentPlan/Presence、标量/Vec2/颜色/标准TRS及自定义CPU函数可采样 | 标准标量/Vec2和矩形颜色的有限子集；TRS尚不支持，任意闭包不能转WGSL | [保留组件](retained-component.md)、[GPU标量](gpu-scalar-program.md)、`test:consumer`；mirror/颜色/CPU标准变换已随#198/#238/#239合并，GPU TRS候选另验收 |
 | 保留执行与增量失效 | 同源消费者 1000 时间帧声明/构建各1，绑定/变换采样各1001；版本变化显式失效 | 矩形 BatchPlan、实例参数/位置常驻、局部记录/时间 uniform | [消费者](isolated-consumer.md)、[组件批次](gpu-component-plan.md)；计数不证明完整事件索引、每帧分配或帧率 |
 | 基础路径、圆与文字 | rect/circle/polyline/polygon/cubic/text 使用原生 Canvas；图片走资源感知入口 | 组件矩形子集；文字/复杂路径不支持，应整层回退或明确拒绝 | [Curve](curve-restoration.md)、[图表组](layered-dashboard.md)、`test:curve-demo`/`test:icons-demo`/`test:solar-demo`；端点/接头固定为[已合并 #202](https://github.com/Quamolit/quamolit/pull/202)，中文字体加载、失败及版本隔离随 #203 合并，排版/缓存计数仍归 #53 |
 | 祖先变换、clip、组 opacity | [已合并 #159](https://github.com/Quamolit/quamolit/pull/159)：嵌套矩形裁剪与隔离 surface，只合成一次组透明度 | 图片图层仅支持规定的轴对齐窗口、组 opacity=1；一般组/旋转 clip 不支持 | [图片支持边界](webgpu-scene-images.md)、`test:webgpu-images`/`test:layered-dashboard`；[已合并 #199](https://github.com/Quamolit/quamolit/pull/199)补独立嵌套消费者与节点诊断，不补一般 GPU 组语义 |
@@ -32,9 +32,9 @@
 | Canvas UI + GPU 层 | 显式 RenderLayer，统一时间/视口、声明顺序与整层回退 | 单根实例层可与 UI 同屏，不自动拆任意 Scene | [分层契约与门禁](layer-composition.md)；#177 的默认后端/成本决策未完成，跨层 capture 与 GPU 文字不在现有合同 |
 | 模块与真实入口 | 单个 Calcit 模块，inline/file 随安装内嵌；主 Snapshot 与独立消费者分工明确 | 同一模块可消费受支持 GPU 入口，无手工宿主 JS 导入 | [FFI](calcit-first-ffi.md)、[消费者](isolated-consumer.md)；#201贯通普通compile/release，#227已将27个命名entry合入主线；default仍为诊断，独立消费者保留独立Snapshot，entry不是分发隔离；新tag消费仍待验证 |
 
-当前优先补齐#34/#53的真实图形/交互功能，不扩展性能优化。已合并工具链、入口和资源产物不能再列为待开发前置；沿现有组件/资源/导航与消费者完善联合出口，不新增平行demo、资源层、runner或job。用户已授权按依赖顺序合并自身Actions全绿且无冲突的PR，不授权发版，Vite保持运行；未合并的标准变换/颜色等功能仍按各自PR验证。
+当前先以#35/#104的既有门禁完成0.30.1配套工具链迁移，再沿#52把已有GPU TRS候选接到已合并的颜色与公共呈现矩阵，保持Calcit声明与同源CPU/Canvas参考。#34/#53的图形/交互仍沿真实UI补齐，不扩展性能优化、不新增平行demo、资源层、runner或job。已交付项不重新开发；用户已授权按依赖顺序合并自身Actions全绿且无冲突的PR，不授权发版，Vite保持运行。
 
-最新分支切片将实际看板标题接公共Calcit文字测量/HitPlan提交，并在同一DashboardMedia增加FontSpec版本刷新，不改变原画面与动画意图。既有两项DPR用例验证同时间ready/失败、暂停resize、capture/退出/重入，以及v3先ready/v2后到、图片所有权不变、多版本关闭与真实按钮恢复；完整看板25项、compile/release和导航76项及增强后的静态看板用例通过。旧近似框负例会失败，恢复后复验通过；没有放宽容差。e39d83b已完成精确远端干净消费与既有Metal回归，分支Visual/Benchmark亦成功；PR最终提交仍须自身CI，不计为主线或新tag能力。当前证据集中#53与[layered-dashboard](layered-dashboard.md)。完整类型/重排/指针矩阵、查询/布局/glyph/路径缓存计数、GPU文字/栅格化和发布后tag消费仍未完成，不关闭#34/#51/#53/M2/M3。
+看板精确标题命中/字体版本与静止hover已随#231/#232合并，复用原组件、HitPlan和资源队列，不再列为待审前置。两项DPR用例覆盖同时间ready/失败、暂停resize、capture/退出/重入、旧版本迟到与关闭；具体证据仍集中#53和[layered-dashboard](layered-dashboard.md)，不在此复制逐PR日志。完整类型/重排/指针矩阵、查询/布局/glyph/路径缓存计数、GPU文字/栅格化和发布后tag消费仍未完成，不关闭#34/#51/#53/M2/M3。
 
 并行于功能主线，#204首批工程减法已随#207合并，移除24个退役`quamolit.app.*`，不删除旧库API或减少11个demo/门禁。[API迁移清单](api-contract.md#仍保留的旧入口退役登记)现登记仍保留15项的仓内定义调用、import-only、替代入口和退役门槛/阶段；原始逐定义查询只在忽略目录。仓外使用者未全面核对，不能据仓内无调用删除公开入口；`retained-path`仍服务Binary Tree。新抽象/粒度规则沿已有模板/AGENTS，不增状态页、扫描框架、命令或job。
 
