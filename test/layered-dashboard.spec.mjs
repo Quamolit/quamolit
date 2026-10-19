@@ -63,7 +63,167 @@ for (const dpr of [1, 2]) {
       const initial = await probes();
       expect(initial.approximateFalsePositive).toBe(true); // 固定monospace的旧近似框负例必须存在。
       await check(initial);
-      await page.evaluate(() => {
+      // 固定真实鼠标位置，乱序时间只提交新几何，不派发合成输入。
+      await page.mouse.move(initial.inside.x, initial.inside.y);
+      const sampledHover = await page.evaluate((point) => {
+        const api = window.layeredDashboardDemo;
+        const before = api.snapshot();
+        const canvas = document.querySelector("canvas");
+        let inputs = 0;
+        const count = () => inputs++;
+        canvas.addEventListener("pointermove", count);
+        try {
+          const samples = [0.2, 1, 0.55, 0.2, 1].map((time) => {
+            api.seek(time);
+            const state = api.snapshot();
+            const title = state.scene.nodes.find((node) => node.id.endsWith("/5:title"));
+            const text = title.content[1];
+            const matrix = state.scene.nodes.find((node) => node.id.endsWith("/9:dashboard")).content[1].transform;
+            const bounds = canvas.getBoundingClientRect();
+            const native = canvas.getContext("2d");
+            native.save();
+            native.font = `${text.size}px monospace`;
+            native.textAlign = "left";
+            native.textBaseline = "middle";
+            native.direction = "ltr";
+            const ink = native.measureText(text.text);
+            native.restore();
+            const local = new DOMMatrix([matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f])
+              .inverse()
+              .transformPoint({
+                x: ((point.x - bounds.left) * canvas.width) / bounds.width,
+                y: ((point.y - bounds.top) * canvas.height) / bounds.height,
+              });
+            const expected =
+              local.x >= text.x - ink.actualBoundingBoxLeft &&
+              local.x <= text.x + ink.actualBoundingBoxRight &&
+              local.y >= text.y - ink.actualBoundingBoxAscent &&
+              local.y <= text.y + ink.actualBoundingBoxDescent;
+            return {
+              time,
+              expected,
+              actual: state.pointer["hover-node"] === title.id,
+              events: state.events,
+              captured: state.captured,
+            };
+          });
+          return { before, samples, inputs };
+        } finally {
+          canvas.removeEventListener("pointermove", count);
+        }
+      }, initial.inside);
+      expect(sampledHover.inputs).toBe(0);
+      expect(new Set(sampledHover.samples.map((sample) => sample.expected)).size).toBe(2);
+      for (const sample of sampledHover.samples) {
+        expect(sample.actual, `stationary title at t=${sample.time}`).toBe(sample.expected);
+        expect(sample.events).toEqual(sampledHover.before.events);
+        expect(sample.captured).toBeNull();
+      }
+      const chartPoint = await page.evaluate(() => {
+        const state = window.layeredDashboardDemo.snapshot();
+        const bar = state.scene.nodes.find((node) => node.id.endsWith("/5:bar-7")).content[1];
+        const matrix = state.scene.nodes.find((node) => node.id.endsWith("/9:dashboard")).content[1].transform;
+        const canvas = document.querySelector("canvas"),
+          bounds = canvas.getBoundingClientRect();
+        const x = bar.x + 5,
+          y = bar.y + bar.height - 10;
+        return {
+          x: bounds.left + ((matrix.a * x + matrix.c * y + matrix.e) * bounds.width) / canvas.width,
+          y: bounds.top + ((matrix.b * x + matrix.d * y + matrix.f) * bounds.height) / canvas.height,
+        };
+      });
+      await page.mouse.move(chartPoint.x, chartPoint.y);
+      const clippedHover = await page.evaluate((point) => {
+        const api = window.layeredDashboardDemo,
+          canvas = document.querySelector("canvas");
+        const before = api.snapshot();
+        let inputs = 0;
+        const count = () => inputs++;
+        canvas.addEventListener("pointermove", count);
+        try {
+          const samples = [0.55, 1, 0.2, 1].map((time) => {
+            api.seek(time);
+            const state = api.snapshot();
+            const chart = state.scene.nodes.find((node) => node.id.endsWith("/5:chart"));
+            const barNode = state.scene.nodes.find((node) => node.id.endsWith("/5:bar-7"));
+            const bar = barNode.content[1];
+            const dashboard = state.scene.nodes.find((node) => node.id.endsWith("/9:dashboard")).content[1];
+            const nativeMatrix = ({ a, b, c, d, e, f }) => new DOMMatrix([a, b, c, d, e, f]);
+            const matrix = nativeMatrix(dashboard.transform).multiply(nativeMatrix(chart.content[1].transform));
+            const bounds = canvas.getBoundingClientRect();
+            const local = matrix.inverse().transformPoint({
+              x: ((point.x - bounds.left) * canvas.width) / bounds.width,
+              y: ((point.y - bounds.top) * canvas.height) / bounds.height,
+            });
+            const contains = (rect) =>
+              local.x >= rect.x &&
+              local.x <= rect.x + rect.width &&
+              local.y >= rect.y &&
+              local.y <= rect.y + rect.height;
+            return {
+              time: state.time,
+              unclipped: contains(bar),
+              expected: contains(chart.content[1].clip[1]),
+              actual: state.pointer["hover-target"] === chart.interaction[1],
+              leaf: state.pointer["hover-node"],
+              barId: barNode.id,
+              events: state.events,
+              captured: state.captured,
+            };
+          });
+          return { before, samples, inputs };
+        } finally {
+          canvas.removeEventListener("pointermove", count);
+        }
+      }, chartPoint);
+      expect(clippedHover.inputs).toBe(0);
+      expect(new Set(clippedHover.samples.map((sample) => sample.expected)).size).toBe(2);
+      for (const sample of clippedHover.samples) {
+        expect(sample.unclipped, `bar geometry still covers pointer at t=${sample.time}`).toBe(true);
+        expect(sample.actual, `stationary chart clip at t=${sample.time}`).toBe(sample.expected);
+        expect(sample.leaf === sample.barId).toBe(sample.expected);
+        expect(sample.events).toEqual(clippedHover.before.events);
+        expect(sample.captured).toBeNull();
+      }
+      const fontReference = await page.evaluate(async () => {
+        const state = window.layeredDashboardDemo.snapshot();
+        const title = state.scene.nodes.find((node) => node.id.endsWith("/5:title")).content[1];
+        const matrix = state.scene.nodes.find((node) => node.id.endsWith("/9:dashboard")).content[1].transform;
+        const canvas = document.querySelector("canvas"),
+          bounds = canvas.getBoundingClientRect();
+        const ctx = canvas.getContext("2d");
+        // 独立原生参考先测预期字体，不读取实际HitPlan，也不安装生产字体的身份。
+        const face = await new FontFace("QuamolitHoverReference", "local('Arial'), local('Liberation Sans')").load();
+        document.fonts.add(face);
+        ctx.save();
+        let oldInk, newInk;
+        try {
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.direction = "ltr";
+          ctx.font = `${title.size}px monospace`;
+          oldInk = ctx.measureText(title.text);
+          ctx.font = `${title.size}px QuamolitHoverReference, monospace`;
+          newInk = ctx.measureText(title.text);
+        } finally {
+          ctx.restore();
+          document.fonts.delete(face);
+        }
+        const x = title.x + (oldInk.actualBoundingBoxRight + newInk.actualBoundingBoxRight) / 2;
+        const y =
+          title.y +
+          (Math.max(-oldInk.actualBoundingBoxAscent, -newInk.actualBoundingBoxAscent) +
+            Math.min(oldInk.actualBoundingBoxDescent, newInk.actualBoundingBoxDescent)) /
+            2;
+        const point = {
+          x: bounds.left + ((matrix.a * x + matrix.c * y + matrix.e) * bounds.width) / canvas.width,
+          y: bounds.top + ((matrix.b * x + matrix.d * y + matrix.f) * bounds.height) / canvas.height,
+        };
+        window.hoverInputs = 0;
+        for (const type of ["pointermove", "pointerdown", "pointerup", "pointercancel"])
+          canvas.addEventListener(type, () => {
+            window.hoverInputs++;
+          });
         const Original = FontFace;
         let release;
         const gate = new Promise((resolve) => {
@@ -81,12 +241,25 @@ for (const dpr of [1, 2]) {
           },
         };
         window.fontHitPending = window.layeredDashboardDemo.enableFont("local('Arial'), local('Liberation Sans')");
+        return {
+          point,
+          oldHit: x <= title.x + oldInk.actualBoundingBoxRight,
+          newHit: x <= title.x + newInk.actualBoundingBoxRight,
+        };
       });
       const waiting = await probes();
       expect(waiting.state.fonts.host.accepted).toBe(0);
       expect(waiting.state.time).toBe(1);
       expect(waiting.approximateFalsePositive).toBe(true);
       await check(waiting);
+      expect(fontReference.oldHit).not.toBe(fontReference.newHit);
+      await page.mouse.move(fontReference.point.x, fontReference.point.y);
+      expect(
+        (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).pointer["hover-node"] === waiting.titleId,
+      ).toBe(fontReference.oldHit);
+      await page.evaluate(() => {
+        window.hoverInputs = 0;
+      });
       await page.evaluate(async () => {
         window.fontHitGate.release();
         await window.fontHitPending;
@@ -98,6 +271,8 @@ for (const dpr of [1, 2]) {
       expect(ready.state.events).toEqual(waiting.state.events);
       expect(ready.state.playing).toBe(false);
       expect(Math.abs(ready.box.right - waiting.box.right)).toBeGreaterThan(1);
+      expect(await page.evaluate(() => window.hoverInputs)).toBe(0);
+      expect(ready.state.pointer["hover-node"] === ready.titleId).toBe(fontReference.newHit);
       await check(ready);
       // 选取新旧字体边界之间的位置，检测同时间ready后继续用fallback计划的错误。
       const changed = { x: (ready.inside.x + waiting.inside.x) / 2, y: ready.inside.y };
@@ -121,6 +296,36 @@ for (const dpr of [1, 2]) {
       expect(
         (await page.evaluate(() => window.layeredDashboardDemo.snapshot())).pointer["hover-node"] === ready.titleId,
       ).toBe(boundaryProbe.expected);
+      // 同次同步提交排除浏览器resize可能自行产生的move，恢复尺寸应重新建立hover。
+      await page.mouse.move(ready.inside.x, ready.inside.y);
+      const stationaryResize = await page.evaluate(() => {
+        const api = window.layeredDashboardDemo,
+          canvas = document.querySelector("canvas");
+        const before = api.snapshot();
+        window.hoverInputs = 0;
+        canvas.style.width = "1440px";
+        canvas.style.height = "1000px";
+        api.seek(before.time);
+        const moved = api.snapshot();
+        canvas.style.width = "1280px";
+        canvas.style.height = "900px";
+        api.seek(before.time);
+        const covered = api.snapshot();
+        return { before, moved, covered, inputs: window.hoverInputs };
+      });
+      expect(stationaryResize.inputs).toBe(0);
+      expect(stationaryResize.moved.pointer["hover-node"]).not.toBe(ready.titleId);
+      expect(stationaryResize.covered.pointer["hover-node"]).toBe(ready.titleId);
+      for (const state of [stationaryResize.moved, stationaryResize.covered]) {
+        expect(state.events).toEqual(stationaryResize.before.events);
+        expect(state.time).toBe(stationaryResize.before.time);
+        expect(state.captured).toBeNull();
+      }
+      await page.evaluate(() => {
+        const canvas = document.querySelector("canvas");
+        canvas.style.width = "";
+        canvas.style.height = "";
+      });
       await page.setViewportSize({ width: 1440, height: 1000 });
       await expect.poll(() => page.evaluate(() => window.layeredDashboardDemo.snapshot().width)).toBe(1440 * dpr);
       const resized = await probes();
@@ -205,6 +410,25 @@ for (const dpr of [1, 2]) {
         "title",
         resized.titleId,
       ]);
+      const capturedGeometry = await page.evaluate(() => {
+        const api = window.layeredDashboardDemo,
+          canvas = document.querySelector("canvas");
+        const before = api.snapshot();
+        window.hoverInputs = 0;
+        canvas.style.transform = "translate(300px,200px)";
+        api.seek(before.time);
+        const moved = api.snapshot(),
+          native = canvas.hasPointerCapture(1);
+        canvas.style.transform = "";
+        api.seek(before.time);
+        return { before, moved, restored: api.snapshot(), native, inputs: window.hoverInputs };
+      });
+      expect(capturedGeometry.inputs).toBe(0);
+      expect(capturedGeometry.native).toBe(true);
+      expect(capturedGeometry.moved.pointer.capture).toEqual(capturedGeometry.before.pointer.capture);
+      expect(capturedGeometry.moved.pointer["hover-node"]).not.toBe(resized.titleId);
+      expect(capturedGeometry.restored.pointer["hover-node"]).toBe(resized.titleId);
+      expect(capturedGeometry.moved.events).toEqual(capturedGeometry.before.events);
       const exiting = await page.evaluate(() => {
         const api = window.layeredDashboardDemo;
         api.setVisible(false);
@@ -226,12 +450,36 @@ for (const dpr of [1, 2]) {
         api.seek(1.9);
       });
       await check(await probes());
+      const reentered = await probes();
+      await page.mouse.move(reentered.inside.x, reentered.inside.y);
+      expect((await page.evaluate(() => window.layeredDashboardDemo.snapshot())).pointer["hover-node"]).toBe(
+        reentered.titleId,
+      );
+      const blurred = await page.evaluate(() => {
+        const api = window.layeredDashboardDemo;
+        window.dispatchEvent(new Event("blur"));
+        api.seek(api.snapshot().time);
+        return api.snapshot();
+      });
+      expect(blurred.pointer["hover-node"]).toBe("");
+      await page.mouse.move(reentered.inside.x, reentered.inside.y);
+      await page.mouse.move(-10, -10);
+      const left = await page.evaluate(() => {
+        const api = window.layeredDashboardDemo;
+        api.seek(api.snapshot().time);
+        return api.snapshot();
+      });
+      expect(left.pointer["hover-node"]).toBe("");
       const closedVersions = await page.evaluate(() => {
         const api = window.layeredDashboardDemo;
         api.dispose();
         api.dispose();
+        document
+          .querySelector("canvas")
+          .dispatchEvent(new PointerEvent("pointerenter", { pointerId: 1, clientX: 500, clientY: 300 }));
         return { state: api.snapshot(), nativeFonts: document.fonts.size };
       });
+      expect(closedVersions.state.pointer["hover-node"]).toBe("");
       expect(closedVersions.state.fonts.host.handles).toEqual([]);
       expect(closedVersions.state.fonts.host.released).toBe(closedVersions.state.fonts.host.accepted);
       expect(closedVersions.state.fonts.images.released).toBe(closedVersions.state.fonts.images.created);
