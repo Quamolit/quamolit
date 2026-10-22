@@ -9,7 +9,7 @@
 原有 11 项始终保留完整清单，目前均有运行入口；艺术动画分类已有 Metric Flow 的柱状工作台与 Signal Weave 的折线／面积图两种构图，均提供可操作的数据状态渐变，不把技术夹具混入作品。未来待实现项不计入现有入口。详见[恢复验收与全屏约定](../docs/demo-restoration.md)。独立消费者默认展示全屏 Canvas 与可收起 DOM 浮层；`?fixture=1` 用于原固定像素诊断。画廊状态保留舞台但用目录浮层覆盖；演示状态显示同一块完整视口的 Canvas。
 
 ```sh
-# 需要项目 deps.cirru 声明的 Calcit、Node 24、caps 与 Yarn 4.12.0
+# 需要项目 deps.cirru 声明的 Calcit、Node 24、caps 与 Yarn 4.18.0
 yarn install --immutable
 yarn demo
 ```

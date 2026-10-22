@@ -2,7 +2,7 @@
 
 本目录是单独的 Calcit/Yarn 项目，不是 Quamolit workspace 子包。主要源码是 `calcit.cirru` 中的 `app.main`；通过统一 Calcit 执行入口声明静态横条、标量 Motion 矩形及 CPU 变换折线，使用同一个 ComponentPlan 绘制 Canvas。JS 入口只连接页面按钮、传入 Canvas 原生上下文与展示诊断计数，不实现动画或渲染循环。
 
-使用配套的 Calcit／runtime 0.30.1-alpha.5（预发布）、Node.js 24 和 Yarn 4.12.0：
+使用配套的正式 Calcit／runtime 0.30.1、Node.js 24 和 Yarn 4.18.0；候选源码验收不等于 Quamolit 正式版已发布：
 
 ```sh
 cd examples/retained-consumer
@@ -42,9 +42,9 @@ calcit query def app.main/update-plan --raw
 
 ## 隔离门禁
 
-同一个消费方 Snapshot 还提供 `curve-document(time)`、`curve-hit-plan(time)`、`curve-hit(plan,x,y)` 与 `draw-curve!(context,document)`：只引用 Quamolit 的实验性 Calcit Scene/HitPlan/Canvas API，自己声明绝对时间曲线、90°旋转、2倍缩放和祖先裁剪。`arc-document(time)` / `arc-hit-plan(time)` 进一步验证原生圆弧事件目标、圆头、空心、缺口、clip与乱序时间，不从作者测试namespace导入构造器。既有 `test:consumer` 从安装后搬移的产物执行Node和浏览器验证，保存 `consumer-curve-<time>-{actual,expected}.png`；这不是新页面模式或GPU曲线实现。默认依赖固定到已推送的圆弧/Presence候选ac3c9e4（Calcit/runtime0.29.3、js-ffi0.2.3），发布tag后仍须重跑；旧候选可能编译成功但缺少对应能力，不能作为本切片验收。
+同一个消费方 Snapshot 还提供 `curve-document(time)`、`curve-hit-plan(time)`、`curve-hit(plan,x,y)` 与 `draw-curve!(context,document)`：只引用 Quamolit 的实验性 Calcit Scene/HitPlan/Canvas API，自己声明绝对时间曲线、90°旋转、2倍缩放和祖先裁剪。`arc-document(time)` / `arc-hit-plan(time)` 进一步验证原生圆弧事件目标、圆头、空心、缺口、clip与乱序时间，不从作者测试namespace导入构造器。既有 `test:consumer` 从安装后搬移的产物执行Node和浏览器验证，保存 `consumer-curve-<time>-{actual,expected}.png`；这不是新页面模式或GPU曲线实现。候选引用以 `deps.cirru` 为准，必须包含完整 API 和正式0.30.1依赖图；CI对准确PR head重新安装，不把旧tag或仅编译成功当作本轮验收。正式模块tag发布后仍须重跑。
 
-`arc-presence-model(stage)`、`arc-presence-plan(model,time)`、`arc-presence-sample(plan,time)` 在消费方Calcit中调用公共Presence树声明与保留计划，不引入作者测试代码或JS动画函数。原始alpha=0.6的弧在旋转2倍、祖先clip与组opacity=0.4下退出/重入；乱序采样复用同一slots，退出立即disabled、重入恢复target。既有Node/浏览器门禁保留原曲线与弧帧，新增10个生命周期帧对独立原生隔离Canvas全RGBA零差异，包含透明终点，不放宽原非空帧阈值。静态依赖现固定ac3c9e4（含Presence），尚未发布；artifact用`consumer-arc-exit-*` / `consumer-arc-reenter-*`命名。
+`arc-presence-model(stage)`、`arc-presence-plan(model,time)`、`arc-presence-sample(plan,time)` 在消费方Calcit中调用公共Presence树声明与保留计划，不引入作者测试代码或JS动画函数。原始alpha=0.6的弧在旋转2倍、祖先clip与组opacity=0.4下退出/重入；乱序采样复用同一slots，退出立即disabled、重入恢复target。既有Node/浏览器门禁保留原曲线与弧帧，10个生命周期帧对独立原生隔离Canvas全RGBA零差异，包含透明终点，不放宽原非空帧阈值。静态引用仅是发布前候选，尚未发布；artifact用`consumer-arc-exit-*` / `consumer-arc-reenter-*`命名。
 
 The same isolated Calcit consumer declares native arcs, HitPlans and Presence trees. Its own Calcit functions own lifecycle intent and retained sampling; browser frames compare shuffled exit/reentry under ancestor transforms, clipping and group opacity with an independent native Canvas reference. Exit disables interaction immediately and reentry restores the target. The pinned commit is unpublished; no framework JavaScript or test namespace imports are required.
 
