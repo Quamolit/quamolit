@@ -15,7 +15,7 @@ export class DemandFrameScheduler {
   #timer;
   #timerGeneration = 0;
 
-  constructor({ requestFrame, cancelFrame, paint, setTimer = setTimeout, clearTimer = clearTimeout }) {
+  constructor({ requestFrame, cancelFrame, paint, setTimer = (callback, delay) => setTimeout(callback, delay), clearTimer = handle => clearTimeout(handle) }) {
     if (typeof requestFrame !== "function" || typeof cancelFrame !== "function" || typeof paint !== "function") {
       throw new TypeError("frame scheduler host functions required");
     }

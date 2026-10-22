@@ -13,7 +13,7 @@ QUAMOLIT_CONSUMER_REF="$(git rev-parse HEAD)" yarn test:consumer
 QUAMOLIT_CONSUMER_HEADED=1 QUAMOLIT_CONSUMER_REQUIRE_GPU=1 yarn test:consumer
 ```
 
-前提：配套 Calcit/runtime 0.30.1-alpha.5、js-ffi 0.2.3、caps、Node.js 24、仓库依赖及固定 Chromium 已安装，有 GitHub/npm 网络访问权限。CI对PR head SHA安装，不把先发布alpha当作验证前提；发布后应显式传入新tag重跑。消费者要求已合并#238的 `with-rect-color-motion`、#234的 `contain-matrix`、#239的标准TRS和新工具链；静态pin仅以示例 `deps.cirru` 为准，必须包含完整组合，不能按SHA新旧或任选旧pin。已发布alpha.4不含这些新API；重验历史tag须使用匹配的历史fixture，不静默跳过新功能。
+前提：配套正式 Calcit/runtime 0.30.1、js-ffi 0.2.5、caps、Node.js 24、仓库依赖及固定 Chromium 已安装，有 GitHub/npm 网络访问权限。CI对PR head SHA安装，不把先发布alpha当作验证前提；发布后应显式传入新tag重跑。消费者要求已合并#238的 `with-rect-color-motion`、#234的 `contain-matrix`、#239的标准TRS和新工具链；静态pin仅以示例 `deps.cirru` 为准，必须包含完整组合，不能按SHA新旧或任选旧pin。该提交只用于发布前验收，不是正式模块版本；发布后应改为正式tag。已发布alpha.4不含这些新API；重验历史tag须使用匹配的历史fixture，不静默跳过新功能。
 
 门禁由 `test/isolated-consumer.mjs` 执行：
 

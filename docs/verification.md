@@ -75,7 +75,7 @@
 
 `yarn test:retained-component` 验证 [Calcit 组件保留计划](retained-component.md)：严格类型、原生乱序采样、Node 的 1000 帧静态对象身份/实际声明次数和六类版本失效、Chromium 同源画面对照及演示截图。另覆盖 [Presence 组件连接](presence-component.md)的叶节点 alpha、重入连续性、显式释放、100 次装卸及独立 Canvas 像素对照。它使用独立 `target/js/retained-component/`，不代表外部消费者安装、完整 TodoList 或 GPU/资源生命周期验收。
 
-使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前升级候选的主项目与独立消费者夹具均声明 Calcit `0.30.1-alpha.5`，npm runtime 同步使用 `@calcit/procs@0.30.1-alpha.5`，主项目使用 js-ffi `0.2.3`；`yarn test:runtime` 会自动拒绝版本漂移，并验证旧 Shape/Canvas ABI 的缺失值、nil、false、0、函数身份和 HSL 格式，完整说明见 [工具链版本合同](calcit-027-upgrade.md)。Folding Fan 已改用 js-ffi 类型化图片绘制 API，Canvas 当前路径填充改用 `.fill!`。独立消费者固定包含实际工具链和全部所需 API 的源码提交，不用只含旧接口的历史 pin。
+使用仓库声明的 Calcit/runtime 版本和 Node.js 24；开始前核对 `calcit -v`、`deps.cirru`、package/lockfile 与 CI。当前升级候选的主项目与独立消费者夹具均声明正式 Calcit `0.30.1`，npm runtime 同步使用 `@calcit/procs@0.30.1`，主项目使用 js-ffi `0.2.5`；`yarn test:runtime` 会自动拒绝版本漂移，并验证旧 Shape/Canvas ABI 的缺失值、nil、false、0、函数身份和 HSL 格式，完整说明见 [工具链版本合同](calcit-027-upgrade.md)。Folding Fan 已改用 js-ffi 类型化图片绘制 API，Canvas 当前路径填充改用 `.fill!`。独立消费者固定包含实际工具链和全部所需 API 的源码提交，不用只含旧接口的历史 pin。
 
 ```sh
 yarn install --immutable

@@ -2,7 +2,7 @@
 # Manual changes might be lost - proceed with caution!
 
 __metadata:
-  version: 8
+  version: 10
   cacheKey: 10c0
 
 "@calcit/finger-vec@npm:0.1.1":
@@ -12,24 +12,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#tag=0.2.3":
-  version: 0.2.3
-  resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=898764e0b7f5d83827f776da590b3cec77cf8839"
+"@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#tag=0.2.5":
+  version: 0.2.5
+  resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=761a18f2464ced25dd067985ec6d4b786a8a73b5"
   dependencies:
-    "@calcit/procs": "npm:0.29.3"
-  checksum: 10c0/9082ec6f79b44acfb3a73d0dbbb22f87203e96be9f0243b5bedba73d65429ad39af1cfacbd5b2feee44acee45286db3a8f3a6e3832a24b519a818881f41ef52f
+    "@calcit/procs": "npm:0.30.1"
+  checksum: 10c0/aaecaf2191a558dd343ab8ab4cfcb419fdf68a3d68282cc531de6482b79fcb080cc41afac86f13c320f0fad4dfca94881f5e602c8261cfbb64f4bbedd5e69a9c
   languageName: node
   linkType: hard
 
-"@calcit/procs@npm:0.30.1-alpha.5":
-  version: 0.30.1-alpha.5
-  resolution: "@calcit/procs@npm:0.30.1-alpha.5"
+"@calcit/procs@npm:0.30.1":
+  version: 0.30.1
+  resolution: "@calcit/procs@npm:0.30.1"
   dependencies:
     "@calcit/finger-vec": "npm:0.1.1"
     "@calcit/ternary-tree": "npm:0.0.26"
     "@cirru/parser.ts": "npm:0.0.10"
     "@cirru/writer.ts": "npm:^0.1.9"
-  checksum: 10c0/925226e14b05ab6f1ed5adf32611a3575324d9e99474e84dce6f01093dce4d869d301585bb76c06d56725a716a76536888f99b9da5c961e79c9b0c62a5b27b1c
+  checksum: 10c0/a0f00e3c0c9b3a5a2aea8b97e09f2692aa25039a48a2f7ccb345801fdbc546cbf3bb34ee268a58526baba9fb697781bb7929a5d1f6622816c9422c6c3ba8537b
   languageName: node
   linkType: hard
 
@@ -686,8 +686,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
-    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.3"
-    "@calcit/procs": "npm:0.30.1-alpha.5"
+    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.5"
+    "@calcit/procs": "npm:0.30.1"
     "@playwright/test": "npm:1.63.0"
     "@quamolit/touch-control": "npm:^0.0.13"
     bottom-tip: "npm:^0.1.5"

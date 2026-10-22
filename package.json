@@ -1,12 +1,12 @@
 {
   "version": "0.0.18-alpha.1",
   "dependencies": {
-    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.3",
-    "@calcit/procs": "0.30.1-alpha.5",
+    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.5",
+    "@calcit/procs": "0.30.1",
     "@quamolit/touch-control": "^0.0.13"
   },
   "resolutions": {
-    "@calcit/procs": "0.30.1-alpha.5"
+    "@calcit/procs": "0.30.1"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
@@ -114,5 +114,5 @@
     "compile:visual": "mkdir -p target/js/visual && calcit --entry visual --emit-path target/js/visual/ calcit.cirru js",
     "release": "yarn vite build --base=./"
   },
-  "packageManager": "yarn@4.12.0"
+  "packageManager": "yarn@4.18.0"
 }
