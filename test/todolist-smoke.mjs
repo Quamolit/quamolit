@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { DemandFrameScheduler } from "../demos/demand-frame-scheduler.mjs";
 import * as todo from "../target/js/todolist/quamolit.examples.todolist.mjs";
 import { sample_plan_at as sample } from "../target/js/todolist/quamolit.retained-component.mjs";
 import { sample_transition as transitionAt } from "../target/js/todolist/quamolit.transition.mjs";
@@ -27,6 +28,23 @@ import {
   property_signature as properties,
   resource_signature as resources,
 } from "../target/js/todolist/quamolit.scene-diff.mjs";
+test("默认定时器不把调度器实例作为原生宿主接收者", (t) => {
+  const calls = [];
+  for (const name of ["setTimeout", "clearTimeout"]) {
+    t.mock.method(globalThis, name, function () {
+      assert.ok(this === undefined || this === globalThis, `${name}: invalid receiver`);
+      calls.push(name);
+      return 1;
+    });
+  }
+  const scheduler = new DemandFrameScheduler({ requestFrame: () => 1, cancelFrame: () => {}, paint: () => {} });
+  scheduler.requestAfter("event", 10);
+  assert.equal(scheduler.waiting, true);
+  scheduler.pause();
+  assert.equal(scheduler.waiting, false);
+  assert.deepEqual(calls, ["setTimeout", "clearTimeout"]);
+});
+
 const tags = init_tags([
   "model",
   "rows",
