@@ -47,7 +47,7 @@ Calcit 0.22 起，定义级 `:ffi :js` 可以嵌入一个 JS 函数表达式：`
 
 本轮已核对实际消费：`typed-arrays.mjs` 的 Float32Array 快照与 `webgpu-capabilities.mjs` 的 adapter/device 探测仍封装平台能力，保留上游；`canvas-rect-batches.mjs` 的批次循环与 `webgpu-rect-batch-create.js` 的矩形 shader、Vec2 tween 和图层资源当前只有 Quamolit 的实际消费者，保留在本仓库 `src/host/`，由 `quamolit.instance-ffi` / `quamolit.webgpu-batches` Calcit 入口调用。旧 `canvas-scene-commands.mjs` 没有 Quamolit 运行消费者，不把它复制成死代码；上游 0.2.0-alpha.1 移除实验接口。原 `gpu-vec2-translation.mjs` 的 Motion 参数解释已迁至 Calcit。
 
-本仓库候选使用 Calcit/runtime `0.29.3` 与 js-ffi `0.2.2`，已发布alpha.4仍为0.28.0；可直接使用定义级 JS 嵌入（`:ffi :js :inline/:file`）、类型化图片绘制与 Canvas 当前路径 `.fill!`；原有单用途 inline fill 适配已移除。版本合同与候选门禁见[工具链升级](calcit-027-upgrade.md)，不把候选算作已发布。诊断计数只在同一源码 revision 上比较，不把旧版本统计称为当前验收。新路径立即收紧，legacy 应用命名空间挂到 [#36](https://github.com/Quamolit/quamolit/issues/36) 的迁移期限；不得通过全局 `:allow` 或宽泛 `Dynamic` 掩盖新代码的类型错误。
+本仓库候选使用正式 Calcit/runtime `0.30.1` 与 js-ffi `0.2.5`，已发布alpha.4仍为0.28.0；可直接使用定义级 JS 嵌入（`:ffi :js :inline/:file`）、类型化图片绘制与 Canvas 当前路径 `.fill!`；原有单用途 inline fill 适配已移除。版本合同与候选门禁见[工具链升级](calcit-027-upgrade.md)，不把候选算作已发布。诊断计数只在同一源码 revision 上比较，不把旧版本统计称为当前验收。新路径立即收紧，legacy 应用命名空间挂到 [#36](https://github.com/Quamolit/quamolit/issues/36) 的迁移期限；不得通过全局 `:allow` 或宽泛 `Dynamic` 掩盖新代码的类型错误。
 
 WebGPU texture 基础 API 缺口已上报 [js-ffi #151](https://github.com/calcit-lang/js-ffi/issues/151)。`quamolit.webgpu-texture-runner` 当前只用两个同步无状态 inline 原语构造 `createTexture` descriptor 和调用 `copyExternalImageToTexture`；identity、队列、registry、device/resource generation、安装和释放均为 Calcit。js-ffi 发布类型化 `TextureHost`/上传 API 后删除这两个 raw inline，公共 runner 合同保持不变。
 
@@ -71,6 +71,6 @@ WebGPU texture 基础 API 缺口已上报 [js-ffi #151](https://github.com/calci
 2. `js-ffi` 的公共入口由 Calcit 定义和类型化，通用 JS 实现可在其包内；Quamolit 下游示例只导入 Calcit 模块，不要求再单独导入上游 `.mjs`。本仓库 JS 只承载专属宿主桥接。
 3. 使用 `:ffi :js :inline/:file` 时，核对完整 `Fn` schema、`:js-ffi` feature、显式 `:target`、原始 ABI 与单表达式约束；不满足时说明改用 `src/host/` 还是 `js-ffi` 类型化入口。
 4. 新增 `src/host/*.mjs` 必须说明为何无法用 inline/file 或 Calcit 表达（状态、async、trait/Struct、shader）；测试夹具桥接放 `test/host/`，不占用生产目录。
-5. 运行受影响命名空间的 `calcit analyze check-public`、原生测试、JS 编译、Node/Chromium 固定时间与像素回归；有 GPU 结论时必须实际用非软件 adapter 验证。
+5. 使用统一的 `calcit --check-only --ns <namespace>` 检查受影响命名空间，并运行原生测试、JS 编译、Node/Chromium 固定时间与像素回归，不再推荐退役的 `analyze check-public`；有 GPU 结论时必须实际用非软件 adapter 验证。
 6. 记录迁移前后相同 fixture 的语义和性能数据；没有测量就只称为代码归属重构，不宣称加速。
 7. 工具链或依赖版本变化须同步 `calcit.cirru`、`deps.cirru`、package/lockfile 与 CI，并在 PR 记录升级后的严格 FFI 诊断清单与未迁移项。
