@@ -30,6 +30,8 @@ let
 
 需要配套的正式 Calcit／runtime **0.30.1**、Node.js **24**、Yarn **4.18.0**；依赖以 `deps.cirru` 和 lockfile 为准，使用 node-modules linker。工具链升级不等于 Quamolit 新版已发布，也不扩大实验 API 的稳定承诺。
 
+集合长度维护改用接收者的公开 `.len`，保持列表项数、Map/Set 成员数和字符串 Unicode 标量计数不变；不改动画时间、层序、资源释放、采样结果或原断言。`count` 仍是合法的通用 Countable API，不把 Struct/Enum 或未收窄的旧宿主值机械替换成集合方法。迁移范围和仍保留的 legacy 边界见[工具链合同](docs/calcit-027-upgrade.md#集合长度维护)。
+
 ```sh
 corepack enable
 yarn install --immutable
@@ -60,6 +62,8 @@ The [standalone consumer](examples/retained-consumer/README.md) demonstrates com
 The experimental Scene API includes [native arcs](docs/scene-ir-core.md#原生圆弧212), declared in Calcit and drawn through typed Canvas APIs without application-side polyline tessellation. Native drawing shipped in alpha.4. Main additionally supports Calcit arc hit testing, retained alpha bindings and Presence transitions; those extensions have not shipped in a new tag. Arc GPU rendering and geometric scalar bindings remain unsupported. Do not assume main capabilities exist in an older tag.
 
 Use the paired formal Calcit/runtime 0.30.1, Node.js 24 and Yarn 4.18.0, then run the development commands above. This does not publish a new Quamolit version or stabilize experimental APIs. `yarn compile && yarn release` builds the unified gallery and animations into `dist/`; the root URL preserves shared parameters and redirects to that same page. `release:demos` uses the same configuration with a compatibility output directory. The 27 existing compilation scripts select named entries in the main Snapshot; inspect them with `calcit config show`. The default/bootstrap remains smoke-only, and the independently installed consumer retains its own Snapshot. Entries do not isolate distributed code. Navigation tests check entry/script consistency and exercise the ordinary release output, not source fallback. Follow [plan v3](docs/plan-v3.md) for milestone status.
+
+Collection-length maintenance uses the receiver's public `.len`, preserving collection counts and Unicode-scalar string lengths without changing animation, ordering, resource lifecycle or assertions. Generic `count` remains a valid Countable API; Struct/Enum and unresolved legacy host values are not mechanically rewritten. See the [maintenance scope](docs/calcit-027-upgrade.md#集合长度维护).
 
 ## History and license
 

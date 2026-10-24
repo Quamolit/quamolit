@@ -1078,7 +1078,7 @@
           :code $ quote $ defn valid-polyline? (path)
             and
               >=
-                count $ :points path
+                .len $ :points path
                 , 2
               every? (:points path) motion/finite-vec2?
               motion/finite-number? $ :width path
@@ -1360,7 +1360,7 @@
                         channel $ :to tween
                         , :easing $ :easing tween
               motion/ScalarDescriptor :id
-                str |rect-color/ (count node-id) |: node-id (:id descriptor) |/ suffix
+                str |rect-color/ (.len node-id) |: node-id (:id descriptor) |/ suffix
                 , :version (:version descriptor) :motion scalar
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.motion/ScalarDescriptor)
@@ -1432,7 +1432,7 @@
           :code $ quote $ defn with-rect-color-motion (declaration node-id descriptor)
             scene-ir/validate-scene $ :scene declaration
             motion/sample-color descriptor 0
-            assert |rect-color-node-required $ = 1 $ count
+            assert |rect-color-node-required $ = 1 $ .len
               .filter
                 :nodes $ :scene declaration
                 fn (node)
@@ -1516,9 +1516,9 @@
                     (:some listener) (%some listener)
                     (:none)
                       if
-                        = 0 $ count coord
+                        = 0 $ .len coord
                         %none
-                        recur tree event-name $ slice coord 0 $ - (count coord) 1
+                        recur tree event-name $ slice coord 0 $ - (.len coord) 1
               (:none) (%none)
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -1737,9 +1737,9 @@
             set! (.-textBaseline ctx) |middle
             set! (.-font ctx) "|12px Monlo, monospace"
             if
-              > (count logs) 80
+              > (.len logs) 80
               .!fillText ctx
-                str (count logs) "| logs, showing 80 of them"
+                str (.len logs) "| logs, showing 80 of them"
                 , 10 10 1000
             -> logs (take 80)
               map-indexed $ fn (idx log)
@@ -2411,7 +2411,7 @@
             :code $ quote $ let
                 initial $ build-plan 0 5
                 middle $ retained/sample-plan-at initial 2.5
-              is= 63 $ count $ :transforms middle
+              is= 63 $ .len $ :transforms middle
               is= (:scene initial) (:scene middle)
               is= 2 $ :samples middle
               is= 2 $ :samples $ retained/sample-plan-at middle 2.5
@@ -2419,7 +2419,7 @@
         'build-slots $ %{} 'CodeEntry (:doc "|前序父索引拓扑；父索引 -1 是根。内部调用须先验证深度。")
           :code $ quote $ defn build-slots (depth parent left? slots)
             let
-                index $ count slots
+                index $ .len slots
                 next $ conj slots $ BranchSlot :parent parent :left? left?
               if (= depth 0) next $ build-slots (dec depth) index false $ build-slots (dec depth) index true next
           :examples $ []
@@ -2489,11 +2489,11 @@
             :return $ :: 'quamolit.direct-frame/DirectFrame $ :: 'List 'quamolit.canvas-strokes/RoundPolyline
           :tests $ [] $ %{} 'TestEntry (:name |original-depth-and-replay)
             :code $ quote $ do
-              is= 63 $ count $ :scene (frame-at 0 5)
+              is= 63 $ .len $ :scene (frame-at 0 5)
               is=
                 :scene $ frame-at 1 5
                 :scene $ frame-at 1 5
-              is= 1 $ count $ :scene (frame-at 0 0)
+              is= 1 $ .len $ :scene (frame-at 0 0)
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () &unit
           :examples $ []
@@ -2708,8 +2708,8 @@
             :args $ [] 'Number
           :tests $ [] $ %{} 'TestEntry (:name |settled-segments)
             :code $ quote $ do
-              assert= 32 $ count $ :nodes (scene-at 60.5)
-              assert= 36 $ count $ :nodes (scene-at 0.5)
+              assert= 32 $ .len $ :nodes (scene-at 60.5)
+              assert= 36 $ .len $ :nodes (scene-at 0.5)
             :tags $ #{} :clock :unit
         'segment-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn segment-node (position index opacity)
@@ -3042,7 +3042,7 @@
               >= at $ :at model
             assert |invalid-cohort-duration $ and (motion/finite-number? duration) (> duration 0)
             assert |cohort-event-capacity $ <
-              count $ :events model
+              .len $ :events model
               , 2000
             if
               = target $ :to $ :tween (:intent model)
@@ -3164,8 +3164,8 @@
             :return $ :: 'List 'quamolit.motion/Vec2
           :tests $ [] $ %{} 'TestEntry (:name |closed-star-count)
             :code $ quote $ do
-              assert= 98 $ count $ curve-points 0
-              assert= 98 $ count $ curve-points 5
+              assert= 98 $ .len $ curve-points 0
+              assert= 98 $ .len $ curve-points 5
               assert= (curve-points 3) (curve-points 3)
             :tags $ #{} :curve :unit
         'curve-rotation $ %{} 'CodeEntry (:doc |)
@@ -3256,7 +3256,7 @@
               assert= true $ match (:content node)
                 (:cubic-path path)
                   and
-                    = 32 $ count $ :segments path
+                    = 32 $ .len $ :segments path
                     scene/valid-cubic-path? path
                 _ false
             :tags $ #{} :curve
@@ -3732,10 +3732,10 @@
         'append-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn append-event (log at kind folder card)
             assert |invalid-finder-time $ and (motion/finite-number? at) (>= at 0)
-            assert |finder-log-capacity $ < (count log) 2000
+            assert |finder-log-capacity $ < (.len log) 2000
             assert |nonmonotonic-finder-log $ or (empty? log)
               >= at $ :at $ &list:nth log
-                dec $ count log
+                dec $ .len log
             assert |unknown-finder-event $ includes? ([] |folder |card |back) kind
             conj log $ FinderEvent :at at :kind kind :folder folder :card card
           :examples $ []
@@ -3770,7 +3770,7 @@
         'build-card-items $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn build-card-items (model time folder index acc)
             if
-              >= index $ count $ cards-for folder
+              >= index $ .len $ cards-for folder
               , acc $ recur model time folder (inc index) (add-card model time folder index acc)
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -3797,7 +3797,7 @@
         'card-global-index $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn card-global-index (folder card)
             assert |invalid-finder-card $ and (>= card 0)
-              < card $ count $ cards-for folder
+              < card $ .len $ cards-for folder
             + (card-offset folder) card
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
@@ -3876,7 +3876,7 @@
                     concat acc $ compact-item document folder -1 width stage-height
                 nodes $ foldl (range 0 5) folders $ fn (acc folder)
                   foldl
-                    range 0 $ count $ cards-for folder
+                    range 0 $ .len $ cards-for folder
                     , acc $ fn (result index)
                       if
                         any? (:nodes document)
@@ -4114,7 +4114,7 @@
                     = 1 $ folder-item-target model folder
                     > (folder-item-value model folder time) 0.05
                   hit-card-index model time folder
-                    dec $ count $ cards-for folder
+                    dec $ .len $ cards-for folder
                     , x y
                   , -1
                 folder-hit $ hit-folder-index model time 4 x y
@@ -4233,7 +4233,7 @@
         'max-card-value-for-folder $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn max-card-value-for-folder (model folder time index acc)
             if
-              >= index $ count $ cards-for folder
+              >= index $ .len $ cards-for folder
               , acc $ recur model folder time (inc index)
                 &max acc $ card-item-value model folder index time
           :examples $ []
@@ -4259,7 +4259,7 @@
           :code $ quote $ defn motion-target (motions index)
             if
               and (>= index 0)
-                < index $ count motions
+                < index $ .len motions
               :to $ :tween $ &list:nth motions index
               , 0
           :examples $ []
@@ -4269,7 +4269,7 @@
           :code $ quote $ defn motion-value (motions index time)
             if
               and (>= index 0)
-                < index $ count motions
+                < index $ .len motions
               transition/sample-transition (&list:nth motions index) time
               , 0
           :examples $ []
@@ -4334,7 +4334,7 @@
                   assert |unknown-finder-hit-target $ >= folder 0
                   match
                     find
-                      range 0 $ count $ cards-for folder
+                      range 0 $ .len $ cards-for folder
                       fn (index)
                         = target $ str |card- folder |/ index
                     (:some index)
@@ -4377,7 +4377,7 @@
               >= (:folder model) 0
               >= (folder-value model at) 0.05
             assert |invalid-finder-card $ and (>= index 0)
-              < index $ count $ cards-for (:folder model)
+              < index $ .len $ cards-for (:folder model)
             struct-with model (:card index)
               :card-motions $ retarget-motions (:card-motions model)
                 card-global-index (:folder model) index
@@ -4461,10 +4461,10 @@
         'append-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn append-event (log at)
             assert |invalid-fan-event-time $ and (motion/finite-number? at) (>= at 0) (<= at 120)
-            assert |fan-log-capacity $ < (count log) 100
+            assert |fan-log-capacity $ < (.len log) 100
             assert |nonmonotonic-fan-log $ or (empty? log)
               >= at $ :at $ &list:nth log
-                dec $ count log
+                dec $ .len log
             conj log $ FanEvent :at at
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -4843,7 +4843,7 @@
             :args $ [] 'quamolit.examples.icons/IconModel 'Number
           :tests $ [] $ %{} 'TestEntry (:name |eight-icon-nodes)
             :code $ quote $ assert= 8
-              count $ :nodes $ scene-at (initial) 0
+              .len $ :nodes $ scene-at (initial) 0
             :tags $ #{} :icons :unit
         'text-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text-node (id value y alpha)
@@ -5863,8 +5863,8 @@
                 scene/ImageSource :id |dashboard-cover :version 1 :width 650 :height 432
               assert |image-projection-idempotent $ = model $ with-images model true
                 scene/ImageSource :id |dashboard-cover :version 1 :width 650 :height 432
-              assert |shared-image-identity $ = 1 $ count references
-              assert |two-image-cards $ = 2 $ count
+              assert |shared-image-identity $ = 1 $ .len references
+              assert |two-image-cards $ = 2 $ .len
                 filter (:nodes frame)
                   fn (node)
                     =
@@ -5996,7 +5996,7 @@
           :code $ quote $ defn area-points (points)
             let
                 first-point $ &list:nth points 0
-                last-point $ &list:nth points $ - (count points) 1
+                last-point $ &list:nth points $ - (.len points) 1
               concat
                 [] $ motion/Vec2 :x (:x first-point) :y 190
                 , points $ [] $ motion/Vec2 :x (:x last-point) :y 190
@@ -6189,7 +6189,7 @@
             assert |invalid-signal-event-time $ and (motion/finite-number? at)
               >= at $ :at model
             assert |signal-event-capacity $ <
-              count $ :events model
+              .len $ :events model
               , 2000
             if
               = target $ :to $ :tween (:intent model)
@@ -6332,7 +6332,7 @@
             :return $ :: 'List 'quamolit.motion/Vec2
           :tests $ [] $ %{} 'TestEntry (:name |closed-ring)
             :code $ quote $ assert= 49
-              count $ circle-points 0 0 60
+              .len $ circle-points 0 0 60
             :tags $ #{} :solar :unit
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context time)
@@ -6372,7 +6372,7 @@
             :code $ quote $ let
                 document $ scene-at 0
               do
-                assert= 10 $ count $ :nodes document
+                assert= 10 $ .len $ :nodes document
                 assert= true $ every? (:nodes document)
                   fn (node)
                     match (:content node)
@@ -6507,7 +6507,7 @@
             :args $ []
         'scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scene-at (cells selected)
-            assert |invalid-table-size $ = 9 $ count cells
+            assert |invalid-table-size $ = 9 $ .len cells
             scene/SceneDocument :nodes $ build-cells cells selected 0 $ empty-nodes
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
@@ -6516,7 +6516,7 @@
           :code $ quote $ defn set-cell (cells index value)
             assert |invalid-table-index $ and (>= index 0) (< index 9)
               = index $ floor index
-            assert |invalid-table-size $ = 9 $ count cells
+            assert |invalid-table-size $ = 9 $ .len cells
             assoc cells index value
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -7308,7 +7308,7 @@
             assert |invalid-series-event-time $ and (motion/finite-number? at)
               >= at $ :at model
             assert |series-event-capacity $ <
-              count $ :events model
+              .len $ :events model
               , 2000
             if
               = target $ :to $ :tween (:intent model)
@@ -7326,7 +7326,7 @@
             assert |invalid-view-event-time $ and (motion/finite-number? at)
               >= at $ :at model
             assert |view-event-capacity $ <
-              count $ :events model
+              .len $ :events model
               , 2000
             if
               = target $ :to $ :tween (:intent model)
@@ -7611,9 +7611,9 @@
           :code $ quote $ defn advance (session log time)
             assert |invalid-todo-advance $ and (motion/finite-number? time)
               >= time $ :time session
-              <= (:cursor session) (count log)
+              <= (:cursor session) (.len log)
             if
-              < (:cursor session) (count log)
+              < (:cursor session) (.len log)
               let
                   event $ &list:nth log $ :cursor session
                 if
@@ -7637,7 +7637,7 @@
         'append-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn append-event (log at kind id label)
             do
-              assert |todo-log-capacity $ < (count log) 2000
+              assert |todo-log-capacity $ < (.len log) 2000
               do
                 assert |invalid-todo-event-time $ and (motion/finite-number? at) (>= at 0)
                 assert |unknown-todo-event $ includes?
@@ -7648,7 +7648,7 @@
                   valid-label? label
             assert |nonmonotonic-todo-log $ or (empty? log)
               >= at $ :at $ &list:nth log
-                dec $ count log
+                dec $ .len log
             conj log $ Event :at at :kind kind :id id :text label
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -7670,7 +7670,7 @@
                   :at at
                   :revision $ inc $ :revision model
                   :released $ + (:released model)
-                    count $ :released presence-update
+                    .len $ :released presence-update
               struct-with next $ :presence $ delay-entries next at
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Model)
@@ -7681,10 +7681,10 @@
             assert |invalid-todo-compact-scroll $ and (motion/finite-number? scroll) (>= scroll 0)
             let
                 nodes $ :nodes $ :scene plan
-              assert |invalid-todo-compact-transforms $ = (count nodes)
-                count $ :transforms plan
+              assert |invalid-todo-compact-transforms $ = (.len nodes)
+                .len $ :transforms plan
               scene/SceneDocument :nodes $ foldl
-                range $ count nodes
+                range $ .len nodes
                 scene/empty-scene-nodes
                 fn (out index)
                   hint-fn $ {}
@@ -7718,8 +7718,8 @@
                   _ $ raise |invalid-todo-compact-label
                 capacity $ floor $ / (- width 48) 18
                 cut-count $ if
-                  < capacity $ count $ :text label
-                  , capacity $ count (:text label)
+                  < capacity $ .len $ :text label
+                  , capacity $ .len (:text label)
                 alpha $ match (:content card)
                   (:rect body)
                     :a $ :fill body
@@ -7876,11 +7876,11 @@
                           :start $ + at $ if
                             >
                               -
-                                * 0.064 $ dec $ count (:rows model)
+                                * 0.064 $ dec $ .len (:rows model)
                                 , delay
                               , 0
                             -
-                              * 0.064 $ dec $ count (:rows model)
+                              * 0.064 $ dec $ .len (:rows model)
                               , delay
                             , 0
                         , item
@@ -7912,7 +7912,7 @@
               case-default kind (raise |unknown-todo-event)
                 |add $ do
                   assert |invalid-todo-label $ valid-label? label
-                  assert |todo-capacity $ < (count rows) 24
+                  assert |todo-capacity $ < (.len rows) 24
                   let
                       row $ new-row
                         str $ :next-id current
@@ -8066,9 +8066,9 @@
             let
                 nodes $ :nodes $ :scene plan
                 transforms $ :transforms plan
-              assert |invalid-todo-hit-transforms $ = (count nodes) (count transforms)
+              assert |invalid-todo-hit-transforms $ = (.len nodes) (.len transforms)
               hit/compile-hit-plan $ scene/SceneDocument :nodes $ foldl
-                range $ count nodes
+                range $ .len nodes
                 scene/empty-scene-nodes
                 fn (out index)
                   hint-fn $ {}
@@ -8164,7 +8164,7 @@
             :args $ [] 'String 'Number 'Number 'Number
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
-            = 3 $ count $ :rows
+            = 3 $ .len $ :rows
               replay (demo-log) 0
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -8174,8 +8174,8 @@
                 log $ demo-log
                 end $ replay log 4
                 begin $ replay log 0
-              is= 3 $ count $ :rows begin
-              is= 2 $ count $ :rows end
+              is= 3 $ .len $ :rows begin
+              is= 2 $ .len $ :rows end
               is= 6 $ :released end
               is= false $ needs-frame? end 4
               is= end $ replay log 4
@@ -8212,7 +8212,7 @@
         'next-event-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn next-event-at (session log)
             if
-              < (:cursor session) (count log)
+              < (:cursor session) (.len log)
               :at $ &list:nth log $ :cursor session
               , -1
           :examples $ []
@@ -8298,7 +8298,7 @@
               (:none)
                 do
                   assert |todo-capacity $ <
-                    count $ :rows model
+                    .len $ :rows model
                     , 24
                   new-row (:undo-id model) (:undo-text model) (:undo-done model) at
           :examples $ []
@@ -8371,7 +8371,7 @@
                 , model $ struct-with model (:presence next)
                   :revision $ inc $ :revision model
                   :released $ + (:released model)
-                    count $ :released presence-update
+                    .len $ :released presence-update
                   :rows $ filter (:rows model)
                     fn (row)
                       or (:present row)
@@ -8405,9 +8405,9 @@
           :code $ quote $ defn valid-label? (label)
             and
               >
-                count $ trim label
+                .len $ trim label
                 , 0
-              <= (count label) 28
+              <= (.len label) 28
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
             :args $ [] 'String
@@ -8659,7 +8659,7 @@
                             release-font! $ :loaded handle
                             , &unit
                           if (empty? matches) host $ struct-with host (:handles kept)
-                            :released $ + (:released host) (count matches)
+                            :released $ + (:released host) (.len matches)
                       _ host
                     , host
               recur next $ rest actions
@@ -8909,10 +8909,10 @@
                 assert |invalid-font-reference $ = (:kind font-ref) (resource/ResourceKind :font)
                 assert |invalid-font-reference $ = font-ref $ resource/resource (:kind font-ref) (:id font-ref) (:version font-ref)
             assert |duplicate-font-reference $ every? previous $ fn (font-ref)
-              = 1 $ count $ filter previous
+              = 1 $ .len $ filter previous
                 fn (other) (= font-ref other)
             assert |duplicate-font-reference $ every? next $ fn (font-ref)
-              = 1 $ count $ filter next
+              = 1 $ .len $ filter next
                 fn (other) (= font-ref other)
             let
                 released $ foldl previous
@@ -9265,7 +9265,7 @@
                 update-frame (empty-frame) (frame-of prepared)
                 , :indices
                   unique-indices (:slots plan) ([])
-                  , :full-builds 1 :candidates $ count $ :nodes (:scene plan)
+                  , :full-builds 1 :candidates $ .len $ :nodes (:scene plan)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/BatchPlan)
             :args $ [] 'quamolit.retained-component/ComponentPlan
@@ -9280,11 +9280,11 @@
         'collect-writes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn collect-writes (before after index result)
             if
-              >= index $ count after
+              >= index $ .len after
               , result $ let
                   record $ &list:nth after index
                   unchanged? $ if
-                    < index $ count before
+                    < index $ .len before
                     = record $ &list:nth before index
                     , false
                 recur before after (inc index)
@@ -9328,7 +9328,7 @@
           :code $ quote $ defn diagnose-plan (plan) (validate-plan! plan)
             map
               filter
-                range $ count $ :nodes (:scene plan)
+                range $ .len $ :nodes (:scene plan)
                 fn (index)
                   not= (node-reason plan index) |
               fn (index)
@@ -9385,7 +9385,7 @@
         'first-reason $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn first-reason (plan index)
             if
-              >= index $ count $ :nodes (:scene plan)
+              >= index $ .len $ :nodes (:scene plan)
               , | $ let
                   reason $ node-reason plan index
                 if (= reason |)
@@ -9440,7 +9440,7 @@
                 reason $ first-reason plan 0
               if (not= reason |) (PreparedFrame :fallback reason)
                 PreparedFrame :rects $ RectFrame :records $ map
-                  range $ count $ :nodes (:scene plan)
+                  range $ .len $ :nodes (:scene plan)
                   fn (index) (rect-record plan index)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/PreparedFrame)
@@ -9572,7 +9572,7 @@
                 raw-host $ unsafe-coerce host 'JsObject
               raw-check! raw-host $ :instances delta
               assert |invalid-gpu-delta-count $ = (:instances delta)
-                count $ :records $ :frame delta
+                .len $ :records $ :frame delta
               each (:writes delta)
                 fn (write)
                   assert |invalid-gpu-delta-index $ and
@@ -9639,9 +9639,9 @@
                           walk-indices plan (:indices batch) (:records frame) (empty-writes) 0
                         next $ frame-of $ :prepared result
                         delta $ RectUpdate :frame next :writes (:writes result) :instances
-                          count $ :records next
+                          .len $ :records next
                           , :uploaded-bytes $ * 64
-                            count $ :writes result
+                            .len $ :writes result
                       struct-with batch (:source plan)
                         :prepared $ :prepared result
                         :delta delta
@@ -9655,8 +9655,8 @@
             let
                 writes $ collect-writes (:records previous) (:records next) 0 $ empty-writes
               RectUpdate :frame next :writes writes :uploaded-bytes
-                * 64 $ count writes
-                , :instances $ count $ :records next
+                * 64 $ .len writes
+                , :instances $ .len $ :records next
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectUpdate)
             :args $ [] 'quamolit.gpu-component/RectFrame 'quamolit.gpu-component/RectFrame
@@ -9686,8 +9686,8 @@
               retained/transform-active? $ :transform-sampler plan
               assert |invalid-gpu-component-transforms $ and
                 =
-                  count $ :transforms plan
-                  count $ :nodes $ :scene plan
+                  .len $ :transforms plan
+                  .len $ :nodes $ :scene plan
                 every? (:transforms plan) retained/valid-transform?
             , &unit
           :examples $ []
@@ -9825,7 +9825,7 @@
                   assert |gpu-scalar-binding-index $ and
                     motion/valid-motion-version? $ :index slot
                     < (:index slot)
-                      count $ :records frame
+                      .len $ :records frame
                   let
                       context $ str |;key=
                         :key $ &list:nth
@@ -9979,9 +9979,9 @@
                 raw-host $ unsafe-coerce host 'JsObject
               assert |gpu-instance-program-mismatch $ = (InstanceProgramResult :ready program)
                 prepare-instance-program (:source program) (:motions program) time
-              gpu/raw-check! raw-host $ count $ :records (:frame program)
+              gpu/raw-check! raw-host $ .len $ :records (:frame program)
               raw-reset! raw-host
-                count $ :records $ :frame program
+                .len $ :records $ :frame program
                 , time
               each (:parameters program)
                 fn (parameter) (write-parameter! host parameter)
@@ -9998,7 +9998,7 @@
               assert |gpu-scalar-program-mismatch $ = (ProgramResult :ready program)
                 prepare-program $ :source program
               let
-                  instances $ count $ :records (:frame program)
+                  instances $ .len $ :records (:frame program)
                   time $ :time $ :source program
                 assert |gpu-scalar-time-domain $ time-supported? program time
                 gpu/raw-check! raw-host instances
@@ -10189,7 +10189,7 @@
                   (:keyframes track)
                     if
                       and
-                        = 2 $ count $ :frames track
+                        = 2 $ .len $ :frames track
                         or
                           = (:loop track) (motion/TrackLoop :clamp)
                           = (:loop track) (motion/TrackLoop :mirror)
@@ -10243,9 +10243,9 @@
             assert |invalid-gpu-instance-source $ quamolit.scene-ir/valid-content? $ quamolit.scene-ir/SceneContent :instances source
             assert |gpu-instance-motion-count $ =
               :count $ :source source
-              count motions
-            assert |duplicate-gpu-instance-motion-id $ = (count motions)
-              count $ foldl motions (#{})
+              .len motions
+            assert |duplicate-gpu-instance-motion-id $ = (.len motions)
+              .len $ foldl motions (#{})
                 fn (ids m)
                   hint-fn $ {}
                     :args $ [] (:: 'Set 'String) 'quamolit.motion/Vec2Descriptor
@@ -10411,7 +10411,7 @@
         'transform-frame $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn transform-frame (frame descriptions)
             gpu/RectFrame :records $ map
-              range $ count $ :records frame
+              range $ .len $ :records frame
               fn (index)
                 let
                     record $ &list:nth (:records frame) index
@@ -11011,7 +11011,7 @@
         'image-resource-metrics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn image-resource-metrics (host)
             ImageResourceMetrics :created (:created host) :released (:released host) :live
-              count $ :handles host
+              .len $ :handles host
               , :decoded-bytes $ :decoded-bytes host
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -11072,7 +11072,7 @@
                   fn (handle)
                     not= generation $ :resource-generation handle
               ImageResourceHost :handles kept :created (:created host) :released
-                + (:released host) (count matched)
+                + (:released host) (.len matched)
                 , :decoded-bytes $ :decoded-bytes host
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -11087,8 +11087,8 @@
               struct-with host (:handles kept)
                 :released $ + (:released host)
                   -
-                    count $ :handles host
-                    count kept
+                    .len $ :handles host
+                    .len kept
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.image-resource-runner/ImageResourceHost
@@ -11450,7 +11450,7 @@
             let
                 nodes $ :nodes document
               and
-                = 1 $ count nodes
+                = 1 $ .len nodes
                 let
                     node $ option:unwrap $ nth nodes 0
                   and
@@ -11512,8 +11512,8 @@
                 ids $ map (:layers frame)
                   fn (layer) (:id layer)
               assert |inconsistent-layer-viewport $ = expected view
-              assert |duplicate-layer-id $ = (count ids)
-                count $ distinct ids
+              assert |duplicate-layer-id $ = (.len ids)
+                .len $ distinct ids
               each (:layers frame)
                 fn (layer)
                   assert |empty-layer-id $ not $ empty? (:id layer)
@@ -12045,10 +12045,10 @@
                   registry $ register-cpu-scalar empty-registry |double-offset sampler
                   descriptor $ CpuScalarDescriptor :id |custom-example :version 1 :callback-id |double-offset :gpu-status $ CpuGpuStatus :unsupported |runtime-callback
                 is=
-                  count $ :samplers empty-registry
+                  .len $ :samplers empty-registry
                   , 0
                 is=
-                  count $ :samplers registry
+                  .len $ :samplers registry
                   , 1
                 is= (:gpu-status descriptor) (CpuGpuStatus :unsupported |runtime-callback)
                 is= (sample-cpu-scalar descriptor 1 registry) 12
@@ -12562,7 +12562,7 @@
           :code $ quote $ defn validate-track (track)
             let
                 frames $ :frames track
-              assert |empty-keyframes $ > (count frames) 0
+              assert |empty-keyframes $ > (.len frames) 0
               let
                   initial $ first-keyframe frames
                 assert |invalid-keyframe-time $ finite-number? $ :at initial
@@ -12919,7 +12919,7 @@
                 (:keyframes track)
                   if
                     <=
-                      count $ :frames track
+                      .len $ :frames track
                       gpu-keyframe-capacity
                     GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :keyframes track
                     GpuScalarLowering :unsupported |keyframe-capacity-exceeded
@@ -12991,8 +12991,8 @@
                   track17 $ motion/ScalarTrack :frames frames17 :loop $ motion/TrackLoop :clamp
                   descriptor16 $ motion/ScalarDescriptor :id |exact :version 1 :motion $ motion/ScalarMotion :keyframes track16
                   descriptor17 $ motion/ScalarDescriptor :id |over :version 1 :motion $ motion/ScalarMotion :keyframes track17
-                is= 16 $ count frames16
-                is= 17 $ count frames17
+                is= 16 $ .len frames16
+                is= 17 $ .len frames17
                 is=
                   GpuScalarLowering :supported $ GpuScalarPlan :id |exact :version 1 :kernel $ GpuScalarKernel :keyframes track16
                   lower-scalar descriptor16
@@ -13291,7 +13291,7 @@
                 refs $ bump-resource-ref
                   bump-resource-ref (empty-resource-refs) source
                   , source
-              is= 1 $ count refs
+              is= 1 $ .len refs
               is= 2 $ :count $ first-resource-ref refs
             :tags $ #{} :presence :unit
         'desired-prefix $ %{} 'CodeEntry (:doc |)
@@ -13431,7 +13431,7 @@
           :code $ quote $ defn instance-resource-plan (model previous)
             let
                 references $ bump-all-resource-refs $ gather-instance-sources (:items model)
-              InstanceResourcePlan :references references :release (plan-release-sources references previous) :live-references (foldl references 0 total-ref-count) :live-sources $ count references
+              InstanceResourcePlan :references references :release (plan-release-sources references previous) :live-references (foldl references 0 total-ref-count) :live-sources $ .len references
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.presence/InstanceResourcePlan)
             :args $ [] 'quamolit.presence/PresenceModel 'quamolit.presence/InstanceResourcePlan
@@ -13535,8 +13535,8 @@
                 source $ scene-ir/InstanceSource :id |shared :version 1 :count 2
                 refs $ bump-resource-ref (empty-resource-refs) source
                 previous $ InstanceResourcePlan :references refs :release (empty-instance-sources) :live-references 1 :live-sources 1
-              is= 0 $ count $ plan-release-sources refs previous
-              is= 1 $ count $ plan-release-sources (empty-resource-refs) previous
+              is= 0 $ .len $ plan-release-sources refs previous
+              is= 1 $ .len $ plan-release-sources (empty-resource-refs) previous
             :tags $ #{} :presence :unit
         'presence-needs-frame? $ %{} 'CodeEntry (:doc "|活跃或尚待终点结算的生命周期需要后续帧；结算后停止。")
           :code $ quote $ defn presence-needs-frame? (model time)
@@ -13589,7 +13589,7 @@
                   type-update $ reconcile-presence initial type-changed 0.5 1 easing
                   parent-exit $ reconcile-presence initial empty-doc 0.5 1 easing
                   parent-done $ settle-presence (:model parent-exit) 1.5
-                is= 3 $ count $ :items initial
+                is= 3 $ .len $ :items initial
                 is= ([] |root |b |a)
                   map
                     :items $ :model reorder-update
@@ -13608,23 +13608,23 @@
                   map
                     sample-presence (:model exit-update) 0.75
                     fn (sample) (:interactive sample)
-                is= 0 $ count $ :released reenter-update
+                is= 0 $ .len $ :released reenter-update
                 is= ([] 1 0.75 1)
                   map
                     sample-presence (:model reenter-update) 0.75
                     fn (sample) (:alpha sample)
-                is= 1 $ count $ :released settled
+                is= 1 $ .len $ :released settled
                 is= |a $ :id $ :node
                   first-entry $ :released settled
-                is= 0 $ count $ :released settled-again
-                is= 2 $ count $ :items (:model settled)
-                is= 4 $ count $ :items (:model type-update)
-                is= 3 $ count $ :released parent-done
+                is= 0 $ .len $ :released settled-again
+                is= 2 $ .len $ :items (:model settled)
+                is= 4 $ .len $ :items (:model type-update)
+                is= 3 $ .len $ :released parent-done
                 is= ([] |b |a |root)
                   map (:released parent-done)
                     fn (entry)
                       :id $ :node entry
-                is= 0 $ count $ :items (:model parent-done)
+                is= 0 $ .len $ :items (:model parent-done)
                 is= false $ presence-needs-frame? (:model parent-done) 1.5
               :tags $ #{} :presence :unit
             %{} 'TestEntry (:name |one-hundred-instance-mount-cycles)
@@ -13650,9 +13650,9 @@
                         enter $ reconcile-presence model full time 0.25 easing
                         exit $ reconcile-presence (:model enter) root-only (+ time 1) 0.25 easing
                         done $ settle-presence (:model exit) (+ time 2)
-                        released $ count $ :released done
+                        released $ .len $ :released done
                       is= 1 released
-                      is= 1 $ count $ :items (:model done)
+                      is= 1 $ .len $ :items (:model done)
                       recur (:model done) (+ iteration 1) (+ time 3) (+ released-total released)
                 is= 100 result
                 is-throws $ reconcile-presence initial bad 0 1 easing
@@ -13772,8 +13772,8 @@
               is= true $ presence-needs-frame? (:model exiting) 0.5
               is= true $ presence-needs-frame? (:model exiting) 1
               is= false $ presence-needs-frame? (:model finished) 1
-              is= 1 $ count $ :released finished
-              is= 0 $ count $ :released
+              is= 1 $ .len $ :released finished
+              is= 0 $ .len $ :released
                 settle-presence (:model finished) 2
             :tags $ #{} :presence :unit
         'start-presence $ %{} 'CodeEntry (:doc "|从已验证 Scene 建立全部为 present 的初始逻辑实例。")
@@ -13839,7 +13839,7 @@
                           :node $ :entry item
                         , node
               assert |duplicate-presence-tree-id $ every? nodes $ fn (item)
-                = 1 $ count $ filter nodes
+                = 1 $ .len $ filter nodes
                   fn (other)
                     = (:id item) (:id other)
               let
@@ -13849,7 +13849,7 @@
                     filter (:items model)
                       fn (item) (tree-fade-owned? model item fade-ids coalesce?)
                     , tree-motion
-                assert |missing-presence-tree-parent $ = (count nodes) (count ordered)
+                assert |missing-presence-tree-parent $ = (.len nodes) (.len ordered)
                 scene/validate-scene document
                 binding/validate-descriptors motions
                 component/ComponentDeclaration :scene document :motions motions
@@ -13932,8 +13932,8 @@
                         ancestor-path $ :path $ :entry ancestor
                       and
                         includes? fade-ids $ :id $ :node (:entry ancestor)
-                        < (count ancestor-path) (count path)
-                        = ancestor-path $ slice path 0 $ count ancestor-path
+                        < (.len ancestor-path) (.len path)
+                        = ancestor-path $ slice path 0 $ .len ancestor-path
                         = (:phase ancestor) (:phase item)
                         = (:alpha ancestor) (:alpha item)
                 , true
@@ -14018,9 +14018,9 @@
                 :args $ [] 'String 'quamolit.scene-diff/IdentitySegment
                 :return 'String
               str acc |/
-                count $ :kind segment
+                .len $ :kind segment
                 , |: (:kind segment) |/
-                  count $ :key segment
+                  .len $ :key segment
                   , |: $ :key segment
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'String)
@@ -14711,7 +14711,7 @@
         'presence-gpu-metrics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-gpu-metrics (host)
             PresenceGpuMetrics :created (:created host) :released (:released host) :live
-              count $ :handles host
+              .len $ :handles host
               , :live-bytes (:live-bytes host) :uploaded-bytes $ :uploaded-bytes host
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -15493,7 +15493,7 @@
                   conj (:checkpoints archive) next-state
                   :checkpoints archive
                 retained $ if
-                  > (count checkpoints) (:max-checkpoints archive)
+                  > (.len checkpoints) (:max-checkpoints archive)
                   rest checkpoints
                   , checkpoints
               ReplayArchive :origin (:origin archive) :latest next-state :inputs next-inputs :checkpoints retained :stride (:stride archive) :max-checkpoints $ :max-checkpoints archive
@@ -15513,11 +15513,11 @@
                 step-two $ record-input step-one 4 quamolit.test.replay-archive-fixture/update-state
                 reset-state $ reset-archive step-two
                 after-reset $ record-input reset-state 2 quamolit.test.replay-archive-fixture/update-state
-              is= 0 $ count $ :checkpoints step-two
-              is= 2 $ count $ :inputs step-two
+              is= 0 $ .len $ :checkpoints step-two
+              is= 2 $ .len $ :inputs step-two
               is= 1.5 $ :state $ sample-archive-at step-two 2 2 quamolit.test.replay-archive-fixture/update-state
               is-throws $ sample-archive-at step-two 2 1 quamolit.test.replay-archive-fixture/update-state
-              is= 0 $ count $ :inputs reset-state
+              is= 0 $ .len $ :inputs reset-state
               is= 0.5 $ :state $ :latest after-reset
               is= 1 $ :tick $ :latest after-reset
             :tags $ #{} :replay-archive :unit
@@ -15549,8 +15549,8 @@
                 saved $ quamolit.test.replay-archive-fixture/make-archive
                 reset-state $ reset-archive saved
                 direct-two $ fixed/advance-simulation (:origin saved) 2 (:inputs saved) 2 quamolit.test.replay-archive-fixture/update-state
-              is= 6 $ count $ :inputs saved
-              is= 2 $ count $ :checkpoints saved
+              is= 6 $ .len $ :inputs saved
+              is= 2 $ .len $ :checkpoints saved
               is= 2 $ :state $ sample-archive-at saved 6 0 quamolit.test.replay-archive-fixture/update-state
               is= 0 $ :state $ sample-archive-at saved 0 0 quamolit.test.replay-archive-fixture/update-state
               is= 1.5 $ :state $ sample-archive-at saved 2 2 quamolit.test.replay-archive-fixture/update-state
@@ -15561,8 +15561,8 @@
               is-throws $ sample-archive-at saved 7 7 quamolit.test.replay-archive-fixture/update-state
               is-throws $ sample-archive-at saved -1 7 quamolit.test.replay-archive-fixture/update-state
               is-throws $ sample-archive-at saved (sqrt -1) 7 quamolit.test.replay-archive-fixture/update-state
-              is= 0 $ count $ :inputs reset-state
-              is= 0 $ count $ :checkpoints reset-state
+              is= 0 $ .len $ :inputs reset-state
+              is= 0 $ .len $ :checkpoints reset-state
               is= 0 $ :tick $ :latest reset-state
             :tags $ #{} :replay-archive :unit
         'start-archive $ %{} 'CodeEntry (:doc "|从 tick 0 检查点创建档案；检查点间隔为正整数，容量可为零。")
@@ -15901,10 +15901,10 @@
         'registry-metrics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn registry-metrics (registry)
             let
-                leased $ count $ filter (:entries registry)
+                leased $ .len $ filter (:entries registry)
                   fn (entry)
                     > (:references entry) 0
-                resident $ count $ :entries registry
+                resident $ .len $ :entries registry
               RegistryMetrics :resident resident :leased leased :idle (- resident leased) :resident-bytes (:resident-bytes registry) :loads (:loads registry) :evictions $ :evictions registry
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/RegistryMetrics)
@@ -15964,7 +15964,7 @@
         'resource $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn resource (kind id version)
             assert |invalid-resource-id $ and (string? id)
-              > (count id) 0
+              > (.len id) 0
             assert |invalid-resource-version $ valid-version? version
             ResourceIdentity :kind kind :id id :version version
           :examples $ []
@@ -16153,7 +16153,7 @@
                         fn (task)
                           not $ same-logical-resource? descriptor $ :identity task
                     if
-                      >= (count next-pending) (:pending-limit queue)
+                      >= (.len next-pending) (:pending-limit queue)
                       ResourceLoadEnqueue :queue queue :outcome $ ResourceLoadEnqueueOutcome :backpressured
                       let
                           task $ ResourceLoadTask :token (:next-token queue) :device-generation device-generation :identity descriptor :resource-generation resource-generation :priority priority :sequence $ :next-sequence queue
@@ -16231,12 +16231,12 @@
         'load-queue-metrics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn load-queue-metrics (queue)
             let
-                running-count $ count $ :running queue
-                cancelled $ count $ filter (:running queue)
+                running-count $ .len $ :running queue
+                cancelled $ .len $ filter (:running queue)
                   fn (slot) (:cancelled? slot)
                 available $ - (:concurrency-limit queue) running-count
               ResourceLoadMetrics :pending
-                count $ :pending queue
+                .len $ :pending queue
                 , :running running-count :cancelled-running cancelled :available $ if (> available 0) available 0
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -16274,7 +16274,7 @@
               or
                 empty? $ :pending queue
                 >=
-                  count $ :running queue
+                  .len $ :running queue
                   :concurrency-limit queue
               ResourceLoadTake :queue queue :task $ %none
               let
@@ -16358,7 +16358,7 @@
               let
                   slots $ compile-slots (:nodes document) descriptors 0 $ empty-slots
                   nodes $ evaluate-slots slots (:nodes document) (:time request)
-                ComponentPlan :id (:id request) :time (:time request) :versions (:versions request) :scene (scene/SceneDocument :nodes nodes) :slots slots :declarations 1 :plan-builds 1 :binding-samples (count slots) :node-writes (count slots) :skipped-updates 0 :transforms (empty-transforms) :transform-sampler (TransformSampler :none) :transform-samples 0
+                ComponentPlan :id (:id request) :time (:time request) :versions (:versions request) :scene (scene/SceneDocument :nodes nodes) :slots slots :declarations 1 :plan-builds 1 :binding-samples (.len slots) :node-writes (.len slots) :skipped-updates 0 :transforms (empty-transforms) :transform-sampler (TransformSampler :none) :transform-samples 0
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
             :args $ [] (:: 'quamolit.component-sample/ComponentRequest 'P 'M 'I 'R 'V)
@@ -16374,7 +16374,7 @@
                 base $ build-component-plan request $ fn (props model input resources viewport) (:component declaration)
                 sampler $ :transforms declaration
                 transforms $ evaluate-transforms sampler
-                  count $ :nodes $ :scene base
+                  .len $ :nodes $ :scene base
                   :time request
               struct-with base (:transform-sampler sampler) (:transforms transforms)
                 :transform-samples $ if (transform-active? sampler) 1 0
@@ -16406,7 +16406,7 @@
               :nodes $ :scene plan
               , canvas/supported-flat-node?
             each
-              range $ count $ :nodes (:scene plan)
+              range $ .len $ :nodes (:scene plan)
               fn (index)
                 let
                     node $ node-at
@@ -16462,12 +16462,12 @@
                 let
                     result $ sample time
                   assert |invalid-component-transforms $ and
-                    = size $ count result
+                    = size $ .len result
                     every? result valid-transform?
                   , result
               (:motions descriptions)
                 do
-                  assert |invalid-component-transform-count $ = size $ count descriptions
+                  assert |invalid-component-transform-count $ = size $ .len descriptions
                   .map descriptions $ fn (description) (sample-transform description time)
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -16485,7 +16485,7 @@
             assert |invalid-component-time $ motion/finite-number? time
             let
                 same? $ = time $ :time plan
-                added $ if same? 0 $ count (:slots plan)
+                added $ if same? 0 $ .len (:slots plan)
                 document $ if
                   or same? $ empty? $ :slots plan
                   :scene plan
@@ -16494,7 +16494,7 @@
                     , time
                 transforms $ if same? (:transforms plan)
                   evaluate-transforms (:transform-sampler plan)
-                    count $ :nodes document
+                    .len $ :nodes document
                     , time
               struct-with plan (:time time) (:scene document)
                 :binding-samples $ + (:binding-samples plan) added
@@ -16635,8 +16635,8 @@
             let
                 transforms $ sample props time
               assert |invalid-path-transforms $ and
-                = (count transforms)
-                  count $ :nodes document
+                = (.len transforms)
+                  .len $ :nodes document
                 every? transforms valid-transform?
               PathPlan :scene document :props props :sample sample :time time :transforms transforms :samples 1 :skipped 0
           :examples $ []
@@ -16650,7 +16650,7 @@
         'draw-plan! $ %{} 'CodeEntry (:doc "|消费已验证计划，按原层序复合调用者变换并绘制；不负责清屏/DPR，不修改逻辑状态。")
           :code $ quote $ defn draw-plan! (context plan)
             each
-              range $ count $ :transforms plan
+              range $ .len $ :transforms plan
               fn (index)
                 let
                     node $ &list:nth
@@ -16709,8 +16709,8 @@
                     :props plan
                     , time
                 assert |invalid-path-transforms $ and
-                  = (count transforms)
-                    count $ :nodes $ :scene plan
+                  = (.len transforms)
+                    .len $ :nodes $ :scene plan
                   every? transforms valid-transform?
                 struct-with plan (:time time) (:transforms transforms)
                   :samples $ inc $ :samples plan
@@ -17236,7 +17236,7 @@
                   before $ scene-ir/SceneDocument :nodes $ [] root a b
                   after $ scene-ir/SceneDocument :nodes $ [] root b a
                   delta $ diff-scene before after 0 1
-                is= 2 $ count $ :changes delta
+                is= 2 $ .len $ :changes delta
                 is= true $ :time-changed delta
                 is=
                   map (:changes delta)
@@ -17273,7 +17273,7 @@
                   id-doc $ scene-ir/SceneDocument :nodes $ [] root new-id
                   instance-doc $ scene-ir/SceneDocument :nodes $ [] root instance
                   version-doc $ scene-ir/SceneDocument :nodes $ [] root version
-                is= 0 $ count $ :changes (diff-scene base-doc base-doc 0 1)
+                is= 0 $ .len $ :changes (diff-scene base-doc base-doc 0 1)
                 is= true $ :time-changed $ diff-scene base-doc base-doc 0 1
                 is= ([] true)
                   map
@@ -17677,7 +17677,7 @@
             :tags $ #{} :scene-hit
         'candidate-count $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn candidate-count (plan)
-            count $ :candidates plan
+            .len $ :candidates plan
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'quamolit.scene-hit/HitPlan
@@ -17698,7 +17698,7 @@
                         match
                           instance-index-local (:instance-points candidate)
                             -
-                              count $ :instance-points candidate
+                              .len $ :instance-points candidate
                               , 1
                             :width instances
                             :height instances
@@ -17736,7 +17736,7 @@
                       (:instances instances)
                         instance-index-local (:instance-points candidate)
                           -
-                            count $ :instance-points candidate
+                            .len $ :instance-points candidate
                             , 1
                           :width instances
                           :height instances
@@ -17754,7 +17754,7 @@
                 compact $ compact-stroke-points points
               if
                 or (<= width 0)
-                  < (count compact) 2
+                  < (.len compact) 2
                 , false $ closed-stroke-scan? compact (last-point compact) (first-point compact) width x y
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -17853,7 +17853,7 @@
                       , result $ append result point
               if
                 and
-                  > (count compact) 1
+                  > (.len compact) 1
                   = (first-point compact) (last-point compact)
                 butlast compact
                 , compact
@@ -18287,7 +18287,7 @@
                 point-in-rect? x y (:x text)
                   - (:y text)
                     / (:size text) 2
-                  * (:size text) 0.6 $ count $ :text text
+                  * (:size text) 0.6 $ .len $ :text text
                   :size text
               (:image image)
                 match
@@ -18439,7 +18439,7 @@
         'polygon-hit? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn polygon-hit? (points x y)
             if
-              < (count points) 3
+              < (.len points) 3
               , false $ polygon-scan points (last-point points) x y false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Bool)
@@ -18493,7 +18493,7 @@
                 points $ :points resolved
               assert |invalid-instance-hit-source $ and
                 = source $ :source resolved
-                = (:count source) (count points)
+                = (:count source) (.len points)
                 foldl points true $ fn (valid? point)
                   and valid?
                     motion/finite-number? $ :x point
@@ -19355,7 +19355,7 @@
           :code $ quote $ defn valid-polygon? (polygon)
             and
               >=
-                count $ :points polygon
+                .len $ :points polygon
                 , 3
               every? (:points polygon) finite-vec2?
               finite-number? $ :width polygon
@@ -19369,7 +19369,7 @@
           :code $ quote $ defn valid-polyline? (path)
             and
               >=
-                count $ :points path
+                .len $ :points path
                 , 2
               every? (:points path) finite-vec2?
               finite-number? $ :width path
@@ -19421,7 +19421,7 @@
                   document $ SceneDocument :nodes $ [] group badge crowd
                 is= true $ validate-scene document
                 is= true $ validate-scene $ SceneDocument :nodes ([] group crowd badge)
-                is= 3 $ count $ :nodes document
+                is= 3 $ .len $ :nodes document
                 is= |instances $ content-kind $ :content crowd
               :tags $ #{} :scene :unit
             %{} 'TestEntry (:name |rejects-invalid-scene)
@@ -20332,7 +20332,7 @@
                 exit-root $ scene-ir/first-node $ :nodes exiting-scene
               is= true $ scene-ir/validate-scene entering-scene
               is= true $ scene-ir/validate-scene exiting-scene
-              is= 2 $ count $ :nodes entering-scene
+              is= 2 $ .len $ :nodes entering-scene
               is= 1 $ :version $ fade-descriptor enter
               is= 2 $ :version $ fade-descriptor exiting
               is= 1 $ :version $ scene-ir/first-binding (:bindings root)
@@ -20479,7 +20479,7 @@
             :args $ [] 'Number
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
-            count $ :records $ frame-at 0
+            .len $ :records $ frame-at 0
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ []
@@ -20513,7 +20513,7 @@
                 match (scalar-program-at 0.5)
                   (:fallback reason) (is= |ready reason)
                   (:ready program)
-                    is= 1 $ count $ :parameters program
+                    is= 1 $ .len $ :parameters program
               :tags $ #{} :gpu-component
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () (main!)
@@ -21063,13 +21063,13 @@
       :defs $ {}
         'checkpoint-count $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn checkpoint-count ()
-            count $ :checkpoints $ make-archive
+            .len $ :checkpoints $ make-archive
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ []
         'input-count $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn input-count ()
-            count $ :inputs $ make-archive
+            .len $ :inputs $ make-archive
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ []
@@ -21329,7 +21329,7 @@
                   revived $ :model $ presence/reconcile-presence exiting (presence-document) 0.5 1 (motion/Easing :linear)
                   resumed $ presence-plan revived 0.5
                   completed $ presence/settle-presence exiting 1
-                is= 2 $ count $ :nodes (:scene midpoint)
+                is= 2 $ .len $ :nodes (:scene midpoint)
                 is= 0.5 $ presence-component/leaf-alpha $ :content
                   &list:nth
                     :nodes $ :scene midpoint
@@ -21344,8 +21344,8 @@
                       :nodes $ :scene resumed
                       fn (node)
                         struct-with node $ :interaction $ scene/SceneInteraction :none
-                is= 2 $ count $ :released completed
-                is= 0 $ count $ :released
+                is= 2 $ .len $ :released completed
+                is= 0 $ .len $ :released
                   presence/settle-presence (:model completed) 1
                 is= false $ presence/presence-needs-frame? (:model completed) 1
                 is-throws $ retained/sample-plan-at midpoint $ / 1 0
@@ -21377,8 +21377,8 @@
                   :content $ &list:nth
                     :nodes $ :scene resumed
                     , 0
-                is= 1 $ count $ :released complete
-                is= 0 $ count $ :released
+                is= 1 $ .len $ :released complete
+                is= 0 $ .len $ :released
                   presence/settle-presence (:model complete) 1
               :tags $ #{} :presence-component
         'reference-at $ %{} 'CodeEntry (:doc |)
@@ -21963,7 +21963,7 @@
                     pointer-input 7 (pointer/PointerPhase :down) 20 20
                 is= 3 $ hit/candidate-count plan
                 is= 1 $ hit/candidate-count blocked
-                is= 6 $ count $ :nodes disabled
+                is= 6 $ .len $ :nodes disabled
                 is=
                   :content $ &list:nth (:nodes active) 3
                   :content $ &list:nth (:nodes disabled) 3
@@ -23092,7 +23092,7 @@
             assert |invalid-image-clear-color $ scene/valid-color? clear
             let
                 commands $ prepare-document document lookup view width height
-              assert |image-layer-capacity-exceeded $ <= (count commands)
+              assert |image-layer-capacity-exceeded $ <= (.len commands)
                 contract/expect-number |ImageLayer.capacity $ contract/object-field |ImageLayer (unsafe-coerce host JsObject) |capacity
               host .begin width height (:r clear) (:g clear) (:b clear) (:a clear)
               each commands $ fn (command)
@@ -23817,7 +23817,7 @@
         'texture-resource-metrics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn texture-resource-metrics (host)
             TextureResourceMetrics :created (:created host) :released (:released host) :live
-              count $ :handles host
+              .len $ :handles host
               , :live-bytes
                 live-texture-bytes (:handles host) 0
                 , :uploaded-bytes $ :uploaded-bytes host

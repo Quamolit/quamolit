@@ -1,6 +1,6 @@
 # Calcit 工具链升级与版本合同
 
-本轮从已合并[#242](https://github.com/Quamolit/quamolit/pull/242)的 alpha.5 配套升级到正式 Calcit / `@calcit/procs@0.30.1`；旧 Quamolit alpha.4仍为0.28.0。工具链升级不等于 Quamolit 正式发版或milestone验收，模块自身的版本元数据暂不改。根项目、独立消费者、deps、npm resolution、锁文件、API查询版本门禁与中英文入口同步，不只升级作者本机CLI。
+主线已随[#247](https://github.com/Quamolit/quamolit/pull/247)从 #242 的 alpha.5 配套升级到正式 Calcit / `@calcit/procs@0.30.1`；旧 Quamolit alpha.4仍为0.28.0。工具链升级不等于 Quamolit 正式发版或milestone验收，模块自身的版本元数据暂不改。根项目、独立消费者、deps、npm resolution、锁文件、API查询版本门禁与中英文入口同步，不只升级作者本机CLI。
 
 ## 版本与来源
 
@@ -22,6 +22,16 @@ CI的 `setup-calcit@v1.5.0` 读取根deps并安装官方0.30.1 Linux release，�
 此前 0.28/0.29 已完成 Option Map 读取、non-nil?、FontFace identity、尾递归位置和显式 Ref 元素类型等迁移，现有语义/非法输入断言继续保留。旧矩形参数维持 nil/false 默认值、0 保留及非法字符串拒绝。
 
 保留名 ref 的 rename-local planner 问题已报 [Calcit #2049](https://github.com/calcit-lang/calcit/issues/2049)；此前已在两处小函数用结构化事务局部绕过。旧 textbox 的原始 keyCode/shiftKey FFI 权限债归 #36，不给整个 namespace 加宽泛 capability，也不把主路径成功声称为全库 canonical preset 通过。Pointer 宿主的临时类型适配待 [js-ffi #149](https://github.com/calcit-lang/js-ffi/issues/149) 对应接口发布后复测移除；不删除现有拒绝、捕获和卸载断言。
+
+## 集合长度维护
+
+在正式 0.30.1 和原依赖图上，将 131 处源码和 27 个原附带测试中的 52 处集合/字符串计数改为 `.len`。126 处源码已有 `query type-at` 的具体 List/String/Set 和零参数 Number 返回证据；另 5 处由实际生产者、List/Map 字段及 `.filter` 合同逐项核对，不用外层预期类型或新增强转冒充推断。字符串仍按 Unicode 标量计数，Map 仍计成员，不改变原参数求值、阈值、断言期望、生命周期和资源计数。
+
+旧 `textbox` 的 2 处和 `paint-path` 的 1 处开放值计数暂不改写，沿现有 legacy API/类型迁移处理；`count` 本身并未整体弃用。全库官方 fix 预览仍被 `comp-fade-fn` 原有 Dynamic 算术合同阻断，不强制 preset、不加权限或放宽类型。其他 Option/Ref/构造器和旧宿主边界不因本次长度维护被宣称清零。
+
+本次 canonical 仍提示 82 个本地定义中的 177 个动态/未绑定类型槽；原 schema、预算和检查不放宽。五处嵌套字段/调用查询的证据可用性已补充到[上游 #1906](https://github.com/calcit-lang/calcit/issues/1906#issuecomment-6381949665)，尚未认定同根因或编译语义错误，不为这些调用新增固定规则。
+
+源码只由官方 Linux CLI 的受审事务、dry-run 和 scoped revision 生成；全部 1711 个定义视图、namespace/config、schema 与测试名称/标签受守卫，原测试只改计数调用头。临时证据和事务不进入日常源码，也不增加 namespace、runner、job 或重复 COS 校验。准确候选的原 Benchmark/Upload/Visual、独立消费与实际页面结果集中 PR，未验证硬件仍标未验证，不据此关闭 #204 或 M2/M3。
 
 ## 验证与交付
 
