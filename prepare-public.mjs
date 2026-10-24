@@ -28,8 +28,13 @@ assert.equal(defs.length,1711);
 writeFileSync('acceptance/before.json',JSON.stringify(defs,null,2));
 let preview;
 try{preview=run('fix','--include-attached','--format','json');}
-catch(error){assert.equal(error.status,1);preview=error.stdout;}
-JSON.parse(preview);writeFileSync('acceptance/official-fix-preview.json',preview);
+catch(error){
+  writeFileSync('acceptance/official-fix-stderr.txt',String(error.stderr||''));
+  writeFileSync('acceptance/official-fix-exit.json',JSON.stringify({status:error.status,signal:error.signal}));
+  assert.equal(error.status,1);preview=error.stdout;
+}
+writeFileSync('acceptance/official-fix-stdout.txt',preview);
+if(preview.trim())writeFileSync('acceptance/official-fix-preview.json',JSON.stringify(JSON.parse(preview),null,2));
 assert.equal(execFileSync('git',['hash-object','calcit.cirru'],{encoding:'utf8'}).trim(),blob);
 writeFileSync('acceptance/snapshot-before-blob.txt',blob+'\n');
 console.log(JSON.stringify({definitions:defs.length,namespaces:namespaces.length,tests:defs.reduce((n,d)=>n+d.tests.length,0),examples:defs.reduce((n,d)=>n+d.examples.length,0),snapshotUnchanged:blob,mode:'readonly preview only, no apply/format/compile/deploy'}));

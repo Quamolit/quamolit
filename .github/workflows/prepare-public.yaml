@@ -29,7 +29,7 @@ jobs:
           caps --strict --ci
           caps verify --toolchain
       - name: Inspect official migration preview and source views
-        run: node prepare-public.mjs
+        run: node inspect-length.mjs
       - name: Retain reviewed preparation evidence
         if: always()
         uses: actions/upload-artifact@v4
