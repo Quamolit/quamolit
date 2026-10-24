@@ -1,0 +1,429 @@
+{
+  "package": "quamolit",
+  "version": "0.0.18-alpha.1",
+  "selected_entry": null,
+  "entries": [
+    {
+      "name": "binary-tree",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.binary-tree/main!",
+      "reload_fn": "quamolit.examples.binary-tree/reload!",
+      "description": "原有编译入口 compile:binary-tree",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "bootstrap",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.bootstrap/main!",
+      "reload_fn": "quamolit.bootstrap/reload!",
+      "description": "runtime合同诊断入口",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "clock",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.clock/main!",
+      "reload_fn": "quamolit.examples.clock/reload!",
+      "description": "原有编译入口 compile:clock",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "cohort-pulse",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.cohort-pulse/main!",
+      "reload_fn": "quamolit.examples.cohort-pulse/reload!",
+      "description": "原有编译入口 compile:cohort-pulse",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "component",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.test.component-fixture/main!",
+      "reload_fn": "quamolit.test.component-fixture/reload!",
+      "description": "原有编译入口 compile:component",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "cpu-motion",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.test.cpu-motion-fixture/main!",
+      "reload_fn": "quamolit.test.cpu-motion-fixture/reload!",
+      "description": "原有编译入口 compile:cpu-motion",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "curve",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.curve/main!",
+      "reload_fn": "quamolit.examples.curve/reload!",
+      "description": "原有编译入口 compile:curve",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "default",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.bootstrap/main!",
+      "reload_fn": "quamolit.bootstrap/reload!",
+      "description": "",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "drag-demo",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.drag-demo/main!",
+      "reload_fn": "quamolit.examples.drag-demo/reload!",
+      "description": "原有编译入口 compile:drag-demo",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "fade",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.test.fade-migration-fixture/main!",
+      "reload_fn": "quamolit.test.fade-migration-fixture/reload!",
+      "description": "原有编译入口 compile:fade",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "finder",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.finder/main!",
+      "reload_fn": "quamolit.examples.finder/reload!",
+      "description": "原有编译入口 compile:finder",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "folding-fan",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.folding-fan/main!",
+      "reload_fn": "quamolit.examples.folding-fan/reload!",
+      "description": "原有编译入口 compile:folding-fan",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "gpu-component",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.test.gpu-component-fixture/main!",
+      "reload_fn": "quamolit.test.gpu-component-fixture/reload!",
+      "description": "原有编译入口 compile:gpu-component",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "icons",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.icons/main!",
+      "reload_fn": "quamolit.examples.icons/reload!",
+      "description": "原有编译入口 compile:icons",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "layer-composition",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.layer-composition/main!",
+      "reload_fn": "quamolit.bootstrap/reload!",
+      "description": "原有编译入口 compile:layer-composition",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "layered-dashboard",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.layered-dashboard/main!",
+      "reload_fn": "quamolit.examples.layered-dashboard/reload!",
+      "description": "原有编译入口 compile:layered-dashboard",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "motion",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.test.motion-fixture/main!",
+      "reload_fn": "quamolit.test.motion-fixture/reload!",
+      "description": "原有编译入口 compile:motion",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "playback",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.test.playback-fixture/main!",
+      "reload_fn": "quamolit.test.playback-fixture/reload!",
+      "description": "原有编译入口 compile:playback",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "raining",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.raining/main!",
+      "reload_fn": "quamolit.examples.raining/reload!",
+      "description": "原有编译入口 compile:raining",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "replay-archive",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.test.replay-archive-fixture/main!",
+      "reload_fn": "quamolit.test.replay-archive-fixture/reload!",
+      "description": "原有编译入口 compile:replay-archive",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "retained-component",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.test.retained-component-fixture/main!",
+      "reload_fn": "quamolit.test.retained-component-fixture/reload!",
+      "description": "原有编译入口 compile:retained-component",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "scene-pointer-browser",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.test.scene-pointer-browser-fixture/main!",
+      "reload_fn": "quamolit.bootstrap/reload!",
+      "description": "原有编译入口 compile:scene-pointer-browser",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "signal-weave",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.signal-weave/main!",
+      "reload_fn": "quamolit.examples.signal-weave/reload!",
+      "description": "原有编译入口 compile:signal-weave",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "solar",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.solar/main!",
+      "reload_fn": "quamolit.examples.solar/reload!",
+      "description": "原有编译入口 compile:solar",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "table",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.table/main!",
+      "reload_fn": "quamolit.examples.table/reload!",
+      "description": "原有编译入口 compile:table",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "tidal-bloom",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.tidal-bloom/main!",
+      "reload_fn": "quamolit.examples.tidal-bloom/reload!",
+      "description": "原有编译入口 compile:tidal-bloom",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "todolist",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.examples.todolist/main!",
+      "reload_fn": "quamolit.examples.todolist/reload!",
+      "description": "原有编译入口 compile:todolist",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    },
+    {
+      "name": "visual",
+      "mode": "js",
+      "target": "browser",
+      "init_fn": "quamolit.test.frame-fixture/main!",
+      "reload_fn": "quamolit.test.frame-fixture/reload!",
+      "description": "原有编译入口 compile:visual",
+      "modules": [
+        "pointed-prompt/",
+        "touch-control/",
+        "js-ffi/"
+      ],
+      "type_slots": {},
+      "feature_policy": {}
+    }
+  ],
+  "verification_schema_version": 1,
+  "verification_profiles": []
+}

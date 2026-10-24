@@ -1,0 +1,3174 @@
+[
+  {
+    "definition_count": 2,
+    "doc": "",
+    "namespace": "quamolit.$meta",
+    "ns_code": [
+      "ns",
+      "quamolit.$meta"
+    ]
+  },
+  {
+    "definition_count": 22,
+    "doc": "",
+    "namespace": "quamolit.alias",
+    "ns_code": [
+      "ns",
+      "quamolit.alias",
+      [
+        ":require",
+        [
+          "quamolit.types",
+          ":refer",
+          [
+            "Component",
+            "Shape"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 2,
+    "doc": "",
+    "namespace": "quamolit.bootstrap",
+    "ns_code": [
+      "ns",
+      "quamolit.bootstrap"
+    ]
+  },
+  {
+    "definition_count": 4,
+    "doc": "",
+    "namespace": "quamolit.canvas-images",
+    "ns_code": [
+      "ns",
+      "quamolit.canvas-images",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "canvas"
+        ],
+        [
+          "js-ffi.browser",
+          ":as",
+          "browser"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 18,
+    "doc": "Calcit 编写的基础 Canvas2D 参考绘制；Scene 解释保留在 Quamolit，不在 js-ffi 宿主层。",
+    "namespace": "quamolit.canvas-reference",
+    "ns_code": [
+      "ns",
+      "quamolit.canvas-reference",
+      [
+        ":require",
+        [
+          "js-ffi.canvas-batches",
+          ":as",
+          "canvas"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "js-ffi.contract",
+          ":as",
+          "contract"
+        ],
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 19,
+    "doc": "Calcit Scene 树的完整 Canvas2D 正确性参考：执行嵌套 transform/rect clip 与真正隔离的组 opacity；浏览器临时 surface 仅由三个最小 inline 原语提供。",
+    "namespace": "quamolit.canvas-scene",
+    "ns_code": [
+      "ns",
+      "quamolit.canvas-scene",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "canvas"
+        ],
+        [
+          "quamolit.canvas-images",
+          ":as",
+          "images"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "js-ffi.browser",
+          ":as",
+          "browser"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 8,
+    "doc": "",
+    "namespace": "quamolit.canvas-strokes",
+    "ns_code": [
+      "ns",
+      "quamolit.canvas-strokes",
+      [
+        ":require",
+        [
+          "js-ffi.canvas-batches",
+          ":as",
+          "canvas"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":refer",
+          [
+            "color-css",
+            "draw-round-path!"
+          ]
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 2,
+    "doc": "",
+    "namespace": "quamolit.comp.debug",
+    "ns_code": [
+      "ns",
+      "quamolit.comp.debug",
+      [
+        ":require",
+        [
+          "quamolit.util.string",
+          ":refer",
+          [
+            "hsl"
+          ]
+        ],
+        [
+          "quamolit.alias",
+          ":refer",
+          [
+            "defcomp",
+            "rect",
+            "text"
+          ]
+        ],
+        [
+          "quamolit.render.element",
+          ":refer",
+          [
+            "alpha",
+            "translate",
+            "button"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 6,
+    "doc": "",
+    "namespace": "quamolit.comp.fade-in-out",
+    "ns_code": [
+      "ns",
+      "quamolit.comp.fade-in-out",
+      [
+        ":require",
+        [
+          "quamolit.alias",
+          ":refer",
+          [
+            "defcomp",
+            ">>"
+          ]
+        ],
+        [
+          "quamolit.render.element",
+          ":refer",
+          [
+            "alpha"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 1,
+    "doc": "",
+    "namespace": "quamolit.comp.slider",
+    "ns_code": [
+      "ns",
+      "quamolit.comp.slider",
+      [
+        ":require",
+        [
+          "quamolit.util.string",
+          ":refer",
+          [
+            "hsl"
+          ]
+        ],
+        [
+          "quamolit.alias",
+          ":refer",
+          [
+            "defcomp",
+            "rect",
+            "group",
+            "line",
+            ">>",
+            "text"
+          ]
+        ],
+        [
+          "quamolit.render.element",
+          ":refer",
+          [
+            "alpha",
+            "translate"
+          ]
+        ],
+        [
+          "quamolit.comp.fade-in-out",
+          ":refer",
+          [
+            "comp-fade-in-out",
+            "comp-fade-fn"
+          ]
+        ],
+        [
+          "quamolit.math",
+          ":refer",
+          [
+            "bound-01",
+            "bound-x"
+          ]
+        ],
+        [
+          "|@calcit/std",
+          ":refer",
+          [
+            "rand"
+          ]
+        ],
+        [
+          "quamolit.util.ref",
+          ":refer",
+          [
+            "new-ref",
+            "ref-get",
+            "ref-set!"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 10,
+    "doc": "",
+    "namespace": "quamolit.component-sample",
+    "ns_code": [
+      "ns",
+      "quamolit.component-sample",
+      [
+        ":require",
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene-ir"
+        ],
+        [
+          "quamolit.scene-binding",
+          ":as",
+          "binding"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.host-clock",
+          ":as",
+          "clock"
+        ],
+        [
+          "quamolit.playback",
+          ":as",
+          "playback"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 1,
+    "doc": "",
+    "namespace": "quamolit.config",
+    "ns_code": [
+      "ns",
+      "quamolit.config"
+    ]
+  },
+  {
+    "definition_count": 2,
+    "doc": "",
+    "namespace": "quamolit.controller.resolve",
+    "ns_code": [
+      "ns",
+      "quamolit.controller.resolve",
+      [
+        ":require",
+        [
+          "quamolit.types",
+          ":refer",
+          [
+            "Component",
+            "Shape"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 25,
+    "doc": "",
+    "namespace": "quamolit.core",
+    "ns_code": [
+      "ns",
+      "quamolit.core",
+      [
+        ":require",
+        [
+          "quamolit.types",
+          ":refer",
+          [
+            "Component"
+          ]
+        ],
+        [
+          "quamolit.util.time",
+          ":refer",
+          [
+            "get-tick"
+          ]
+        ],
+        [
+          "quamolit.render.paint",
+          ":refer",
+          [
+            "paint"
+          ]
+        ],
+        [
+          "quamolit.controller.resolve",
+          ":refer",
+          [
+            "resolve-target",
+            "locate-target"
+          ]
+        ],
+        [
+          "quamolit.hud-logs",
+          ":refer",
+          [
+            "clear-hud-logs!",
+            "*hud-logs"
+          ]
+        ],
+        [
+          "pointed-prompt.core",
+          ":refer",
+          [
+            "clear-prompt!"
+          ]
+        ],
+        [
+          "quamolit.global",
+          ":refer",
+          [
+            "*touch-event-areas",
+            "*tracked-transform",
+            "*stage-config"
+          ]
+        ],
+        [
+          "quamolit.math",
+          ":refer",
+          [
+            "point-minus",
+            "point-divide",
+            "point-add",
+            "point-times",
+            "vec-length",
+            "point-scale"
+          ]
+        ],
+        [
+          "quamolit.frame-clock",
+          ":refer",
+          [
+            "step-frame"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 2,
+    "doc": "",
+    "namespace": "quamolit.cursor",
+    "ns_code": [
+      "ns",
+      "quamolit.cursor"
+    ]
+  },
+  {
+    "definition_count": 22,
+    "doc": "",
+    "namespace": "quamolit.device-recovery",
+    "ns_code": [
+      "ns",
+      "quamolit.device-recovery"
+    ]
+  },
+  {
+    "definition_count": 8,
+    "doc": "",
+    "namespace": "quamolit.direct-frame",
+    "ns_code": [
+      "ns",
+      "quamolit.direct-frame",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":refer",
+          [
+            "finite-number?",
+            "Easing",
+            "ScalarTween",
+            "ScalarMotion",
+            "ScalarDescriptor",
+            "sample-scalar"
+          ]
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 20,
+    "doc": "",
+    "namespace": "quamolit.examples.binary-tree",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.binary-tree",
+      [
+        ":require",
+        [
+          "quamolit.canvas-strokes",
+          ":as",
+          "strokes"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is="
+          ]
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ],
+        [
+          "quamolit.retained-path",
+          ":as",
+          "retained"
+        ],
+        [
+          "quamolit.retained-component",
+          ":as",
+          "execution"
+        ],
+        [
+          "quamolit.component-sample",
+          ":as",
+          "component"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 16,
+    "doc": "",
+    "namespace": "quamolit.examples.clock",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.clock",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 28,
+    "doc": "",
+    "namespace": "quamolit.examples.cohort-pulse",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.cohort-pulse",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.transition",
+          ":as",
+          "transition"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ],
+        [
+          "quamolit.ui-motion",
+          ":as",
+          "ui"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 17,
+    "doc": "",
+    "namespace": "quamolit.examples.curve",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.curve",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 32,
+    "doc": "",
+    "namespace": "quamolit.examples.drag-demo",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.drag-demo",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ],
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ],
+        [
+          "quamolit.scene-pointer",
+          ":as",
+          "pointer"
+        ],
+        [
+          "quamolit.scene-pointer-browser",
+          ":as",
+          "pointer-browser"
+        ],
+        [
+          "js-ffi.browser",
+          ":as",
+          "dom"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 63,
+    "doc": "",
+    "namespace": "quamolit.examples.finder",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.finder",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.transition",
+          ":as",
+          "transition"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ],
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 25,
+    "doc": "",
+    "namespace": "quamolit.examples.folding-fan",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.folding-fan",
+      [
+        ":require",
+        [
+          "quamolit.transition",
+          ":as",
+          "transition"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.canvas-images",
+          ":as",
+          "images"
+        ],
+        [
+          "quamolit.resource-lifecycle",
+          ":as",
+          "resource"
+        ],
+        [
+          "quamolit.image-resource-runner",
+          ":as",
+          "image-runner"
+        ],
+        [
+          "quamolit.canvas-scene",
+          ":as",
+          "canvas-scene"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 20,
+    "doc": "",
+    "namespace": "quamolit.examples.icons",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.icons",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.transition",
+          ":as",
+          "transition"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 9,
+    "doc": "",
+    "namespace": "quamolit.examples.layer-composition",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.layer-composition",
+      [
+        ":require",
+        [
+          "quamolit.layers",
+          ":as",
+          "layers"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.examples.layered-dashboard",
+          ":as",
+          "dashboard"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "canvas"
+        ],
+        [
+          "quamolit.canvas-scene",
+          ":as",
+          "canvas-scene"
+        ],
+        [
+          "quamolit.instance-resource",
+          ":as",
+          "resource"
+        ],
+        [
+          "quamolit.instance-gpu",
+          ":as",
+          "upload"
+        ],
+        [
+          "quamolit.webgpu-batches",
+          ":as",
+          "gpu"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 61,
+    "doc": "图表型 UI 动画：以嵌套矩形裁剪展示数据揭示，以隔离组透明度保证重叠图元只整体合成一次。",
+    "namespace": "quamolit.examples.layered-dashboard",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.layered-dashboard",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.canvas-scene",
+          ":as",
+          "canvas-scene"
+        ],
+        [
+          "quamolit.presence-component",
+          ":as",
+          "presence-component"
+        ],
+        [
+          "quamolit.scene-binding",
+          ":as",
+          "binding"
+        ],
+        [
+          "quamolit.presence",
+          ":as",
+          "presence"
+        ],
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ],
+        [
+          "quamolit.scene-pointer",
+          ":as",
+          "pointer"
+        ],
+        [
+          "quamolit.scene-pointer-browser",
+          ":as",
+          "pointer-browser"
+        ],
+        [
+          "js-ffi.browser",
+          ":as",
+          "dom"
+        ],
+        [
+          "quamolit.font-resource",
+          ":as",
+          "font"
+        ],
+        [
+          "quamolit.resource-lifecycle",
+          ":as",
+          "resource"
+        ],
+        [
+          "quamolit.resource-load-queue",
+          ":as",
+          "queue"
+        ],
+        [
+          "quamolit.image-resource-runner",
+          ":as",
+          "image"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "canvas-reference"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 9,
+    "doc": "",
+    "namespace": "quamolit.examples.raining",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.raining",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 26,
+    "doc": "",
+    "namespace": "quamolit.examples.signal-weave",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.signal-weave",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.transition",
+          ":as",
+          "transition"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ],
+        [
+          "quamolit.ui-motion",
+          ":as",
+          "ui"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 10,
+    "doc": "",
+    "namespace": "quamolit.examples.solar",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.solar",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 16,
+    "doc": "",
+    "namespace": "quamolit.examples.table",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.table",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ],
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 75,
+    "doc": "",
+    "namespace": "quamolit.examples.tidal-bloom",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.tidal-bloom",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "reference"
+        ],
+        [
+          "quamolit.component-sample",
+          ":as",
+          "component"
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct"
+        ],
+        [
+          "quamolit.transition",
+          ":as",
+          "transition"
+        ],
+        [
+          "quamolit.ui-motion",
+          ":as",
+          "ui"
+        ],
+        [
+          "quamolit.retained-component",
+          ":as",
+          "retained"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 51,
+    "doc": "",
+    "namespace": "quamolit.examples.todolist",
+    "ns_code": [
+      "ns",
+      "quamolit.examples.todolist",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.transition",
+          ":as",
+          "transition"
+        ],
+        [
+          "quamolit.presence",
+          ":as",
+          "presence"
+        ],
+        [
+          "quamolit.presence-component",
+          ":as",
+          "lifecycle"
+        ],
+        [
+          "quamolit.component-sample",
+          ":as",
+          "component"
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct"
+        ],
+        [
+          "quamolit.retained-component",
+          ":as",
+          "retained"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ],
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ],
+        [
+          "quamolit.canvas-scene",
+          ":as",
+          "canvas-scene"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 5,
+    "doc": "",
+    "namespace": "quamolit.fixed-step",
+    "ns_code": [
+      "ns",
+      "quamolit.fixed-step",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":refer",
+          [
+            "finite-number?"
+          ]
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 25,
+    "doc": "",
+    "namespace": "quamolit.font-resource",
+    "ns_code": [
+      "ns",
+      "quamolit.font-resource",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "js-ffi.contract",
+          ":as",
+          "contract"
+        ],
+        [
+          "js-ffi.shared",
+          ":as",
+          "shared"
+        ],
+        [
+          "quamolit.resource-lifecycle",
+          ":as",
+          "resource"
+        ],
+        [
+          "quamolit.resource-load-queue",
+          ":as",
+          "load-queue"
+        ],
+        [
+          "quamolit.presence",
+          ":as",
+          "presence"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 4,
+    "doc": "",
+    "namespace": "quamolit.frame-clock",
+    "ns_code": [
+      "ns",
+      "quamolit.frame-clock",
+      [
+        ":require",
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 4,
+    "doc": "",
+    "namespace": "quamolit.frame-eval",
+    "ns_code": [
+      "ns",
+      "quamolit.frame-eval",
+      [
+        ":require",
+        [
+          "quamolit.types",
+          ":refer",
+          [
+            "Component",
+            "Shape"
+          ]
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ],
+        [
+          "quamolit.frame-clock",
+          ":refer",
+          [
+            "FrameSample",
+            "step-frame"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 4,
+    "doc": "",
+    "namespace": "quamolit.global",
+    "ns_code": [
+      "ns",
+      "quamolit.global"
+    ]
+  },
+  {
+    "definition_count": 42,
+    "doc": "",
+    "namespace": "quamolit.gpu-component",
+    "ns_code": [
+      "ns",
+      "quamolit.gpu-component",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.retained-component",
+          ":as",
+          "retained"
+        ],
+        [
+          "quamolit.gpu-vec2-translation",
+          ":as",
+          "f32"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 51,
+    "doc": "",
+    "namespace": "quamolit.gpu-scalar-program",
+    "ns_code": [
+      "ns",
+      "quamolit.gpu-scalar-program",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.motion-gpu",
+          ":as",
+          "lowering"
+        ],
+        [
+          "quamolit.retained-component",
+          ":as",
+          "retained"
+        ],
+        [
+          "quamolit.gpu-component",
+          ":as",
+          "gpu"
+        ],
+        [
+          "quamolit.gpu-vec2-translation",
+          ":as",
+          "f32"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 7,
+    "doc": "Quamolit 专属 GPU Vec2 Motion 参数解释；通用 WebGPU buffer 与绘制能力仍由 js-ffi 提供。",
+    "namespace": "quamolit.gpu-vec2-translation",
+    "ns_code": [
+      "ns",
+      "quamolit.gpu-vec2-translation",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.motion-gpu",
+          ":as",
+          "motion-gpu"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 9,
+    "doc": "",
+    "namespace": "quamolit.host-clock",
+    "ns_code": [
+      "ns",
+      "quamolit.host-clock",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":refer",
+          [
+            "finite-number?"
+          ]
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 3,
+    "doc": "",
+    "namespace": "quamolit.hud-logs",
+    "ns_code": [
+      "ns",
+      "quamolit.hud-logs"
+    ]
+  },
+  {
+    "definition_count": 27,
+    "doc": "",
+    "namespace": "quamolit.image-resource-runner",
+    "ns_code": [
+      "ns",
+      "quamolit.image-resource-runner",
+      [
+        ":require",
+        [
+          "quamolit.resource-lifecycle",
+          ":as",
+          "resource"
+        ],
+        [
+          "quamolit.resource-load-queue",
+          ":as",
+          "load-queue"
+        ],
+        [
+          "js-ffi.browser",
+          ":as",
+          "browser"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 7,
+    "doc": "Scene 实例源到 js-ffi Calcit API 的薄适配；版本与缓存仍由 Quamolit 宿主层管理。",
+    "namespace": "quamolit.instance-ffi",
+    "ns_code": [
+      "ns",
+      "quamolit.instance-ffi",
+      [
+        ":require",
+        [
+          "js-ffi.typed-arrays",
+          ":as",
+          "arrays"
+        ],
+        [
+          "js-ffi.contract",
+          ":as",
+          "contract"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 4,
+    "doc": "",
+    "namespace": "quamolit.instance-gpu",
+    "ns_code": [
+      "ns",
+      "quamolit.instance-gpu",
+      [
+        ":require",
+        [
+          "quamolit.instance-resource",
+          ":as",
+          "resource"
+        ],
+        [
+          "quamolit.webgpu-batches",
+          ":as",
+          "gpu"
+        ],
+        [
+          "js-ffi.typed-arrays",
+          ":as",
+          "arrays"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 12,
+    "doc": "",
+    "namespace": "quamolit.instance-resource",
+    "ns_code": [
+      "ns",
+      "quamolit.instance-resource",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "js-ffi.contract",
+          ":as",
+          "contract"
+        ],
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 16,
+    "doc": "",
+    "namespace": "quamolit.layers",
+    "ns_code": [
+      "ns",
+      "quamolit.layers",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 11,
+    "doc": "",
+    "namespace": "quamolit.math",
+    "ns_code": [
+      "ns",
+      "quamolit.math"
+    ]
+  },
+  {
+    "definition_count": 46,
+    "doc": "",
+    "namespace": "quamolit.motion",
+    "ns_code": [
+      "ns",
+      "quamolit.motion",
+      [
+        ":require",
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 9,
+    "doc": "",
+    "namespace": "quamolit.motion-cpu",
+    "ns_code": [
+      "ns",
+      "quamolit.motion-cpu",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 13,
+    "doc": "",
+    "namespace": "quamolit.motion-gpu",
+    "ns_code": [
+      "ns",
+      "quamolit.motion-gpu",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 5,
+    "doc": "",
+    "namespace": "quamolit.playback",
+    "ns_code": [
+      "ns",
+      "quamolit.playback",
+      [
+        ":require",
+        [
+          "quamolit.host-clock",
+          ":as",
+          "clock"
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct"
+        ],
+        [
+          "quamolit.fixed-step",
+          ":as",
+          "fixed"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.replay-archive",
+          ":as",
+          "archive"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 53,
+    "doc": "",
+    "namespace": "quamolit.presence",
+    "ns_code": [
+      "ns",
+      "quamolit.presence",
+      [
+        ":require",
+        [
+          "quamolit.scene-diff",
+          ":as",
+          "scene-diff"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene-ir"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 18,
+    "doc": "",
+    "namespace": "quamolit.presence-component",
+    "ns_code": [
+      "ns",
+      "quamolit.presence-component",
+      [
+        ":require",
+        [
+          "quamolit.presence",
+          ":as",
+          "presence"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.component-sample",
+          ":as",
+          "component"
+        ],
+        [
+          "quamolit.scene-binding",
+          ":as",
+          "binding"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 20,
+    "doc": "",
+    "namespace": "quamolit.presence-device-coordinator",
+    "ns_code": [
+      "ns",
+      "quamolit.presence-device-coordinator",
+      [
+        ":require",
+        [
+          "quamolit.device-recovery",
+          ":as",
+          "device"
+        ],
+        [
+          "quamolit.presence",
+          ":as",
+          "presence"
+        ],
+        [
+          "quamolit.presence-resource-registry",
+          ":as",
+          "resources"
+        ],
+        [
+          "quamolit.resource-lifecycle",
+          ":as",
+          "resource"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 13,
+    "doc": "",
+    "namespace": "quamolit.presence-resource-registry",
+    "ns_code": [
+      "ns",
+      "quamolit.presence-resource-registry",
+      [
+        ":require",
+        [
+          "quamolit.presence",
+          ":as",
+          "presence"
+        ],
+        [
+          "quamolit.resource-lifecycle",
+          ":as",
+          "resource"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 39,
+    "doc": "",
+    "namespace": "quamolit.presence-webgpu-resources",
+    "ns_code": [
+      "ns",
+      "quamolit.presence-webgpu-resources",
+      [
+        ":require",
+        [
+          "quamolit.presence",
+          ":as",
+          "presence"
+        ],
+        [
+          "quamolit.presence-resource-registry",
+          ":as",
+          "presence-resource"
+        ],
+        [
+          "quamolit.resource-lifecycle",
+          ":as",
+          "resource"
+        ],
+        [
+          "quamolit.instance-resource",
+          ":as",
+          "instances"
+        ],
+        [
+          "quamolit.instance-gpu",
+          ":as",
+          "instance-gpu"
+        ],
+        [
+          "quamolit.webgpu-batches",
+          ":as",
+          "gpu"
+        ],
+        [
+          "js-ffi.browser",
+          ":as",
+          "browser"
+        ],
+        [
+          "js-ffi.webgpu",
+          ":as",
+          "webgpu"
+        ],
+        [
+          "quamolit.presence-device-coordinator",
+          ":as",
+          "coordinator"
+        ],
+        [
+          "js-ffi.shared",
+          ":as",
+          "shared"
+        ],
+        [
+          "quamolit.resource-load-queue",
+          ":as",
+          "load-queue"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 7,
+    "doc": "",
+    "namespace": "quamolit.render.element",
+    "ns_code": [
+      "ns",
+      "quamolit.render.element",
+      [
+        ":require",
+        [
+          "quamolit.util.string",
+          ":refer",
+          [
+            "hsl"
+          ]
+        ],
+        [
+          "quamolit.alias",
+          ":refer",
+          [
+            "defcomp",
+            "native-translate",
+            "native-alpha",
+            "native-save",
+            "native-restore",
+            "native-rotate",
+            "native-scale",
+            "group",
+            "rect",
+            "text",
+            "arrange-children"
+          ]
+        ],
+        [
+          "quamolit.util.keyboard",
+          ":refer",
+          [
+            "keycode->key"
+          ]
+        ],
+        [
+          "quamolit.math",
+          ":refer",
+          [
+            "pi-ratio"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 20,
+    "doc": "",
+    "namespace": "quamolit.render.paint",
+    "ns_code": [
+      "ns",
+      "quamolit.render.paint",
+      [
+        ":require",
+        [
+          "quamolit.util.string",
+          ":refer",
+          [
+            "hsl"
+          ]
+        ],
+        [
+          "quamolit.types",
+          ":refer",
+          [
+            "Component",
+            "Shape"
+          ]
+        ],
+        [
+          "quamolit.util.string",
+          ":refer",
+          [
+            "gen-id!"
+          ]
+        ],
+        [
+          "quamolit.math",
+          ":refer",
+          [
+            "bound-opacity",
+            "point-times",
+            "point-add"
+          ]
+        ],
+        [
+          "quamolit.global",
+          ":refer",
+          [
+            "*transforms-memory",
+            "*tracked-transform",
+            "*touch-event-areas"
+          ]
+        ],
+        [
+          "js-ffi.browser",
+          ":refer",
+          [
+            "image-create",
+            "image-src!"
+          ]
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is="
+          ]
+        ],
+        [
+          "quamolit.frame-eval",
+          ":refer",
+          [
+            "tick-tree"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 6,
+    "doc": "",
+    "namespace": "quamolit.replay-archive",
+    "ns_code": [
+      "ns",
+      "quamolit.replay-archive",
+      [
+        ":require",
+        [
+          "quamolit.fixed-step",
+          ":as",
+          "fixed"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 47,
+    "doc": "",
+    "namespace": "quamolit.resource-lifecycle",
+    "ns_code": [
+      "ns",
+      "quamolit.resource-lifecycle"
+    ]
+  },
+  {
+    "definition_count": 23,
+    "doc": "",
+    "namespace": "quamolit.resource-load-queue",
+    "ns_code": [
+      "ns",
+      "quamolit.resource-load-queue",
+      [
+        ":require",
+        [
+          "quamolit.resource-lifecycle",
+          ":as",
+          "resource"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 22,
+    "doc": "",
+    "namespace": "quamolit.retained-component",
+    "ns_code": [
+      "ns",
+      "quamolit.retained-component",
+      [
+        ":require",
+        [
+          "quamolit.component-sample",
+          ":as",
+          "component"
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.scene-binding",
+          ":as",
+          "binding"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "canvas"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 6,
+    "doc": "",
+    "namespace": "quamolit.retained-path",
+    "ns_code": [
+      "ns",
+      "quamolit.retained-path",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "canvas"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 5,
+    "doc": "",
+    "namespace": "quamolit.retained-scene",
+    "ns_code": [
+      "ns",
+      "quamolit.retained-scene",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 16,
+    "doc": "",
+    "namespace": "quamolit.scene-binding",
+    "ns_code": [
+      "ns",
+      "quamolit.scene-binding",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene-ir"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 27,
+    "doc": "",
+    "namespace": "quamolit.scene-diff",
+    "ns_code": [
+      "ns",
+      "quamolit.scene-diff",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene-ir"
+        ],
+        [
+          "quamolit.motion",
+          ":refer",
+          [
+            "finite-number?",
+            "ColorRgba"
+          ]
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 65,
+    "doc": "",
+    "namespace": "quamolit.scene-hit",
+    "ns_code": [
+      "ns",
+      "quamolit.scene-hit",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 56,
+    "doc": "",
+    "namespace": "quamolit.scene-ir",
+    "ns_code": [
+      "ns",
+      "quamolit.scene-ir",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":refer",
+          [
+            "finite-number?",
+            "ColorRgba",
+            "finite-vec2?"
+          ]
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 27,
+    "doc": "",
+    "namespace": "quamolit.scene-pointer",
+    "ns_code": [
+      "ns",
+      "quamolit.scene-pointer",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is="
+          ]
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 15,
+    "doc": "",
+    "namespace": "quamolit.scene-pointer-browser",
+    "ns_code": [
+      "ns",
+      "quamolit.scene-pointer-browser",
+      [
+        ":require",
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ],
+        [
+          "quamolit.scene-pointer",
+          ":as",
+          "pointer"
+        ],
+        [
+          "js-ffi.contract",
+          ":as",
+          "contract"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 7,
+    "doc": "",
+    "namespace": "quamolit.test.component-fixture",
+    "ns_code": [
+      "ns",
+      "quamolit.test.component-fixture",
+      [
+        ":require",
+        [
+          "quamolit.component-sample",
+          ":as",
+          "component"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene-ir"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct"
+        ],
+        [
+          "quamolit.host-clock",
+          ":as",
+          "clock"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 12,
+    "doc": "",
+    "namespace": "quamolit.test.cpu-motion-fixture",
+    "ns_code": [
+      "ns",
+      "quamolit.test.cpu-motion-fixture",
+      [
+        ":require",
+        [
+          "quamolit.motion-cpu",
+          ":as",
+          "cpu"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 19,
+    "doc": "",
+    "namespace": "quamolit.test.fade-migration-fixture",
+    "ns_code": [
+      "ns",
+      "quamolit.test.fade-migration-fixture",
+      [
+        ":require",
+        [
+          "quamolit.component-sample",
+          ":as",
+          "component"
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.motion-gpu",
+          ":as",
+          "motion-gpu"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene-ir"
+        ],
+        [
+          "quamolit.transition",
+          ":as",
+          "transition"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 14,
+    "doc": "",
+    "namespace": "quamolit.test.frame-fixture",
+    "ns_code": [
+      "ns",
+      "quamolit.test.frame-fixture",
+      [
+        ":require",
+        [
+          "quamolit.alias",
+          ":refer",
+          [
+            "rect"
+          ]
+        ],
+        [
+          "quamolit.types",
+          ":refer",
+          [
+            "Component",
+            "Shape"
+          ]
+        ],
+        [
+          "quamolit.render.paint",
+          ":refer",
+          [
+            "paint-tree-only-with",
+            "paint-rect"
+          ]
+        ],
+        [
+          "quamolit.frame-eval",
+          ":refer",
+          [
+            "initial-frame",
+            "evaluate-at"
+          ]
+        ],
+        [
+          "quamolit.examples.binary-tree",
+          ":as",
+          "tree"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 5,
+    "doc": "",
+    "namespace": "quamolit.test.gpu-component-fixture",
+    "ns_code": [
+      "ns",
+      "quamolit.test.gpu-component-fixture",
+      [
+        ":require",
+        [
+          "quamolit.gpu-component",
+          ":as",
+          "gpu"
+        ],
+        [
+          "quamolit.test.retained-component-fixture",
+          ":as",
+          "fixture"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is="
+          ]
+        ],
+        [
+          "quamolit.retained-component",
+          ":as",
+          "retained"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.gpu-scalar-program",
+          ":as",
+          "scalar-program"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 42,
+    "doc": "",
+    "namespace": "quamolit.test.motion-fixture",
+    "ns_code": [
+      "ns",
+      "quamolit.test.motion-fixture",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":refer",
+          [
+            "Easing",
+            "ScalarTween",
+            "ScalarMotion",
+            "ScalarDescriptor",
+            "sample-scalar",
+            "Vec2",
+            "Vec2Tween",
+            "Vec2Motion",
+            "Vec2Descriptor",
+            "sample-vec2",
+            "ScalarKeyframe",
+            "ScalarTrack",
+            "TrackLoop",
+            "ColorRgba",
+            "ColorTween",
+            "ColorMotion",
+            "ColorDescriptor",
+            "sample-color",
+            "ScalarComposeOp",
+            "ScalarComposition",
+            "sample-scalar-composition",
+            "CpuScalarDescriptor",
+            "CpuGpuStatus",
+            "CpuScalarRegistry",
+            "register-cpu-scalar",
+            "sample-cpu-scalar"
+          ]
+        ],
+        [
+          "quamolit.fixed-step",
+          ":refer",
+          [
+            "start-simulation",
+            "advance-simulation"
+          ]
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct-frame"
+        ],
+        [
+          "quamolit.host-clock",
+          ":as",
+          "host-clock"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene-ir"
+        ],
+        [
+          "quamolit.scene-diff",
+          ":as",
+          "scene-diff"
+        ],
+        [
+          "quamolit.scene-binding",
+          ":as",
+          "scene-binding"
+        ],
+        [
+          "quamolit.transition",
+          ":as",
+          "transition"
+        ],
+        [
+          "quamolit.presence",
+          ":as",
+          "presence"
+        ],
+        [
+          "quamolit.motion-gpu",
+          ":as",
+          "motion-gpu"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "canvas-reference"
+        ],
+        [
+          "quamolit.gpu-vec2-translation",
+          ":as",
+          "gpu-translation"
+        ],
+        [
+          "quamolit.webgpu-batches",
+          ":as",
+          "webgpu-batches"
+        ],
+        [
+          "quamolit.webgpu-texture-runner",
+          ":as",
+          "texture-runner"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 5,
+    "doc": "",
+    "namespace": "quamolit.test.playback-fixture",
+    "ns_code": [
+      "ns",
+      "quamolit.test.playback-fixture",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":refer",
+          [
+            "Easing",
+            "ScalarTween",
+            "ScalarMotion",
+            "ScalarDescriptor",
+            "sample-scalar"
+          ]
+        ],
+        [
+          "quamolit.fixed-step",
+          ":refer",
+          [
+            "start-simulation"
+          ]
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct-frame"
+        ],
+        [
+          "quamolit.host-clock",
+          ":as",
+          "host-clock"
+        ],
+        [
+          "quamolit.playback",
+          ":as",
+          "playback"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is="
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 7,
+    "doc": "",
+    "namespace": "quamolit.test.replay-archive-fixture",
+    "ns_code": [
+      "ns",
+      "quamolit.test.replay-archive-fixture",
+      [
+        ":require",
+        [
+          "quamolit.replay-archive",
+          ":as",
+          "archive"
+        ],
+        [
+          "quamolit.fixed-step",
+          ":as",
+          "fixed"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 24,
+    "doc": "",
+    "namespace": "quamolit.test.retained-component-fixture",
+    "ns_code": [
+      "ns",
+      "quamolit.test.retained-component-fixture",
+      [
+        ":require",
+        [
+          "quamolit.retained-component",
+          ":as",
+          "retained"
+        ],
+        [
+          "quamolit.component-sample",
+          ":as",
+          "component"
+        ],
+        [
+          "quamolit.test.component-fixture",
+          ":as",
+          "badge"
+        ],
+        [
+          "quamolit.direct-frame",
+          ":as",
+          "direct"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.canvas-reference",
+          ":as",
+          "canvas"
+        ],
+        [
+          "quamolit.presence",
+          ":as",
+          "presence"
+        ],
+        [
+          "quamolit.presence-component",
+          ":as",
+          "presence-component"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ],
+        [
+          "quamolit.scene-binding",
+          ":as",
+          "binding"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 20,
+    "doc": "",
+    "namespace": "quamolit.test.scene-hit-fixture",
+    "ns_code": [
+      "ns",
+      "quamolit.test.scene-hit-fixture",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is="
+          ]
+        ],
+        [
+          "quamolit.scene-pointer",
+          ":as",
+          "pointer"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 12,
+    "doc": "",
+    "namespace": "quamolit.test.scene-pointer-browser-fixture",
+    "ns_code": [
+      "ns",
+      "quamolit.test.scene-pointer-browser-fixture",
+      [
+        ":require",
+        [
+          "quamolit.scene-hit",
+          ":as",
+          "hit"
+        ],
+        [
+          "quamolit.scene-pointer",
+          ":as",
+          "pointer"
+        ],
+        [
+          "quamolit.scene-pointer-browser",
+          ":as",
+          "browser"
+        ],
+        [
+          "quamolit.test.scene-hit-fixture",
+          ":as",
+          "fixture"
+        ],
+        [
+          "js-ffi.browser",
+          ":as",
+          "dom"
+        ],
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 13,
+    "doc": "",
+    "namespace": "quamolit.transition",
+    "ns_code": [
+      "ns",
+      "quamolit.transition",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "calcit.test",
+          ":refer",
+          [
+            "is=",
+            "is-throws"
+          ]
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 2,
+    "doc": "",
+    "namespace": "quamolit.types",
+    "ns_code": [
+      "ns",
+      "quamolit.types"
+    ]
+  },
+  {
+    "definition_count": 11,
+    "doc": "面向图表和交互 UI 的可直接采样动画构件；不保存宿主状态，也不负责绘制。",
+    "namespace": "quamolit.ui-motion",
+    "ns_code": [
+      "ns",
+      "quamolit.ui-motion",
+      [
+        ":require",
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 4,
+    "doc": "",
+    "namespace": "quamolit.util.detect",
+    "ns_code": [
+      "ns",
+      "quamolit.util.detect"
+    ]
+  },
+  {
+    "definition_count": 1,
+    "doc": "",
+    "namespace": "quamolit.util.keyboard",
+    "ns_code": [
+      "ns",
+      "quamolit.util.keyboard"
+    ]
+  },
+  {
+    "definition_count": 3,
+    "doc": "",
+    "namespace": "quamolit.util.ref",
+    "ns_code": [
+      "ns",
+      "quamolit.util.ref"
+    ]
+  },
+  {
+    "definition_count": 3,
+    "doc": "",
+    "namespace": "quamolit.util.string",
+    "ns_code": [
+      "ns",
+      "quamolit.util.string"
+    ]
+  },
+  {
+    "definition_count": 1,
+    "doc": "",
+    "namespace": "quamolit.util.time",
+    "ns_code": [
+      "ns",
+      "quamolit.util.time"
+    ]
+  },
+  {
+    "definition_count": 20,
+    "doc": "",
+    "namespace": "quamolit.webgpu-batches",
+    "ns_code": [
+      "ns",
+      "quamolit.webgpu-batches",
+      [
+        ":require",
+        [
+          "js-ffi.contract",
+          ":as",
+          "contract"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 1,
+    "doc": "Quamolit 的 WebGPU 设备探测薄适配；状态、失败与设备所有权由上游 Calcit API 定义。",
+    "namespace": "quamolit.webgpu-capabilities",
+    "ns_code": [
+      "ns",
+      "quamolit.webgpu-capabilities",
+      [
+        ":require",
+        [
+          "js-ffi.webgpu-capabilities",
+          ":as",
+          "capabilities"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 31,
+    "doc": "",
+    "namespace": "quamolit.webgpu-images",
+    "ns_code": [
+      "ns",
+      "quamolit.webgpu-images",
+      [
+        ":require",
+        [
+          "quamolit.scene-ir",
+          ":as",
+          "scene"
+        ],
+        [
+          "quamolit.motion",
+          ":as",
+          "motion"
+        ],
+        [
+          "js-ffi.contract",
+          ":as",
+          "contract"
+        ],
+        [
+          "quamolit.resource-lifecycle",
+          ":as",
+          "resource"
+        ],
+        [
+          "quamolit.resource-load-queue",
+          ":as",
+          "load-queue"
+        ],
+        [
+          "quamolit.webgpu-texture-runner",
+          ":as",
+          "textures"
+        ]
+      ]
+    ]
+  },
+  {
+    "definition_count": 33,
+    "doc": "",
+    "namespace": "quamolit.webgpu-texture-runner",
+    "ns_code": [
+      "ns",
+      "quamolit.webgpu-texture-runner",
+      [
+        ":require",
+        [
+          "quamolit.resource-lifecycle",
+          ":as",
+          "resource"
+        ],
+        [
+          "quamolit.resource-load-queue",
+          ":as",
+          "load-queue"
+        ],
+        [
+          "js-ffi.browser",
+          ":as",
+          "browser"
+        ],
+        [
+          "js-ffi.webgpu",
+          ":as",
+          "webgpu"
+        ],
+        [
+          "js-ffi.shared",
+          ":as",
+          "shared"
+        ]
+      ]
+    ]
+  }
+]

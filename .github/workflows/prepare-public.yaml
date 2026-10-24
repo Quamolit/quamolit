@@ -28,13 +28,23 @@ jobs:
           yarn install --immutable
           caps --strict --ci
           caps verify --toolchain
-      - name: Inspect official migration preview and source views
-        run: node inspect-length.mjs
+      - name: Apply reviewed length transaction
+        run: node apply-length.mjs
+      - name: Check canonical Snapshot and original attached tests
+        run: |
+          set -euo pipefail
+          prepared_blob=$(git hash-object calcit.cirru)
+          calcit calcit.cirru edit format
+          test "$prepared_blob" = "$(git hash-object calcit.cirru)"
+          calcit calcit.cirru test --require-match --summary-only --format json
+          yarn check:api-inventory
       - name: Retain reviewed preparation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: public-method-preparation
-          path: acceptance/
+          path: |
+            acceptance/
+            calcit.cirru
           if-no-files-found: error
           retention-days: 7

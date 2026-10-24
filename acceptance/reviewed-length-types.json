@@ -1,0 +1,3835 @@
+[
+  {
+    "definition": "quamolit.canvas-strokes/valid-polyline?",
+    "path": "3.1.1",
+    "operand": [
+      ":points",
+      "path"
+    ],
+    "inferredType": ":: 'List 'quamolit.motion/Vec2",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.component-sample/color-channel-descriptor",
+    "path": "3.2.2.2",
+    "operand": "node-id",
+    "inferredType": "'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&str:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.component-sample/with-rect-color-motion",
+    "path": "5.2.2",
+    "operand": [
+      ".filter",
+      [
+        ":nodes",
+        [
+          ":scene",
+          "declaration"
+        ]
+      ],
+      [
+        "fn",
+        [
+          "node"
+        ],
+        [
+          "=",
+          "node-id",
+          [
+            ":id",
+            "node"
+          ]
+        ]
+      ]
+    ],
+    "inferredType": null,
+    "len": null,
+    "diagnostics": [
+      {
+        "code": "W_TYPE_AT_UNRESOLVED",
+        "phase": "type-inference",
+        "severity": "warning",
+        "message": "Static inference could not determine a type for this expression without executing the program",
+        "path": "code@5.2.2.1",
+        "intent": null,
+        "provenance": []
+      }
+    ]
+  },
+  {
+    "definition": "quamolit.controller.resolve/resolve-target",
+    "path": "3.2.1.2.3.1.1.2",
+    "operand": "coord",
+    "inferredType": ":: 'List 'Dynamic",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.controller.resolve/resolve-target",
+    "path": "3.2.1.2.3.1.3.3.3.1",
+    "operand": "coord",
+    "inferredType": ":: 'List 'Dynamic",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.core/paint-logs!",
+    "path": "7.1.1",
+    "operand": "logs",
+    "inferredType": ":: 'List 'Dynamic",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.core/paint-logs!",
+    "path": "7.2.2.1",
+    "operand": "logs",
+    "inferredType": ":: 'List 'Dynamic",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.binary-tree/build-slots",
+    "path": "3.1.0.1",
+    "operand": "slots",
+    "inferredType": ":: 'List 'quamolit.examples.binary-tree/BranchSlot",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.cohort-pulse/set-switch",
+    "path": "6.2.1",
+    "operand": [
+      ":events",
+      "model"
+    ],
+    "inferredType": ":: 'List 'quamolit.transition/TransitionEvent",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.finder/append-event",
+    "path": "4.2.1",
+    "operand": "log",
+    "inferredType": ":: 'List 'quamolit.examples.finder/FinderEvent",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.finder/append-event",
+    "path": "5.2.2.2.1.2.1",
+    "operand": "log",
+    "inferredType": ":: 'List 'quamolit.examples.finder/FinderEvent",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.finder/build-card-items",
+    "path": "3.1.2",
+    "operand": [
+      "cards-for",
+      "folder"
+    ],
+    "inferredType": ":: 'List 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.finder/card-global-index",
+    "path": "3.2.2.2",
+    "operand": [
+      "cards-for",
+      "folder"
+    ],
+    "inferredType": ":: 'List 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.finder/compact-document",
+    "path": "5.1.2.1.3.2.1.2",
+    "operand": [
+      "cards-for",
+      "folder"
+    ],
+    "inferredType": ":: 'List 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.finder/hit-at",
+    "path": "4.1.1.1.2.4.1",
+    "operand": [
+      "cards-for",
+      "folder"
+    ],
+    "inferredType": ":: 'List 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.finder/max-card-value-for-folder",
+    "path": "3.1.2",
+    "operand": [
+      "cards-for",
+      "folder"
+    ],
+    "inferredType": ":: 'List 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.finder/motion-target",
+    "path": "3.1.2.2",
+    "operand": "motions",
+    "inferredType": ":: 'List 'quamolit.transition/TransitionIntent",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.finder/motion-value",
+    "path": "3.1.2.2",
+    "operand": "motions",
+    "inferredType": ":: 'List 'quamolit.transition/TransitionIntent",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.finder/resolve-hit-target",
+    "path": "3.3.1.3.1.1.2",
+    "operand": [
+      "cards-for",
+      "folder"
+    ],
+    "inferredType": ":: 'List 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.finder/select-card",
+    "path": "5.2.2.2",
+    "operand": [
+      "cards-for",
+      [
+        ":folder",
+        "model"
+      ]
+    ],
+    "inferredType": ":: 'List 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.folding-fan/append-event",
+    "path": "4.2.1",
+    "operand": "log",
+    "inferredType": ":: 'List 'quamolit.examples.folding-fan/FanEvent",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.folding-fan/append-event",
+    "path": "5.2.2.2.1.2.1",
+    "operand": "log",
+    "inferredType": ":: 'List 'quamolit.examples.folding-fan/FanEvent",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.signal-weave/area-points",
+    "path": "3.1.1.1.2.1",
+    "operand": "points",
+    "inferredType": ":: 'List 'quamolit.motion/Vec2",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.signal-weave/set-mode",
+    "path": "5.2.1",
+    "operand": [
+      ":events",
+      "model"
+    ],
+    "inferredType": ":: 'List 'quamolit.transition/TransitionEvent",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.table/scene-at",
+    "path": "3.2.2",
+    "operand": "cells",
+    "inferredType": ":: 'List 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.table/set-cell",
+    "path": "4.2.2",
+    "operand": "cells",
+    "inferredType": ":: 'List 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.tidal-bloom/set-series",
+    "path": "5.2.1",
+    "operand": [
+      ":events",
+      "model"
+    ],
+    "inferredType": ":: 'List 'quamolit.transition/TransitionEvent",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.tidal-bloom/set-view",
+    "path": "5.2.1",
+    "operand": [
+      ":events",
+      "model"
+    ],
+    "inferredType": ":: 'List 'quamolit.transition/TransitionEvent",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/advance",
+    "path": "3.2.3.2",
+    "operand": "log",
+    "inferredType": ":: 'List 'quamolit.examples.todolist/Event",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/advance",
+    "path": "4.1.2",
+    "operand": "log",
+    "inferredType": ":: 'List 'quamolit.examples.todolist/Event",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/append-event",
+    "path": "3.1.2.1",
+    "operand": "log",
+    "inferredType": ":: 'List 'quamolit.examples.todolist/Event",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/append-event",
+    "path": "4.2.2.2.1.2.1",
+    "operand": "log",
+    "inferredType": ":: 'List 'quamolit.examples.todolist/Event",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/commit-rows",
+    "path": "3.1.2.1.6.1.2",
+    "operand": [
+      ":released",
+      "presence-update"
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-diff/SceneEntry",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/compact-document",
+    "path": "5.2.2.1",
+    "operand": "nodes",
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/compact-document",
+    "path": "5.2.2.2",
+    "operand": [
+      ":transforms",
+      "plan"
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/Matrix2D",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/compact-document",
+    "path": "5.3.2.1.1",
+    "operand": "nodes",
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/compact-row",
+    "path": "3.1.8.1.1.2",
+    "operand": [
+      ":text",
+      "label"
+    ],
+    "inferredType": "'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&str:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/compact-row",
+    "path": "3.1.8.1.3",
+    "operand": [
+      ":text",
+      "label"
+    ],
+    "inferredType": "'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&str:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/delay-entries",
+    "path": "3.2.1.2.2.2.3.2.2.1.2.1.2.1.1.1.2.1",
+    "operand": [
+      ":rows",
+      "model"
+    ],
+    "inferredType": ":: 'List 'quamolit.examples.todolist/Row",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/delay-entries",
+    "path": "3.2.1.2.2.2.3.2.2.1.2.1.2.2.1.2.1",
+    "operand": [
+      ":rows",
+      "model"
+    ],
+    "inferredType": ":: 'List 'quamolit.examples.todolist/Row",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/dispatch",
+    "path": "4.2.3.1.2.2.1",
+    "operand": "rows",
+    "inferredType": ":: 'List 'quamolit.examples.todolist/Row",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/hit-plan",
+    "path": "3.2.2.1",
+    "operand": "nodes",
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/hit-plan",
+    "path": "3.2.2.2",
+    "operand": "transforms",
+    "inferredType": ":: 'List 'quamolit.scene-ir/Matrix2D",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/hit-plan",
+    "path": "3.3.1.2.1.1",
+    "operand": "nodes",
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/main!",
+    "path": "3.2",
+    "operand": [
+      ":rows",
+      [
+        "replay",
+        [
+          "demo-log"
+        ],
+        "0"
+      ]
+    ],
+    "inferredType": null,
+    "len": null,
+    "diagnostics": [
+      {
+        "code": "W_TYPE_AT_UNRESOLVED",
+        "phase": "type-inference",
+        "severity": "warning",
+        "message": "Static inference could not determine a type for this expression without executing the program",
+        "path": "code@3.2.1",
+        "intent": null,
+        "provenance": []
+      }
+    ]
+  },
+  {
+    "definition": "quamolit.examples.todolist/next-event-at",
+    "path": "3.1.2",
+    "operand": "log",
+    "inferredType": ":: 'List 'quamolit.examples.todolist/Event",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/restore-row",
+    "path": "3.3.1.1.2.1",
+    "operand": [
+      ":rows",
+      "model"
+    ],
+    "inferredType": ":: 'List 'quamolit.examples.todolist/Row",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/settle",
+    "path": "4.2.3.4.1.2",
+    "operand": [
+      ":released",
+      "presence-update"
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-diff/SceneEntry",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/valid-label?",
+    "path": "3.1.1",
+    "operand": [
+      "trim",
+      "label"
+    ],
+    "inferredType": "'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&str:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.examples.todolist/valid-label?",
+    "path": "3.2.1",
+    "operand": "label",
+    "inferredType": "'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&str:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.font-resource/apply-font-registry-actions!",
+    "path": "3.3.1.1.1.2.1.2.3.1.3.3.3.1.2",
+    "operand": "matches",
+    "inferredType": ":: 'List 'quamolit.font-resource/FontResourceHandle",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.font-resource/sync-font-leases",
+    "path": "5.2.2.2.2",
+    "operand": [
+      "filter",
+      "previous",
+      [
+        "fn",
+        [
+          "other"
+        ],
+        [
+          "=",
+          "font-ref",
+          "other"
+        ]
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.resource-lifecycle/ResourceIdentity",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.font-resource/sync-font-leases",
+    "path": "6.2.2.2.2",
+    "operand": [
+      "filter",
+      "next",
+      [
+        "fn",
+        [
+          "other"
+        ],
+        [
+          "=",
+          "font-ref",
+          "other"
+        ]
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.resource-lifecycle/ResourceIdentity",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/build-batch",
+    "path": "3.2.12",
+    "operand": [
+      ":nodes",
+      [
+        ":scene",
+        "plan"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/collect-writes",
+    "path": "3.1.2",
+    "operand": "after",
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectRecord",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/collect-writes",
+    "path": "3.3.1.1.1.1.2",
+    "operand": "before",
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectRecord",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/diagnose-plan",
+    "path": "4.1.1.1",
+    "operand": [
+      ":nodes",
+      [
+        ":scene",
+        "plan"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/first-reason",
+    "path": "3.1.2",
+    "operand": [
+      ":nodes",
+      [
+        ":scene",
+        "plan"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/prepare-plan",
+    "path": "4.2.3.2.2.1.1",
+    "operand": [
+      ":nodes",
+      [
+        ":scene",
+        "plan"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/submit-update!",
+    "path": "3.3.2.2",
+    "operand": [
+      ":records",
+      [
+        ":frame",
+        "delta"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectRecord",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/update-batch",
+    "path": "3.2.2.3.1.1.2.1.6",
+    "operand": [
+      ":records",
+      "next"
+    ],
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectRecord",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/update-batch",
+    "path": "3.2.2.3.1.1.2.1.8.2",
+    "operand": [
+      ":writes",
+      "result"
+    ],
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectWrite",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/update-frame",
+    "path": "3.2.6.2",
+    "operand": "writes",
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectWrite",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/update-frame",
+    "path": "3.2.8",
+    "operand": [
+      ":records",
+      "next"
+    ],
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectRecord",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/validate-plan!",
+    "path": "4.2.2.1.1",
+    "operand": [
+      ":transforms",
+      "plan"
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/Matrix2D",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-component/validate-plan!",
+    "path": "4.2.2.1.2",
+    "operand": [
+      ":nodes",
+      [
+        ":scene",
+        "plan"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-scalar-program/collect-parameters",
+    "path": "3.3.2.1.2.2.2",
+    "operand": [
+      ":records",
+      "frame"
+    ],
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectRecord",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-scalar-program/install-instance-program!",
+    "path": "3.3.2",
+    "operand": [
+      ":records",
+      [
+        ":frame",
+        "program"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectRecord",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-scalar-program/install-instance-program!",
+    "path": "3.4.2",
+    "operand": [
+      ":records",
+      [
+        ":frame",
+        "program"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectRecord",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-scalar-program/install-program!",
+    "path": "3.3.1.0.1",
+    "operand": [
+      ":records",
+      [
+        ":frame",
+        "program"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectRecord",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-scalar-program/prepare-descriptor",
+    "path": "3.3.1.4.1.1.1.2",
+    "operand": [
+      ":frames",
+      "track"
+    ],
+    "inferredType": ":: 'List 'quamolit.motion/ScalarKeyframe",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-scalar-program/prepare-instance-program",
+    "path": "4.2.2",
+    "operand": "motions",
+    "inferredType": ":: 'List 'quamolit.motion/Vec2Descriptor",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-scalar-program/prepare-instance-program",
+    "path": "5.2.1",
+    "operand": "motions",
+    "inferredType": ":: 'List 'quamolit.motion/Vec2Descriptor",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-scalar-program/prepare-instance-program",
+    "path": "5.2.2",
+    "operand": [
+      "foldl",
+      "motions",
+      [
+        "#{}"
+      ],
+      [
+        "fn",
+        [
+          "ids",
+          "m"
+        ],
+        [
+          "hint-fn",
+          [
+            "{}",
+            [
+              ":args",
+              [
+                "[]",
+                [
+                  "::",
+                  "'Set",
+                  "'String"
+                ],
+                "'quamolit.motion/Vec2Descriptor"
+              ]
+            ],
+            [
+              ":return",
+              [
+                "::",
+                "'Set",
+                "'String"
+              ]
+            ]
+          ]
+        ],
+        [
+          "include",
+          "ids",
+          [
+            ":id",
+            "m"
+          ]
+        ]
+      ]
+    ],
+    "inferredType": ":: 'Set 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&set:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.gpu-scalar-program/transform-frame",
+    "path": "3.2.1.1",
+    "operand": [
+      ":records",
+      "frame"
+    ],
+    "inferredType": ":: 'List 'quamolit.gpu-component/RectRecord",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.image-resource-runner/image-resource-metrics",
+    "path": "3.6",
+    "operand": [
+      ":handles",
+      "host"
+    ],
+    "inferredType": ":: 'List 'quamolit.image-resource-runner/ImageResourceHandle",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.image-resource-runner/release-image-generation",
+    "path": "3.2.6.2",
+    "operand": "matched",
+    "inferredType": ":: 'List 'quamolit.image-resource-runner/ImageResourceHandle",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.image-resource-runner/release-image-resource",
+    "path": "3.2.3.1.2.1",
+    "operand": [
+      ":handles",
+      "host"
+    ],
+    "inferredType": ":: 'List 'quamolit.image-resource-runner/ImageResourceHandle",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.image-resource-runner/release-image-resource",
+    "path": "3.2.3.1.2.2",
+    "operand": "kept",
+    "inferredType": ":: 'List 'quamolit.image-resource-runner/ImageResourceHandle",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.layers/gpu-instances?",
+    "path": "3.2.1.2",
+    "operand": "nodes",
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.layers/validate-frame!",
+    "path": "4.3.2.1",
+    "operand": "ids",
+    "inferredType": ":: 'List 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.layers/validate-frame!",
+    "path": "4.3.2.2",
+    "operand": [
+      "distinct",
+      "ids"
+    ],
+    "inferredType": ":: 'List 'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.motion/validate-track",
+    "path": "3.2.2.1",
+    "operand": "frames",
+    "inferredType": ":: 'List 'quamolit.motion/ScalarKeyframe",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.motion-gpu/lower-scalar",
+    "path": "3.2.5.1.1.1",
+    "operand": [
+      ":frames",
+      "track"
+    ],
+    "inferredType": ":: 'List 'quamolit.motion/ScalarKeyframe",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.presence/instance-resource-plan",
+    "path": "3.2.8",
+    "operand": "references",
+    "inferredType": ":: 'List 'quamolit.presence/InstanceResourceRef",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.presence-component/declare-tree-owned",
+    "path": "4.2.2.2.2.2",
+    "operand": [
+      "filter",
+      "nodes",
+      [
+        "fn",
+        [
+          "other"
+        ],
+        [
+          "=",
+          [
+            ":id",
+            "item"
+          ],
+          [
+            ":id",
+            "other"
+          ]
+        ]
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.presence-component/declare-tree-owned",
+    "path": "4.3.2.2.1",
+    "operand": "nodes",
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.presence-component/declare-tree-owned",
+    "path": "4.3.2.2.2",
+    "operand": "ordered",
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.presence-component/tree-fade-owned?",
+    "path": "3.2.2.1.2.2.2.2.1",
+    "operand": "ancestor-path",
+    "inferredType": ":: 'List 'quamolit.scene-diff/IdentitySegment",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.presence-component/tree-fade-owned?",
+    "path": "3.2.2.1.2.2.2.2.2",
+    "operand": "path",
+    "inferredType": ":: 'List 'quamolit.scene-diff/IdentitySegment",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.presence-component/tree-fade-owned?",
+    "path": "3.2.2.1.2.2.2.3.2.3",
+    "operand": "ancestor-path",
+    "inferredType": ":: 'List 'quamolit.scene-diff/IdentitySegment",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.presence-component/tree-path-id",
+    "path": "3.3.3.3",
+    "operand": [
+      ":kind",
+      "segment"
+    ],
+    "inferredType": "'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&str:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.presence-component/tree-path-id",
+    "path": "3.3.3.7",
+    "operand": [
+      ":key",
+      "segment"
+    ],
+    "inferredType": "'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&str:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.presence-webgpu-resources/presence-gpu-metrics",
+    "path": "3.6",
+    "operand": [
+      ":handles",
+      "host"
+    ],
+    "inferredType": ":: 'List 'quamolit.presence-webgpu-resources/PresenceGpuHandle",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.render.element/textbox",
+    "path": "3.2.2.1.5.2.2.1.0.1.4.1.1.1",
+    "operand": "text",
+    "inferredType": null,
+    "len": null,
+    "diagnostics": [
+      {
+        "code": "E_CALL_ARGUMENT_UNPROVEN",
+        "phase": "preprocess",
+        "severity": "error",
+        "message": "call to `calcit.core/<=` passes open `dynamic` at argument 1, which has no proof for concrete parameter `:number`; decode, narrow, or check the value before this call instead of relying on the callee contract",
+        "path": "code@3.1.1.1",
+        "intent": null,
+        "provenance": []
+      },
+      {
+        "code": "W_TYPE_AT_UNRESOLVED",
+        "phase": "type-inference",
+        "severity": "warning",
+        "message": "Static inference could not determine a type for this expression without executing the program",
+        "path": "code@3.2.2.1.5.2.2.1.0.1.4.1.1.1.1",
+        "intent": null,
+        "provenance": []
+      }
+    ]
+  },
+  {
+    "definition": "quamolit.render.element/textbox",
+    "path": "3.2.2.1.5.2.2.1.0.1.4.1.3.3.1",
+    "operand": "text",
+    "inferredType": null,
+    "len": null,
+    "diagnostics": [
+      {
+        "code": "E_CALL_ARGUMENT_UNPROVEN",
+        "phase": "preprocess",
+        "severity": "error",
+        "message": "call to `calcit.core/<=` passes open `dynamic` at argument 1, which has no proof for concrete parameter `:number`; decode, narrow, or check the value before this call instead of relying on the callee contract",
+        "path": "code@3.1.1.1",
+        "intent": null,
+        "provenance": []
+      },
+      {
+        "code": "W_TYPE_AT_UNRESOLVED",
+        "phase": "type-inference",
+        "severity": "warning",
+        "message": "Static inference could not determine a type for this expression without executing the program",
+        "path": "code@3.2.2.1.5.2.2.1.0.1.4.1.3.3.1.1",
+        "intent": null,
+        "provenance": []
+      }
+    ]
+  },
+  {
+    "definition": "quamolit.render.paint/paint-path",
+    "path": "3.4.2.1",
+    "operand": "coords",
+    "inferredType": "'Dynamic",
+    "len": null,
+    "diagnostics": [
+      {
+        "code": "W_GENERIC_WHERE_BOUND_MISMATCH",
+        "phase": "type-check",
+        "severity": "warning",
+        "message": "[Warn] call binds generic `'T' to `dynamic`, but it does not satisfy trait bound `trait Countable` at quamolit.render.paint/count\n  Expression: `calcit.core/count 'coords`",
+        "path": "code@3.4.2.1",
+        "intent": null,
+        "provenance": []
+      }
+    ]
+  },
+  {
+    "definition": "quamolit.replay-archive/record-input",
+    "path": "3.1.4.1.1.1",
+    "operand": "checkpoints",
+    "inferredType": ":: 'List $ :: 'quamolit.fixed-step/SimulationState 'S",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.resource-lifecycle/registry-metrics",
+    "path": "3.1.0.1",
+    "operand": [
+      "filter",
+      [
+        ":entries",
+        "registry"
+      ],
+      [
+        "fn",
+        [
+          "entry"
+        ],
+        [
+          ">",
+          [
+            ":references",
+            "entry"
+          ],
+          "0"
+        ]
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.resource-lifecycle/RegistryEntry",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.resource-lifecycle/registry-metrics",
+    "path": "3.1.1.1",
+    "operand": [
+      ":entries",
+      "registry"
+    ],
+    "inferredType": ":: 'List 'quamolit.resource-lifecycle/RegistryEntry",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.resource-lifecycle/resource",
+    "path": "3.2.2.1",
+    "operand": "id",
+    "inferredType": "'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&str:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.resource-load-queue/enqueue-load",
+    "path": "5.2.3.3.2.1.1",
+    "operand": "next-pending",
+    "inferredType": ":: 'List 'quamolit.resource-load-queue/ResourceLoadTask",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.resource-load-queue/load-queue-metrics",
+    "path": "3.1.0.1",
+    "operand": [
+      ":running",
+      "queue"
+    ],
+    "inferredType": ":: 'List 'quamolit.resource-load-queue/ResourceLoadSlot",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.resource-load-queue/load-queue-metrics",
+    "path": "3.1.1.1",
+    "operand": [
+      "filter",
+      [
+        ":running",
+        "queue"
+      ],
+      [
+        "fn",
+        [
+          "slot"
+        ],
+        [
+          ":cancelled?",
+          "slot"
+        ]
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.resource-load-queue/ResourceLoadSlot",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.resource-load-queue/load-queue-metrics",
+    "path": "3.2.2",
+    "operand": [
+      ":pending",
+      "queue"
+    ],
+    "inferredType": ":: 'List 'quamolit.resource-load-queue/ResourceLoadTask",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.resource-load-queue/take-load",
+    "path": "3.1.2.1",
+    "operand": [
+      ":running",
+      "queue"
+    ],
+    "inferredType": ":: 'List 'quamolit.resource-load-queue/ResourceLoadSlot",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-component/build-component-plan",
+    "path": "4.4.2.16",
+    "operand": "slots",
+    "inferredType": ":: 'List 'quamolit.retained-component/BoundScalar",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-component/build-component-plan",
+    "path": "4.4.2.18",
+    "operand": "slots",
+    "inferredType": ":: 'List 'quamolit.retained-component/BoundScalar",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-component/build-execution-plan",
+    "path": "4.1.3.1.2",
+    "operand": [
+      ":nodes",
+      [
+        ":scene",
+        "base"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-component/draw-plan!",
+    "path": "4.1.1",
+    "operand": [
+      ":nodes",
+      [
+        ":scene",
+        "plan"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-component/evaluate-transforms",
+    "path": "3.3.1.2.2.1.2",
+    "operand": "result",
+    "inferredType": ":: 'List 'quamolit.scene-ir/Matrix2D",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-component/evaluate-transforms",
+    "path": "3.4.1.1.2.2",
+    "operand": "descriptions",
+    "inferredType": ":: 'List 'quamolit.retained-component/TransformMotion",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-component/sample-plan-at",
+    "path": "4.1.1.1.3",
+    "operand": [
+      ":slots",
+      "plan"
+    ],
+    "inferredType": ":: 'List 'quamolit.retained-component/BoundScalar",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-component/sample-plan-at",
+    "path": "4.1.3.1.3.2",
+    "operand": [
+      ":nodes",
+      "document"
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-path/build-plan",
+    "path": "6.2.2.1.1",
+    "operand": "transforms",
+    "inferredType": ":: 'List 'quamolit.scene-ir/Matrix2D",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-path/build-plan",
+    "path": "6.2.2.1.2",
+    "operand": [
+      ":nodes",
+      "document"
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-path/draw-plan!",
+    "path": "3.1.1",
+    "operand": [
+      ":transforms",
+      "plan"
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/Matrix2D",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-path/sample-plan-at",
+    "path": "4.3.2.2.1.1",
+    "operand": "transforms",
+    "inferredType": ":: 'List 'quamolit.scene-ir/Matrix2D",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.retained-path/sample-plan-at",
+    "path": "4.3.2.2.1.2",
+    "operand": [
+      ":nodes",
+      [
+        ":scene",
+        "plan"
+      ]
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-ir/SceneNode",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.scene-hit/candidate-count",
+    "path": "3",
+    "operand": [
+      ":candidates",
+      "plan"
+    ],
+    "inferredType": ":: 'List 'quamolit.scene-hit/HitCandidate",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.scene-hit/candidate-hit?",
+    "path": "3.2.2.3.1.2.1.1.2.1",
+    "operand": [
+      ":instance-points",
+      "candidate"
+    ],
+    "inferredType": ":: 'List 'quamolit.motion/Vec2",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.scene-hit/candidate-instance-index",
+    "path": "3.2.2.3.1.2.1.2.1",
+    "operand": [
+      ":instance-points",
+      "candidate"
+    ],
+    "inferredType": ":: 'List 'quamolit.motion/Vec2",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.scene-hit/closed-stroke-hit?",
+    "path": "3.2.1.2.1",
+    "operand": "compact",
+    "inferredType": ":: 'List 'quamolit.motion/Vec2",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.scene-hit/compact-stroke-points",
+    "path": "3.2.1.1.1",
+    "operand": "compact",
+    "inferredType": ":: 'List 'quamolit.motion/Vec2",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.scene-hit/local-hit?",
+    "path": "3.4.1.5.3",
+    "operand": [
+      ":text",
+      "text"
+    ],
+    "inferredType": "'String",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&str:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.scene-hit/polygon-hit?",
+    "path": "3.1.1",
+    "operand": "points",
+    "inferredType": ":: 'List 'quamolit.motion/Vec2",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.scene-hit/resolve-instance-hit-points",
+    "path": "3.2.2.2.2",
+    "operand": "points",
+    "inferredType": ":: 'List 'quamolit.motion/Vec2",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.scene-ir/valid-polygon?",
+    "path": "3.1.1",
+    "operand": [
+      ":points",
+      "polygon"
+    ],
+    "inferredType": ":: 'List 'quamolit.motion/Vec2",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.scene-ir/valid-polyline?",
+    "path": "3.1.1",
+    "operand": [
+      ":points",
+      "path"
+    ],
+    "inferredType": ":: 'List 'quamolit.motion/Vec2",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.test.gpu-component-fixture/main!",
+    "path": "3",
+    "operand": [
+      ":records",
+      [
+        "frame-at",
+        "0"
+      ]
+    ],
+    "inferredType": null,
+    "len": null,
+    "diagnostics": [
+      {
+        "code": "W_TYPE_AT_UNRESOLVED",
+        "phase": "type-inference",
+        "severity": "warning",
+        "message": "Static inference could not determine a type for this expression without executing the program",
+        "path": "code@3.1",
+        "intent": null,
+        "provenance": []
+      }
+    ]
+  },
+  {
+    "definition": "quamolit.test.replay-archive-fixture/checkpoint-count",
+    "path": "3",
+    "operand": [
+      ":checkpoints",
+      [
+        "make-archive"
+      ]
+    ],
+    "inferredType": null,
+    "len": null,
+    "diagnostics": [
+      {
+        "code": "W_TYPE_AT_UNRESOLVED",
+        "phase": "type-inference",
+        "severity": "warning",
+        "message": "Static inference could not determine a type for this expression without executing the program",
+        "path": "code@3.1",
+        "intent": null,
+        "provenance": []
+      }
+    ]
+  },
+  {
+    "definition": "quamolit.test.replay-archive-fixture/input-count",
+    "path": "3",
+    "operand": [
+      ":inputs",
+      [
+        "make-archive"
+      ]
+    ],
+    "inferredType": null,
+    "len": null,
+    "diagnostics": [
+      {
+        "code": "W_TYPE_AT_UNRESOLVED",
+        "phase": "type-inference",
+        "severity": "warning",
+        "message": "Static inference could not determine a type for this expression without executing the program",
+        "path": "code@3.1",
+        "intent": null,
+        "provenance": []
+      }
+    ]
+  },
+  {
+    "definition": "quamolit.webgpu-images/draw-document!",
+    "path": "4.2.2.1",
+    "operand": "commands",
+    "inferredType": ":: 'List 'quamolit.webgpu-images/BoundImage",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  },
+  {
+    "definition": "quamolit.webgpu-texture-runner/texture-resource-metrics",
+    "path": "3.6",
+    "operand": [
+      ":handles",
+      "host"
+    ],
+    "inferredType": ":: 'List 'quamolit.webgpu-texture-runner/TextureResourceHandle",
+    "len": {
+      "name": ".len",
+      "origin": "calcit.core/Len",
+      "status": "proven",
+      "role": "preferred",
+      "parameter_types": [],
+      "rest_type": null,
+      "return_type": "number",
+      "call_types": {
+        "parameters": [],
+        "rest": null,
+        "returns": "'Number"
+      },
+      "generics": [],
+      "bounds": [],
+      "features": [],
+      "definition": "calcit.core/&list:count",
+      "detail": null
+    },
+    "diagnostics": []
+  }
+]
