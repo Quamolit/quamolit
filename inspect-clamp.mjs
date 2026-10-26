@@ -9,6 +9,10 @@ assert.equal(run('calcit', ['-v']).trim(), '0.30.1');
 const p = JSON.parse(readFileSync('reviewed-source.json'));
 assert.equal(p.id, 'quamolit.math/bound-01');
 assert.equal(p.operations.length, 1);
+assert.equal(p.unmasked.id, 'quamolit.render.paint/paint-alpha');
+assert.equal(p.unmasked.dependency, 'quamolit.math/bound-opacity');
+for(const id of [p.unmasked.id,p.unmasked.dependency])
+  assert.deepEqual(p.before.defs.find(d=>d.id===id),p.expected.defs.find(d=>d.id===id));
 const blob = () => run('git', ['hash-object', 'calcit.cirru']).trim();
 assert.equal(blob(), p.blob);
 mkdirSync('inspection', {recursive:true});
@@ -50,6 +54,17 @@ const checkRecords = (old,next,allowPass) => {
     const before=previous.get(d.definition); assert.ok(before,d.definition);
     if(allowPass&&before.status!=='passed'&&d.status==='passed') {
       assert.deepEqual(d.diagnostics,[]); assert.deepEqual(d.blocked_by,[]); improved.push(d.definition);
+    } else if(allowPass&&d.definition===p.unmasked.id) {
+      // This unchanged consumer was not checked while its dependency was blocked.
+      // Pin the observed old error in full, keep it failed, never permit arbitrary
+      // blocked->failed changes or any previously passed definition to regress.
+      assert.deepEqual(before,p.unmasked.before);
+      assert.deepEqual(d,p.unmasked.after);
+      assert.equal(before.status,'blocked'); assert.deepEqual(before.diagnostics,[]);
+      assert.deepEqual(before.blocked_by,[p.unmasked.dependency]);
+      const dependency=next.definitions.find(d=>d.definition===p.unmasked.dependency);
+      assert.equal(dependency.status,'passed'); assert.deepEqual(dependency.diagnostics,[]); assert.deepEqual(dependency.blocked_by,[]);
+      assert.equal(d.status,'failed');
     } else assert.deepEqual(diagnostic(d),diagnostic(before),d.definition+' full diagnostics');
   }
   return improved;
@@ -118,5 +133,5 @@ writeFileSync('inspection/clamp-runtime.mjs',js);
 assert.equal(capture('actual-js-regression','node',['inspection/clamp-runtime.mjs']).status,0);
 ordinary(); assert.equal(blob(),afterBlob);
 assert.deepEqual(q('def',p.id),norm(p.expected.defs.find(d=>d.id===p.id)));
-writeFileSync('inspection/summary.json',JSON.stringify({repo:p.repo,base:p.head,beforeBlob:p.blob,afterBlob,definitions:1711,namespaces:95,attachedTests:161,operations:1,changedDefinitions:1,ordinaryFilesPreserved:429,improved,beforeSummary:oldCheck.summary,afterSummary:newCheck.summary,strictOutputUnchanged:true,originalScriptsBeforeAndAfter:scripts,nativeNumericNilCases:6,actualEmittedJsVerified:true,limits:'Source-equivalence plus actual repaired-function runtime evidence; pre-repair bound-01 cannot compile under strict, so no claim of executing it before repair. Remaining complete legacy errors are actual failures. Not full Benchmark/Upload/Visual, browser or GPU acceptance. Temporary fixture is not exported.'}));
+writeFileSync('inspection/summary.json',JSON.stringify({repo:p.repo,base:p.head,beforeBlob:p.blob,afterBlob,definitions:1711,namespaces:95,attachedTests:161,operations:1,changedDefinitions:1,ordinaryFilesPreserved:429,improved,unmasked:p.unmasked,beforeSummary:oldCheck.summary,afterSummary:newCheck.summary,strictOutputUnchanged:true,originalScriptsBeforeAndAfter:scripts,nativeNumericNilCases:6,actualEmittedJsVerified:true,limits:'Source-equivalence plus actual repaired-function runtime evidence; pre-repair bound-01 cannot compile under strict, so no claim of executing it before repair. The exactly pinned unchanged paint-alpha consumer is still failed, newly unmasked rather than passed. Remaining complete legacy errors are actual failures; original project gates unchanged. Not full Benchmark/Upload/Visual, browser or GPU acceptance. Temporary fixture is not exported.'}));
 mkdirSync('prepared-source',{recursive:true}); copyFileSync('calcit.cirru','prepared-source/calcit.cirru');
