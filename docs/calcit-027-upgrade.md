@@ -33,6 +33,16 @@ CI的 `setup-calcit@v1.5.0` 读取根deps并安装官方0.30.1 Linux release，�
 
 源码只由官方 Linux CLI 的受审事务、dry-run 和 scoped revision 生成；全部 1711 个定义视图、namespace/config、schema 与测试名称/标签受守卫，原测试只改计数调用头。临时证据和事务不进入日常源码，也不增加 namespace、runner、job 或重复 COS 校验。准确候选的原 Benchmark/Upload/Visual、独立消费与实际页面结果集中 PR，未验证硬件仍标未验证，不据此关闭 #204 或 M2/M3。
 
+## Ref、Option 与旧 API 维护
+
+对使用者，本轮不改动画时间、绘制层序、Model/Scene/Motion、资源生命周期或旧存档格式，也不发布新的模块 tag。需要注意：`mode=dev` 现在会正确启用开发模式；此前把环境变量 Option 与字符串直接比较，会错误地禁用该分支。未设置 mode 仍按 release 处理。Ref 的初始化和重载规则、Option 的 Some nil / false / 0 载荷与原 fallback 求值方式保持不变；这不是旧渲染 API 的退役或全库严格类型验收。
+
+在同一正式 0.30.1 图上，104 处旧入口改为当前写法：`defatom` / `atom` 使用 `defref` / `ref`，`%some` / `%none` 使用 `Option :some` / `Option :none`，三个 `option:*` helper 使用对应接收者方法。两项原有附带测试只改三处 Ref 构造头，其他断言、测试名称和标签保留。
+
+另外修正两处实际旧 API 错误：`dev?` 对单参数 `get-env` 返回的 Option 显式使用 `release` 缺省值，并声明 Bool；`type-as-int` 使用 `tag?` 和 `cond` 的最终 true 分支，以泛型输入和 Number 返回表达真实的分类合同，不把输入类型与返回值虚构为同一类型。后者在原附带测试中增加一项六断言回归，覆盖数字、Tag、中文字符串及其他值，未增加测试 runner。
+
+源码仍由官方 Linux CLI 的完整前后视图、事务 dry-run 和本次 scoped revision 生成。原测试、API 清单、bootstrap/runtime、演示构建与发布继续执行；最终准确提交的 Benchmark/Upload/Visual、独立消费、浏览器与硬件边界以 PR 证据为准。旧 legacy 定义的全库检查仍有真实失败，不以迁移前后同错冒充通过；问题已补充到 [#204](https://github.com/Quamolit/quamolit/issues/204#issuecomment-6405578540)，继续按真实调用合同处理，不增加编译器固定改写规则或放宽类型预算。临时迁移工作流、事务和诊断接收脚本不进入项目。
+
 ## 验证与交付
 
 此前 alpha.5 迁移的110项公共定义和158项原生测试结果仅是历史证据，不作为本轮正式版通过结论。CLI/runtime与旧ABI合同、API清单、完整发布导航、独立候选消费均按本轮准确提交重新验收，最终结果集中PR；不借旧版本或其他分支绿灯，不修改像素容差或基线。复用现有CI artifact，不新建验证体系。
