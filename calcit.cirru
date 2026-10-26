@@ -11545,11 +11545,13 @@
             cond
                 nil? x
                 , 1
-              (not (number? x))
-                do $ js/console.warn "|invalid value to bound:" x
-              (< x 0) 0
-              (> x 1) 1
-              true x
+              (number? x)
+                cond
+                    < x 0
+                    , 0
+                  (> x 1) 1
+                  true x
+              true $ do $ js/console.warn "|invalid value to bound:" x
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic
