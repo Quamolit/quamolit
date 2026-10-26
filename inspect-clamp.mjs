@@ -112,9 +112,15 @@ for(const [input,expected] of [['-1','0'],['0','0'],['0.25','0.25'],['1','1'],['
 // This fixture and its temporary CLI overrides are never exported to final source.
 const clone='bound-regression.cirru', fixture='quamolit.math/__bound-regression!';
 copyFileSync('calcit.cirru',clone);
+// query def exposes a normalized display schema, not the editable transport.
+// Obtain canonical .tree from this exact official target CLI, using the existing
+// zero-argument Unit bootstrap contract rather than reconstructing a legacy map.
+const fixtureSchema=q('schema','quamolit.bootstrap/main!').tree;
+assert.equal(fixtureSchema[0],'::'); assert.ok(["'Fn",':fn'].includes(fixtureSchema[1]));
+assert.deepEqual(q('def','quamolit.bootstrap/main!'),norm(p.before.defs.find(d=>d.id==='quamolit.bootstrap/main!')));
 const ops=[
   ['edit','def',fixture,'--input-format','json-ast','--code',JSON.stringify(['defn','__bound-regression!',[],['bound-01','nil'],'&unit'])],
-  ['edit','schema',fixture,'--input-format','json-ast','--code',JSON.stringify(['{}',[':kind',':fn'],[':args',['[]']],[':return',"'Unit"]])]
+  ['edit','schema',fixture,'--input-format','json-ast','--code',JSON.stringify(fixtureSchema)]
 ];
 writeFileSync('inspection/js-fixture-operations.json',JSON.stringify(ops));
 const dry=calc('js-fixture-preview',[clone,'edit','transaction','--file','inspection/js-fixture-operations.json','--dry-run','--format','json']);
