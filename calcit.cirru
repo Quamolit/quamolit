@@ -149,7 +149,7 @@
               -> children
                 map-indexed $ fn (idx x) ([] idx x)
                 filter $ fn (entry)
-                  option:some? $ last entry
+                  .some? $ last entry
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] $ :: 'List 'Dynamic
@@ -1136,7 +1136,7 @@
     'quamolit.comp.fade-in-out $ %{} 'FileEntry
       :defs $ {}
         '*nodes-cache $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *nodes-cache ({})
+          :code $ quote $ defref *nodes-cache ({})
           :examples $ []
           :schema $ :: 'Ref $ :: 'Map 'Dynamic 'Dynamic
         'comp-fade-fn $ %{} 'CodeEntry (:doc |)
@@ -1469,35 +1469,35 @@
       :defs $ {} $ 'dev?
         %{} 'CodeEntry (:doc |)
           :code $ quote $ def dev?
-            = |dev $ get-env |mode |release
+            = |dev $ .unwrap-or (get-env |mode) |release
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Bool
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.config
     'quamolit.controller.resolve $ %{} 'FileEntry
       :defs $ {}
         'locate-target $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn locate-target (tree coord)
-            if (empty? coord) (%some tree)
+            if (empty? coord) (Option :some tree)
               let
-                  first-pos $ option:unwrap-or (first coord) nil
+                  first-pos $ .unwrap-or (first coord) nil
                 if (&struct:matches? Component tree)
                   if
                     = first-pos $ :name tree
                     recur (:tree tree) (slice coord 1)
-                    %none
+                    Option :none
                   let
                       picked-pair $ find (:children tree)
                         fn (child-pair)
                           =
-                            option:unwrap-or (first child-pair) nil
+                            .unwrap-or (first child-pair) nil
                             , first-pos
                       picked $ picked-pair.map $ fn (pair)
-                        option:unwrap-or (last pair) nil
+                        .unwrap-or (last pair) nil
                     match picked
                       (:some value)
                         recur value $ slice coord 1
-                      (:none) (%none)
+                      (:none) (Option :none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'Dynamic $ :: 'List 'Dynamic
@@ -1511,15 +1511,15 @@
                       and (&struct:matches? Shape target)
                         non-nil? $ :event target
                       get-in target $ [] :event event-name
-                      %none
+                      Option :none
                   match maybe-listener
-                    (:some listener) (%some listener)
+                    (:some listener) (Option :some listener)
                     (:none)
                       if
                         = 0 $ .len coord
-                        %none
+                        Option :none
                         recur tree event-name $ slice coord 0 $ - (.len coord) 1
-              (:none) (%none)
+              (:none) (Option :none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'Dynamic 'Tag $ :: 'List 'Dynamic
@@ -1530,19 +1530,19 @@
     'quamolit.core $ %{} 'FileEntry
       :defs $ {}
         '*clicked-focus $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *clicked-focus ([])
+          :code $ quote $ defref *clicked-focus ([])
           :examples $ []
           :schema $ :: 'Dynamic
         '*drag-moving-cache $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *drag-moving-cache ([] 0 0)
+          :code $ quote $ defref *drag-moving-cache ([] 0 0)
           :examples $ []
           :schema $ :: 'Dynamic
         '*element-tree $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *element-tree nil
+          :code $ quote $ defref *element-tree nil
           :examples $ []
           :schema $ :: 'Dynamic
         '*last-tick $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *last-tick (get-tick)
+          :code $ quote $ defref *last-tick (get-tick)
           :examples $ []
           :schema $ :: 'Dynamic
         'CanvasContextHost $ %{} 'CodeEntry (:doc |)
@@ -1664,7 +1664,7 @@
             :features $ #{} :js-ffi
         'find-hit-area $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn find-hit-area (point areas)
-            if (empty? areas) (%none)
+            if (empty? areas) (Option :none)
               let
                   x $ nth areas 0
                   transform $ :transform x
@@ -1686,7 +1686,7 @@
                         js/Math.pow (nth delta 0) 2
                         js/Math.pow (nth delta 1) 2
                       js/Math.pow (:r x) 2
-                  %some x
+                  Option :some x
                   recur point $ nth areas 1
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -3266,17 +3266,17 @@
     'quamolit.examples.drag-demo $ %{} 'FileEntry
       :defs $ {}
         '*drag-client-position $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *drag-client-position
+          :code $ quote $ defref *drag-client-position
             assert-type (Option :none) (:: 'Option 'quamolit.motion/Vec2)
           :examples $ []
         '*drag-model $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *drag-model (initial)
+          :code $ quote $ defref *drag-model (initial)
           :examples $ []
         '*drag-pointer-state $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *drag-pointer-state (pointer/initial-pointer-state)
+          :code $ quote $ defref *drag-pointer-state (pointer/initial-pointer-state)
           :examples $ []
         '*drag-view $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *drag-view
+          :code $ quote $ defref *drag-view
             DragView :scale-x 1 :scale-y 1 :x 0 :y 0
           :examples $ []
         'DragModel $ %{} 'CodeEntry (:doc |)
@@ -4893,7 +4893,7 @@
                 fill $ :fill instance
               gpu/draw-cleared! batch (:width instance) (:height instance)
                 gpu/color (:r fill) (:g fill) (:b fill) (:a fill)
-                , 1 (gpu/no-translation) (%some 10000) (gpu/color 0 0 0 0)
+                , 1 (gpu/no-translation) (Option :some 10000) (gpu/color 0 0 0 0)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
             :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'quamolit.instance-resource/InstanceTableHost 'Number 'quamolit.layers/LayerViewport 'Number
@@ -4986,7 +4986,7 @@
     'quamolit.examples.layered-dashboard $ %{} 'FileEntry
       :defs $ {}
         '*dashboard-client-position $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *dashboard-client-position
+          :code $ quote $ defref *dashboard-client-position
             assert-type (Option :none) (:: 'Option 'quamolit.motion/Vec2)
           :examples $ []
         '*dashboard-plan $ %{} 'CodeEntry (:doc |)
@@ -5073,7 +5073,7 @@
               struct-with state
                 :registry $ :registry closed
                 :references $ font/empty-font-references
-                :task $ %none
+                :task $ Option :none
                 :closed? true
                 :queue $ queue/cancel-stale-device-loads (:queue state) 2
                 :host $ font/apply-font-registry-actions! (:host state) (:actions closed)
@@ -5112,7 +5112,7 @@
                     :registry $ :registry transition
                     :queue $ :queue completed
                     :host $ :host completed
-                    :task $ %none
+                    :task $ Option :none
                     :images $ image/apply-image-registry-actions (:images state) (:actions transition)
                     :revision $ if
                       and
@@ -5128,7 +5128,7 @@
                     :registry $ :registry transition
                     :queue $ :queue completed
                     :images $ :host completed
-                    :task $ %none
+                    :task $ Option :none
                     :host $ font/apply-font-registry-actions! (:host state) (:actions transition)
                     :revision $ if
                       and
@@ -5143,7 +5143,7 @@
             :features $ #{} :js-ffi
         'consume-media-task $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn consume-media-task (state)
-            struct-with state $ :task $ %none
+            struct-with state $ :task $ Option :none
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.examples.layered-dashboard/DashboardMedia
@@ -5361,7 +5361,7 @@
             :args $ []
         'initial-media $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn initial-media (url)
-            DashboardMedia :registry (resource/initial-registry 1123201) :queue (queue/initial-load-queue 2 4) :host (font/initial-font-resource-host) :images (image/initial-image-resource-host) :descriptor (image/image-descriptor |dashboard-cover 1 url 650 432) :references (font/empty-font-references) :task (%none) :revision 0 :closed? false :font-spec $ dashboard-font
+            DashboardMedia :registry (resource/initial-registry 1123201) :queue (queue/initial-load-queue 2 4) :host (font/initial-font-resource-host) :images (image/initial-image-resource-host) :descriptor (image/image-descriptor |dashboard-cover 1 url 650 432) :references (font/empty-font-references) :task (Option :none) :revision 0 :closed? false :font-spec $ dashboard-font
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.examples.layered-dashboard/DashboardMedia
@@ -5637,7 +5637,7 @@
                 struct-with state
                   :registry $ :registry acquired
                   :queue $ enqueue-media-actions (:queue state) actions
-                  :task $ %none
+                  :task $ Option :none
                   :host $ font/apply-font-registry-actions! (:host state) actions
                   :images $ image/apply-image-registry-actions (:images state) actions
           :examples $ []
@@ -5914,9 +5914,9 @@
                   , 400
                 y $ + source-y $ * phase 4
                 id $ str |rain- slot |/ cycle
-              if (> y 200) (%none)
+              if (> y 200) (Option :none)
                 if (>= y 160)
-                  %some $ rect-node id x y
+                  Option :some $ rect-node id x y
                     * 200 $ /
                       hash-at seed (+ slot 768) tick
                       , 2147483647
@@ -5926,7 +5926,7 @@
                     * 0.5 $ /
                       hash-at seed (+ slot 1536) tick
                       , 2147483647
-                  %some $ rect-node id x y 3 30 $ if (< phase 30) (/ phase 30)
+                  Option :some $ rect-node id x y 3 30 $ if (< phase 30) (/ phase 30)
                     if (>= y 120)
                       / (- 200 y) 80
                       , 1
@@ -9189,18 +9189,18 @@
     'quamolit.global $ %{} 'FileEntry
       :defs $ {}
         '*stage-config $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *stage-config
+          :code $ quote $ defref *stage-config
             {}
               :move $ [] 0 0
               :scale 1
           :examples $ []
           :schema $ :: 'Dynamic
         '*touch-event-areas $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *touch-event-areas ([])
+          :code $ quote $ defref *touch-event-areas ([])
           :examples $ []
           :schema $ :: 'Ref $ :: 'List 'Dynamic
         '*tracked-transform $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *tracked-transform
+          :code $ quote $ defref *tracked-transform
             {}
               :offset $ [] 0 0
               :transform $ [] 1 0
@@ -9208,7 +9208,7 @@
           :examples $ []
           :schema $ :: 'Ref $ :: 'Map 'Tag 'Dynamic
         '*transforms-memory $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *transforms-memory ([])
+          :code $ quote $ defref *transforms-memory ([])
           :examples $ []
           :schema $ :: 'Ref $ :: 'List (:: 'Map 'Tag 'Dynamic)
       :ns $ %{} 'NsEntry (:doc |)
@@ -10780,7 +10780,7 @@
     'quamolit.hud-logs $ %{} 'FileEntry
       :defs $ {}
         '*hud-logs $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *hud-logs ([])
+          :code $ quote $ defref *hud-logs ([])
           :examples $ []
           :schema $ :: 'Dynamic
         'clear-hud-logs! $ %{} 'CodeEntry (:doc |)
@@ -11043,8 +11043,8 @@
             let
                 installed $ filter (:handles host)
                   fn (handle) (:installed? handle)
-              if (empty? installed) (%none)
-                %some $ :image $ -> installed first .unwrap
+              if (empty? installed) (Option :none)
+                Option :some $ :image $ -> installed first .unwrap
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.image-resource-runner/ImageResourceHost
@@ -11056,8 +11056,8 @@
                   fn (handle)
                     and (:installed? handle)
                       = (:identity handle) resource-id
-              if (empty? installed) (%none)
-                %some $ :image $ -> installed first .unwrap
+              if (empty? installed) (Option :none)
+                Option :some $ :image $ -> installed first .unwrap
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.image-resource-runner/ImageResourceHost 'quamolit.resource-lifecycle/ResourceIdentity
@@ -11245,7 +11245,7 @@
                 draw $ gpu/draw! batch (:width instances) (:height instances)
                   gpu/color (:r fill) (:g fill) (:b fill) (:a fill)
                   , 1 (gpu/no-translation)
-                    %some $ :count source
+                    Option :some $ :count source
               SourceDraw :version (:version source) :uploaded? (:uploaded? upload) :upload-bytes (:bytes upload) :instances (:instances draw) :draw-calls $ :draw-calls draw
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.instance-gpu/SourceDraw)
@@ -11452,7 +11452,7 @@
               and
                 = 1 $ .len nodes
                 let
-                    node $ option:unwrap $ nth nodes 0
+                    node $ .unwrap $ nth nodes 0
                   and
                     empty? $ :parent node
                     empty? $ :bindings node
@@ -11474,13 +11474,13 @@
         'hit-test-layers $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hit-test-layers (plans x y)
             assert |invalid-layer-pointer $ and (motion/finite-number? x) (motion/finite-number? y)
-            if (empty? plans) (%none)
+            if (empty? plans) (Option :none)
               let
-                  layer $ option:unwrap $ first plans
+                  layer $ .unwrap $ first plans
                 match
                   hit/hit-test-plan (:plan layer) x y
                   (:hit result)
-                    %some $ LayerHit :layer-id (:id layer) :hit result
+                    Option :some $ LayerHit :layer-id (:id layer) :hit result
                   (:miss visited)
                     recur (rest plans) x y
           :examples $ []
@@ -13458,16 +13458,16 @@
                 content $ :content $ :node (:entry item)
               match content
                 (:instances instances)
-                  %some $ :source instances
-                (:group group) (%none)
-                (:rect rect) (%none)
-                (:polyline path) (%none)
-                (:text text) (%none)
-                (:image image) (%none)
-                (:polygon polygon) (%none)
-                (:cubic-path path) (%none)
-                (:circle circle) (%none)
-                (:arc arc) (%none)
+                  Option :some $ :source instances
+                (:group group) (Option :none)
+                (:rect rect) (Option :none)
+                (:polyline path) (Option :none)
+                (:text text) (Option :none)
+                (:image image) (Option :none)
+                (:polygon polygon) (Option :none)
+                (:cubic-path path) (Option :none)
+                (:circle circle) (Option :none)
+                (:arc arc) (Option :none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.presence/PresenceItem
@@ -14537,8 +14537,8 @@
         'draw-presence-buffer! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-presence-buffer! (host resource-id width height fill alpha)
             gpu/draw!
-              option:unwrap $ installed-batch host resource-id
-              , width height fill alpha (gpu/no-translation) (%none)
+              .unwrap $ installed-batch host resource-id
+              , width height fill alpha (gpu/no-translation) (Option :none)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
             :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHost 'quamolit.resource-lifecycle/ResourceIdentity 'Number 'Number 'quamolit.webgpu-batches/RectColor 'Number
@@ -14552,9 +14552,9 @@
         'enqueue-presence-load $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn enqueue-presence-load (queue action priority)
             match (presence-load-request action)
-              (:none) (%none)
+              (:none) (Option :none)
               (:some request)
-                %some $ load-queue/enqueue-load queue (:device-generation request) (:identity request) (:resource-generation request) priority
+                Option :some $ load-queue/enqueue-load queue (:device-generation request) (:identity request) (:resource-generation request) priority
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue 'quamolit.presence-device-coordinator/PresenceDeviceAction 'quamolit.resource-load-queue/ResourceLoadPriority
@@ -14592,7 +14592,7 @@
                 (:load generation requested)
                   let
                       _ $ assert |mismatched-presence-resource-load $ = resource-id requested
-                      source $ option:unwrap $ source-for-identity references resource-id
+                      source $ .unwrap $ source-for-identity references resource-id
                     js-await $ load-presence-buffer! host device-generation canvas device format table source generation
                 (:install generation installed)
                   let
@@ -14644,14 +14644,14 @@
             :return $ :: 'calcit.core/Option 'quamolit.webgpu-batches/RectBatchHost
         'installed-batch-loop $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn installed-batch-loop (handles resource-id)
-            if (empty? handles) (%none)
+            if (empty? handles) (Option :none)
               let
                   handle $ assert-type (-> handles first .unwrap) 'quamolit.presence-webgpu-resources/PresenceGpuHandle
                 if
                   and
                     = resource-id $ :identity handle
                     :installed? handle
-                  %some $ :batch handle
+                  Option :some $ :batch handle
                   recur (rest handles) resource-id
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -14720,7 +14720,7 @@
         'presence-load-request $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-load-request (action)
             match action
-              (:device _) (%none)
+              (:device _) (Option :none)
               (:resource device-generation registry-action)
                 match registry-action $
                   :resource resource-id resource-action
@@ -14728,11 +14728,11 @@
                     (:load resource-generation requested)
                       do
                         assert |mismatched-presence-resource-load $ = resource-id requested
-                        %some $ PresenceLoadRequest :device-generation device-generation :identity resource-id :resource-generation resource-generation
-                    (:install _ _) (%none)
-                    (:release _) (%none)
-                    (:wake-frame _) (%none)
-                    (:show-error _ _) (%none)
+                        Option :some $ PresenceLoadRequest :device-generation device-generation :identity resource-id :resource-generation resource-generation
+                    (:install _ _) (Option :none)
+                    (:release _) (Option :none)
+                    (:wake-frame _) (Option :none)
+                    (:show-error _ _) (Option :none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.presence-device-coordinator/PresenceDeviceAction
@@ -14785,7 +14785,7 @@
               if (not= device-generation active-device-generation)
                 PresenceLoadTaskResult :device-generation device-generation :identity resource-id :resource-generation resource-generation :outcome $ PresenceLoadTaskOutcome :ignored
                 let
-                    source $ option:unwrap $ source-for-identity references resource-id
+                    source $ .unwrap $ source-for-identity references resource-id
                     loaded $ js-await $ load-presence-buffer-safe! host device-generation canvas device format table source resource-generation
                   match loaded
                     (:ready handle uploaded-bytes)
@@ -14822,13 +14822,13 @@
             :args $ [] 'quamolit.presence-webgpu-resources/PresenceGpuHandle 'quamolit.resource-lifecycle/ResourceIdentity 'Number
         'source-for-identity $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn source-for-identity (references resource-id)
-            if (empty? references) (%none)
+            if (empty? references) (Option :none)
               let
                   reference $ presence/first-resource-ref references
                   source $ :source reference
                 if
                   = resource-id $ presence-resource/instance-resource-identity source
-                  %some source
+                  Option :some source
                   recur (rest references) resource-id
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -14991,7 +14991,7 @@
     'quamolit.render.paint $ %{} 'FileEntry
       :defs $ {}
         '*image-pool $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *image-pool ({})
+          :code $ quote $ defref *image-pool ({})
           :examples $ []
           :schema $ :: 'Dynamic
         'get-image $ %{} 'CodeEntry (:doc |)
@@ -15393,8 +15393,8 @@
             :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic) 'Dynamic
           :tests $ [] $ %{} 'TestEntry (:name |paint-does-not-tick)
             :code $ quote $ let
-                ticked $ atom 0
-                painted $ atom 0
+                ticked $ ref 0
+                painted $ ref 0
                 shape $ %{} Shape (:name :rect)
                   :style $ {}
                   :event nil
@@ -15424,7 +15424,7 @@
             :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic) 'Dynamic 'Number 'Bool 'Dynamic
           :tests $ [] $ %{} 'TestEntry (:name |tick-versus-redraw)
             :code $ quote $ let
-                seen $ atom 0
+                seen $ ref 0
                 component $ %{} Component (:name :sample) (:tree nil)
                   :on-tick $ fn (elapsed dispatch!)
                     reset! seen $ + @seen elapsed
@@ -16131,7 +16131,7 @@
             let
                 pending-match $ find-pending-load (:pending queue) device-generation descriptor resource-generation
                 running-match $ find-running-load (:running queue) device-generation descriptor resource-generation
-              if (option:some? pending-match)
+              if (.some? pending-match)
                 let
                     previous $ pending-match .unwrap
                     promoted $ if
@@ -16146,7 +16146,7 @@
                           , promoted task
                     next $ ResourceLoadQueue :concurrency-limit (:concurrency-limit queue) :pending-limit (:pending-limit queue) :next-token (:next-token queue) :next-sequence (:next-sequence queue) :pending next-pending :running $ :running queue
                   ResourceLoadEnqueue :queue next :outcome $ ResourceLoadEnqueueOutcome :deduplicated promoted
-                if (option:some? running-match)
+                if (.some? running-match)
                   ResourceLoadEnqueue :queue queue :outcome $ ResourceLoadEnqueueOutcome :deduplicated $ running-match .unwrap
                   let
                       next-pending $ filter (:pending queue)
@@ -16175,10 +16175,10 @@
             :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue 'Number 'quamolit.resource-lifecycle/ResourceIdentity 'Number 'quamolit.resource-load-queue/ResourceLoadPriority
         'find-pending-load $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn find-pending-load (tasks device-generation descriptor resource-generation)
-            if (empty? tasks) (%none)
+            if (empty? tasks) (Option :none)
               let
                   task $ assert-type (-> tasks first .unwrap) 'quamolit.resource-load-queue/ResourceLoadTask
-                if (same-load-request? task device-generation descriptor resource-generation) (%some task)
+                if (same-load-request? task device-generation descriptor resource-generation) (Option :some task)
                   recur (rest tasks) device-generation descriptor resource-generation
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -16186,7 +16186,7 @@
             :return $ :: 'Option 'quamolit.resource-load-queue/ResourceLoadTask
         'find-running-load $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn find-running-load (slots device-generation descriptor resource-generation)
-            if (empty? slots) (%none)
+            if (empty? slots) (Option :none)
               let
                   slot $ assert-type (-> slots first .unwrap) 'quamolit.resource-load-queue/ResourceLoadSlot
                   task $ :task slot
@@ -16194,7 +16194,7 @@
                   and
                     not $ :cancelled? slot
                     same-load-request? task device-generation descriptor resource-generation
-                  %some task
+                  Option :some task
                   recur (rest slots) device-generation descriptor resource-generation
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -16276,7 +16276,7 @@
                 >=
                   .len $ :running queue
                   :concurrency-limit queue
-              ResourceLoadTake :queue queue :task $ %none
+              ResourceLoadTake :queue queue :task $ Option :none
               let
                   ordered $ sort (:pending queue) task-order
                   task $ assert-type (-> ordered first .unwrap) 'quamolit.resource-load-queue/ResourceLoadTask
@@ -16284,7 +16284,7 @@
                     fn (candidate)
                       not= (:token candidate) (:token task)
                   next $ ResourceLoadQueue :concurrency-limit (:concurrency-limit queue) :pending-limit (:pending-limit queue) :next-token (:next-token queue) :next-sequence (:next-sequence queue) :pending next-pending :running $ conj (:running queue) (ResourceLoadSlot :task task :cancelled? false)
-                ResourceLoadTake :queue next :task $ %some task
+                ResourceLoadTake :queue next :task $ Option :some task
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.resource-load-queue/ResourceLoadTake)
             :args $ [] 'quamolit.resource-load-queue/ResourceLoadQueue
@@ -19568,12 +19568,12 @@
             :return $ :: 'List 'quamolit.scene-pointer/EventTarget
         'find-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn find-node (nodes node-id)
-            if (empty? nodes) (%none)
+            if (empty? nodes) (Option :none)
               let
                   node $ scene/first-node nodes
                 if
                   = node-id $ :id node
-                  %some node
+                  Option :some node
                   recur (rest nodes) node-id
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -20348,7 +20348,7 @@
     'quamolit.test.frame-fixture $ %{} 'FileEntry
       :defs $ {}
         '*frame $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *frame (initial-frame 0 0 scene)
+          :code $ quote $ defref *frame (initial-frame 0 0 scene)
           :examples $ []
           :schema $ :: 'Dynamic
         '*path-sample-calls $ %{} 'CodeEntry (:doc |)
@@ -22189,9 +22189,9 @@
           :code $ quote $ defn install-browser-plan! (element initial-plan)
             let
                 surface $ browser/pointer-surface-host element
-                plan* $ atom initial-plan
-                state* $ atom $ pointer/initial-pointer-state
-                count* $ atom 0
+                plan* $ ref initial-plan
+                state* $ ref $ pointer/initial-pointer-state
+                count* $ ref 0
                 handle! $ fn (phase event)
                   let
                       input $ browser/pointer-input-from-event surface phase event
@@ -22623,12 +22623,22 @@
             cond
                 number? x
                 , 0
-              (keyword? x) 1
+              (tag? x) 1
               (string? x) 2
-              :else 3
+              true 3
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'T
+            :generics $ [] 'T
+          :tests $ [] $ %{} 'TestEntry (:name |legacy-type-rank)
+            :code $ quote $ do
+              assert= 0 $ type-as-int 17
+              assert= 1 $ type-as-int :type-tag
+              assert= 2 $ type-as-int "|中文"
+              assert= 3 $ type-as-int nil
+              assert= 3 $ type-as-int false
+              assert= 3 $ type-as-int $ [] 1
+            :tags $ #{} :legacy :migration :unit
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.util.detect
     'quamolit.util.keyboard $ %{} 'FileEntry
@@ -22673,7 +22683,7 @@
     'quamolit.util.string $ %{} 'FileEntry
       :defs $ {}
         '*counter $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defatom *counter 0
+          :code $ quote $ defref *counter 0
           :examples $ []
           :schema $ :: 'Dynamic
         'gen-id! $ %{} 'CodeEntry (:doc |)
@@ -22764,7 +22774,7 @@
               :args $ [] 'quamolit.webgpu-batches/RectBatchHost
               :return 'quamolit.webgpu-batches/RectMetrics
               :features $ #{} :js-ffi
-            draw! batch 0 0 (color 1 1 1 1) 1 (no-translation) (%some 0)
+            draw! batch 0 0 (color 1 1 1 1) 1 (no-translation) (Option :some 0)
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ :: 'Fn $ {} (:return 'quamolit.webgpu-batches/RectMetrics)
@@ -22817,9 +22827,9 @@
         'draw-cleared! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-cleared! (batch width height fill alpha motion instance-count clear)
             let
-                translation $ if (option:some? motion)
+                translation $ if (.some? motion)
                   let
-                      tween $ option:unwrap motion
+                      tween $ .unwrap motion
                       from $ :from tween
                       to $ :to tween
                     js-object
@@ -22834,7 +22844,7 @@
                       :duration $ :duration tween
                       :easing $ :easing tween
                   , js/undefined
-                draw-count $ if (option:some? instance-count) (option:unwrap instance-count) js/undefined
+                draw-count $ if (.some? instance-count) (.unwrap instance-count) js/undefined
                 options $ js-object (:width width) (:height height)
                   :fill $ js-object
                     :r $ :r fill
@@ -22862,7 +22872,7 @@
             :args $ [] 'quamolit.webgpu-batches/RectBatchHost 'Number 'Number 'quamolit.webgpu-batches/RectColor 'Number (:: 'calcit.core/Option 'quamolit.webgpu-batches/RectTranslation) (:: 'calcit.core/Option 'Number) 'quamolit.webgpu-batches/RectColor
             :features $ #{} :js-ffi
         'no-translation $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn no-translation () (%none)
+          :code $ quote $ defn no-translation () (Option :none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ []
@@ -23669,8 +23679,8 @@
                     and
                       = resource-id $ :identity handle
                       :installed? handle
-              if (empty? matched) (%none)
-                %some $ :texture $ -> matched first .unwrap
+              if (empty? matched) (Option :none)
+                Option :some $ :texture $ -> matched first .unwrap
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'quamolit.webgpu-texture-runner/TextureResourceHost 'quamolit.resource-lifecycle/ResourceIdentity
@@ -23764,7 +23774,7 @@
                 decoded $ js-await $ browser/image-decode! image
                 outcome $ match decoded
                   (:err error)
-                    TextureLoadOutcome :failed (%none) (:message error)
+                    TextureLoadOutcome :failed (Option :none) (:message error)
                   (:ok _)
                     let
                         width $ browser/image-natural-width image
@@ -23773,7 +23783,7 @@
                         not $ and
                           = width $ :width descriptor
                           = height $ :height descriptor
-                        TextureLoadOutcome :failed (%none)
+                        TextureLoadOutcome :failed (Option :none)
                           str |texture-image-size-mismatch:expected= (:width descriptor) |x (:height descriptor) |,actual= width |x height
                         try
                           let
@@ -23785,11 +23795,11 @@
                               fn (error)
                                 let
                                     normalized $ shared/normalize-error error
-                                  TextureLoadOutcome :failed (%some handle) (:message normalized)
+                                  TextureLoadOutcome :failed (Option :some handle) (:message normalized)
                           fn (error)
                             let
                                 normalized $ shared/normalize-error error
-                              TextureLoadOutcome :failed (%none) (:message normalized)
+                              TextureLoadOutcome :failed (Option :none) (:message normalized)
               QueuedTextureLoadResult :token (:token task) :device-generation (:device-generation task) :identity (:identity task) :resource-generation (:resource-generation task) :outcome outcome
           :examples $ []
           :schema $ :: 'Fn $ {} (:async true)
