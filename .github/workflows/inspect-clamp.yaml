@@ -1,0 +1,44 @@
+name: Prepare guarded positive numeric clamp
+on:
+  push:
+    branches: [prepare/quamolit-positive-clamp-0301]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6.5.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: corepack enable
+      - uses: calcit-lang/setup-calcit@v1.5.0
+        with:
+          tools: calcit,caps
+          caps-version: "0.1.1"
+          deps-file: deps.cirru
+      - name: Original exact formal dependency graph
+        run: |
+          set -euo pipefail
+          yarn install --immutable
+          caps --strict --ci
+          caps verify --toolchain
+      - name: Full before-after source guards and actual runtime
+        run: node inspect-clamp.mjs
+      - uses: actions/upload-artifact@v7.0.1
+        if: success()
+        with:
+          name: clamp-prepared-source
+          path: prepared-source/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: clamp-inspection
+          path: inspection/
+          if-no-files-found: error
