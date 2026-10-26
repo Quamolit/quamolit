@@ -1,0 +1,38 @@
+name: Inspect grouped Ref and Option migration
+on:
+  push:
+    branches: [prepare/quamolit-ref-option-0301]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6.5.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: corepack enable
+      - uses: calcit-lang/setup-calcit@v1.5.0
+        with:
+          tools: calcit,caps
+          caps-version: "0.1.1"
+          deps-file: deps.cirru
+      - name: Original exact formal dependency graph
+        run: |
+          set -euo pipefail
+          yarn install --immutable
+          caps --strict --ci
+          caps verify --toolchain
+      - name: Full source guards, official previews and original contracts
+        run: node inspect-ref-option.mjs
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: ref-option-inspection
+          path: inspection/
+          if-no-files-found: error
