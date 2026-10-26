@@ -4,8 +4,8 @@ import {
   to_js_data as toJsData,
   init_tags as initTags,
   _PCT__$o__$o_ as enumValue,
-  _PCT_some as some,
-  _PCT_none as none,
+  Option,
+  newTag,
   arrayToList,
   _$n__PCT__$M_ as record,
 } from "../target/js/scene-pointer-browser/calcit.core.mjs";
@@ -36,6 +36,9 @@ import {
 import { Vec2 } from "../target/js/scene-pointer-browser/quamolit.motion.mjs";
 import { SceneContent } from "../target/js/scene-pointer-browser/quamolit.scene-ir.mjs";
 import { compile_hit_plan as compilePlan, matrix } from "../target/js/scene-pointer-browser/quamolit.scene-hit.mjs";
+
+const some = (value) => enumValue(Option, newTag("some"), value);
+const none = () => enumValue(Option, newTag("none"));
 
 test("无输入的几何协调更新hover而不因移开释放有效capture", () => {
   const tags = initTags([

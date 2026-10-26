@@ -247,7 +247,7 @@ test("透明实例层通过公共 Calcit 接口清屏，旧 draw! 仍使用白�
     },
   };
   const fill = gpu.color(0.2, 0.4, 0.6, 0.5);
-  const count = core._PCT_some(10000);
+  const count = core._PCT__$o__$o_(core.Option, core.newTag("some"), 10000);
   const result = gpu.draw_cleared_$x_(batch, 2, 2, fill, 1, gpu.no_translation(), count, gpu.color(0, 0, 0, 0));
   assert.deepEqual(calls[0].clear, { r: 0, g: 0, b: 0, a: 0 });
   assert.deepEqual(calls[0].fill, { r: 0.2, g: 0.4, b: 0.6, a: 0.5 });

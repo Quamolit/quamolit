@@ -233,7 +233,11 @@ try {
     "反例：伪造实例计数必须失败",
   );
   assert.throws(
-    () => verifyInstancesConsumer({ ...app, instances_hit_index: () => core._PCT_none() }, core),
+    () =>
+      verifyInstancesConsumer(
+        { ...app, instances_hit_index: () => core._PCT__$o__$o_(core.Option, core.newTag("none")) },
+        core,
+      ),
     /AssertionError/,
     "反例：实例命中始终返回none必须失败",
   );
