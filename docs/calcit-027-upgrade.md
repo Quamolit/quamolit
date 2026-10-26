@@ -43,6 +43,12 @@ CI的 `setup-calcit@v1.5.0` 读取根deps并安装官方0.30.1 Linux release，�
 
 源码仍由官方 Linux CLI 的完整前后视图、事务 dry-run 和本次 scoped revision 生成。原测试、API 清单、bootstrap/runtime、演示构建与发布继续执行；最终准确提交的 Benchmark/Upload/Visual、独立消费、浏览器与硬件边界以 PR 证据为准。旧 legacy 定义的全库检查仍有真实失败，不以迁移前后同错冒充通过；问题已补充到 [#204](https://github.com/Quamolit/quamolit/issues/204#issuecomment-6405578540)，继续按真实调用合同处理，不增加编译器固定改写规则或放宽类型预算。临时迁移工作流、事务和诊断接收脚本不进入项目。
 
+## 旧透明度 clamp 的数字分支
+
+`bound-01` 改为在显式 `number?` 分支中执行原数字比较，避免正式 0.30.1 无法从负向排除分支证明后续参数类型；公开 schema 仍为 Dynamic 输入/输出，不伪装成 Number。`nil` 仍返回 1，数字仍按原顺序限制到 0–1；非数字保留一次 console.warn 和原 JS 返回行为，不新增强转、默认值或 raise。实际修后 native 数字/nil 与生成 JS 的 NaN、无穷、负零及非法输入回归通过；修前无法严格编译，不宣称已实际执行前后等价对照。
+
+该单 cond 事务保留完整 1711 定义视图中的其他代码、schema、161 项原附带测试与 429 个普通文件。原测试及 API/bootstrap/runtime/compile/release 前后通过；`bound-01`、`bound-opacity` 现在通过，但未修改的 `paint-alpha` 从依赖阻塞中显露真实 Dynamic 乘法错误，仍算失败。完整 strict 仍原样失败，不放宽项目门禁或基线；真实旧消费者合同继续归 [#204](https://github.com/Quamolit/quamolit/issues/204#issuecomment-6410390152) / #176，不把局部迁移当作旧 API 或 M2/M3 验收完成。临时 fixture、迁移 CI 和接收脚本不入库。
+
 ## 验证与交付
 
 此前 alpha.5 迁移的110项公共定义和158项原生测试结果仅是历史证据，不作为本轮正式版通过结论。CLI/runtime与旧ABI合同、API清单、完整发布导航、独立候选消费均按本轮准确提交重新验收，最终结果集中PR；不借旧版本或其他分支绿灯，不修改像素容差或基线。复用现有CI artifact，不新建验证体系。
