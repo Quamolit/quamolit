@@ -1148,12 +1148,10 @@
                     get states :data
                     , .unwrap-or $ {} (:stage :hidden) (:opacity 0)
                   :: 'Map 'Tag 'Dynamic
-                p1 $ f1 (>> states :renderer) (:opacity state)
-                  wo-log $ :stage state
+                p1 $ f1 (>> states :renderer) (:opacity state) (:stage state)
               []
                 fn (elapsed d!)
-                  case-default (:stage state)
-                    println "|unknown stage" $ :stage state
+                  match (:stage state)
                     :hidden $ when (non-nil? p1)
                       d! cursor $ merge state $ {} (:stage :showing)
                         :opacity $ + (* elapsed v) 0
@@ -1177,14 +1175,14 @@
                         delete-node-cache! cursor
                       d! cursor $ update state :opacity $ fn (x)
                         - x $ * elapsed v
+                    _ $ println "|unknown stage" $ :stage state
                 alpha
                   {} $ :opacity $ :opacity state
-                  case-default (:stage state)
-                    either p1 $ &let
+                  match (:stage state) (:hidden nil)
+                    _ $ either p1 $ &let
                       old-f $ get-node! cursor
                       if (non-nil? old-f)
                         old-f (>> states :renderer) (:opacity state) (:stage state)
-                    :hidden nil
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] (:: 'Map 'Tag 'Dynamic) 'Dynamic 'Dynamic
@@ -1199,8 +1197,7 @@
                   :: 'Map 'Tag 'Dynamic
               []
                 fn (elapsed d!)
-                  case-default (:stage state)
-                    println "|unknown stage" $ :stage state
+                  match (:stage state)
                     :hidden $ when (non-nil? p1)
                       d! cursor $ merge state $ {} (:stage :showing)
                         :opacity $ + (* elapsed v) 0
@@ -1223,11 +1220,11 @@
                         delete-node-cache! cursor
                       d! cursor $ update state :opacity $ fn (x)
                         - x $ * elapsed v
+                    _ $ println "|unknown stage" $ :stage state
                 alpha
                   {} $ :opacity $ :opacity state
-                  case-default (:stage state)
-                    either p1 $ get-node! cursor
-                    :hidden nil
+                  match (:stage state) (:hidden nil)
+                    _ $ either p1 $ get-node! cursor
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] (:: 'Map 'Tag 'Dynamic) 'Dynamic 'Dynamic
@@ -14972,7 +14969,9 @@
         'rotate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp rotate (props & children)
             let
-                angle $ * pi-ratio $ .unwrap-or (&map:get props :angle) 30
+                angle $ * pi-ratio $ decode-map-as
+                  .unwrap-or (&map:get props :angle) 30
+                  , 'Number
               group ({})
                 native-save $ {}
                 native-rotate $ &{} :angle angle
