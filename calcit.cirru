@@ -15175,13 +15175,12 @@
         'paint-alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-alpha (ctx style)
             let
-                base-alpha $ match (&map:get @*tracked-transform :alpha)
-                  (:some legacy-value) legacy-value
-                  (:none) nil
-                opacity $ * base-alpha $ bound-opacity
-                  match (&map:get style :opacity)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                base-alpha $ decode-map-as
+                  .unwrap $ get @*tracked-transform :alpha
+                  , 'Number
+                bounded-opacity $ bound-opacity $ .unwrap-or (get style :opacity) nil
+                opacity $ if (number? bounded-opacity) (* base-alpha bounded-opacity) (decode-map-as js/NaN 'Number)
               set! (.-globalAlpha ctx) opacity
               swap! *tracked-transform assoc :alpha opacity
           :examples $ []
