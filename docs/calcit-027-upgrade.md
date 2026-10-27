@@ -6,6 +6,8 @@
 
 六个旧坐标函数 `point-add` / `point-minus` / `point-times` / `point-divide` / `point-scale` / `point-negate` 的合同收紧为数字列表（缩放因子为 Number），返回数字列表；调用方不能再把未经检查的开放值当作坐标传入。原来补零的函数保留短列表补零；`point-negate` 显式解包两个坐标，缺项仍失败，不默认补零。复数乘除往返、加法逆元、短列表乘法、缩放和减法已用正式 CLI 验证；旧调用方迁移仍在进行。
 
+旧 `locate-target` / `resolve-target` 保留 Option 返回和按祖先查找监听器的行为。先辨认 Component/Shape，再检查孩子列表与事件 Map；不再颠倒 Struct 匹配参数，也不把 `get-in` 的 Result 当作 Option。缺失监听器继续向父级查询，显式存在的 nil 仍为 `Some nil`；非法结构在入口报错。现有附带测试体系增加一个嵌套路由回归，覆盖六个实际分支，不新增 runner。
+
 这是未发布候选：完整定义扫描仍有 legacy 类型问题，完整浏览器与独立安装消费者尚未验收。消费者自己的 CLI/runtime 已对齐，但其 Quamolit 引用仍是原候选提交，必须在模块发布后改成已验证的正式 tag；不能把根项目测试通过当作独立消费者已就绪。下面保留 0.30.1 迁移记录，所述历史验收不自动适用于当前候选。
 
 ## 0.30.1 迁移记录

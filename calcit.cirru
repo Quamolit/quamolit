@@ -1480,24 +1480,33 @@
           :code $ quote $ defn locate-target (tree coord)
             if (empty? coord) (Option :some tree)
               let
-                  first-pos $ .unwrap-or (first coord) nil
-                if (&struct:matches? Component tree)
-                  if
-                    = first-pos $ :name tree
-                    recur (:tree tree) (slice coord 1)
-                    Option :none
-                  let
-                      picked-pair $ find (:children tree)
-                        fn (child-pair)
-                          =
-                            .unwrap-or (first child-pair) nil
-                            , first-pos
-                      picked $ picked-pair.map $ fn (pair)
-                        .unwrap-or (last pair) nil
-                    match picked
-                      (:some value)
-                        recur value $ slice coord 1
-                      (:none) (Option :none)
+                  first-pos $ .unwrap $ first coord
+                cond
+                    and (struct? tree) (&struct:matches? tree Component)
+                    if
+                      = first-pos $ :name tree
+                      recur (:tree tree) (.slice coord 1)
+                      Option :none
+                  (and (struct? tree) (&struct:matches? tree Shape))
+                    let
+                        children $ :children tree
+                      if (list? children)
+                        match
+                          find children $ fn (pair)
+                            if (list? pair)
+                              =
+                                .unwrap-or (first pair) nil
+                                , first-pos
+                              raise |Expected-child-pair
+                          (:some pair)
+                            if (list? pair)
+                              recur
+                                .unwrap-or (last pair) nil
+                                .slice coord 1
+                              raise |Expected-child-pair
+                          (:none) (Option :none)
+                        raise |Expected-Shape-children-list
+                  true $ raise |Expected-Shape-or-Component
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'Dynamic $ :: 'List 'Dynamic
@@ -1508,22 +1517,45 @@
               (:some target)
                 let
                     maybe-listener $ if
-                      and (&struct:matches? Shape target)
-                        non-nil? $ :event target
-                      get-in target $ [] :event event-name
+                      and (struct? target) (&struct:matches? target Shape)
+                      let
+                          events $ :event target
+                        if (nil? events) (Option :none)
+                          if (map? events) (get events event-name) (raise |Expected-event-map)
                       Option :none
                   match maybe-listener
                     (:some listener) (Option :some listener)
                     (:none)
-                      if
-                        = 0 $ .len coord
-                        Option :none
-                        recur tree event-name $ slice coord 0 $ - (.len coord) 1
+                      if (empty? coord) (Option :none)
+                        recur tree event-name $ .slice coord 0 $ Option :some
+                          - (.len coord) 1
               (:none) (Option :none)
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'Dynamic 'Tag $ :: 'List 'Dynamic
             :return $ :: 'Option 'Dynamic
+          :tests $ [] $ %{} 'TestEntry (:name |nested-listeners)
+            :code $ quote $ let
+                leaf $ quamolit.types/Shape :name :rect :style ({}) :event
+                  {} (:click |leaf) (:nil-listener nil)
+                  , :children $ []
+                parent $ quamolit.types/Shape :name :group :style ({}) :event
+                  {} $ :hover |parent
+                  , :children $ [] ([] 0 leaf)
+                tree $ quamolit.types/Component :name :root :on-tick nil :tree parent
+              assert |nested-target $ = (Option :some leaf)
+                locate-target tree $ [] :root 0
+              assert |child-listener $ = (Option :some |leaf)
+                resolve-target tree :click $ [] :root 0
+              assert |parent-fallback $ = (Option :some |parent)
+                resolve-target tree :hover $ [] :root 0
+              assert |absent-child $ = (Option :none)
+                locate-target tree $ [] :root 9
+              assert |absent-event $ = (Option :none)
+                resolve-target tree :missing $ [] :root 0
+              assert |present-nil $ = (Option :some nil)
+                resolve-target tree :nil-listener $ [] :root 0
+            :tags $ #{} :legacy-routing :unit
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.controller.resolve
           :require $ quamolit.types :refer $ Component Shape
