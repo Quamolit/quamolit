@@ -23144,11 +23144,14 @@
             :args $ [] 'Dynamic 'Dynamic
         'compare-number $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn compare-number (x y)
-            cond
-                &< x y
-                , -1
-              (&> x y) 1
-              true 0
+            let
+                x $ decode-map-as x 'Number
+                y $ decode-map-as y 'Number
+              cond
+                  &< x y
+                  , -1
+                (&> x y) 1
+                true 0
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic
