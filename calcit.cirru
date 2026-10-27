@@ -15407,10 +15407,15 @@
         'paint-scale $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-scale (ctx style)
             let
-                ratio $ or (:ratio style) 1.2
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                ratio $ legacy-number
+                  .unwrap-or (get style :ratio) nil
+                  , 1.2
               .!scale ctx ratio ratio
               swap! *tracked-transform update :transform $ fn (point)
-                point-times point $ [] ratio 0
+                let
+                    point $ decode-map-as point $ :: 'List 'Number
+                  point-times point $ [] ratio 0
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic
@@ -15470,12 +15475,22 @@
         'paint-translate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-translate (ctx style)
             let
-                x $ or (:x style) 0
-                y $ or (:y style) 0
-                transform $ :transform @*tracked-transform
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                x $ legacy-number
+                  .unwrap-or (get style :x) nil
+                  , 0
+                y $ legacy-number
+                  .unwrap-or (get style :y) nil
+                  , 0
+                transform $ decode-map-as
+                  .unwrap $ get @*tracked-transform :transform
+                  :: 'List 'Number
                 delta $ point-times transform $ [] x y
               .!translate ctx x y
-              swap! *tracked-transform update :offset $ fn (point) (point-add point delta)
+              swap! *tracked-transform update :offset $ fn (point)
+                let
+                    point $ decode-map-as point $ :: 'List 'Number
+                  point-add point delta
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic
