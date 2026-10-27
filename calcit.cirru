@@ -1255,49 +1255,90 @@
         %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-slider (states options)
             let
-                cursor $ :cursor states
-                unit $ :unit options
-                position $ or (:position options) ([] 0 0)
-                state $ :data states
-                v-max $ either (:max options) 1000
-                v-min $ either (:min options) 1000
+                states $ if (map? states) states $ raise |Expected-slider-state-or-options-map
+                options $ if (map? options) options $ raise |Expected-slider-state-or-options-map
+                cursor $ .unwrap-or (get states :cursor) nil
+                unit $ .unwrap-or (get options :unit) nil
+                position $ decode-map-as
+                  or
+                    .unwrap-or (get options :position) nil
+                    [] 0 0
+                  :: 'List 'Number
+                state $ .unwrap-or (get states :data) nil
+                v-max $ decode-map-as
+                  either
+                    .unwrap-or (get options :max) nil
+                    , 1000
+                  , 'Number
+                v-min $ decode-map-as
+                  either
+                    .unwrap-or (get options :min) nil
+                    , 1000
+                  , 'Number
               []
                 fn (elapsed d!)
                   if
-                    nil? $ :data states
-                    d! cursor $ {} $ :local
-                      new-ref $ {}
-                        :v0 $ :value options
-                        :x0 0
+                    nil? $ .unwrap-or (get states :data) nil
+                    if (fn? d!)
+                      d! cursor $ {} $ :local
+                        new-ref $ {}
+                          :v0 $ .unwrap-or (get options :value) nil
+                          :x0 0
+                      raise |Expected-slider-dispatch-function
                 translate
                   {}
-                    :x $ nth position 0
-                    :y $ nth position 1
+                    :x $ .unwrap-or (nth position 0) 0
+                    :y $ .unwrap-or (nth position 1) 0
                   rect $ {} (:w 72) (:h 20)
                     :fill-style $ hsl 200 70 80
                     :event $ {}
                       :mousedown $ fn (e d!)
-                        ref-set! (:local state)
+                        ref-set!
+                          .unwrap-or
+                            get
+                              if (map? state) state $ raise |Expected-slider-state-or-options-map
+                              , :local
+                            , nil
                           {}
-                            :v0 $ :value options
-                            :x0 $ .-clientX e
+                            :v0 $ .unwrap-or (get options :value) nil
+                            :x0 $ decode-map-as (.-clientX e) 'Number
                       :mousemove $ fn (e d!)
                         let
-                            local $ ref-get $ :local state
-                            dx $ - (.-clientX e) (:x0 local)
-                            on-change $ :on-change options
+                            local $ decode-map-as
+                              ref-get $ .unwrap-or
+                                get
+                                  if (map? state) state $ raise |Expected-slider-state-or-options-map
+                                  , :local
+                                , nil
+                              :: 'Map 'Tag 'Dynamic
+                            dx $ -
+                              decode-map-as (.-clientX e) 'Number
+                              decode-map-as
+                                .unwrap-or (get local :x0) nil
+                                , 'Number
+                            on-change $ .unwrap-or (get options :on-change) nil
                           if (fn? on-change)
                             let
-                                next-v $ bound-x v-min v-max $ + (:v0 local) (* dx unit)
+                                next-v $ bound-x v-min v-max $ +
+                                  decode-map-as
+                                    .unwrap-or (get local :v0) nil
+                                    , 'Number
+                                  * dx $ decode-map-as unit 'Number
                               if
-                                not= next-v $ :v options
+                                not= next-v $ .unwrap-or (get options :v) nil
                                 on-change next-v d!
                   text $ {} (:x -36) (:y -20) (:text-align :left) (:size 14)
                     :fill-style $ hsl 330 90 70
                     :text $ str
-                      or (:title options) |Val
+                      or
+                        .unwrap-or (get options :title) nil
+                        , |Val
                       , "|: " $ .!toFixed
-                        either (:value options) 0
+                        decode-map-as
+                          either
+                            .unwrap-or (get options :value) nil
+                            , 0
+                          , 'Number
                         , 2
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)

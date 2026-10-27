@@ -2,6 +2,8 @@
 
 ## 当前 0.31.0 迁移候选
 
+旧 Slider 现在先检查 states/options Map，再解包字段的 Option；拖动计算检查实际数字坐标、局部起点与步进值，初始化回调检查可调用性。保留原最小/最大默认值、`:v` 比较、JS 数组引用状态和显示格式；短 position 的缺项按平移组件原行为补零，未发生拖动时不强制提供 unit。生成 JS 的初始化、拖动差值、回调身份及标签默认值验收通过；非法宿主坐标提前拒绝，真实浏览器拖动仍待验收。
+
 直接访问旧 `quamolit.core/*element-tree` 的调用方需要迁移：缓存现为 `LegacyRoot` 枚举（`:empty`、`:shape`、`:component`），写入使用 `cache-element-tree!`，不再直接 reset 原始树。公开绘制函数仍接收原 Shape/Component/nil。写入口检查真实名义类型，非法值不会覆盖原缓存；事件处理解包缓存后沿原路由查找。原生三态切换及生成 JS 的路由、事件/dispatch 身份传递、重绘写入口和非法输入保留缓存均已验收，尚未替代真实浏览器验收。
 
 开发工具链与 runtime 已配对到正式 0.31.0，使用已发布 js-ffi 0.2.7、touch-control 0.0.34、pointed-prompt 0.0.23。此次调整 `slice` 的可选终点、已移除的字面量 `case-default`，并补充实际回调参数合同和 Shape 检查；不放宽类型门禁或原断言。旧 `defcomp` 的 Struct 匹配修正为先检查返回值是 Struct，再按值、模式顺序匹配，继续接受原 List/Map 返回分支。
