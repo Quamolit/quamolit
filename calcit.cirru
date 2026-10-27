@@ -14943,21 +14943,40 @@
         'button $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp button (style) (; js/console.log |button style)
             let
-                guide-text $ or (:text style) |button
-                x $ or (:x style) 0
-                y $ or (:y style) 0
-                w $ or (:w style) 100
-                h $ or (:h style) 40
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                guide-text $ or
+                  .unwrap-or (get style :text) nil
+                  , |button
+                x $ or
+                  .unwrap-or (get style :x) nil
+                  , 0
+                y $ or
+                  .unwrap-or (get style :y) nil
+                  , 0
+                w $ or
+                  .unwrap-or (get style :w) nil
+                  , 100
+                h $ or
+                  .unwrap-or (get style :h) nil
+                  , 40
                 style-bg $ {} (:x x) (:y y)
-                  :fill-style $ or (:surface-color style) (hsl 0 80 80)
+                  :fill-style $ or
+                    .unwrap-or (get style :surface-color) nil
+                    hsl 0 80 80
                   :w w
                   :h h
-                  :event $ :event style
+                  :event $ .unwrap-or (get style :event) nil
                 style-text $ {}
-                  :fill-style $ or (:text-color style) (hsl 0 0 10)
+                  :fill-style $ or
+                    .unwrap-or (get style :text-color) nil
+                    hsl 0 0 10
                   :text guide-text
-                  :size $ or (:font-size style) 20
-                  :font-family $ or (:font-family style) |Optima
+                  :size $ or
+                    .unwrap-or (get style :font-size) nil
+                    , 20
+                  :font-family $ or
+                    .unwrap-or (get style :font-family) nil
+                    , |Optima
                   :text-align |center
                   :x x
                   :y y
@@ -14969,20 +14988,25 @@
         'input $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp input (style)
             let
-                w $ :w style
-                h $ :h style
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                w $ .unwrap-or (get style :w) nil
+                h $ .unwrap-or (get style :h) nil
                 style-bg $ {}
                   :fill-style $ hsl 0 50 80
                   :stroke-style $ hsl 0 0 50
                   :line-width 2
-                  :x $ or (:x style) 0
-                  :y $ or (:y style) 0
+                  :x $ or
+                    .unwrap-or (get style :x) nil
+                    , 0
+                  :y $ or
+                    .unwrap-or (get style :y) nil
+                    , 0
                   :w w
                   :h h
-                  :event $ :event style
+                  :event $ .unwrap-or (get style :event) nil
                 style-place-text $ {}
                 style-text $ {} (:text-align |center)
-                  :text $ :text style
+                  :text $ .unwrap-or (get style :text) nil
                   :font-family |Optima
                   :size 20
                   :fill-style $ hsl 0 0 0
@@ -15046,10 +15070,11 @@
             :args $ [] (:: 'Map 'Tag 'Dynamic) (:: 'Map 'Tag 'Dynamic)
         'translate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp translate (props & children)
-            group ({})
-              native-save $ {}
-              native-translate $ merge (&{} :x 0 :y 0) props
-              , & children $ native-restore $ {}
+            group ({}) & $ conj
+              prepend
+                prepend children $ native-translate $ merge (&{} :x 0 :y 0) props
+                native-save $ {}
+              native-restore $ {}
           :examples $ []
           :schema $ :: 'Fn $ {} (:rest 'Dynamic) (:return 'Dynamic)
             :args $ [] $ :: 'Map 'Tag 'Dynamic
