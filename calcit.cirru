@@ -127,12 +127,16 @@
         '>> $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn >> (states k)
             let
-                parent-cursor $ .unwrap-or (&map:get states :cursor) ([])
+                states $ if (map? states) states $ raise |Expected-state-map
+                parent-cursor $ decode-map-as
+                  .unwrap-or (&map:get states :cursor) ([])
+                  :: 'List 'Dynamic
                 branch $ match (&map:get states k)
                   (:some legacy-value) legacy-value
                   (:none) nil
+                branch $ either branch $ {}
               &map:assoc
-                either branch $ {}
+                if (map? branch) branch $ raise |Expected-state-map
                 , :cursor $ append parent-cursor k
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
@@ -1649,13 +1653,15 @@
     'quamolit.core $ %{} 'FileEntry
       :defs $ {}
         '*clicked-focus $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defref *clicked-focus ([])
+          :code $ quote $ defref *clicked-focus
+            Option :some $ []
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Ref $ :: 'Option (:: 'List 'Dynamic)
         '*drag-moving-cache $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defref *drag-moving-cache ([] 0 0)
+          :code $ quote $ defref *drag-moving-cache
+            Option :some $ [] 0 0
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Ref $ :: 'Option (:: 'List 'Number)
         '*element-tree $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *element-tree (LegacyRoot :empty)
           :examples $ []
@@ -1679,13 +1685,10 @@
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ :: 'Trait
         'CanvasHost $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ deftrait CanvasHost (:width 'Number) (:height 'Number)
-            .style $ :: 'Fn $ {}
-              :args $ [] 'CanvasHost
-              :return 'CanvasStyleHost
-            .get-context $ :: 'Fn $ {}
-              :args $ [] 'CanvasHost 'String
-              :return 'CanvasContextHost
+          :code $ quote $ deftrait CanvasHost (:width 'Number) (:height 'Number) (:style 'quamolit.core/CanvasStyleHost)
+            .getContext $ :: 'Fn $ {}
+              :args $ [] 'quamolit.core/CanvasHost 'String
+              :return $ :: 'JsNullish 'quamolit.core/CanvasContextHost
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
             :writable $ #{} :height :width
@@ -1806,13 +1809,15 @@
         'configure-canvas $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn configure-canvas (app-container)
             let
-                canvas $ unsafe-coerce app-container 'CanvasHost
+                canvas $ js-cast app-container 'CanvasHost
                 raw-dpr js/window.devicePixelRatio
-                dpr $ if (js-present? raw-dpr) (unsafe-coerce raw-dpr Number) 1
-                width $ unsafe-coerce js/window.innerWidth Number
-                height $ unsafe-coerce js/window.innerHeight Number
-                style $ canvas .style
-                ctx $ unsafe-coerce (canvas .get-context |2d) 'CanvasContextHost
+                dpr $ if (js-present? raw-dpr) (decode-map-as raw-dpr 'Number) 1
+                width $ decode-map-as js/window.innerWidth 'Number
+                height $ decode-map-as js/window.innerHeight 'Number
+                raw-style $ canvas :style
+                style $ if (js-present? raw-style) (js-cast raw-style 'CanvasStyleHost) (raise |Canvas-style-unavailable)
+                raw-ctx $ canvas .getContext |2d
+                ctx $ if (js-present? raw-ctx) (js-cast raw-ctx 'CanvasContextHost) (raise |Canvas-2D-context-unavailable)
               js-set canvas :width $ * dpr width
               js-set canvas :height $ * dpr height
               js-set style :width $ str width |px
@@ -2048,78 +2053,127 @@
         'setup-events $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn setup-events (root-element dispatch)
             let
-                root $ unsafe-coerce root-element 'EventTargetHost
-                window $ unsafe-coerce js/window 'EventTargetHost
-              .addEventListener root |mousedown $ fn (event)
-                reset! *drag-moving-cache $ [] (.-clientX event) (.-clientY event)
+                root $ js-cast root-element 'EventTargetHost
+                window $ if (js-present? js/window) (js-cast js/window 'EventTargetHost) (raise |Window-unavailable)
+              root .addEventListener |mousedown $ fn (event)
+                reset! *drag-moving-cache $ Option :some $ []
+                  decode-map-as (.-clientX event) 'Number
+                  decode-map-as (.-clientY event) 'Number
                 when-let
                   target $ find-hit-area
                     []
-                      &- (.-offsetX event) (&* js/window.innerWidth 0.5)
-                      &- (.-offsetY event) (&* js/window.innerHeight 0.5)
+                      &-
+                        decode-map-as (.-offsetX event) 'Number
+                        &* (decode-map-as js/window.innerWidth 'Number) 0.5
+                      &-
+                        decode-map-as (.-offsetY event) 'Number
+                        &* (decode-map-as js/window.innerHeight 'Number) 0.5
                     , @*touch-event-areas
                   ; js/console.log |target target
                   let
-                      coord $ :coord target
-                    reset! *clicked-focus coord
+                      coord $ decode-map-as
+                        .unwrap $ get
+                          decode-map-as target $ :: 'Map 'Tag 'Dynamic
+                          , :coord
+                        :: 'List 'Dynamic
+                    reset! *clicked-focus $ Option :some coord
                     handle-event coord :mousedown event dispatch
-              .addEventListener root |mousemove $ fn (event)
+              root .addEventListener |mousemove $ fn (event)
                 if
                   and
                     or (.-metaKey event) (.-ctrlKey event) (.-shiftKey event)
-                    non-nil? @*drag-moving-cache
+                    match @*drag-moving-cache
+                      (:some _) true
+                      (:none) false
                   let
-                      prev @*drag-moving-cache
-                      current $ [] (.-clientX event) (.-clientY event)
+                      prev $ .unwrap @*drag-moving-cache
+                      current $ []
+                        decode-map-as (.-clientX event) 'Number
+                        decode-map-as (.-clientY event) 'Number
                       delta $ point-minus current prev
-                    reset! *drag-moving-cache current
-                    swap! *stage-config update :move $ fn (prev) (point-add prev delta)
+                    reset! *drag-moving-cache $ Option :some current
+                    swap! *stage-config update :move $ fn (prev)
+                      point-add
+                        decode-map-as prev $ :: 'List 'Number
+                        , delta
                   if-let (coord @*clicked-focus) (handle-event coord :mousemove event dispatch)
-              .addEventListener root |mouseup $ fn (event) (reset! *drag-moving-cache nil)
+              root .addEventListener |mouseup $ fn (event)
+                reset! *drag-moving-cache $ Option :none
                 let
-                    coord @*clicked-focus
-                  when (non-nil? coord) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
+                    coord $ match @*clicked-focus
+                      (:some value) value
+                      (:none) nil
+                  when (non-nil? coord) (handle-event coord :mouseup event dispatch)
+                    reset! *clicked-focus $ Option :none
                     when-let
                       target $ find-hit-area
                         []
-                          &- (.-offsetX event) (&* js/window.innerWidth 0.5)
-                          &- (.-offsetY event) (&* js/window.innerHeight 0.5)
+                          &-
+                            decode-map-as (.-offsetX event) 'Number
+                            &* (decode-map-as js/window.innerWidth 'Number) 0.5
+                          &-
+                            decode-map-as (.-offsetY event) 'Number
+                            &* (decode-map-as js/window.innerHeight 'Number) 0.5
                         , @*touch-event-areas
                       if
-                        = coord $ :coord target
+                        = coord $ decode-map-as
+                          .unwrap $ get
+                            decode-map-as target $ :: 'Map 'Tag 'Dynamic
+                            , :coord
+                          :: 'List 'Dynamic
                         handle-event coord :click event dispatch
-              .addEventListener root |mouseleave $ fn (event)
-                when-let (coord @*clicked-focus) (handle-event coord :click event dispatch) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
-              .addEventListener window |keypress $ fn (event)
+              root .addEventListener |mouseleave $ fn (event)
+                when-let (coord @*clicked-focus) (handle-event coord :click event dispatch) (handle-event coord :mouseup event dispatch)
+                  reset! *clicked-focus $ Option :none
+              window .addEventListener |keypress $ fn (event)
                 let
-                    coord @*clicked-focus
+                    coord $ match @*clicked-focus
+                      (:some value) value
+                      (:none) nil
                   handle-event coord :keypress event dispatch
-              .addEventListener window |keydown $ fn (event)
+              window .addEventListener |keydown $ fn (event)
                 let
-                    coord @*clicked-focus
+                    coord $ match @*clicked-focus
+                      (:some value) value
+                      (:none) nil
                   handle-event coord :keydown event dispatch
-              .addEventListener window |click $ fn (event) (clear-prompt!)
-              .addEventListener window |resize $ fn (event) (configure-canvas root-element)
-              .addEventListener window |wheel $ fn (event)
+              window .addEventListener |click $ fn (event) (clear-prompt!)
+              window .addEventListener |resize $ fn (event) (configure-canvas root-element)
+              window .addEventListener |wheel $ fn (event)
                 if
                   or (.-metaKey event) (.-ctrlKey event) (.-shiftKey event)
                   let
-                      dy $ * 0.001 $ .-deltaY event
-                      scale $ :scale @*stage-config
+                      dy $ * 0.001 $ decode-map-as (.-deltaY event) 'Number
+                      scale $ decode-map-as
+                        .unwrap $ get @*stage-config :scale
+                        , 'Number
                       pointer $ point-minus
-                        [] (.-clientX event) (.-clientY event)
-                        [] (* 0.5 js/window.innerWidth) (* 0.5 js/window.innerHeight)
+                        []
+                          decode-map-as (.-clientX event) 'Number
+                          decode-map-as (.-clientY event) 'Number
+                        []
+                          * 0.5 $ decode-map-as js/window.innerWidth 'Number
+                          * 0.5 $ decode-map-as js/window.innerHeight 'Number
                     when
-                      not
+                      not $ or
                         and (<= scale 0.1)
-                          < (.-deltaY event) 0
+                          <
+                            decode-map-as (.-deltaY event) 'Number
+                            , 0
                         and (>= scale 4)
-                          > (.-deltaY event) 0
+                          >
+                            decode-map-as (.-deltaY event) 'Number
+                            , 0
                       swap! *stage-config update :move $ fn (pos)
                         let
-                            shift $ point-minus pointer pos
-                          point-minus pos $ point-times shift $ [] (/ dy scale) 0
-                      swap! *stage-config update :scale $ fn (x) (+ x dy)
+                            pos $ decode-map-as pos $ :: 'List 'Number
+                          let
+                              shift $ point-minus pointer pos
+                            point-minus pos $ point-times shift $ [] (/ dy scale) 0
+                      swap! *stage-config update :scale $ fn (x)
+                        let
+                            x $ decode-map-as x 'Number
+                          + x dy
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'JsObject 'Dynamic
@@ -2680,7 +2734,11 @@
                 slots $ :props initial
               execution/ExecutionDeclaration :component
                 component/ComponentDeclaration :scene (:scene initial) :motions $ []
-                , :transforms $ execution/TransformSampler :cpu $ fn (time) (sample-transforms slots time)
+                , :transforms $ execution/TransformSampler :cpu $ fn (time)
+                  hint-fn $ {}
+                    :args $ [] 'Number
+                    :return $ :: 'List 'quamolit.scene-ir/Matrix2D
+                  sample-transforms slots time
           :examples $ []
           :schema $ :: 'Fn $ {}
             :return 'quamolit.retained-component/ExecutionDeclaration
@@ -3672,12 +3730,28 @@
                     if (handle-pointer-event! surface phase event) (render!) &unit
                     , &unit
                 on-down $ fn (event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   route! (pointer/PointerPhase :down) event
                 on-move $ fn (event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   route! (pointer/PointerPhase :move) event
                 on-up $ fn (event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   route! (pointer/PointerPhase :up) event
                 on-cancel $ fn (event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   route! (pointer/PointerPhase :cancel) event
                 on-lost $ fn (host-event)
                   if
@@ -5622,12 +5696,28 @@
                     render!
                   , &unit
                 down $ fn (event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   route! (pointer/PointerPhase :down) event
                 move $ fn (event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   route! (pointer/PointerPhase :move) event
                 up $ fn (event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   route! (pointer/PointerPhase :up) event
                 cancel $ fn (event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   route! (pointer/PointerPhase :cancel) event
                 enter $ fn (host-event)
                   let
@@ -8078,6 +8168,9 @@
                 items $ :items $ :presence model
                 rows $ :rows model
               retained/ExecutionDeclaration :component component :transforms $ retained/TransformSampler :cpu $ fn (time)
+                hint-fn $ {}
+                  :args $ [] 'Number
+                  :return $ :: 'List 'quamolit.scene-ir/Matrix2D
                 map items $ fn (item)
                   let
                       row $ row-for-node rows $ :node (:entry item)
@@ -11024,7 +11117,7 @@
         '*hud-logs $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *hud-logs ([])
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Ref $ :: 'List 'String
         'clear-hud-logs! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn clear-hud-logs! ()
             reset! *hud-logs $ []
@@ -15116,10 +15209,11 @@
       :defs $ {}
         'alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp alpha (props & children)
-            {} $ :tree $ group ({})
-              native-save $ {}
-              native-alpha $ merge (&{} :opacity 0.01) props
-              , & children
+            {} $ :tree $ group ({}) &
+              conj
+                prepend
+                  prepend children $ native-alpha $ merge (&{} :opacity 0.01) props
+                  native-save $ {}
                 native-restore $ {}
           :examples $ []
           :schema $ :: 'Fn $ {} (:rest 'Dynamic) (:return 'Dynamic)
@@ -15218,10 +15312,11 @@
             :args $ [] $ :: 'Map 'Tag 'Dynamic
         'scale $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp scale (props & children)
-            group ({})
-              native-save $ {}
-              native-scale $ merge (&{} :ratio 1) props
-              , & children $ native-restore $ {}
+            group ({}) & $ conj
+              prepend
+                prepend children $ native-scale $ merge (&{} :ratio 1) props
+                native-save $ {}
+              native-restore $ {}
           :examples $ []
           :schema $ :: 'Fn $ {} (:rest 'Dynamic) (:return 'Dynamic)
             :args $ [] $ :: 'Map 'Tag 'Dynamic
@@ -20749,8 +20844,7 @@
             struct-with plan $ :sample $ fn (slots time)
               hint-fn $ {}
                 :args $ [] (:: 'List 'quamolit.examples.binary-tree/BranchSlot) 'Number
-                :return $
-                  :: 'List 'quamolit.scene-ir/Matrix2D
+                :return $ :: 'List 'quamolit.scene-ir/Matrix2D
               , transforms
           :examples $ []
           :schema $ :: 'Fn $ {}
