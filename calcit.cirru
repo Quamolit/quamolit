@@ -3754,18 +3754,34 @@
                     :features $ #{} :js-ffi
                   route! (pointer/PointerPhase :cancel) event
                 on-lost $ fn (host-event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   if
                     handle-lost-capture! $ pointer-browser/pointer-event-host host-event
                     render!
                     , &unit
                 on-host-loss $ fn (_event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   if (release-drag-pointer! surface) (render!) &unit
                 on-enter $ fn (host-event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   let
                       event $ pointer-browser/pointer-event-host host-event
                     reset! *drag-client-position $ Option :some $ motion/Vec2 :x (.-client-x event) :y (.-client-y event)
                     render!
                 on-leave $ fn (_event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   match (:capture @*drag-pointer-state)
                     (:none)
                       do
@@ -5720,12 +5736,20 @@
                     :features $ #{} :js-ffi
                   route! (pointer/PointerPhase :cancel) event
                 enter $ fn (host-event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   let
                       event $ pointer-browser/pointer-event-host host-event
                     reset! *dashboard-client-position $ Option :some $ motion/Vec2 :x (.-client-x event) :y (.-client-y event)
                     render!
                     , &unit
                 leave $ fn (_event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   match (:capture @*dashboard-pointer)
                     (:none)
                       do
@@ -5735,12 +5759,20 @@
                         , &unit
                     _ &unit
                 lost $ fn (event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   let
                       result $ pointer/lose-pointer-capture @*dashboard-pointer $ pointer-browser/pointer-id-from-event (pointer-browser/pointer-event-host event)
                     reset! *dashboard-pointer $ :state result
                     when (:capture-released result) (render!)
                     , &unit
                 blur $ fn (_event)
+                  hint-fn $ {}
+                    :args $ [] 'js-ffi.browser/EventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   when (release-pointer! surface) (render!)
                   , &unit
               dom/element-add-event-listener! element |pointerdown down
