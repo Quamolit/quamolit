@@ -15086,29 +15086,42 @@
         'paint-arc $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-arc (ctx style coord event)
             let
-                x $ .unwrap-or (&map:get style :x) 0
-                y $ .unwrap-or (&map:get style :y) 0
-                r $ .unwrap-or (&map:get style :r) 40
-                s-angle $ * pi-ratio $ .unwrap-or (&map:get style :s-angle) 0
-                e-angle $ * pi-ratio $ .unwrap-or (&map:get style :e-angle) 300
-                line-width $ .unwrap-or (&map:get style :line-width) 4
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                x $ decode-map-as
+                  .unwrap-or (&map:get style :x) 0
+                  , Number
+                y $ decode-map-as
+                  .unwrap-or (&map:get style :y) 0
+                  , Number
+                r $ decode-map-as
+                  .unwrap-or (&map:get style :r) 40
+                  , Number
+                s-angle $ * pi-ratio $ decode-map-as
+                  .unwrap-or (&map:get style :s-angle) 0
+                  , Number
+                e-angle $ * pi-ratio $ decode-map-as
+                  .unwrap-or (&map:get style :e-angle) 300
+                  , Number
+                line-width $ decode-map-as
+                  .unwrap-or (&map:get style :line-width) 4
+                  , Number
                 counterclockwise $ .unwrap-or (&map:get style :counterclockwise) false
                 line-cap $ .unwrap-or (&map:get style :line-cap) |round
-                miter-limit $ .unwrap-or (&map:get style :miter-limit) 8
+                miter-limit $ decode-map-as
+                  .unwrap-or (&map:get style :miter-limit) 8
+                  , Number
               .!beginPath ctx
               .!arc ctx x y r s-angle e-angle counterclockwise
               when (non-nil? event)
-                reset! *touch-event-areas $ prepend
-                  {} (:kind :arc) (:r r)
-                    :transform $ match (&map:get @*tracked-transform :transform)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
-                    :offset $ match (&map:get @*tracked-transform :offset)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
-                    :coord coord
-                    :position $ [] x y
-                  , @*touch-event-areas
+                reset! *touch-event-areas $ prepend @*touch-event-areas $ {} (:kind :arc) (:r r)
+                  :transform $ match (&map:get @*tracked-transform :transform)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  :offset $ match (&map:get @*tracked-transform :offset)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  :coord coord
+                  :position $ [] x y
               when (&map:contains? style :fill-style)
                 set! (.-fillStyle ctx)
                   match (&map:get style :fill-style)
@@ -15405,26 +15418,52 @@
             :features $ #{} :js-ffi
         'paint-text $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-text (ctx style)
-            set! (.-fillStyle ctx)
-              or (:fill-style style) (hsl 0 0 0)
-            set! (.-textAlign ctx)
-              or (:text-align style) |center
-            set! (.-textBaseline ctx)
-              or (:base-line style) |middle
-            set! (.-font ctx)
-              str
-                or (:size style) 20
-                , "|px " $ or (:font-family style) |Optima
-            when (contains? style :fill-style)
-              .!fillText ctx (:text style)
-                or (:x style) 0
-                or (:y style) 0
-                or (:max-width style) 400
-            when (contains? style :stroke-style)
-              .!strokeText ctx (:text style)
-                or (:x style) 0
-                or (:y style) 0
-                or (:max-width style) 400
+            let
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+              set! (.-fillStyle ctx)
+                or
+                  .unwrap-or (get style :fill-style) nil
+                  hsl 0 0 0
+              set! (.-textAlign ctx)
+                or
+                  .unwrap-or (get style :text-align) nil
+                  , |center
+              set! (.-textBaseline ctx)
+                or
+                  .unwrap-or (get style :base-line) nil
+                  , |middle
+              set! (.-font ctx)
+                str
+                  or
+                    .unwrap-or (get style :size) nil
+                    , 20
+                  , "|px " $ or
+                    .unwrap-or (get style :font-family) nil
+                    , |Optima
+              when (contains? style :fill-style)
+                .!fillText ctx
+                  .unwrap-or (get style :text) nil
+                  or
+                    .unwrap-or (get style :x) nil
+                    , 0
+                  or
+                    .unwrap-or (get style :y) nil
+                    , 0
+                  or
+                    .unwrap-or (get style :max-width) nil
+                    , 400
+              when (contains? style :stroke-style)
+                .!strokeText ctx
+                  .unwrap-or (get style :text) nil
+                  or
+                    .unwrap-or (get style :x) nil
+                    , 0
+                  or
+                    .unwrap-or (get style :y) nil
+                    , 0
+                  or
+                    .unwrap-or (get style :max-width) nil
+                    , 400
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic
