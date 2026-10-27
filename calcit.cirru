@@ -1638,36 +1638,59 @@
         'call-paint $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn call-paint (tree target dispatch! elapsed tick?) (; js/console.log tree)
             let
-                ctx $ unsafe-coerce (.!getContext target |2d) 'CanvasContextHost
-                w js/window.innerWidth
-                h js/window.innerHeight
-                viewer-shift $ :move @*stage-config
-                viewer-scale $ :scale @*stage-config
-              reset! *touch-event-areas nil
-              .clearRect ctx 0 0 w h
-              ; .!save ctx
-              .translate ctx
-                &+ (* 0.5 w) (first viewer-shift)
-                &+ (* 0.5 h) (nth viewer-shift 1)
-              .scale ctx viewer-scale viewer-scale
-              swap! *tracked-transform update :offset $ fn (point) (point-add point viewer-shift)
-              swap! *tracked-transform update :transform $ fn (point)
-                point-times point $ [] viewer-scale 0
-              paint ctx tree ([]) dispatch! elapsed tick?
-              let
-                  scale-back $ &/ 1 viewer-scale
-                .scale ctx scale-back scale-back
-              swap! *tracked-transform update :transform $ fn (point)
-                point-times point $ [] (&/ 1 viewer-scale) 0
-              swap! *tracked-transform update :offset $ fn (point) (point-minus point viewer-shift)
-              .translate ctx
-                &- (* -0.5 w) (first viewer-shift)
-                &- (* -0.5 h) (nth viewer-shift 1)
-              ; .!restore ctx
-              when
-                not $ empty? @*hud-logs
-                paint-logs! ctx @*hud-logs
-                clear-hud-logs!
+                ctx $ .!getContext target |2d
+                w $ decode-map-as js/window.innerWidth 'Number
+                h $ decode-map-as js/window.innerHeight 'Number
+                viewer-shift $ decode-map-as
+                  .unwrap $ get @*stage-config :move
+                  :: 'List 'Number
+                viewer-scale $ decode-map-as
+                  .unwrap $ get @*stage-config :scale
+                  , 'Number
+              if (js-present? ctx)
+                let
+                    ctx $ js-cast ctx 'CanvasContextHost
+                  do
+                    reset! *touch-event-areas $ []
+                    ctx .clearRect 0 0 w h
+                    ; .!save ctx
+                    ctx .translate
+                      &+ (* 0.5 w)
+                        .unwrap $ first viewer-shift
+                      &+ (* 0.5 h)
+                        .unwrap $ nth viewer-shift 1
+                    ctx .scale viewer-scale viewer-scale
+                    swap! *tracked-transform update :offset $ fn (point)
+                      let
+                          point $ decode-map-as point $ :: 'List 'Number
+                        point-add point viewer-shift
+                    swap! *tracked-transform update :transform $ fn (point)
+                      let
+                          point $ decode-map-as point $ :: 'List 'Number
+                        point-times point $ [] viewer-scale 0
+                    paint ctx tree ([]) dispatch! elapsed tick?
+                    let
+                        scale-back $ &/ 1 viewer-scale
+                      ctx .scale scale-back scale-back
+                    swap! *tracked-transform update :transform $ fn (point)
+                      let
+                          point $ decode-map-as point $ :: 'List 'Number
+                        point-times point $ [] (&/ 1 viewer-scale) 0
+                    swap! *tracked-transform update :offset $ fn (point)
+                      let
+                          point $ decode-map-as point $ :: 'List 'Number
+                        point-minus point viewer-shift
+                    ctx .translate
+                      &- (* -0.5 w)
+                        .unwrap $ first viewer-shift
+                      &- (* -0.5 h)
+                        .unwrap $ nth viewer-shift 1
+                    ; .!restore ctx
+                    when
+                      not $ empty? @*hud-logs
+                      paint-logs! ctx @*hud-logs
+                      clear-hud-logs!
+                raise |Canvas-2D-context-unavailable
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic 'Dynamic 'Number 'Bool
@@ -9256,15 +9279,18 @@
                   on-tick $ :on-tick component
                 when (fn? on-tick) (on-tick elapsed dispatch!)
                 tick-tree (:tree component) dispatch! elapsed
-              let
-                  shape $ assert-type tree Shape
-                &doseq
-                  cursor $ :children shape
-                  tick-tree
-                      last cursor
-                      , .unwrap-or nil
-                    , dispatch! elapsed
-                , &unit
+              if
+                and (struct? tree) (&struct:matches? tree Shape)
+                let
+                    shape $ assert-type tree Shape
+                  &doseq
+                    cursor $ :children shape
+                    tick-tree
+                        last cursor
+                        , .unwrap-or nil
+                      , dispatch! elapsed
+                  , &unit
+                raise "|Expected a Quamolit Shape or Component"
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] 'Dynamic 'Dynamic 'Number
@@ -15284,6 +15310,7 @@
         'paint-line $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-line (ctx style)
             let
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
                 x0 $ .unwrap-or (&map:get style :x0) 0
                 y0 $ .unwrap-or (&map:get style :y0) 0
                 x1 $ .unwrap-or (&map:get style :x1) 40
