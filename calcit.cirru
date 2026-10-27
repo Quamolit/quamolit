@@ -11598,12 +11598,14 @@
             :args $ [] 'Dynamic
         'bound-x $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn bound-x (left right x)
-            if (> left right)
-              js/Math.min (js/Math.max right x) x
-              js/Math.min (js/Math.max left x) right
+            let
+                result $ if (> left right)
+                  js/Math.min (js/Math.max right x) x
+                  js/Math.min (js/Math.max left x) right
+              if (number? result) result $ raise |Expected-numeric-Math-result
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic 'Dynamic
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] 'Number 'Number 'Number
             :features $ #{} :js-ffi
         'pi-ratio $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def pi-ratio 0.017453292519943295
@@ -15236,12 +15238,11 @@
         'paint-path $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-path (ctx style)
             let
-                points $ match (&map:get style :points)
-                  (:some legacy-value) legacy-value
-                  (:none) nil
-                first-point $ match (&list:first points)
-                  (:some legacy-value) legacy-value
-                  (:none) nil
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                points $ decode-map-as
+                  .unwrap $ get style :points
+                  :: 'List $ :: 'List 'Number
+                first-point $ .unwrap $ first points
               .!beginPath ctx
               .!moveTo ctx
                 match (&list:first first-point)
@@ -15251,11 +15252,24 @@
                   (:some legacy-value) legacy-value
                   (:none) nil
               &doseq
-                coords $ rest points
-                case-default (count coords) (raise |not-supported-coords)
-                  2 $ .!lineTo ctx (nth coords 0) (nth coords 1)
-                  4 $ .!quadraticCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3)
-                  6 $ .!bezierCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3) (nth coords 4) (nth coords 5)
+                coords $ .slice points 1
+                match (.len coords)
+                  2 $ .!lineTo ctx
+                    .unwrap $ nth coords 0
+                    .unwrap $ nth coords 1
+                  4 $ .!quadraticCurveTo ctx
+                    .unwrap $ nth coords 0
+                    .unwrap $ nth coords 1
+                    .unwrap $ nth coords 2
+                    .unwrap $ nth coords 3
+                  6 $ .!bezierCurveTo ctx
+                    .unwrap $ nth coords 0
+                    .unwrap $ nth coords 1
+                    .unwrap $ nth coords 2
+                    .unwrap $ nth coords 3
+                    .unwrap $ nth coords 4
+                    .unwrap $ nth coords 5
+                  _ $ raise |not-supported-coords
               when (&map:contains? style :stroke-style)
                 set! (.-lineWidth ctx)
                   .unwrap-or (&map:get style :line-width) 4
@@ -22739,14 +22753,11 @@
           :code $ quote $ defn keycode->key (k shift?)
             if
               and (<= k 90) (>= k 65)
-              let
-                  letter $ unsafe-coerce (js/String.fromCharCode k) String
-                if shift? letter $ .!toLowerCase letter
+              char-from-code $ + (floor k) (if shift? 0 32)
               , |
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic
-            :features $ #{} :js-ffi
+          :schema $ :: 'Fn $ {} (:return 'String)
+            :args $ [] 'Number 'Bool
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.util.keyboard
     'quamolit.util.ref $ %{} 'FileEntry

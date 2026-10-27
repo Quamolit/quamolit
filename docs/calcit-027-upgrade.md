@@ -12,6 +12,8 @@
 
 旧状态游标的三处 unsafe 转换改为实际 `List<Tag>` 解码，清理状态时检查嵌套 Map；保留所选字段、`:data`、nil/false 与其他根字段。非法游标现在更早拒绝。`=seq` 使用 Sliceable/Countable 泛型约束，已确认非空后解包 first 再比较元素身份；native 与生成 JS 的列表/字符串验收通过，JS 同一/不同对象身份分别为 true/false。Option 包装身份的跨后端差异另报 [Calcit #2448](https://github.com/calcit-lang/calcit/issues/2448)，不增加专用 fix 规则。
 
+`bound-x` 明确数字参数/返回并检查 Math 宿主结果，保留原运算顺序；1000 组 JS 对照包含 NaN、无穷和负零。`keycode->key` 改为 Number/Bool→String 的纯 Calcit 实现，保留 A–Z 范围、大小写和小数截断；248 组 JS 对照与原表达式一致。旧路径绘制用数字列表解码、literal match 和显式 Option 解包，保留直线/二次/三次曲线与 stroke/fill 顺序、默认样式和空首点对行为；无真实 Canvas 的 JS 调用验收通过，非数字坐标在绘制前拒绝。
+
 这是未发布候选：完整定义扫描仍有 legacy 类型问题，完整浏览器与独立安装消费者尚未验收。消费者自己的 CLI/runtime 已对齐，但其 Quamolit 引用仍是原候选提交，必须在模块发布后改成已验证的正式 tag；不能把根项目测试通过当作独立消费者已就绪。下面保留 0.30.1 迁移记录，所述历史验收不自动适用于当前候选。
 
 ## 0.30.1 迁移记录
