@@ -8,6 +8,8 @@
 
 旧 `locate-target` / `resolve-target` 保留 Option 返回和按祖先查找监听器的行为。先辨认 Component/Shape，再检查孩子列表与事件 Map；不再颠倒 Struct 匹配参数，也不把 `get-in` 的 Result 当作 Option。缺失监听器继续向父级查询，显式存在的 nil 仍为 `Some nil`；非法结构在入口报错。现有附带测试体系增加一个嵌套路由回归，覆盖六个实际分支，不新增 runner。
 
+旧图片入口的缓存现在声明为 `Ref<Map<String, ImageHost>>`，`get-image` 接受字符串 URL 并返回实际 ImageHost。`paint-image` 检查样式 Map、源字符串和数字坐标，保留原 nil/false 默认值与零值；非数字坐标更早拒绝。隔离生成的 JS 已验证同 URL 实例复用、不同 URL 分离、drawImage 参数、默认值和非法输入；使用无网络的合成 Image 宿主，尚不代表真实图片解码或页面重绘验收。
+
 这是未发布候选：完整定义扫描仍有 legacy 类型问题，完整浏览器与独立安装消费者尚未验收。消费者自己的 CLI/runtime 已对齐，但其 Quamolit 引用仍是原候选提交，必须在模块发布后改成已验证的正式 tag；不能把根项目测试通过当作独立消费者已就绪。下面保留 0.30.1 迁移记录，所述历史验收不自动适用于当前候选。
 
 ## 0.30.1 迁移记录

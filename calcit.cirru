@@ -15034,21 +15034,20 @@
         '*image-pool $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *image-pool ({})
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Ref $ :: 'Map 'String 'js-ffi.browser/ImageHost
         'get-image $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn get-image (src)
-            if (&map:contains? @*image-pool src)
-              match (&map:get @*image-pool src)
-                (:some legacy-value) legacy-value
-                (:none) nil
-              let
-                  image $ image-create
-                image-src! image src
-                swap! *image-pool assoc src image
-                , image
+            match (get @*image-pool src)
+              (:some image) image
+              (:none)
+                let
+                    image $ image-create
+                  image-src! image src
+                  swap! *image-pool assoc src image
+                  , image
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic
+          :schema $ :: 'Fn $ {} (:return 'js-ffi.browser/ImageHost)
+            :args $ [] 'String
             :features $ #{} :js-ffi
         'legacy-number $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn legacy-number (value fallback)
@@ -15128,16 +15127,35 @@
         'paint-image $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-image (ctx style coord)
             let
-                sx $ or (:sx style) 0
-                sy $ or (:sy style) 0
-                sw $ or (:sw style) 40
-                sh $ or (:sh style) 40
-                dx $ or (:dx style) 0
-                dy $ or (:dy style) 0
-                dw $ or (:dw style) 40
-                dh $ or (:dh style) 40
-                image $ get-image $ :src style
-              .!drawImage ctx image sx sy sw sh dx dy dw dh
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                sx $ legacy-number
+                  .unwrap-or (get style :sx) nil
+                  , 0
+                sy $ legacy-number
+                  .unwrap-or (get style :sy) nil
+                  , 0
+                sw $ legacy-number
+                  .unwrap-or (get style :sw) nil
+                  , 40
+                sh $ legacy-number
+                  .unwrap-or (get style :sh) nil
+                  , 40
+                dx $ legacy-number
+                  .unwrap-or (get style :dx) nil
+                  , 0
+                dy $ legacy-number
+                  .unwrap-or (get style :dy) nil
+                  , 0
+                dw $ legacy-number
+                  .unwrap-or (get style :dw) nil
+                  , 40
+                dh $ legacy-number
+                  .unwrap-or (get style :dh) nil
+                  , 40
+                src $ .unwrap $ get style :src
+              if (string? src)
+                .!drawImage ctx (get-image src) sx sy sw sh dx dy dw dh
+                raise |Expected-image-source-string
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic 'Dynamic
