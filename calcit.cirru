@@ -1693,30 +1693,69 @@
             :features $ #{} :js-ffi
         'find-hit-area $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn find-hit-area (point areas)
-            if (empty? areas) (Option :none)
-              let
-                  x $ nth areas 0
-                  transform $ :transform x
-                  p $ point-minus point $ point-add (:offset x)
-                    point-times (:position x) transform
-                  delta $ point-divide p transform
-                if
-                  case-default (:kind x)
-                    do (js/console.warn |invalid-area-data x) false
-                    :rect $ and
-                      <=
-                        js/Math.abs $ nth delta 0
-                        :half-w x
-                      <=
-                        js/Math.abs $ nth delta 1
-                        :half-h x
-                    :arc $ <=
-                      +
-                        js/Math.pow (nth delta 0) 2
-                        js/Math.pow (nth delta 1) 2
-                      js/Math.pow (:r x) 2
-                  Option :some x
-                  recur point $ nth areas 1
+            let
+                point $ decode-map-as point $ :: 'List 'Number
+                areas $ decode-map-as areas $ :: 'List 'Dynamic
+              loop
+                  areas areas
+                if (empty? areas) (Option :none)
+                  let
+                      x $ decode-map-as
+                        .unwrap $ nth areas 0
+                        :: 'Map 'Dynamic 'Dynamic
+                      transform $ decode-map-as
+                        .unwrap $ get x :transform
+                        :: 'List 'Number
+                      p $ point-minus point $ point-add
+                        decode-map-as
+                          .unwrap $ get x :offset
+                          :: 'List 'Number
+                        point-times
+                          decode-map-as
+                            .unwrap $ get x :position
+                            :: 'List 'Number
+                          , transform
+                      delta $ point-divide p transform
+                    if
+                      match
+                        .unwrap-or (get x :kind) nil
+                        :rect $ and
+                          <=
+                            decode-map-as
+                              js/Math.abs $ .unwrap $ nth delta 0
+                              , 'Number
+                            decode-map-as
+                              .unwrap $ get x :half-w
+                              , 'Number
+                          <=
+                            decode-map-as
+                              js/Math.abs $ .unwrap $ nth delta 1
+                              , 'Number
+                            decode-map-as
+                              .unwrap $ get x :half-h
+                              , 'Number
+                        :arc $ <=
+                          +
+                            decode-map-as
+                              js/Math.pow
+                                .unwrap $ nth delta 0
+                                , 2
+                              , 'Number
+                            decode-map-as
+                              js/Math.pow
+                                .unwrap $ nth delta 1
+                                , 2
+                              , 'Number
+                          decode-map-as
+                            js/Math.pow
+                              decode-map-as
+                                .unwrap $ get x :r
+                                , 'Number
+                              , 2
+                            , 'Number
+                        _ $ do (js/console.warn |invalid-area-data x) false
+                      Option :some x
+                      recur $ .slice areas 1
           :examples $ []
           :schema $ :: 'Fn $ {}
             :args $ [] 'Dynamic 'Dynamic
@@ -1724,10 +1763,17 @@
             :return $ :: 'Option 'Dynamic
         'handle-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn handle-event (coord event-name event dispatch) (; js/console.log "|handle event" coord event-name @*element-tree)
-            if-let
-              maybe-listener $ resolve-target @*element-tree event-name $ either coord ([])
-              do (.!preventDefault event) (maybe-listener event dispatch)
-              ; js/console.log "|no target"
+            let
+                coord $ decode-map-as
+                  either coord $ []
+                  :: 'List 'Dynamic
+                event-name $ decode-map-as event-name 'Tag
+              if-let
+                maybe-listener $ resolve-target @*element-tree event-name coord
+                if (fn? maybe-listener)
+                  do (.!preventDefault event) (maybe-listener event dispatch)
+                  raise |Expected-event-listener-function
+                ; js/console.log "|no target"
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic 'Dynamic 'Dynamic
