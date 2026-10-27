@@ -2,6 +2,8 @@
 
 ## 当前 0.31.0 迁移候选
 
+直接访问旧 `quamolit.core/*element-tree` 的调用方需要迁移：缓存现为 `LegacyRoot` 枚举（`:empty`、`:shape`、`:component`），写入使用 `cache-element-tree!`，不再直接 reset 原始树。公开绘制函数仍接收原 Shape/Component/nil。写入口检查真实名义类型，非法值不会覆盖原缓存；事件处理解包缓存后沿原路由查找。原生三态切换及生成 JS 的路由、事件/dispatch 身份传递、重绘写入口和非法输入保留缓存均已验收，尚未替代真实浏览器验收。
+
 开发工具链与 runtime 已配对到正式 0.31.0，使用已发布 js-ffi 0.2.7、touch-control 0.0.34、pointed-prompt 0.0.23。此次调整 `slice` 的可选终点、已移除的字面量 `case-default`，并补充实际回调参数合同和 Shape 检查；不放宽类型门禁或原断言。旧 `defcomp` 的 Struct 匹配修正为先检查返回值是 Struct，再按值、模式顺序匹配，继续接受原 List/Map 返回分支。
 
 六个旧坐标函数 `point-add` / `point-minus` / `point-times` / `point-divide` / `point-scale` / `point-negate` 的合同收紧为数字列表（缩放因子为 Number），返回数字列表；调用方不能再把未经检查的开放值当作坐标传入。原来补零的函数保留短列表补零；`point-negate` 显式解包两个坐标，缺项仍失败，不默认补零。复数乘除往返、加法逆元、短列表乘法、缩放和减法已用正式 CLI 验证；旧调用方迁移仍在进行。

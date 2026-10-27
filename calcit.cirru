@@ -1567,9 +1567,9 @@
           :examples $ []
           :schema $ :: 'Dynamic
         '*element-tree $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defref *element-tree nil
+          :code $ quote $ defref *element-tree (LegacyRoot :empty)
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Ref 'quamolit.core/LegacyRoot
         '*last-tick $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *last-tick (get-tick)
           :examples $ []
@@ -1625,6 +1625,10 @@
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ :: 'Trait
+        'LegacyRoot $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum LegacyRoot (:empty) (:shape 'quamolit.types/Shape) (:component 'quamolit.types/Component)
+          :examples $ []
+          :schema $ :: 'EnumDef
         'advance-frame-clock! $ %{} 'CodeEntry
           :doc "|Advance the absolute animation clock in seconds and return elapsed seconds. Reject backward time; use reset-frame-clock! to seek."
           :code $ quote $ defn advance-frame-clock! (seconds)
@@ -1635,6 +1639,20 @@
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ [] 'Number
+        'cache-element-tree! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn cache-element-tree! (tree)
+            reset! *element-tree $ cond
+                nil? tree
+                LegacyRoot :empty
+              (and (struct? tree) (&struct:matches? tree quamolit.types/Shape))
+                LegacyRoot :shape tree
+              (and (struct? tree) (&struct:matches? tree quamolit.types/Component))
+                LegacyRoot :component tree
+              true $ raise "|Expected a Quamolit Shape or Component"
+            , &unit
+          :examples $ []
+          :schema $ :: 'Fn $ {} (:return 'Unit)
+            :args $ [] 'Dynamic
         'call-paint $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn call-paint (tree target dispatch! elapsed tick?) (; js/console.log tree)
             let
@@ -1791,8 +1809,12 @@
                   either coord $ []
                   :: 'List 'Dynamic
                 event-name $ decode-map-as event-name 'Tag
+                tree $ match @*element-tree
+                  (:empty) nil
+                  (:shape value) value
+                  (:component value) value
               if-let
-                maybe-listener $ resolve-target @*element-tree event-name coord
+                maybe-listener $ resolve-target tree event-name coord
                 if (fn? maybe-listener)
                   do (.!preventDefault event) (maybe-listener event dispatch)
                   raise |Expected-event-listener-function
@@ -1831,7 +1853,7 @@
           :code $ quote $ defn paint-context-at (tree ctx dispatch! seconds)
             let
                 elapsed $ advance-frame-clock! seconds
-              reset! *element-tree tree
+              cache-element-tree! tree
               paint ctx tree ([]) dispatch! elapsed true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
@@ -1859,7 +1881,7 @@
             :features $ #{} :js-ffi
         'redraw-context $ %{} 'CodeEntry
           :doc "|Paint the current scene on a Canvas 2D context without advancing on-tick callbacks; use after a deterministic step for screenshots."
-          :code $ quote $ defn redraw-context (tree ctx dispatch!) (reset! *element-tree tree)
+          :code $ quote $ defn redraw-context (tree ctx dispatch!) (cache-element-tree! tree)
             paint ctx tree ([]) dispatch! 0 false
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
@@ -1867,7 +1889,7 @@
             :features $ #{} :js-ffi
         'redraw-page $ %{} 'CodeEntry
           :doc "|Repaint a browser canvas without advancing on-tick callbacks; pass a freshly constructed scene after a deterministic step."
-          :code $ quote $ defn redraw-page (tree target dispatch!) (reset! *element-tree tree) (call-paint tree target dispatch! 0 false)
+          :code $ quote $ defn redraw-page (tree target dispatch!) (cache-element-tree! tree) (call-paint tree target dispatch! 0 false)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic 'Dynamic
@@ -1884,7 +1906,7 @@
           :code $ quote $ defn render-page-at (tree target dispatch! seconds)
             let
                 elapsed $ advance-frame-clock! seconds
-              reset! *element-tree tree
+              cache-element-tree! tree
               call-paint tree target dispatch! elapsed true
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
