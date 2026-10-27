@@ -1,10 +1,6 @@
 name: Visual regression
 
 on:
-  push:
-    branches:
-      - main
-  pull_request: {}
   workflow_dispatch:
     inputs:
       mutation:
@@ -15,6 +11,9 @@ on:
         options:
           - none
           - color
+
+permissions:
+  contents: read
 
 jobs:
   visual:
@@ -36,6 +35,10 @@ jobs:
           deps-file: deps.cirru
 
       - run: yarn install --immutable
+
+      - name: Prepare exact remote candidate for isolated migration acceptance
+        working-directory: examples/retained-consumer
+        run: caps --ci add Quamolit/quamolit -r e6cdfc778c0ea53bbf31c23cd18e64335a465767
 
       - name: Check test JS formatting
         run: yarn check:test-js-format
@@ -200,7 +203,7 @@ jobs:
         run: yarn test:consumer
         env:
           CI: "true"
-          QUAMOLIT_CONSUMER_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+          QUAMOLIT_CONSUMER_REF: e6cdfc778c0ea53bbf31c23cd18e64335a465767
           QUAMOLIT_CONSUMER_BENCH: "1"
           QUAMOLIT_BENCH_WARMUP: "0.2"
           QUAMOLIT_BENCH_DURATION: "0.6"
