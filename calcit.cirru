@@ -196,7 +196,7 @@
             quasiquote $ defn ~comp-name ~args $ let
                 ret $ do ~@body
               cond
-                  &struct:matches? Shape ret
+                  and (struct? ret) (&struct:matches? ret Shape)
                   %{} Component
                     :name $ ~ $ turn-tag comp-name
                     :on-tick nil
@@ -7753,7 +7753,7 @@
                                   :x $ + (negate half) 12
                                   :y -26
                                   :size 18
-                                  :text $ slice (:text glyph) 0 cut-count
+                                  :text $ .slice (:text glyph) 0 $ Option :some cut-count
                               (= offset 4)
                                 struct-with glyph
                                   :x $ - half 104
@@ -7808,7 +7808,7 @@
                       :x $ + (negate half) 12
                       :y -3
                       :size 18
-                      :text $ slice (:text label) cut-count
+                      :text $ .slice (:text label) cut-count
                   , targets
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -7909,7 +7909,7 @@
             let
                 current $ settle model at
                 rows $ :rows current
-              case-default kind (raise |unknown-todo-event)
+              match kind
                 |add $ do
                   assert |invalid-todo-label $ valid-label? label
                   assert |todo-capacity $ < (.len rows) 24
@@ -7966,6 +7966,7 @@
                   map rows $ fn (row)
                     struct-with row $ :present false
                   , at
+                _ $ raise |unknown-todo-event
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'quamolit.examples.todolist/Model)
             :args $ [] 'quamolit.examples.todolist/Model 'Number 'String 'String 'String
@@ -11586,8 +11587,9 @@
                   , .unwrap-or 0
                 (nth b 1) .unwrap-or 0
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'Number) (:: 'List 'Number)
+            :return $ :: 'List 'Number
         'point-divide $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn point-divide (x y)
             let
@@ -11612,9 +11614,10 @@
                   - (* b c) (* a d)
                   , length2
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'Number) (:: 'List 'Number)
             :features $ #{} :js-ffi
+            :return $ :: 'List 'Number
         'point-minus $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn point-minus (a b)
             []
@@ -11627,22 +11630,25 @@
                   , .unwrap-or 0
                 (nth b 1) .unwrap-or 0
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'Number) (:: 'List 'Number)
+            :return $ :: 'List 'Number
         'point-negate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn point-negate (a)
             []
-              negate $ nth a 0
-              negate $ nth a 1
+              negate $ .unwrap $ nth a 0
+              negate $ .unwrap $ nth a 1
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic
+          :schema $ :: 'Fn $ {}
+            :args $ [] $ :: 'List 'Number
+            :return $ :: 'List 'Number
         'point-scale $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn point-scale (pair v)
             map pair $ fn (x) (* v x)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'Number) 'Number
+            :return $ :: 'List 'Number
         'point-times $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn point-times (a b)
             let
@@ -11662,8 +11668,9 @@
                 - (* a0 b0) (* a1 b1)
                 + (* a0 b1) (* a1 b0)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic
+          :schema $ :: 'Fn $ {}
+            :args $ [] (:: 'List 'Number) (:: 'List 'Number)
+            :return $ :: 'List 'Number
         'vec-length $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn vec-length (point)
             let[] (x y) point $ js/Math.sqrt $ &+ (&* x x) (&* y y)
@@ -13935,7 +13942,7 @@
                       and
                         includes? fade-ids $ :id $ :node (:entry ancestor)
                         < (.len ancestor-path) (.len path)
-                        = ancestor-path $ slice path 0 $ .len ancestor-path
+                        = ancestor-path $ .slice path 0 $ Option :some (.len ancestor-path)
                         = (:phase ancestor) (:phase item)
                         = (:alpha ancestor) (:alpha item)
                 , true
@@ -15225,6 +15232,7 @@
         'paint-rect $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-rect (ctx style coord event)
             let
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
                 w $ legacy-number
                   match (&map:get style :w)
                     (:some legacy-value) legacy-value
@@ -15378,21 +15386,26 @@
                 paint-tree-only-with ctx (:tree component)
                   conj coord $ :name component
                   , paint-leaf
-              let
-                  shape $ assert-type tree Shape
-                paint-leaf ctx shape coord
-                &doseq
-                  cursor $ :children shape
-                  paint-tree-only-with ctx
-                    (last cursor) .unwrap-or nil
-                    append coord $
-                      first cursor
-                      , .unwrap-or nil
-                    , paint-leaf
-                , &unit
+              if
+                and (struct? tree) (&struct:matches? tree Shape)
+                let
+                    shape $ assert-type tree Shape
+                  paint-leaf ctx shape coord
+                  &doseq
+                    cursor $ :children shape
+                    paint-tree-only-with ctx
+                      (last cursor) .unwrap-or nil
+                      append coord $
+                        first cursor
+                        , .unwrap-or nil
+                      , paint-leaf
+                  , &unit
+                raise "|Expected a Quamolit Shape or Component"
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic) 'Dynamic
+            :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic)
+              :: 'Fn $ {} (:return 'Dynamic)
+                :args $ [] 'Dynamic 'quamolit.types/Shape $ :: 'List 'Dynamic
           :tests $ [] $ %{} 'TestEntry (:name |paint-does-not-tick)
             :code $ quote $ let
                 ticked $ ref 0
@@ -15403,7 +15416,11 @@
                   :children $ []
                 component $ %{} Component (:name :probe) (:tree shape)
                   :on-tick $ fn (elapsed dispatch!) (swap! ticked inc)
-                leaf $ fn (ctx shape coord) (swap! painted inc)
+                leaf $ fn (ctx shape coord)
+                  hint-fn $ {}
+                    :args $ [] 'Dynamic 'quamolit.types/Shape $ :: 'List 'Dynamic
+                    :return 'Number
+                  swap! painted inc
               paint-tree-only-with nil component ([]) leaf
               is= 0 @ticked
               is= 1 @painted
@@ -15423,7 +15440,9 @@
               paint-tree-only-with ctx tree coord paint-leaf
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic) 'Dynamic 'Number 'Bool 'Dynamic
+            :args $ [] 'Dynamic 'Dynamic (:: 'List 'Dynamic) 'Dynamic 'Number 'Bool $ :: 'Fn
+              {} (:return 'Dynamic)
+                :args $ [] 'Dynamic 'quamolit.types/Shape $ :: 'List 'Dynamic
           :tests $ [] $ %{} 'TestEntry (:name |tick-versus-redraw)
             :code $ quote $ let
                 seen $ ref 0
@@ -17846,7 +17865,8 @@
         'compact-stroke-points $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn compact-stroke-points (points)
             let
-                compact $ foldl points (slice points 0 0)
+                compact $ foldl points
+                  .slice points 0 $ Option :some 0
                   fn (result point)
                     if
                       and
@@ -21493,8 +21513,7 @@
         'cubic-stroke-profile $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn cubic-stroke-profile (profile)
             scene/SceneContent :cubic-path $ scene/CubicPathNode :start (motion/Vec2 :x 20 :y 70) :segments
-              case-default profile
-                [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 20 :y 10) :control-2 (motion/Vec2 :x 80 :y 10) :end $ motion/Vec2 :x 80 :y 70
+              match profile
                 |straight $ [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 40 :y 70) :control-2 (motion/Vec2 :x 60 :y 70) :end (motion/Vec2 :x 80 :y 70)
                 |elbow $ []
                   scene/CubicSegment :control-1 (motion/Vec2 :x 40 :y 70) :control-2 (motion/Vec2 :x 60 :y 70) :end $ motion/Vec2 :x 80 :y 70
@@ -21508,6 +21527,7 @@
                   scene/CubicSegment :control-1 (motion/Vec2 :x 40 :y 70) :control-2 (motion/Vec2 :x 60 :y 70) :end $ motion/Vec2 :x 80 :y 70
                   scene/CubicSegment :control-1 (motion/Vec2 :x 80 :y 70) :control-2 (motion/Vec2 :x 80 :y 70) :end $ motion/Vec2 :x 80 :y 70
                   scene/CubicSegment :control-1 (motion/Vec2 :x 80 :y 50) :control-2 (motion/Vec2 :x 80 :y 30) :end $ motion/Vec2 :x 80 :y 10
+                _ $ [] $ scene/CubicSegment :control-1 (motion/Vec2 :x 20 :y 10) :control-2 (motion/Vec2 :x 80 :y 10) :end (motion/Vec2 :x 80 :y 70)
               , :width
                 if (= profile |thin) 0.1 20
                 , :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
@@ -21586,14 +21606,14 @@
         'polygon-stroke-profile $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn polygon-stroke-profile (profile)
             scene/SceneContent :polygon $ scene/PolygonNode :points
-              case-default profile
-                [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 80 :y 20) (motion/Vec2 :x 80 :y 80) (motion/Vec2 :x 20 :y 80)
+              match profile
                 |clockwise $ [] (motion/Vec2 :x 20 :y 80) (motion/Vec2 :x 80 :y 80) (motion/Vec2 :x 80 :y 20) (motion/Vec2 :x 20 :y 20)
                 |acute-miter $ [] (motion/Vec2 :x 20 :y 70) (motion/Vec2 :x 80 :y 70) (motion/Vec2 :x 20 :y 55)
                 |acute-bevel $ [] (motion/Vec2 :x 20 :y 70) (motion/Vec2 :x 80 :y 70) (motion/Vec2 :x 20 :y 65)
                 |duplicates $ [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 80 :y 20) (motion/Vec2 :x 80 :y 80) (motion/Vec2 :x 20 :y 80) (motion/Vec2 :x 20 :y 20)
                 |collapsed $ [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 20 :y 20)
                 |collinear $ [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 50 :y 20) (motion/Vec2 :x 80 :y 20)
+                _ $ [] (motion/Vec2 :x 20 :y 20) (motion/Vec2 :x 80 :y 20) (motion/Vec2 :x 80 :y 80) (motion/Vec2 :x 20 :y 80)
               , :width
                 if (= profile |zero-width) 0 20
                 , :fill
@@ -22195,6 +22215,10 @@
                 state* $ ref $ pointer/initial-pointer-state
                 count* $ ref 0
                 handle! $ fn (phase event)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.scene-pointer/PointerPhase 'quamolit.scene-pointer-browser/PointerEventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   let
                       input $ browser/pointer-input-from-event surface phase event
                       routed $ browser/route-event! surface @plan* @state* phase event
@@ -22217,6 +22241,10 @@
                           (:none) |
                       _ |
                 handle-lost! $ fn (event)
+                  hint-fn $ {}
+                    :args $ [] 'quamolit.scene-pointer-browser/PointerEventHost
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   let
                       reconciled $ pointer/lose-pointer-capture @state* $ browser/pointer-id-from-event event
                     reset! state* $ :state reconciled
@@ -22233,6 +22261,10 @@
                     dom/element-set-attribute! element |data-blur-released $ str $ :capture-released reconciled
                     dom/element-set-attribute! element |data-capture-cleared $ str $ capture-cleared? (:state reconciled)
                 set-disabled! $ fn (disabled?)
+                  hint-fn $ {}
+                    :args $ [] 'Bool
+                    :return 'Unit
+                    :features $ #{} :js-ffi
                   let
                       next-plan $ hit/compile-hit-plan $ fixture/routing-scene-subtree disabled?
                       reconciled $ browser/reconcile-pointer-surface! surface next-plan @state*

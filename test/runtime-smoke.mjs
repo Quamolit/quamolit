@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { _$n__$M_ as map } from "@calcit/procs";
-import { vals, init_tags, CalcitSliceList } from "../target/js/app/calcit.core.mjs";
+import { distinct_values, init_tags, CalcitSliceList } from "../target/js/app/calcit.core.mjs";
 import { hsl } from "../target/js/app/quamolit.util.string.mjs";
 import { paint_rect } from "../target/js/app/quamolit.render.paint.mjs";
 import { create_shape } from "../target/js/app/quamolit.alias.mjs";
@@ -54,7 +54,7 @@ assert.equal(installedJsFfi, declaredJsFfiVersion, "实际 npm js-ffi 必须与�
 assert.equal(installedCalcitJsFfi, declaredJsFfiVersion, "实际 Calcit js-ffi 模块必须与声明匹配");
 
 // Exercise generated core against the matching JS runtime, not just codegen.
-const values = vals(map("first", 1, "second", 1));
+const values = distinct_values(map("first", 1, "second", 1));
 assert.equal(values.toString(), "(#{} 1)");
 
 // Option 原语升级不能把 None/Some 包装体传进旧 Canvas/Shape ABI。
