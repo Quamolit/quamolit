@@ -1970,12 +1970,12 @@
         'gc-states $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gc-states (store op-data)
             let
-                cursor $ unsafe-coerce
+                cursor $ decode-map-as
                   match (&list:first op-data)
                     (:some legacy-value) legacy-value
                     (:none) nil
                   :: 'List 'Tag
-                fields $ unsafe-coerce
+                fields $ decode-map-as
                   match (&list:last op-data)
                     (:some legacy-value) legacy-value
                     (:none) nil
@@ -1984,7 +1984,9 @@
                 concat ([] :states) cursor
                 fn (maybe-dict)
                   select-keys
-                    maybe-dict.unwrap-or $ {}
+                    decode-map-as
+                      maybe-dict.unwrap-or $ {}
+                      :: 'Map 'Dynamic 'Dynamic
                     conj fields :data
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
@@ -1993,7 +1995,7 @@
         'update-states $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-states (store op-data)
             let
-                cursor $ unsafe-coerce
+                cursor $ decode-map-as
                   match (&list:first op-data)
                     (:some legacy-value) legacy-value
                     (:none) nil
@@ -22674,15 +22676,21 @@
         '=seq $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn =seq (xs ys)
             let
-                xs-empty? $ empty? xs
-                ys-empty? $ empty? ys
+                xs-empty? $ = 0 $ count xs
+                ys-empty? $ = 0 $ count ys
               if (and xs-empty? ys-empty?) true $ if (or xs-empty? ys-empty?) false $ if
-                identical? (first xs) (first ys)
+                identical?
+                  .unwrap $ first xs
+                  .unwrap $ first ys
                 recur (rest xs) (rest ys)
                 , false
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic 'Dynamic
+          :schema $ :: 'Fn $ {} (:return 'Bool)
+            :args $ [] 'X 'Y
+            :generics $ [] 'X 'Y
+            :where $ {}
+              'X $ [] 'Sliceable 'Countable
+              'Y $ [] 'Sliceable 'Countable
         'compare-more $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn compare-more (x y)
             let

@@ -10,6 +10,8 @@
 
 旧图片入口的缓存现在声明为 `Ref<Map<String, ImageHost>>`，`get-image` 接受字符串 URL 并返回实际 ImageHost。`paint-image` 检查样式 Map、源字符串和数字坐标，保留原 nil/false 默认值与零值；非数字坐标更早拒绝。隔离生成的 JS 已验证同 URL 实例复用、不同 URL 分离、drawImage 参数、默认值和非法输入；使用无网络的合成 Image 宿主，尚不代表真实图片解码或页面重绘验收。
 
+旧状态游标的三处 unsafe 转换改为实际 `List<Tag>` 解码，清理状态时检查嵌套 Map；保留所选字段、`:data`、nil/false 与其他根字段。非法游标现在更早拒绝。`=seq` 使用 Sliceable/Countable 泛型约束，已确认非空后解包 first 再比较元素身份；native 与生成 JS 的列表/字符串验收通过，JS 同一/不同对象身份分别为 true/false。Option 包装身份的跨后端差异另报 [Calcit #2448](https://github.com/calcit-lang/calcit/issues/2448)，不增加专用 fix 规则。
+
 这是未发布候选：完整定义扫描仍有 legacy 类型问题，完整浏览器与独立安装消费者尚未验收。消费者自己的 CLI/runtime 已对齐，但其 Quamolit 引用仍是原候选提交，必须在模块发布后改成已验证的正式 tag；不能把根项目测试通过当作独立消费者已就绪。下面保留 0.30.1 迁移记录，所述历史验收不自动适用于当前候选。
 
 ## 0.30.1 迁移记录
