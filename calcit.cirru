@@ -15070,10 +15070,11 @@
                 angle $ * pi-ratio $ decode-map-as
                   .unwrap-or (&map:get props :angle) 30
                   , 'Number
-              group ({})
-                native-save $ {}
-                native-rotate $ &{} :angle angle
-                , & children $ native-restore $ {}
+              group ({}) & $ conj
+                prepend
+                  prepend children $ native-rotate $ &{} :angle angle
+                  native-save $ {}
+                native-restore $ {}
           :examples $ []
           :schema $ :: 'Fn $ {} (:rest 'Dynamic) (:return 'Dynamic)
             :args $ [] $ :: 'Map 'Tag 'Dynamic
@@ -15493,12 +15494,17 @@
         'paint-rotate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-rotate (ctx style)
             let
-                angle $ or (:angle style) 30
-                radius $ / (* angle js/Math 2) 180
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                angle $ legacy-number
+                  .unwrap-or (get style :angle) nil
+                  , 30
               .!rotate ctx angle
               swap! *tracked-transform update :transform $ fn (point)
-                point-times point $ [] (js/Math.cos radius)
-                  negate $ js/Math.cos radius
+                let
+                    point $ decode-map-as point $ :: 'List 'Number
+                  point-times point $ []
+                    decode-map-as (js/Math.cos angle) 'Number
+                    decode-map-as (js/Math.sin angle) 'Number
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic
