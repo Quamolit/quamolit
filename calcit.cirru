@@ -9266,12 +9266,11 @@
         'sync-font-leases $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sync-font-leases (registry previous next budget)
             assert |invalid-font-budget $ and (motion/finite-number? budget) (> budget 0)
-            .each (concat previous next)
-              fn (font-ref)
-                hint-fn $ {} (:return 'Unit)
-                  :args $ [] 'quamolit.resource-lifecycle/ResourceIdentity
-                assert |invalid-font-reference $ = (:kind font-ref) (resource/ResourceKind :font)
-                assert |invalid-font-reference $ = font-ref $ resource/resource (:kind font-ref) (:id font-ref) (:version font-ref)
+            foldl (concat previous next) &unit $ fn (_acc font-ref)
+              hint-fn $ {} (:return 'Unit)
+                :args $ [] 'Unit 'quamolit.resource-lifecycle/ResourceIdentity
+              assert |invalid-font-reference $ = (:kind font-ref) (resource/ResourceKind :font)
+              assert |invalid-font-reference $ = font-ref $ resource/resource (:kind font-ref) (:id font-ref) (:version font-ref)
             assert |duplicate-font-reference $ every? previous $ fn (font-ref)
               = 1 $ .len $ filter previous
                 fn (other) (= font-ref other)
