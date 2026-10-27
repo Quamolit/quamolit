@@ -2,51 +2,37 @@
 
 ## 当前 0.31.0 迁移候选
 
-当前全定义严格检查已通过 1718/1718，原生附带测试 162/162；这不代表真实浏览器、独立消费者及完整发布门禁已通过。资源字体校验用现有泛型 `foldl` 保留 ResourceIdentity 回调关系、原断言和遍历顺序，绕过旧 `each` 的 Dynamic 合同丢失问题；检查路径差异及撤销条件见 [Calcit #2449](https://github.com/calcit-lang/calcit/issues/2449)，上游保留元素关系后可复测恢复 each，不加专用 fix 或门禁豁免。
+这是未发布候选。使用旧 Shape/Component API 的调用方需要注意以下合同变化；新 Scene/Motion API 不因工具链升级自动升级稳定性。下面的 0.30.1 历史验收不能作为本候选的验收结果。
 
-旧事件入口的焦点/拖动缓存改为 `Option<List<…>>`，保留最初空路径和 `[0,0]` 值；直接访问这两个 Ref 的调用方需要适配。鼠标坐标和 Canvas 尺寸经数字解码，移除相关 unsafe；`CanvasHost` 修正为真实 `:style` 字段和 `.getContext` 方法，空 context 明确报错。滚轮原来给 `not` 传两个参数的错误改为拒绝任一越界方向，向内滚动仍可用。生成 JS 的焦点/点击/键盘、修饰键拖动、缩放上下限、离开清理和 DPR/CSS/像素尺寸检查通过；这些合成宿主验收不代表真实页面交互。HUD 保留并明确字符串列表缓存。
+### 对调用方的影响
 
-alpha/scale 采用单个有序列表展开，保持 save/变换/子节点/restore 顺序；状态游标实际检查 Map/List 后使用。Binary Tree、TodoList 的时间采样回调与两个 Demo 的八个指针转发回调补齐原合同，修复固定路径采样测试返回类型的多余嵌套，不改变运行体。完整调用证明审计仍须通过，不能用仅第一阶段检查的通过数量代替全部门禁。
+- CLI 与 runtime 配对到正式 0.31.0，依赖已发布 js-ffi 0.2.7、touch-control 0.0.34、pointed-prompt 0.0.23。消费者自己的 CLI/runtime 已对齐，但 Quamolit 仍引用旧候选提交，尚未完成正式 tag 消费；不能把根项目通过当作独立消费者就绪。
+- 六个 `point-*` 坐标函数与 `vec-length` 使用 `List<Number>`，缩放因子为 Number。原短列表补零行为保留；`point-negate` 和长度运算的必需坐标缺失仍失败。未经检查的开放值须在入口解码。
+- 直接访问 `quamolit.core/*element-tree` 的调用方须改用 `LegacyRoot`（empty/shape/component）及 `cache-element-tree!`；公开绘制函数仍接收 Shape/Component/nil。非法缓存输入不会覆盖原值。焦点和拖动缓存改为 `Option<List<…>>`，保留最初空路径和 `[0,0]` 值，直接读写这两个 Ref 也需要适配。
+- `CanvasHost` 改为真实 `:style` 字段和 `.getContext` 方法，替代原错误的方法合同；缺失 context 明确失败。图片缓存为 `Ref<Map<String, ImageHost>>`，`get-image` 的 URL 必须为 String。
+- 旧样式、状态、坐标、回调和宿主事件入口采用真实 Map/List/Number/函数检查，非法输入会更早失败；合法输入的 nil/false 默认值、零值、事件身份及惰性 fallback 按原入口分别保留。状态游标解码不承诺列表引用身份。
 
-旧 Fade 两个组件检查实际状态 Map、stage/opacity、帧间隔和回调，再执行原四阶段转换；速度仍为 4，原合并/替换状态和删除缓存时机保持不变。`get-node!` 的已有 Option 返回现在明确标注，两个调用点显式解包，避免将 Option 当作缓存节点或函数。生成 JS 已验证 12 组旧阶段转换及两种缺缓存回退；原 Fade 迁移测试通过，真实页面动画仍待验收。
+### 迁移与独立行为修复
 
-旧 Slider 现在先检查 states/options Map，再解包字段的 Option；拖动计算检查实际数字坐标、局部起点与步进值，初始化回调检查可调用性。保留原最小/最大默认值、`:v` 比较、JS 数组引用状态和显示格式；短 position 的缺项按平移组件原行为补零，未发生拖动时不强制提供 unit。生成 JS 的初始化、拖动差值、回调身份及标签默认值验收通过；非法宿主坐标提前拒绝，真实浏览器拖动仍待验收。
+退役 literal `case-default`、可选终点 `slice`、Option 字段读取及回调 schema 按正式合同迁移。`defcomp` 先确认 Struct，再按值、模式顺序匹配，保留 List/Map 返回分支。`locate-target` / `resolve-target` 保留祖先监听器查找和 `Some nil`，正确区分 Result/Option；沿原测试入口覆盖六个嵌套路由分支，不新增 runner。
 
-直接访问旧 `quamolit.core/*element-tree` 的调用方需要迁移：缓存现为 `LegacyRoot` 枚举（`:empty`、`:shape`、`:component`），写入使用 `cache-element-tree!`，不再直接 reset 原始树。公开绘制函数仍接收原 Shape/Component/nil。写入口检查真实名义类型，非法值不会覆盖原缓存；事件处理解包缓存后沿原路由查找。原生三态切换及生成 JS 的路由、事件/dispatch 身份传递、重绘写入口和非法输入保留缓存均已验收，尚未替代真实浏览器验收。
+旧 button/input/slider/textbox、路径/文字/圆弧/图片绘制及舞台控制检查实际输入后执行原计算。Slider 保留最小/最大默认值、`:v` 比较、JS 数组状态和显示格式，只有拖动时才要求 unit；Textbox 保留字母/Shift/空格/Unicode 退格行为。Fade 保留四阶段、速度 4、状态合并及删除缓存时机，修正 `get-node!` 已有 Option 返回的合同并在调用处解包。
 
-开发工具链与 runtime 已配对到正式 0.31.0，使用已发布 js-ffi 0.2.7、touch-control 0.0.34、pointed-prompt 0.0.23。此次调整 `slice` 的可选终点、已移除的字面量 `case-default`，并补充实际回调参数合同和 Shape 检查；不放宽类型门禁或原断言。旧 `defcomp` 的 Struct 匹配修正为先检查返回值是 Struct，再按值、模式顺序匹配，继续接受原 List/Map 返回分支。
+以下是检查中发现的真实旧代码错误，不能称为纯类型标注：命中遍历把第二个元素误当列表尾部、事件区域 prepend 参数颠倒、Canvas 方法缺少正确接收者、滚轮给 `not` 传两个参数，以及旋转跟踪把 Math 对象参与乘法并使用负余弦。旋转现在与 Canvas 共用弧度和 cos/sin，公开角度只转换一次；真实旋转后点击仍待验收，见 [#254](https://github.com/Quamolit/quamolit/issues/254)。旋转/平移/缩放/透明度的子节点统一按 save/变换/children/restore 顺序展开，不收窄合法子节点。
 
-六个旧坐标函数 `point-add` / `point-minus` / `point-times` / `point-divide` / `point-scale` / `point-negate` 的合同收紧为数字列表（缩放因子为 Number），返回数字列表；调用方不能再把未经检查的开放值当作坐标传入。原来补零的函数保留短列表补零；`point-negate` 显式解包两个坐标，缺项仍失败，不默认补零。复数乘除往返、加法逆元、短列表乘法、缩放和减法已用正式 CLI 验证；旧调用方迁移仍在进行。
+HUD 保留，缓存明确为字符串列表。`bound-opacity` 的非法输入仍警告并返回 undefined，`paint-alpha` 仍产生 NaN，不替换为 raise；损坏的基础透明度状态则明确拒绝。数字比较保留原数字公式，不把它宣称为任意类型的全序比较。`bound-x` 保留运算顺序，键码转换保留 A–Z、大小写和小数截断。
 
-旧 `locate-target` / `resolve-target` 保留 Option 返回和按祖先查找监听器的行为。先辨认 Component/Shape，再检查孩子列表与事件 Map；不再颠倒 Struct 匹配参数，也不把 `get-in` 的 Result 当作 Option。缺失监听器继续向父级查询，显式存在的 nil 仍为 `Some nil`；非法结构在入口报错。现有附带测试体系增加一个嵌套路由回归，覆盖六个实际分支，不新增 runner。
+`=seq` 在确认非空后解包 first 再比较元素身份，避免比较 Option 包装身份；native/JS 差异见 [Calcit #2448](https://github.com/calcit-lang/calcit/issues/2448)。字体租约校验用现有泛型 `foldl` 保留 ResourceIdentity 回调关系、原断言和遍历顺序，绕过 `each` 的 Dynamic 合同丢失；上游修复后复测撤销，见 [Calcit #2449](https://github.com/calcit-lang/calcit/issues/2449)。两处均不新增专用 fix 或证明豁免。
 
-旧图片入口的缓存现在声明为 `Ref<Map<String, ImageHost>>`，`get-image` 接受字符串 URL 并返回实际 ImageHost。`paint-image` 检查样式 Map、源字符串和数字坐标，保留原 nil/false 默认值与零值；非数字坐标更早拒绝。隔离生成的 JS 已验证同 URL 实例复用、不同 URL 分离、drawImage 参数、默认值和非法输入；使用无网络的合成 Image 宿主，尚不代表真实图片解码或页面重绘验收。
+### 当前证据与剩余门禁
 
-旧状态游标的三处 unsafe 转换改为实际 `List<Tag>` 解码，清理状态时检查嵌套 Map；保留所选字段、`:data`、nil/false 与其他根字段。非法游标现在更早拒绝。`=seq` 使用 Sliceable/Countable 泛型约束，已确认非空后解包 first 再比较元素身份；native 与生成 JS 的列表/字符串验收通过，JS 同一/不同对象身份分别为 true/false。Option 包装身份的跨后端差异另报 [Calcit #2448](https://github.com/calcit-lang/calcit/issues/2448)，不增加专用 fix 规则。
+正式 0.31.0 全定义严格检查 1718/1718、原生测试 162/162、27 个命名入口 JS 编译、现有 66 个 Node 测试文件的 319 项测试均通过；API 清单 95/95、原清单测试 18/18、显式类型审计、runtime smoke 和 Caps 工具链配对检查通过。首次 Node 运行的 CPU/replay 产物路径错误已纠正，仅重跑受影响的两个文件；未改断言或放宽门禁。
 
-`bound-x` 明确数字参数/返回并检查 Math 宿主结果，保留原运算顺序；1000 组 JS 对照包含 NaN、无穷和负零。`keycode->key` 改为 Number/Bool→String 的纯 Calcit 实现，保留 A–Z 范围、大小写和小数截断；248 组 JS 对照与原表达式一致。旧路径绘制用数字列表解码、literal match 和显式 Option 解包，保留直线/二次/三次曲线与 stroke/fill 顺序、默认样式和空首点对行为；无真实 Canvas 的 JS 调用验收通过，非数字坐标在绘制前拒绝。
+生成 JS 的合成宿主对照覆盖缓存写入与路由、数字/键码/透明度边界、Canvas 调用顺序和 DPR 尺寸、Slider 拖动、Fade 阶段、Textbox 输入及舞台更新。这些结果不等于真实浏览器或 GPU 验收。旧入口审阅背景见 [#204 补充](https://github.com/Quamolit/quamolit/issues/204#issuecomment-6455310190)。
 
-文本绘制显式读取已检查 Map 的字段，保留绘制条件、字体/坐标默认值、nil/false/零值和 Canvas 样式对象身份。圆弧数字参数现在实际解码，缺省值不变，显式非数字（包括 nil、字符串）更早拒绝；原事件区域 prepend 参数顺序错误已修正。生成 JS 的文本调用、圆弧角度/填充描边顺序和合成事件区域插入均通过，未以这些宿主调用验收替代真实 Canvas 画面检查。
+开发服务器的实际页面已验证 Drag 的滑块、禁用/恢复、拖动与重置；Layered Dashboard 的字体/图片启用和换版、折线切换、退出与重入；TodoList 的合成新增/重排；Binary Tree 的固定时间和参考往返切换，均无浏览器警告或错误。Binary Tree 的重复 ID 导致按钮无响应另拆为 [PR #255](https://github.com/Quamolit/quamolit/pull/255)，其原工具链 CI 独立跟进。不能据此宣称全部旧组件已恢复。
 
-旧 `rotate` 组件保留默认 30° 与原弧度转换，新增真实 Number 解码；显式 nil/字符串角度会被拒绝。原生求值已核对默认、零、90°、-180° 的节点角度及 save/rotate/restore 顺序。两个旧淡入淡出组件的四处 literal `case-default` 改为 `match`，删除只返回原值的 `wo-log`；其开放状态/回调类型问题尚未全部解决。当前原生测试 162/162，通过不代表旧组件浏览器行为已经验收。
-
-旧缩放/平移入口复用现有数字检查，保留 nil/false 回退和零值；跟踪变换中的坐标经实际 List<Number> 解码后参与运算。生成 JS 的 9 组默认/显式参数、复数坐标合成及其他状态字段保留通过；字符串数值在 Canvas 调用前拒绝。此处使用 mock Canvas，不宣称真实画面验收。
-
-舞台控制显式检查 Map 中的位移/缩放和输入坐标，保留原上下限、归位步长和位移公式。`vec-length` 现在是 List<Number>→Number，使用 core `sqrt`，必需坐标缺失会明确报错。原生三组长度断言及生成 JS 的 80 组舞台更新、5 组归位、6 组平方根对照通过；控制事件的重置、nil/false/缺失按钮、移动缩放与非法输入也已验证，未执行真实手柄验收。
-
-旧 button/input 显式检查样式 Map 并取出 Option，保留默认值、nil/false、零尺寸、文本及事件内容。`translate` 改为先构造 save/translate/children/restore 列表再统一展开，避免展开之后再追加参数；没有收窄合法子节点类型。原生 5 项及生成 JS 6 项组件构造对照、0/1/2 子节点顺序与身份验证通过；未代替真实页面交互验收。
-
-旧 textbox 使用已发布 KeyboardEventHost 适配器，修复多字段 assoc、退役分支和字符串切片；状态/文本/游标采用真实解码，非函数派发入口会拒绝。生成 JS 的八组字母/Shift/空格/退格（含 Unicode）、游标值和其他状态字段保留通过。游标解码可能重建等值列表，不承诺引用身份；未验证真实键盘页面交互。
-
-事件分发检查坐标与事件 tag，且只在实际函数监听器存在时 preventDefault 后调用；缺失目标不触碰事件，非法 nil 监听器更早拒绝。旧命中查找检查坐标/区域数据，修复未命中时把第二个元素误当剩余列表的问题，使用本地循环遍历列表尾部，避免重复解码整个集合。生成 JS 已验证矩形/圆边界、变换、重叠顺序、1001 区域遍历以及事件冒泡/缺失/参数转交；未代替真实鼠标交互。
-
-旋转还修复了实际跟踪计算错误：旧代码把 Math 对象参与乘法，并以负余弦作为虚部；现在使用与 Canvas 相同弧度的 cos/sin。公开 rotate 仍接收角度且仅转换一次，直接 native 入口原默认值保留。18 组生成 JS 数值对照及公开 90°→Canvas π/2→跟踪 [0,1] 通过；真实旋转后点击待验收，见 [#254](https://github.com/Quamolit/quamolit/issues/254)。同一组件子节点改成构造列表后统一展开。
-
-透明度调用处区分已检查数字与旧警告返回值：bound-opacity 的非法输入仍警告并返回 undefined，paint-alpha 仍产生 NaN，不改为 raise。正常截断、相乘和缺省行为保留，损坏的基础透明度状态现在明确拒绝。90 组生成 JS 对照包含 nil、false、字符串、NaN、无穷与负零，结果和警告次数一致；这不宣称 NaN 是理想合同，也不修改 Canvas 对 NaN 赋值的既有处理。
-
-绘制入口改为受检 Canvas host 与接收者在前的外部方法调用，移除无效 unsafe-coerce；缺失 context 明确拒绝。窗口/舞台数值检查、事件区域空列表、tick-tree 的 Shape 身份检查及直线样式 Map 检查补齐。完整生成 JS 入口验证调用顺序、逆变换、状态恢复、事件区域插入和样式值；原 HUD 日志绘制调用保留。详见 [旧入口审阅补充](https://github.com/Quamolit/quamolit/issues/204#issuecomment-6455310190)，不替代真实页面验收。
-
-这是未发布候选：完整定义扫描仍有 legacy 类型问题，完整浏览器与独立安装消费者尚未验收。消费者自己的 CLI/runtime 已对齐，但其 Quamolit 引用仍是原候选提交，必须在模块发布后改成已验证的正式 tag；不能把根项目测试通过当作独立消费者已就绪。下面保留 0.30.1 迁移记录，所述历史验收不自动适用于当前候选。
+尚需完成：独立安装候选与正式 tag 消费、完整发布构建和导航、原浏览器回归、真实 GPU 支持范围核对及迁移 PR 的 Actions/评审。候选较大，行为修复与工具链/旧 API 合同需明确拆分边界；未合并、未发版，不关闭生态迁移或 Quamolit milestone。
 
 ## 0.30.1 迁移记录
 
