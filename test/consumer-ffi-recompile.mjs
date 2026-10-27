@@ -119,7 +119,7 @@ export async function verifyFfiRecompile({ source, resolvedModule, temporary, ru
   const inlineBefore = digest(await readFile(inlineGenerated));
   const preview = json(run("calcit", [...transaction, "--dry-run"], project));
   assert.equal(digest(await readFile(snapshot)), libraryBefore, "dry-run 不得修改库副本");
-  run("calcit", [...transaction, "--expect-revision", preview.original_revision], project);
+  run("calcit", [...transaction, "--expect-revision", preview.scoped_revision], project);
   const changed = query();
   assert.equal(changed.ffi[":js"][":inline"], changedInline);
   assert.deepEqual(changed.code, definition.code, "不能靠修改 Calcit 函数体触发新行为");

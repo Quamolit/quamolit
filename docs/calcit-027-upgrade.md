@@ -32,7 +32,9 @@ HUD 保留，缓存明确为字符串列表。`bound-opacity` 的非法输入仍
 
 开发服务器的实际页面已验证 Drag 的滑块、禁用/恢复、拖动与重置；Layered Dashboard 的字体/图片启用和换版、折线切换、退出与重入；TodoList 的合成新增/重排；Binary Tree 的固定时间和参考往返切换，均无浏览器警告或错误。Binary Tree 的重复 ID 导致按钮无响应另拆为 [PR #255](https://github.com/Quamolit/quamolit/pull/255)，其原工具链 CI 独立跟进。不能据此宣称全部旧组件已恢复。
 
-尚需完成：独立安装候选与正式 tag 消费、完整发布构建和导航、原浏览器回归、真实 GPU 支持范围核对及迁移 PR 的 Actions/评审。候选较大，行为修复与工具链/旧 API 合同需明确拆分边界；未合并、未发版，不关闭生态迁移或 Quamolit milestone。
+独立消费者从远端候选 d5b1ad1 安装，121 个公开定义严格检查与 JS 编译通过；迁走源码后仅用 37 个可达模块及标准 runtime，原 Node 合同与失败反例通过。原 FFI 助手使用官方 scoped_revision，验证 file/inline 只在显式重编译后改变行为，消费者 Snapshot 和共享缓存不变。真实页面已验证混合场景同时间失效、Canvas 卡片旋转、Metal-3 GPU 卡片及一次 device loss 恢复；不等同于完整硬件像素矩阵。
+
+尚需完成：正式 tag 消费、完整发布构建和导航、原浏览器回归、真实 GPU 支持范围核对及迁移 PR 的 Actions/评审。候选较大，行为修复与工具链/旧 API 合同需明确拆分边界；未合并、未发版，不关闭生态迁移或 Quamolit milestone。
 
 ## 0.30.1 迁移记录
 
