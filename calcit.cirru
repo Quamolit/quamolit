@@ -1734,16 +1734,25 @@
             :features $ #{} :js-ffi
         'on-control-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn on-control-event (elapsed states delta)
-            if
-              and $ :left-b? states
-              reset-stage-config!
-              let
-                  move $ :left-move states
-                  scales $ :right-move delta
-                update-stage-config!
-                  map move $ fn (x)
-                    * x (js/Math.abs x) 0.02
-                  nth scales 1
+            let
+                states $ decode-map-as states $ :: 'Map 'Dynamic 'Dynamic
+              if
+                .unwrap-or (get states :left-b?) nil
+                reset-stage-config!
+                let
+                    delta $ decode-map-as delta $ :: 'Map 'Dynamic 'Dynamic
+                    move $ decode-map-as
+                      .unwrap $ get states :left-move
+                      :: 'List 'Number
+                    scales $ decode-map-as
+                      .unwrap $ get delta :right-move
+                      :: 'List 'Number
+                  update-stage-config!
+                    map move $ fn (x)
+                      * x
+                        decode-map-as (js/Math.abs x) 'Number
+                        , 0.02
+                    .unwrap $ nth scales 1
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic 'Dynamic
@@ -1821,8 +1830,12 @@
         'reset-stage-config! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reset-stage-config! ()
             let
-                move0 $ :move @*stage-config
-                scale0 $ :scale @*stage-config
+                move0 $ decode-map-as
+                  .unwrap $ get @*stage-config :move
+                  :: 'List 'Number
+                scale0 $ decode-map-as
+                  .unwrap $ get @*stage-config :scale
+                  , 'Number
               when
                 or
                   not= ([] 0 0) move0
@@ -1830,19 +1843,23 @@
                 if
                   not= ([] 0 0) move0
                   swap! *stage-config update :move $ fn (prev)
-                    &let
-                      l $ vec-length prev
-                      if (< l 4) ([] 0 0)
-                        &let
-                          move-back $ point-times prev $ [] (&/ -4 l) 0
-                          point-add prev move-back
+                    let
+                        prev $ decode-map-as prev $ :: 'List 'Number
+                      &let
+                        l $ vec-length prev
+                        if (< l 4) ([] 0 0)
+                          &let
+                            move-back $ point-times prev $ [] (&/ -4 l) 0
+                            point-add prev move-back
                 if (not= scale0 1)
                   swap! *stage-config update :scale $ fn (prev)
                     let
-                        delta $ - scale0 1
-                      if
-                        > 0.01 $ js/Math.abs delta
-                        , 1 $ + prev $ if (> delta 0) -0.01 0.01
+                        prev $ decode-map-as prev 'Number
+                      let
+                          delta $ - scale0 1
+                        if
+                          > 0.01 $ decode-map-as (js/Math.abs delta) 'Number
+                          , 1 $ + prev $ if (> delta 0) -0.01 0.01
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ []
@@ -1929,7 +1946,11 @@
         'update-stage-config! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-stage-config! (move scale-change)
             let
-                scale0 $ :scale @*stage-config
+                move $ decode-map-as move $ :: 'List 'Number
+                scale-change $ decode-map-as scale-change 'Number
+                scale0 $ decode-map-as
+                  .unwrap $ get @*stage-config :scale
+                  , 'Number
               when
                 and
                   or
@@ -1937,16 +1958,21 @@
                     not= 0 scale-change
                   not $ and (> scale-change 0) (>= scale0 8)
                 swap! *stage-config update :move $ fn (prev)
-                  point-add
-                    point-minus prev $ point-scale
-                      [] (nth move 0)
-                        negate $ nth move 1
-                      , 0.05
-                    point-scale prev $ / (* 0.01 scale-change) scale0
+                  let
+                      prev $ decode-map-as prev $ :: 'List 'Number
+                    point-add
+                      point-minus prev $ point-scale
+                        []
+                          .unwrap $ nth move 0
+                          negate $ .unwrap $ nth move 1
+                        , 0.05
+                      point-scale prev $ / (* 0.01 scale-change) scale0
                 swap! *stage-config update :scale $ fn (prev)
                   let
-                      next $ &+ prev $ * 0.01 scale-change
-                    &max 0.2 $ &min next 8
+                      prev $ decode-map-as prev 'Number
+                    let
+                        next $ &+ prev $ * 0.01 scale-change
+                      &max 0.2 $ &min next 8
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] 'Dynamic 'Dynamic
@@ -11706,11 +11732,13 @@
             :return $ :: 'List 'Number
         'vec-length $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn vec-length (point)
-            let[] (x y) point $ js/Math.sqrt $ &+ (&* x x) (&* y y)
+            let
+                x $ .unwrap $ nth point 0
+                y $ .unwrap $ nth point 1
+              sqrt $ &+ (&* x x) (&* y y)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
-            :args $ [] 'Dynamic
-            :features $ #{} :js-ffi
+          :schema $ :: 'Fn $ {} (:return 'Number)
+            :args $ [] $ :: 'List 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.math
     'quamolit.motion $ %{} 'FileEntry
