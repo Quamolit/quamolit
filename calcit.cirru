@@ -1142,89 +1142,137 @@
         'comp-fade-fn $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-fade-fn (states props f1)
             let
-                cursor $ :cursor states
+                cursor $ .unwrap-or (get states :cursor) nil
                 v 4
-                state $ assert-type
+                state $ decode-map-as
                     get states :data
                     , .unwrap-or $ {} (:stage :hidden) (:opacity 0)
                   :: 'Map 'Tag 'Dynamic
-                p1 $ f1 (>> states :renderer) (:opacity state) (:stage state)
+                stage $ decode-map-as
+                  .unwrap-or (get state :stage) nil
+                  , 'Tag
+                opacity $ decode-map-as
+                  .unwrap-or (get state :opacity) nil
+                  , 'Number
+                p1 $ if (fn? f1)
+                  f1 (>> states :renderer) opacity stage
+                  raise |Expected-fade-callback-function
               []
                 fn (elapsed d!)
-                  match (:stage state)
-                    :hidden $ when (non-nil? p1)
-                      d! cursor $ merge state $ {} (:stage :showing)
-                        :opacity $ + (* elapsed v) 0
-                      write-node-cache! cursor f1
-                    :showing $ do
-                      if
-                        >= (:opacity state) 1
-                        d! cursor $ {} (:stage :show) (:opacity 1)
-                        d! cursor $ -> state $ update :opacity
-                          fn (x)
-                            + x $ * elapsed v
-                      write-node-cache! cursor f1
-                    :show $ if (nil? p1)
-                      d! cursor $ {} (:stage :hiding)
-                        :opacity $ - 1 $ * elapsed v
-                      write-node-cache! cursor f1
-                    :hiding $ if
-                      <= (:opacity state) 0
-                      do
-                        d! cursor $ {} (:stage :hidden) (:opacity 0.01)
-                        delete-node-cache! cursor
-                      d! cursor $ update state :opacity $ fn (x)
-                        - x $ * elapsed v
-                    _ $ println "|unknown stage" $ :stage state
+                  let
+                      elapsed $ decode-map-as elapsed 'Number
+                    match stage
+                      :hidden $ when (non-nil? p1)
+                        if (fn? d!)
+                          d! cursor $ merge state $ {} (:stage :showing)
+                            :opacity $ + (* elapsed v) 0
+                          raise |Expected-fade-callback-function
+                        write-node-cache! cursor f1
+                      :showing $ do
+                        if (>= opacity 1)
+                          if (fn? d!)
+                            d! cursor $ {} (:stage :show) (:opacity 1)
+                            raise |Expected-fade-callback-function
+                          if (fn? d!)
+                            d! cursor $ -> state $ update :opacity
+                              fn (x)
+                                let
+                                    x $ decode-map-as x 'Number
+                                  + x $ * elapsed v
+                            raise |Expected-fade-callback-function
+                        write-node-cache! cursor f1
+                      :show $ if (nil? p1)
+                        if (fn? d!)
+                          d! cursor $ {} (:stage :hiding)
+                            :opacity $ - 1 $ * elapsed v
+                          raise |Expected-fade-callback-function
+                        write-node-cache! cursor f1
+                      :hiding $ if (<= opacity 0)
+                        do
+                          if (fn? d!)
+                            d! cursor $ {} (:stage :hidden) (:opacity 0.01)
+                            raise |Expected-fade-callback-function
+                          delete-node-cache! cursor
+                        if (fn? d!)
+                          d! cursor $ update state :opacity $ fn (x)
+                            let
+                                x $ decode-map-as x 'Number
+                              - x $ * elapsed v
+                          raise |Expected-fade-callback-function
+                      _ $ println "|unknown stage" stage
                 alpha
-                  {} $ :opacity $ :opacity state
-                  match (:stage state) (:hidden nil)
+                  {} $ :opacity opacity
+                  match stage (:hidden nil)
                     _ $ either p1 $ &let
-                      old-f $ get-node! cursor
+                      old-f $ .unwrap-or (get-node! cursor) nil
                       if (non-nil? old-f)
-                        old-f (>> states :renderer) (:opacity state) (:stage state)
+                        if (fn? old-f)
+                          old-f (>> states :renderer) opacity stage
+                          raise |Expected-fade-callback-function
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] (:: 'Map 'Tag 'Dynamic) 'Dynamic 'Dynamic
         'comp-fade-in-out $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-fade-in-out (states props p1)
             let
-                cursor $ :cursor states
+                cursor $ .unwrap-or (get states :cursor) nil
                 v 4
-                state $ assert-type
+                state $ decode-map-as
                     get states :data
                     , .unwrap-or $ {} (:stage :hidden) (:opacity 0)
                   :: 'Map 'Tag 'Dynamic
+                stage $ decode-map-as
+                  .unwrap-or (get state :stage) nil
+                  , 'Tag
+                opacity $ decode-map-as
+                  .unwrap-or (get state :opacity) nil
+                  , 'Number
               []
                 fn (elapsed d!)
-                  match (:stage state)
-                    :hidden $ when (non-nil? p1)
-                      d! cursor $ merge state $ {} (:stage :showing)
-                        :opacity $ + (* elapsed v) 0
-                      write-node-cache! cursor p1
-                    :showing $ if
-                      >= (:opacity state) 1
-                      do
-                        d! cursor $ {} (:stage :show) (:opacity 1)
+                  let
+                      elapsed $ decode-map-as elapsed 'Number
+                    match stage
+                      :hidden $ when (non-nil? p1)
+                        if (fn? d!)
+                          d! cursor $ merge state $ {} (:stage :showing)
+                            :opacity $ + (* elapsed v) 0
+                          raise |Expected-fade-callback-function
                         write-node-cache! cursor p1
-                      d! cursor $ update state :opacity $ fn (x)
-                        + x $ * elapsed v
-                    :show $ if (nil? p1)
-                      d! cursor $ {} (:stage :hiding)
-                        :opacity $ - 1 $ * elapsed v
-                      write-node-cache! cursor p1
-                    :hiding $ if
-                      <= (:opacity state) 0
-                      do
-                        d! cursor $ {} (:stage :hidden) (:opacity 0.01)
-                        delete-node-cache! cursor
-                      d! cursor $ update state :opacity $ fn (x)
-                        - x $ * elapsed v
-                    _ $ println "|unknown stage" $ :stage state
+                      :showing $ if (>= opacity 1)
+                        do
+                          if (fn? d!)
+                            d! cursor $ {} (:stage :show) (:opacity 1)
+                            raise |Expected-fade-callback-function
+                          write-node-cache! cursor p1
+                        if (fn? d!)
+                          d! cursor $ update state :opacity $ fn (x)
+                            let
+                                x $ decode-map-as x 'Number
+                              + x $ * elapsed v
+                          raise |Expected-fade-callback-function
+                      :show $ if (nil? p1)
+                        if (fn? d!)
+                          d! cursor $ {} (:stage :hiding)
+                            :opacity $ - 1 $ * elapsed v
+                          raise |Expected-fade-callback-function
+                        write-node-cache! cursor p1
+                      :hiding $ if (<= opacity 0)
+                        do
+                          if (fn? d!)
+                            d! cursor $ {} (:stage :hidden) (:opacity 0.01)
+                            raise |Expected-fade-callback-function
+                          delete-node-cache! cursor
+                        if (fn? d!)
+                          d! cursor $ update state :opacity $ fn (x)
+                            let
+                                x $ decode-map-as x 'Number
+                              - x $ * elapsed v
+                          raise |Expected-fade-callback-function
+                      _ $ println "|unknown stage" stage
                 alpha
-                  {} $ :opacity $ :opacity state
-                  match (:stage state) (:hidden nil)
-                    _ $ either p1 $ get-node! cursor
+                  {} $ :opacity opacity
+                  match stage (:hidden nil)
+                    _ $ either p1 $ .unwrap-or (get-node! cursor) nil
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] (:: 'Map 'Tag 'Dynamic) 'Dynamic 'Dynamic
@@ -1237,8 +1285,9 @@
         'get-node! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn get-node! (path) (get @*nodes-cache path)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+          :schema $ :: 'Fn $ {}
             :args $ [] 'Dynamic
+            :return $ :: 'Option 'Dynamic
         'write-node-cache! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn write-node-cache! (path node)
             swap! *nodes-cache $ fn (nodes) (assoc nodes path node)
