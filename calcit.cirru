@@ -15043,31 +15043,37 @@
         'textbox $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp textbox (states props)
             let
-                cursor $ :cursor states
-                state $ assert-type
+                cursor $ decode-map-as
+                  .unwrap $ get states :cursor
+                  :: 'List 'Tag
+                state $ decode-map-as
                     get states :data
                     , .unwrap-or $ {} $ :text
                         get props :text
                         , .unwrap-or |
                   :: 'Map 'Tag 'Dynamic
-                text $ assert-type
+                text $ decode-map-as
                     get state :text
                     , .unwrap-or |
                   , 'String
-              [] nil $ input $ assoc props :text text :event
+              [] nil $ input $ assoc (assoc props :text text) :event
                 &{} :keydown $ fn (event d!)
-                  let
-                      next-text $ case-default (.-keyCode event)
-                        str text $ keycode->key (.-keyCode event) (.-shiftKey event)
-                        32 $ str text "| "
-                        8 $ if
-                          <= (count text) 1
-                          , | $ slice text 0
-                            dec $ count text
-                    d! cursor $ assoc state :text next-text
+                  if (fn? d!)
+                    let
+                        event $ js-ffi.browser/keyboard-event-host event
+                        next-text $ match (event :key-code)
+                          32 $ str text "| "
+                          8 $ if
+                            <= (.len text) 1
+                            , | $ .slice text 0
+                              Option :some $ dec $ .len text
+                          _ $ str text $ keycode->key (event :key-code) (event :shift-key?)
+                      d! cursor $ assoc state :text next-text
+                    raise |Expected-textbox-dispatch-function
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Dynamic)
             :args $ [] (:: 'Map 'Tag 'Dynamic) (:: 'Map 'Tag 'Dynamic)
+            :features $ #{} :js-ffi
         'translate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp translate (props & children)
             group ({}) & $ conj
