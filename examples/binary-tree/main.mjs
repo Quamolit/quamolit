@@ -65,7 +65,7 @@ document.querySelector("#depth").onchange = event => {
   const nextDepth = Number(event.target.value), next = update_component(plan, time, nextDepth);
   depth = nextDepth; plan = next; builds++; draw();
 };
-document.querySelector("#reference").onclick = event => {
+panel.querySelector("#reference").onclick = event => {
   referenceMode = !referenceMode;
   event.target.textContent = referenceMode ? "切换保留几何" : "切换全量参考";
   draw();
