@@ -1536,7 +1536,7 @@
         '*drag-moving-cache $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *drag-moving-cache ([] 0 0)
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Ref $ :: 'List 'Number
         '*element-tree $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *element-tree nil
           :examples $ []
@@ -1544,7 +1544,7 @@
         '*last-tick $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *last-tick (get-tick)
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Ref 'Number
         'CanvasContextHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait CanvasContextHost
             .scale $ :: 'Fn $ {}
@@ -3180,6 +3180,7 @@
           :code $ quote $ def curve-unit
             / (* 2 &PI) 32
           :examples $ []
+          :schema $ :: 'Number
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context time)
             reference/draw-reference! context $ scene-at time
@@ -3269,12 +3270,15 @@
           :code $ quote $ defref *drag-client-position
             assert-type (Option :none) (:: 'Option 'quamolit.motion/Vec2)
           :examples $ []
+          :schema $ :: 'Ref $ :: 'Option 'quamolit.motion/Vec2
         '*drag-model $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *drag-model (initial)
           :examples $ []
+          :schema $ :: 'Ref 'quamolit.examples.drag-demo/DragModel
         '*drag-pointer-state $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *drag-pointer-state (pointer/initial-pointer-state)
           :examples $ []
+          :schema $ :: 'Ref 'quamolit.scene-pointer/PointerState
         '*drag-view $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *drag-view
             DragView :scale-x 1 :scale-y 1 :x 0 :y 0
@@ -4989,13 +4993,16 @@
           :code $ quote $ defref *dashboard-client-position
             assert-type (Option :none) (:: 'Option 'quamolit.motion/Vec2)
           :examples $ []
+          :schema $ :: 'Ref $ :: 'Option 'quamolit.motion/Vec2
         '*dashboard-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *dashboard-plan
             hit/compile-hit-plan $ scene/SceneDocument :nodes $ scene/empty-scene-nodes
           :examples $ []
+          :schema $ :: 'Ref 'quamolit.scene-hit/HitPlan
         '*dashboard-pointer $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *dashboard-pointer (pointer/initial-pointer-state)
           :examples $ []
+          :schema $ :: 'Ref 'quamolit.scene-pointer/PointerState
         'DashboardLoadResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum DashboardLoadResult (:font 'quamolit.font-resource/QueuedFontLoadResult)
             :image 'quamolit.image-resource-runner/QueuedImageLoadResult
@@ -11573,7 +11580,7 @@
         'pi-ratio $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def pi-ratio 0.017453292519943295
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Number
         'point-add $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn point-add (a b)
             []
@@ -15442,7 +15449,7 @@
         'pi-ratio $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def pi-ratio 0.017453292519943295
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Number
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.render.paint
           :require
@@ -20356,6 +20363,7 @@
         '*path-sample-calls $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *path-sample-calls 0
           :examples $ []
+          :schema $ :: 'Ref 'Number
         'constant-path-sample-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn constant-path-sample-plan (plan transforms)
             struct-with plan $ :sample $ fn (slots time)
@@ -22687,12 +22695,12 @@
         '*counter $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *counter 0
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Ref 'Number
         'gen-id! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gen-id! ()
             do (swap! *counter inc) @*counter
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+          :schema $ :: 'Fn $ {} (:return 'Number)
             :args $ []
         'hsl $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hsl (h s l & alpha)
