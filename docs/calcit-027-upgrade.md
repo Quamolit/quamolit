@@ -1,5 +1,29 @@
 # Calcit 工具链升级与版本合同
 
+## 0.32.1 迁移候选（尚未完成）
+
+候选配对正式 CLI/runtime 0.32.1、js-ffi 0.2.9、touch-control 0.0.35 和 pointed-prompt 0.0.24。官方 formatter 迁移根源码 233 处与独立消费者 5 处旧类型表示；27 个命名 entry 加 default、模块版本和全部既有门禁保留。根与消费者的新 npm 解析均至少等待 60 分钟，无例外。
+
+AST 叶查询不足以证明无 npm 消费者：实际编译产物仍在 typed-arrays / webgpu-capabilities 两处引用 `@calcit/js-ffi`，官方 usages 进一步确认两个 Quamolit 调用，因此保留原 npm 依赖及完整安装断言。npm registry 无此发布包，Yarn 仅允许这一个已有依赖的精确 Git 仓库 URL，无通配符；具体正式 tag 与 immutable lock 继续校验。原 runtime smoke 的 vals 旧名按公开 distinct-values 迁移，原去重集合断言不变。后续以真实 import/消费者验证迁移，不因检查数量删掉必要依赖。
+
+本地当前：全定义 strict 为 **1718/1718**，失败、阻塞和级联均为 0；原 161 项原生测试加三项实际回归共 **164/164** 通过。稳定 API 清单、原 18 项清单测试、README 示例和 bootstrap/runtime 继续按当前候选验收。十处 `case-default` 保留分支顺序和惰性默认值改为 `match`，显式 slice 终点改为 Option；数字列表运算、帧 Ref、回调参数和返回关系补真实类型，不使用兼容开关、取消证明审计或修改质量预算。
+
+旧 Map 字段改为 `get` 并区分缺项与 Some nil/false/0；游标保留 String/Number/Tag 混合 key。淡入淡出保留未知 stage 日志、renderer 返回形状与双参数 dispatch，不把开放回调伪装为固定 Shape/Unit。输入框修正旧多参数 assoc，使用已发布的键盘事件宿主接口；slider 的局部可变值仍是原 JS 单元素数组，不冒充 Calcit Ref。variadic 绘制子项按原 save→变换→children→restore 次序构造列表；Shape/Component 分支先检查真实名义身份再断言。
+
+需要调用方注意：直接读写旧 `*element-tree` Ref 的外部代码须改为匹配 `LegacyRoot` 的 empty/shape/component 三态，并通过 `cache-element-tree!` 写入。普通绘制入口继续接受 Shape/Component/nil；写入先检查名义身份，非法值不会污染缓存。focus/drag 两个 Ref 改为 Option，初始空列表/零坐标仍保留在 Some 内，释放使用 None。Model/Scene/Motion 与 wire 格式不变。
+
+Canvas/事件宿主改用实际 `js-cast` 检查，nullable 2D context 不再声明成必定存在。图片缓存保留对象身份；鼠标释放、键盘无焦点回退、缩放边界与实际旋转命中已通过当前生成 JS 的合成回放。旧旋转将弧度重复换算且丢失 sin 分量的问题按 [#254](https://github.com/Quamolit/quamolit/issues/254) 修复；高层角度仍只换算一次。这些 Node 合成宿主结果不算 GPU 证据。随后实际浏览器在 DPR=2 验收 0°/90° 的蓝色矩形：可见区域点击计数增加，对应空白区域不命中。此过程发现 CanvasStyleHost 未限定名会被当成未绑定泛型，导致 js-set 静默写入 :width 错键、CSS 尺寸失效；现已限定四个 Trait 的项目类型引用，并在原 runtime smoke 覆盖实际 DPR=2 宽高/缩放回归。7/7 strict 仍假通过的独立最小对照已报 [Calcit #2502](https://github.com/calcit-lang/calcit/issues/2502)，不在下游增加兼容开关或编译器固定改写规则。
+
+候选版本为 **0.0.18（尚未发布 tag）**。独立示例依赖该正式版本，移除历史 hash；正式版本发布前，本地画廊可显式使用 `QUAMOLIT_CONSUMER_REF=<已推送的候选提交> yarn compile`。原准备脚本在临时目录从 Git 安装该候选并编译到示例既有产物目录，不改写示例 deps、不引用作者工作树或 test 产物。Visual/Upload 沿用原 job、断言和预览路径，以 PR 精确 head 作为候选。Visual 复用此前 0.31 候选的 60 分钟窗口：原完整成功 run 40604476793 实际为 22 分 5 秒，超过主线的 20 分钟；只增加完成原门禁的时间，不跳过测试或改容差。未指定候选时仍消费正式 tag。
+
+精确提交 `37b9f9e` 的原独立消费者已通过：干净目录安装、完整 strict、file/inline 显式重编译、37 个模块闭包搬移、1000 帧复用、真实 Canvas/字体/曲线/分层与恢复验收。四个 GPU 硬件专项均因 adapter-unavailable 明确 SKIP，不算硬件通过；Canvas 回退和 viewport/DPR 路径通过。版本元数据及画廊准备后续改动仍需用最终 head 重跑。原 Benchmark/Upload/Visual、27 个入口和浏览器验收以本轮实际结果为准，不引用旧候选绿灯。临时事务与回放不进入日常源码，不新增 namespace、runner、CI job 或重复 COS 校验。未合并、部署或发版。
+
+旧 `bound-x` 的反向区间公式已通过实际生成 JS 确认可能超界，另报 [#257](https://github.com/Quamolit/quamolit/issues/257)。当前只验证数字 FFI 返回，不悄悄改算法；既有反向区间合同与消费者须单独审查。这属于模块算法问题，不新增编译器固定改写规则。
+
+## 既有 0.30.1 历史记录
+
+以下记录保留旧版本的验收范围，不作为 0.32.1 候选已通过的证据。
+
 主线已随[#247](https://github.com/Quamolit/quamolit/pull/247)从 #242 的 alpha.5 配套升级到正式 Calcit / `@calcit/procs@0.30.1`；旧 Quamolit alpha.4仍为0.28.0。工具链升级不等于 Quamolit 正式发版或milestone验收，模块自身的版本元数据暂不改。根项目、独立消费者、deps、npm resolution、锁文件、API查询版本门禁与中英文入口同步，不只升级作者本机CLI。
 
 ## 版本与来源

@@ -19,7 +19,9 @@ on:
 jobs:
   visual:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    env:
+      QUAMOLIT_CONSUMER_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
