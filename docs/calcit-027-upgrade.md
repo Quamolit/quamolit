@@ -14,7 +14,7 @@ AST 叶查询不足以证明无 npm 消费者：实际编译产物仍在 typed-a
 
 Canvas/事件宿主改用实际 `js-cast` 检查，nullable 2D context 不再声明成必定存在。图片缓存保留对象身份；鼠标释放、键盘无焦点回退、缩放边界与实际旋转命中已通过当前生成 JS 的合成回放。旧旋转将弧度重复换算且丢失 sin 分量的问题按 [#254](https://github.com/Quamolit/quamolit/issues/254) 修复；高层角度仍只换算一次。这些 Node 合成宿主结果不算 GPU 证据。随后实际浏览器在 DPR=2 验收 0°/90° 的蓝色矩形：可见区域点击计数增加，对应空白区域不命中。此过程发现 CanvasStyleHost 未限定名会被当成未绑定泛型，导致 js-set 静默写入 :width 错键、CSS 尺寸失效；现已限定四个 Trait 的项目类型引用，并在原 runtime smoke 覆盖实际 DPR=2 宽高/缩放回归。7/7 strict 仍假通过的独立最小对照已报 [Calcit #2502](https://github.com/calcit-lang/calcit/issues/2502)，不在下游增加兼容开关或编译器固定改写规则。
 
-候选版本为 **0.0.18（尚未发布 tag）**。独立示例依赖该正式版本，移除历史 hash；正式版本发布前，本地画廊可显式使用 `QUAMOLIT_CONSUMER_REF=<已推送的候选提交> yarn compile`。原准备脚本在临时目录从 Git 安装该候选并编译到示例既有产物目录，不改写示例 deps、不引用作者工作树或 test 产物。Visual/Upload 沿用原 job、断言和预览路径，以 PR 精确 head 作为候选；未指定候选时仍消费正式 tag。
+候选版本为 **0.0.18（尚未发布 tag）**。独立示例依赖该正式版本，移除历史 hash；正式版本发布前，本地画廊可显式使用 `QUAMOLIT_CONSUMER_REF=<已推送的候选提交> yarn compile`。原准备脚本在临时目录从 Git 安装该候选并编译到示例既有产物目录，不改写示例 deps、不引用作者工作树或 test 产物。Visual/Upload 沿用原 job、断言和预览路径，以 PR 精确 head 作为候选。Visual 复用此前 0.31 候选的 60 分钟窗口：原完整成功 run 40604476793 实际为 22 分 5 秒，超过主线的 20 分钟；只增加完成原门禁的时间，不跳过测试或改容差。未指定候选时仍消费正式 tag。
 
 精确提交 `37b9f9e` 的原独立消费者已通过：干净目录安装、完整 strict、file/inline 显式重编译、37 个模块闭包搬移、1000 帧复用、真实 Canvas/字体/曲线/分层与恢复验收。四个 GPU 硬件专项均因 adapter-unavailable 明确 SKIP，不算硬件通过；Canvas 回退和 viewport/DPR 路径通过。版本元数据及画廊准备后续改动仍需用最终 head 重跑。原 Benchmark/Upload/Visual、27 个入口和浏览器验收以本轮实际结果为准，不引用旧候选绿灯。临时事务与回放不进入日常源码，不新增 namespace、runner、CI job 或重复 COS 校验。未合并、部署或发版。
 
