@@ -1,5 +1,17 @@
 # Calcit 工具链升级与版本合同
 
+## 0.32.1 迁移候选（尚未完成）
+
+候选配对正式 CLI/runtime 0.32.1、js-ffi 0.2.9、touch-control 0.0.35 和 pointed-prompt 0.0.24。官方 formatter 迁移根源码 233 处与独立消费者 5 处旧类型表示；27 个命名 entry 加 default、模块版本和全部既有门禁保留。根与消费者的新 npm 解析均至少等待 60 分钟，无例外。
+
+AST 叶查询不足以证明无 npm 消费者：实际编译产物仍在 typed-arrays / webgpu-capabilities 两处引用 `@calcit/js-ffi`，官方 usages 进一步确认两个 Quamolit 调用，因此保留原 npm 依赖及完整安装断言。npm registry 无此发布包，Yarn 仅允许这一个已有依赖的精确 Git 仓库 URL，无通配符；具体正式 tag 与 immutable lock 继续校验。原 runtime smoke 的 vals 旧名按公开 distinct-values 迁移，原去重集合断言不变。后续以真实 import/消费者验证迁移，不因检查数量删掉必要依赖。
+
+本地当前：稳定 API 清单、原 18 项清单测试与 README 示例通过；原 161 项原生测试和一项新回归合计 162/162 通过。十处 `case-default` 保留分支顺序和惰性默认值改为 `match`，五处显式 slice 终点改为 Option；数字列表运算、帧 Ref 与绘制回调补真实类型关系。`point-negate` 解包两个必需元素，不新增缺项默认值；`=seq` 在非空分支比较元素身份，修复比较新建 Option 包装体恒不相同的问题，保留原来的 `identical?` 语义。
+
+完整全定义门禁仍有 15 个直接失败、18 个阻塞和 4 个级联，集中于 legacy Canvas/Shape、Map 读取和缓存，不视为通过，不加入兼容开关或放宽类型。独立消费者仍须对精确候选重新验收，其历史依赖提交在选择/发布可用版本前不宣称完成正式 tag 对齐；原 Benchmark/Upload/Visual、浏览器和硬件验收尚未执行。本段是进行中的候选记录，未合并、部署或发版。
+
+旧 `bound-x` 的反向区间公式已通过实际生成 JS 确认可能超界，另报 [#257](https://github.com/Quamolit/quamolit/issues/257)。当前只验证数字 FFI 返回，不悄悄改算法；既有反向区间合同与消费者须单独审查。这属于模块算法问题，不新增编译器固定改写规则。
+
 主线已随[#247](https://github.com/Quamolit/quamolit/pull/247)从 #242 的 alpha.5 配套升级到正式 Calcit / `@calcit/procs@0.30.1`；旧 Quamolit alpha.4仍为0.28.0。工具链升级不等于 Quamolit 正式发版或milestone验收，模块自身的版本元数据暂不改。根项目、独立消费者、deps、npm resolution、锁文件、API查询版本门禁与中英文入口同步，不只升级作者本机CLI。
 
 ## 版本与来源

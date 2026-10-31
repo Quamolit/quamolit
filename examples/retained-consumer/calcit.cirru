@@ -13,7 +13,7 @@
         'InstanceFrame $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct InstanceFrame (:index 'Number) (:x 'Number) (:y 'Number)
           :examples $ []
-          :schema $ :: 'StructDef
+          :schema $ quote StructDef
         'arc-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arc-document (time)
             do
@@ -27,14 +27,12 @@
                   scene/SceneNode :id |consumer-arc :parent |arc-root :key |consumer-arc :bindings ([]) :interaction (scene/SceneInteraction :target |arc-action) :content $ scene/SceneContent :arc $ scene/ArcNode :cx 0 :cy 0 :radius 20 :start-angle start :end-angle (+ start 1.5707963267948966) :counterclockwise false :width 4 :stroke
                     motion/ColorRgba :r 0 :g 1 :b 1 :a 1
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
-            :args $ [] 'Number
+          :schema $ quote $ Fn Number (-> quamolit.scene-ir/SceneDocument)
         'arc-hit-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arc-hit-plan (time)
             hit/compile-hit-plan $ arc-document time
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
-            :args $ [] 'Number
+          :schema $ quote $ Fn Number (-> quamolit.scene-hit/HitPlan)
         'arc-presence-model $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arc-presence-model (stage)
             assert |invalid-consumer-arc-presence-stage $ or (= stage |exit) (= stage |reenter)
@@ -53,74 +51,56 @@
                   , 0 1 (motion/Easing :linear)
               if (= stage |exit) exiting $ :model $ presence/reconcile-presence exiting document 0.5 1 (motion/Easing :linear)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
-            :args $ [] 'String
+          :schema $ quote $ Fn String (-> quamolit.presence/PresenceModel)
         'arc-presence-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arc-presence-plan (model time)
             retained/build-component-plan (request time 40 false 320)
               fn (props ignored input resources viewport)
                 presence-component/declare-tree model (binding/empty-descriptors) ([] |consumer-arc)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.presence/PresenceModel 'Number
+          :schema $ quote $ Fn quamolit.presence/PresenceModel Number (-> quamolit.retained-component/ComponentPlan)
         'arc-presence-sample $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arc-presence-sample (plan time) (retained/sample-plan-at plan time)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan Number (-> quamolit.retained-component/ComponentPlan)
         'browser-available? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn browser-available? () (browser/document-available?)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ []
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn (-> Bool) (:features :js-ffi)
         'build-batch $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn build-batch (plan) (batch/build-batch plan)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/BatchPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan (-> quamolit.gpu-component/BatchPlan)
         'canvas-content-supported? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn canvas-content-supported? (content) (canvas-scene/content-supported? content)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ [] 'quamolit.scene-ir/SceneContent
+          :schema $ quote $ Fn quamolit.scene-ir/SceneContent (-> Bool)
         'canvas-diagnostics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn canvas-diagnostics (document) (canvas-scene/unsupported-nodes document)
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :args $ [] 'quamolit.scene-ir/SceneDocument
-            :return $ :: 'List 'quamolit.scene-ir/SceneDiagnostic
+          :schema $ quote $ Fn quamolit.scene-ir/SceneDocument
+            -> $ List quamolit.scene-ir/SceneDiagnostic
         'configure-gpu-viewport! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn configure-gpu-viewport! (host width height logical-width logical-height) (batch/configure-viewport! host width height logical-width logical-height)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'quamolit.gpu-component/RectRendererHost 'Number 'Number 'Number 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.gpu-component/RectRendererHost Number Number Number Number (-> Unit) (:features :js-ffi)
         'create-batch-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-batch-gpu! (canvas device format capacity) (batch/create-renderer! canvas device format capacity)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectRendererHost)
-            :args $ [] 'JsObject 'js-ffi.webgpu/DeviceHost 'String 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn JsObject js-ffi.webgpu/DeviceHost String Number (-> quamolit.gpu-component/RectRendererHost) (:features :js-ffi)
         'create-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-gpu! (canvas device format capacity) (gpu/create-renderer! canvas device format capacity)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/RectRendererHost)
-            :args $ [] 'JsObject 'js-ffi.webgpu/DeviceHost 'String 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn JsObject js-ffi.webgpu/DeviceHost String Number (-> quamolit.gpu-component/RectRendererHost) (:features :js-ffi)
         'create-instances-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-instances-gpu! (canvas device format)
             js-await $ webgpu/create! canvas device format 10000
           :examples $ []
-          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.webgpu-batches/RectBatchHost)
-            :args $ [] 'js-ffi.browser/DomElementHost 'js-ffi.webgpu/DeviceHost 'String
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String (-> quamolit.webgpu-batches/RectBatchHost) (:features :js-ffi) (:async)
         'create-instances-table! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-instances-table! () (resource/create-table!)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.instance-resource/InstanceTableHost)
-            :args $ []
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn (-> quamolit.instance-resource/InstanceTableHost) (:features :js-ffi)
         'curve-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn curve-document (time)
             do
@@ -145,19 +125,16 @@
                         , :width 20 :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
                     , :bindings ([]) :interaction $ scene/SceneInteraction :target |curve-action
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
-            :args $ [] 'Number
+          :schema $ quote $ Fn Number (-> quamolit.scene-ir/SceneDocument)
         'curve-hit $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn curve-hit (plan x y) (hit/hit-test-plan plan x y)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitOutcome)
-            :args $ [] 'quamolit.scene-hit/HitPlan 'Number 'Number
+          :schema $ quote $ Fn quamolit.scene-hit/HitPlan Number Number (-> quamolit.scene-hit/HitOutcome)
         'curve-hit-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn curve-hit-plan (time)
             hit/compile-hit-plan $ curve-document time
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
-            :args $ [] 'Number
+          :schema $ quote $ Fn Number (-> quamolit.scene-hit/HitPlan)
         'cycle-font-presence $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn cycle-font-presence (registry document)
             let
@@ -178,8 +155,7 @@
                   assert |font-presence-cycle-empty $ empty? final-refs
                   :registry $ font/sync-font-leases (:registry got) entering-refs final-refs 1
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.resource-lifecycle/ResourceRegistry)
-            :args $ [] 'quamolit.resource-lifecycle/ResourceRegistry 'quamolit.scene-ir/SceneDocument
+          :schema $ quote $ Fn quamolit.resource-lifecycle/ResourceRegistry quamolit.scene-ir/SceneDocument (-> quamolit.resource-lifecycle/ResourceRegistry)
         'declare $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare (props model input ready viewport)
             let
@@ -200,8 +176,7 @@
                 scene/SceneDocument :nodes $ [] fixed moving
                 , :motions $ [] descriptor
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
-            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Number Bool Number (-> quamolit.component-sample/ComponentDeclaration)
         'declare-alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-alpha (props model input ready viewport)
             let
@@ -220,8 +195,7 @@
                       motion/ScalarKeyframe :at 1 :value 1 :easing $ motion/Easing :linear
                     , :loop $ motion/TrackLoop :clamp
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
-            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Number Bool Number (-> quamolit.component-sample/ComponentDeclaration)
         'declare-color $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-color (props model input ready viewport)
             component/with-rect-color-motion (declare props model input ready viewport) |badge $ motion/ColorDescriptor :id |badge-fill :version (if ready 2 1) :motion $ motion/ColorMotion :tween
@@ -231,8 +205,7 @@
                   motion/ColorRgba :r 1 :g 0 :b (motion/linear-to-srgb 0.75) :a 1
                   , :easing $ if ready (motion/Easing :smoothstep) (motion/Easing :linear)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
-            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Number Bool Number (-> quamolit.component-sample/ComponentDeclaration)
         'declare-dual $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-dual (props model input ready viewport)
             let
@@ -271,8 +244,7 @@
                 scene/SceneDocument :nodes $ [] fixed moving
                 , :motions $ [] descriptor vertical width height
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
-            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Number Bool Number (-> quamolit.component-sample/ComponentDeclaration)
         'declare-execution $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-execution (props model input ready viewport)
             let
@@ -297,9 +269,7 @@
                         , :y zero :rotation zero :scale-x one :scale-y one :pivot $ motion/Vec2 :x 0 :y 0
                       retained/TransformMotion :constant $ scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :return 'quamolit.retained-component/ExecutionDeclaration
-            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Number Bool Number (-> quamolit.retained-component/ExecutionDeclaration)
         'declare-font $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-font (props model input spec viewport)
             retained/ExecutionDeclaration :component
@@ -314,9 +284,7 @@
                   * 40 $ if (<= time 0) 0 $ if (>= time 1) 1 time
                   , :f 0
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :return 'quamolit.retained-component/ExecutionDeclaration
-            :args $ [] 'Number 'Number 'Number 'quamolit.scene-ir/FontSpec 'Number
+          :schema $ quote $ Fn Number Number Number quamolit.scene-ir/FontSpec Number (-> quamolit.retained-component/ExecutionDeclaration)
         'declare-layered $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-layered (props model input ready viewport)
             component/ComponentDeclaration :scene
@@ -356,8 +324,7 @@
                 motion/ScalarDescriptor :id |fade :version 1 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from 0 :to 1 :easing (motion/Easing :smoothstep)
                 motion/ScalarDescriptor :id |bar :version 1 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from 0 :to (+ 80 model) :easing (motion/Easing :smoothstep)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
-            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Number Bool Number (-> quamolit.component-sample/ComponentDeclaration)
         'declare-mirror $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-mirror (props model input ready viewport)
             assoc (declare props model input ready viewport) :motions $ [] $ motion/ScalarDescriptor :id |x :version 1 :motion
@@ -365,14 +332,11 @@
                 motion/ScalarKeyframe :at 0 :value 80 :easing $ motion/Easing :linear
                 motion/ScalarKeyframe :at 1 :value 120 :easing $ motion/Easing :smoothstep
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.component-sample/ComponentDeclaration)
-            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Number Bool Number (-> quamolit.component-sample/ComponentDeclaration)
         'declare-transform $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-transform (props model input ready viewport) (declare-transform-scale props model input ready viewport 1.05)
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :return 'quamolit.retained-component/ExecutionDeclaration
-            :args $ [] 'Number 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Number Bool Number (-> quamolit.retained-component/ExecutionDeclaration)
         'declare-transform-color $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-transform-color (props model input ready viewport scale-end)
             let
@@ -385,17 +349,13 @@
                     , :easing
                       if ready (motion/Easing :smoothstep) (motion/Easing :linear)
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :return 'quamolit.retained-component/ExecutionDeclaration
-            :args $ [] 'Number 'Number 'Number 'Bool 'Number 'Number
+          :schema $ quote $ Fn Number Number Number Bool Number Number (-> quamolit.retained-component/ExecutionDeclaration)
         'declare-transform-scale $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn declare-transform-scale (props model input ready viewport scale-end)
             let
                 base $ declare props model input ready viewport
                 tween $ fn (id from to)
-                  hint-fn $ {}
-                    :args $ [] 'String 'Number 'Number
-                    :return 'quamolit.motion/ScalarDescriptor
+                  hint-fn $ Fn String Number Number $ -> quamolit.motion/ScalarDescriptor
                   motion/ScalarDescriptor :id id :version 1 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from from :to to :easing (motion/Easing :smoothstep)
                 width $ + 80 $ / viewport 10
                 y $ + props model input
@@ -424,75 +384,55 @@
                       = |badge $ :id node
                       , transform $ retained/TransformMotion :constant $ scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e 0 :f 0
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :return 'quamolit.retained-component/ExecutionDeclaration
-            :args $ [] 'Number 'Number 'Number 'Bool 'Number 'Number
+          :schema $ quote $ Fn Number Number Number Bool Number Number (-> quamolit.retained-component/ExecutionDeclaration)
         'dispose-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn dispose-gpu! (host) (batch/dispose-renderer! host)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'quamolit.gpu-component/RectRendererHost
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.gpu-component/RectRendererHost (-> Unit) (:features :js-ffi)
         'dispose-instances-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn dispose-instances-gpu! (batch) (webgpu/dispose! batch)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ [] 'quamolit.webgpu-batches/RectBatchHost
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.webgpu-batches/RectBatchHost (-> Bool) (:features :js-ffi)
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context plan) (platform/clear-canvas! context 320 180) (retained/draw-plan! context plan)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.retained-component/ComponentPlan
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.retained-component/ComponentPlan (-> Unit) (:features :js-ffi)
         'draw-curve! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-curve! (context document)
             do (platform/clear-canvas! context 320 180)
               canvas-scene/draw-document! context document 320 180 $ fn (id version) (raise |consumer-curve-has-no-images)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.scene-ir/SceneDocument (-> Unit) (:features :js-ffi)
         'draw-document! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-document! (context document width height)
             canvas-scene/draw-document! context document width height $ fn (id version) (raise |layered-consumer-has-no-images)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument 'Number 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.scene-ir/SceneDocument Number Number (-> Unit) (:features :js-ffi)
         'draw-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-gpu! (host program time) (gpu/draw-at! host program time)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/ScalarProgram 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.gpu-component/RectRendererHost quamolit.gpu-scalar-program/ScalarProgram Number (-> Unit) (:features :js-ffi)
         'draw-independent-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-independent-gpu! (host program time) (gpu/draw-instance-at! host program time)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/InstanceProgram 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.gpu-component/RectRendererHost quamolit.gpu-scalar-program/InstanceProgram Number (-> Unit) (:features :js-ffi)
         'draw-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-instances! (context positions)
             canvas/draw-instances! context (instances-declaration) positions
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'js-ffi.typed-arrays/Float32ArrayHost
+          :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost js-ffi.typed-arrays/Float32ArrayHost (-> quamolit.canvas-reference/InstancesMetrics)
         'draw-instances-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-instances-gpu! (previous batch table version)
             instance-gpu/draw-source! previous batch table $ instances-for-version version
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.instance-gpu/SourceDraw)
-            :args $ [] 'Number 'quamolit.webgpu-batches/RectBatchHost 'quamolit.instance-resource/InstanceTableHost 'Number
+          :schema $ quote $ Fn Number quamolit.webgpu-batches/RectBatchHost quamolit.instance-resource/InstanceTableHost Number (-> quamolit.instance-gpu/SourceDraw)
         'draw-layered! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-layered! (context plan width height) (platform/clear-canvas! context width height)
             canvas-scene/draw-document! context
               fit-layered-document (:scene plan) width height
               , width height $ fn (id version) (raise |layered-consumer-has-no-images)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.retained-component/ComponentPlan 'Number 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.retained-component/ComponentPlan Number Number (-> Unit) (:features :js-ffi)
         'draw-primitives! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-primitives! (context document image width height)
             canvas-scene/draw-document! context (fit-layered-document document width height) width height $ fn (id version)
@@ -500,23 +440,18 @@
               assert |unexpected-primitive-image-version $ = version 1
               , image
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.scene-ir/SceneDocument 'js-ffi.browser/ImageHost 'Number 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.scene-ir/SceneDocument js-ffi.browser/ImageHost Number Number (-> Unit) (:features :js-ffi)
         'draw-resolved-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-resolved-instances! (context table version)
             let
                 node $ instances-for-version version
               canvas/draw-instances! context node $ resource/resolve table $ :source node
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.canvas-reference/InstancesMetrics)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.instance-resource/InstanceTableHost 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.instance-resource/InstanceTableHost Number (-> quamolit.canvas-reference/InstancesMetrics) (:features :js-ffi)
         'empty-presence-resource-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn empty-presence-resource-plan () (presence/empty-instance-resource-plan)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/InstanceResourcePlan)
-            :args $ []
+          :schema $ quote $ Fn (-> quamolit.presence/InstanceResourcePlan)
         'exercise-instance-capture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn exercise-instance-capture! (table surface event)
             let
@@ -533,9 +468,7 @@
               assert |unexpected-instance-version-capture-release $ not $ :capture-released kept
               pointer-browser/reconcile-pointer-surface! surface empty-plan $ :state kept
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-pointer/PointerReconcile)
-            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'quamolit.scene-pointer-browser/PointerSurfaceHost 'quamolit.scene-pointer-browser/PointerEventHost
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.instance-resource/InstanceTableHost quamolit.scene-pointer-browser/PointerSurfaceHost quamolit.scene-pointer-browser/PointerEventHost (-> quamolit.scene-pointer/PointerReconcile) (:features :js-ffi)
         'fit-layered-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn fit-layered-document (document width height)
             let
@@ -550,8 +483,7 @@
               struct-with document $ :nodes $ assoc nodes 0
                 struct-with root $ :content root-content
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
-            :args $ [] 'quamolit.scene-ir/SceneDocument 'Number 'Number
+          :schema $ quote $ Fn quamolit.scene-ir/SceneDocument Number Number (-> quamolit.scene-ir/SceneDocument)
         'font-hit-plan! $ %{} 'CodeEntry
           :doc "|独立消费者将既有单文字组件的采样变换接入交互Scene，再仅通过Calcit模块测量/编译文字命中。不在JS实现字体别名或命中，ready同时间更新必须重新提交。"
           :code $ quote $ defn font-hit-plan! (context plan label)
@@ -572,90 +504,74 @@
                 document $ scene/SceneDocument :nodes $ prepend nodes root
               canvas/measure-text-hit-plan! context $ hit/compile-hit-plan document
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
-            :args $ [] 'js-ffi.canvas-batches/CanvasContextHost 'quamolit.retained-component/ComponentPlan 'String
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.retained-component/ComponentPlan String (-> quamolit.scene-hit/HitPlan) (:features :js-ffi)
         'font-request $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn font-request (time spec)
             component/ComponentRequest :id |consumer-font :time time :versions
               direct/FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources (:version spec) :viewport 0
               , :props 0 :model 0 :input 0 :resources spec :viewport 320
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :args $ [] 'Number 'quamolit.scene-ir/FontSpec
-            :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'Number 'Number 'quamolit.scene-ir/FontSpec 'Number
+          :schema $ quote $ Fn Number quamolit.scene-ir/FontSpec
+            -> $ quamolit.component-sample/ComponentRequest Number Number Number quamolit.scene-ir/FontSpec Number
         'font-spec $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn font-spec (family version)
             scene/FontSpec :family family :version version :fallback $ scene/FontFallback :monospace
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/FontSpec)
-            :args $ [] 'String 'Number
+          :schema $ quote $ Fn String Number (-> quamolit.scene-ir/FontSpec)
         'gpu-diagnostics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-diagnostics (plan) (batch/diagnose-plan plan)
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :args $ [] 'quamolit.retained-component/ComponentPlan
-            :return $ :: 'List 'quamolit.scene-ir/SceneDiagnostic
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan
+            -> $ List quamolit.scene-ir/SceneDiagnostic
         'gpu-recovery-close $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-close (state) (recovery/close-recovery state)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
-            :args $ [] 'quamolit.device-recovery/RecoveryState
+          :schema $ quote $ Fn quamolit.device-recovery/RecoveryState (-> quamolit.device-recovery/RecoveryTransition)
         'gpu-recovery-create-failed $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-create-failed (state generation message)
             recovery/create-resolved state generation $ recovery/create-failed message
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
-            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number 'String
+          :schema $ quote $ Fn quamolit.device-recovery/RecoveryState Number String (-> quamolit.device-recovery/RecoveryTransition)
         'gpu-recovery-create-ready $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-create-ready (state generation)
             recovery/create-resolved state generation $ recovery/create-ready
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
-            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number
+          :schema $ quote $ Fn quamolit.device-recovery/RecoveryState Number (-> quamolit.device-recovery/RecoveryTransition)
         'gpu-recovery-initial $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-initial (version) (recovery/initial-state version)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryState)
-            :args $ [] 'Number
+          :schema $ quote $ Fn Number (-> quamolit.device-recovery/RecoveryState)
         'gpu-recovery-lost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-lost (state generation message) (recovery/device-lost state generation message)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
-            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number 'String
+          :schema $ quote $ Fn quamolit.device-recovery/RecoveryState Number String (-> quamolit.device-recovery/RecoveryTransition)
         'gpu-recovery-open $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-open (state version) (recovery/request-open state version)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
-            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number
+          :schema $ quote $ Fn quamolit.device-recovery/RecoveryState Number (-> quamolit.device-recovery/RecoveryTransition)
         'gpu-recovery-probe-failed $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-probe-failed (state generation message)
             recovery/probe-resolved state generation $ recovery/probe-failed message
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
-            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number 'String
+          :schema $ quote $ Fn quamolit.device-recovery/RecoveryState Number String (-> quamolit.device-recovery/RecoveryTransition)
         'gpu-recovery-probe-fallback $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-probe-fallback (state generation message)
             recovery/probe-resolved state generation $ recovery/probe-fallback message
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
-            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number 'String
+          :schema $ quote $ Fn quamolit.device-recovery/RecoveryState Number String (-> quamolit.device-recovery/RecoveryTransition)
         'gpu-recovery-probe-ready $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-probe-ready (state generation)
             recovery/probe-resolved state generation $ recovery/probe-ready
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryTransition)
-            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number
+          :schema $ quote $ Fn quamolit.device-recovery/RecoveryState Number (-> quamolit.device-recovery/RecoveryTransition)
         'gpu-recovery-update-version $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-recovery-update-version (state version) (recovery/update-resource-version state version)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.device-recovery/RecoveryState)
-            :args $ [] 'quamolit.device-recovery/RecoveryState 'Number
+          :schema $ quote $ Fn quamolit.device-recovery/RecoveryState Number (-> quamolit.device-recovery/RecoveryState)
         'gpu-reusable? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-reusable? (program plan) (gpu/reusable? program plan)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ [] 'quamolit.gpu-scalar-program/ScalarProgram 'quamolit.retained-component/ComponentPlan
+          :schema $ quote $ Fn quamolit.gpu-scalar-program/ScalarProgram quamolit.retained-component/ComponentPlan (-> Bool)
         'independent-instance-motions $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn independent-instance-motions ()
             map (range 10000)
@@ -678,9 +594,8 @@
                             quamolit.motion/Easing :linear
                             quamolit.motion/Easing :smoothstep
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :args $ []
-            :return $ :: 'List 'quamolit.motion/Vec2Descriptor
+          :schema $ quote $ Fn
+            -> $ List quamolit.motion/Vec2Descriptor
         'independent-instance-positions $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn independent-instance-positions (motions time)
             mapcat motions $ fn (descriptor)
@@ -688,53 +603,42 @@
                   point $ quamolit.motion/sample-vec2 descriptor time
                 [] (:x point) (:y point)
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :args $ [] (:: 'List 'quamolit.motion/Vec2Descriptor) 'Number
-            :return $ :: 'List 'Number
+          :schema $ quote $ Fn (List quamolit.motion/Vec2Descriptor) Number
+            -> $ List Number
         'install-font! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-font! (loaded spec) (font/install-font! loaded spec)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ [] 'quamolit.font-resource/LoadedFont 'quamolit.scene-ir/FontSpec
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.font-resource/LoadedFont quamolit.scene-ir/FontSpec (-> Bool) (:features :js-ffi)
         'install-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-gpu! (host program) (gpu/install-program! host program)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/ScalarProgram
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.gpu-component/RectRendererHost quamolit.gpu-scalar-program/ScalarProgram (-> Unit) (:features :js-ffi)
         'install-independent-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-independent-gpu! (host program time) (gpu/install-instance-program! host program time)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/InstanceProgram 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.gpu-component/RectRendererHost quamolit.gpu-scalar-program/InstanceProgram Number (-> Unit) (:features :js-ffi)
         'instance-frame-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn instance-frame-at (time)
             InstanceFrame :index 5050 :x
               * 108 $ - 1 time
               , :y $ * 90 $ - 1 time
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'app.main/InstanceFrame)
-            :args $ [] 'Number
+          :schema $ quote $ Fn Number (-> app.main/InstanceFrame)
         'instances-declaration $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn instances-declaration ()
             scene/InstanceNode :source (scene/InstanceSource :id |consumer-particles :version 1 :count 10000) :width 2 :height 2 :fill $ motion/ColorRgba :r 0.917 :g 0.345 :b 0.047 :a 1
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/InstanceNode)
-            :args $ []
+          :schema $ quote $ Fn (-> quamolit.scene-ir/InstanceNode)
         'instances-for-version $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn instances-for-version (version)
             scene/InstanceNode :source (scene/InstanceSource :id |consumer-particles :version version :count 10000) :width 2 :height 2 :fill $ motion/ColorRgba :r 0.917 :g 0.345 :b 0.047 :a 1
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/InstanceNode)
-            :args $ [] 'Number
+          :schema $ quote $ Fn Number (-> quamolit.scene-ir/InstanceNode)
         'instances-hit-index $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn instances-hit-index (plan x y) (hit/instance-hit-index plan |consumer-instances x y)
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :args $ [] 'quamolit.scene-hit/HitPlan 'Number 'Number
-            :return $ :: 'Option 'Number
+          :schema $ quote $ Fn quamolit.scene-hit/HitPlan Number Number
+            -> $ Option Number
         'instances-hit-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn instances-hit-plan (table version)
             let
@@ -743,21 +647,14 @@
                 scene/SceneDocument :nodes $ [] node
                 fn (source) (resource/hit-source table source)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-hit/HitPlan)
-            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.instance-resource/InstanceTableHost Number (-> quamolit.scene-hit/HitPlan) (:features :js-ffi)
         'instances-live-count $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn instances-live-count (table) (resource/live-count table)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Number)
-            :args $ [] 'quamolit.instance-resource/InstanceTableHost
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.instance-resource/InstanceTableHost (-> Number) (:features :js-ffi)
         'load-font! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn load-font! (spec source)
-            hint-fn $ {} (:async true)
-              :args $ [] 'quamolit.scene-ir/FontSpec 'String
-              :return 'quamolit.font-resource/FontLoadOutcome
-              :features $ #{} :js-ffi
+            hint-fn $ Fn quamolit.scene-ir/FontSpec String (-> quamolit.font-resource/FontLoadOutcome) (:features :js-ffi) (:async)
             let
                 resource-id $ lifecycle/resource (lifecycle/ResourceKind :font) |consumer-font $ :version spec
                 state $ :state $ lifecycle/request-resource (lifecycle/initial-state resource-id) resource-id
@@ -770,14 +667,11 @@
                 (:some loaded) (font/FontLoadOutcome :ready loaded)
                 (:none) (:outcome result)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.font-resource/FontLoadOutcome)
-            :args $ [] 'quamolit.scene-ir/FontSpec 'String
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.scene-ir/FontSpec String (-> quamolit.font-resource/FontLoadOutcome) (:features :js-ffi) (:async)
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () &unit
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ []
+          :schema $ quote $ Fn (-> Unit)
         'nested-presence-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn nested-presence-at (time)
             let
@@ -793,29 +687,24 @@
                 declaration $ presence-component/declare-tree-coalesced exiting (binding/empty-descriptors) ([] |panel |plot)
               binding/resolve-scene (:scene declaration) (:motions declaration) time
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
-            :args $ [] 'Number
+          :schema $ quote $ Fn Number (-> quamolit.scene-ir/SceneDocument)
         'patch-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn patch-instances! (table previous version frame positions)
             resource/register-patch! table
               :source $ instances-for-version version
               , previous (:index frame) positions
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Number)
-            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'Number 'Number 'app.main/InstanceFrame 'js-ffi.typed-arrays/Float32ArrayHost
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.instance-resource/InstanceTableHost Number Number app.main/InstanceFrame js-ffi.typed-arrays/Float32ArrayHost (-> Number) (:features :js-ffi)
         'prepare-gpu $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn prepare-gpu (plan) (gpu/prepare-program plan)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
-            :args $ [] 'quamolit.retained-component/ComponentPlan
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan (-> quamolit.gpu-scalar-program/ProgramResult)
         'prepare-independent-gpu $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn prepare-independent-gpu (motions time)
             gpu/prepare-instance-program (instances-declaration) motions time
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :return 'quamolit.gpu-scalar-program/InstanceProgramResult
-            :args $ [] (:: 'List 'quamolit.motion/Vec2Descriptor) 'Number
+          :schema $ quote $ Fn (List quamolit.motion/Vec2Descriptor) Number
+            -> quamolit.gpu-scalar-program/InstanceProgramResult
         'presence-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-document (phase)
             let
@@ -833,19 +722,16 @@
                     scene/SceneDocument :nodes $ [] b
                     raise |unknown-consumer-presence-phase
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
-            :args $ [] 'String
+          :schema $ quote $ Fn String (-> quamolit.scene-ir/SceneDocument)
         'presence-initial $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-initial ()
             presence/start-presence $ presence-document |full
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
-            :args $ []
+          :schema $ quote $ Fn (-> quamolit.presence/PresenceModel)
         'presence-needs-frame? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-needs-frame? (model time) (presence/presence-needs-frame? model time)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ [] 'quamolit.presence/PresenceModel 'Number
+          :schema $ quote $ Fn quamolit.presence/PresenceModel Number (-> Bool)
         'presence-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-plan (model time version)
             retained/build-execution-plan (request time version false 100)
@@ -854,30 +740,25 @@
                   presence-component/declare-flat model $ binding/empty-descriptors
                   , :transforms $ retained/TransformSampler :none
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.presence/PresenceModel 'Number 'Number
+          :schema $ quote $ Fn quamolit.presence/PresenceModel Number Number (-> quamolit.retained-component/ComponentPlan)
         'presence-reconcile $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-reconcile (model phase time)
             presence/reconcile-presence model (presence-document phase) time 1 $ motion/Easing :smoothstep
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
-            :args $ [] 'quamolit.presence/PresenceModel 'String 'Number
+          :schema $ quote $ Fn quamolit.presence/PresenceModel String Number (-> quamolit.presence/PresenceUpdate)
         'presence-resource-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-resource-plan (model previous) (presence/instance-resource-plan model previous)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/InstanceResourcePlan)
-            :args $ [] 'quamolit.presence/PresenceModel 'quamolit.presence/InstanceResourcePlan
+          :schema $ quote $ Fn quamolit.presence/PresenceModel quamolit.presence/InstanceResourcePlan (-> quamolit.presence/InstanceResourcePlan)
         'presence-sample $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-sample (model time) (presence/sample-presence model time)
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :args $ [] 'quamolit.presence/PresenceModel 'Number
-            :return $ :: 'List 'quamolit.presence/PresenceSample
+          :schema $ quote $ Fn quamolit.presence/PresenceModel Number
+            -> $ List quamolit.presence/PresenceSample
         'presence-settle $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-settle (model time) (presence/settle-presence model time)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
-            :args $ [] 'quamolit.presence/PresenceModel 'Number
+          :schema $ quote $ Fn quamolit.presence/PresenceModel Number (-> quamolit.presence/PresenceUpdate)
         'presence-update-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn presence-update-plan (previous model time version)
             retained/update-execution-plan previous (request time version false 100)
@@ -886,8 +767,7 @@
                   presence-component/declare-flat model $ binding/empty-descriptors
                   , :transforms $ retained/TransformSampler :none
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan 'quamolit.presence/PresenceModel 'Number 'Number
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan quamolit.presence/PresenceModel Number Number (-> quamolit.retained-component/ComponentPlan)
         'primitive-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn primitive-document (time)
             scene/SceneDocument :nodes $ []
@@ -941,53 +821,42 @@
                 scene/SceneContent :arc $ scene/ArcNode :cx 112 :cy 112 :radius 18 :start-angle 0.2 :end-angle 2.4 :counterclockwise false :width 4 :stroke $ motion/ColorRgba :r 0 :g 0 :b 1 :a 0.5
                 , :bindings ([]) :interaction $ scene/SceneInteraction :none
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
-            :args $ [] 'Number
+          :schema $ quote $ Fn Number (-> quamolit.scene-ir/SceneDocument)
         'register-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn register-instances! (table positions)
             resource/register! table
               :source $ instances-for-version 1
               , positions
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'js-ffi.typed-arrays/Float32ArrayHost)
-            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'js-ffi.typed-arrays/Float32ArrayHost
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.instance-resource/InstanceTableHost js-ffi.typed-arrays/Float32ArrayHost (-> js-ffi.typed-arrays/Float32ArrayHost) (:features :js-ffi)
         'register-instances-version! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn register-instances-version! (table version positions)
             resource/register! table
               :source $ instances-for-version version
               , positions
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'js-ffi.typed-arrays/Float32ArrayHost)
-            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'Number 'js-ffi.typed-arrays/Float32ArrayHost
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.instance-resource/InstanceTableHost Number js-ffi.typed-arrays/Float32ArrayHost (-> js-ffi.typed-arrays/Float32ArrayHost) (:features :js-ffi)
         'release-font! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-font! (loaded) (font/release-font! loaded)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ [] 'quamolit.font-resource/LoadedFont
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.font-resource/LoadedFont (-> Bool) (:features :js-ffi)
         'release-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn release-instances! (table version)
             resource/release! table $ :source $ instances-for-version version
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Bool)
-            :args $ [] 'quamolit.instance-resource/InstanceTableHost 'Number
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.instance-resource/InstanceTableHost Number (-> Bool) (:features :js-ffi)
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () &unit
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ []
+          :schema $ quote $ Fn (-> Unit)
         'request $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn request (time model ready viewport)
             component/ComponentRequest :id |consumer :time time :versions
               direct/FrameVersions :component 0 :motion 0 :model model :input 0 :resources (if ready 1 0) :viewport viewport
               , :props 20 :model model :input 2 :resources ready :viewport viewport
           :examples $ []
-          :schema $ :: 'Fn $ {}
-            :args $ [] 'Number 'Number 'Bool 'Number
-            :return $ :: 'quamolit.component-sample/ComponentRequest 'Number 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Bool Number
+            -> $ quamolit.component-sample/ComponentRequest Number Number Number Bool Number
         'resource-presence-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn resource-presence-document (phase version)
             let
@@ -1005,28 +874,21 @@
                       scene/SceneDocument :nodes $ []
                       raise |unknown-consumer-resource-phase
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.scene-ir/SceneDocument)
-            :args $ [] 'String 'Number
+          :schema $ quote $ Fn String Number (-> quamolit.scene-ir/SceneDocument)
         'resource-presence-initial $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn resource-presence-initial (version)
             presence/start-presence $ resource-presence-document |full version
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceModel)
-            :args $ [] 'Number
+          :schema $ quote $ Fn Number (-> quamolit.presence/PresenceModel)
         'resource-presence-reconcile $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn resource-presence-reconcile (model phase time version)
             presence/reconcile-presence model (resource-presence-document phase version) time 1 $ motion/Easing :smoothstep
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.presence/PresenceUpdate)
-            :args $ [] 'quamolit.presence/PresenceModel 'String 'Number 'Number
+          :schema $ quote $ Fn quamolit.presence/PresenceModel String Number Number (-> quamolit.presence/PresenceUpdate)
         'shared-font-cycle! $ %{} 'CodeEntry
           :doc "|消费方用Calcit获取两个lease，共享一次原生加载，idle重入不重载，显式close释放；不依赖JS registry。"
           :code $ quote $ defn shared-font-cycle! (spec source)
-            hint-fn $ {}
-              :args $ [] 'quamolit.scene-ir/FontSpec 'String
-              :return 'quamolit.font-resource/FontRegistryCompletion
-              :async true
-              :features $ #{} :js-ffi
+            hint-fn $ Fn quamolit.scene-ir/FontSpec String (-> quamolit.font-resource/FontRegistryCompletion) (:features :js-ffi) (:async)
             let
                 document $ :scene $ :component (declare-font 0 0 0 spec 0)
                 model $ presence/start-presence document
@@ -1089,92 +951,73 @@
                 fn (error) (font/release-font! owned)
                   raise $ :message $ errors/normalize-error error
           :examples $ []
-          :schema $ :: 'Fn $ {} (:async true) (:return 'quamolit.font-resource/FontRegistryCompletion)
-            :args $ [] 'quamolit.scene-ir/FontSpec 'String
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.scene-ir/FontSpec String (-> quamolit.font-resource/FontRegistryCompletion) (:features :js-ffi) (:async)
         'start $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start (time model ready viewport)
             retained/build-execution-plan (request time model ready viewport) declare-execution
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'start-alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-alpha (time model ready viewport)
             retained/build-component-plan (request time model ready viewport) declare-alpha
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'start-color $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-color (time model ready viewport)
             retained/build-component-plan (request time model ready viewport) declare-color
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'start-dual $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-dual (time model ready viewport)
             retained/build-component-plan (request time model ready viewport) declare-dual
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'start-font $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-font (time spec)
             retained/build-execution-plan (font-request time spec) declare-font
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'Number 'quamolit.scene-ir/FontSpec
+          :schema $ quote $ Fn Number quamolit.scene-ir/FontSpec (-> quamolit.retained-component/ComponentPlan)
         'start-layered $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-layered (time model ready viewport)
             retained/build-component-plan (request time model ready viewport) declare-layered
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'start-mirror $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-mirror (time model ready viewport)
             retained/build-component-plan (request time model ready viewport) declare-mirror
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'start-rects $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-rects (time model ready viewport)
             retained/build-component-plan (request time model ready viewport) declare
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'start-transform $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-transform (time model ready viewport)
             retained/build-execution-plan (request time model ready viewport) declare-transform
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'start-transform-color $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-transform-color (time model ready viewport scale-end)
             retained/build-execution-plan (request time model ready viewport)
               fn (props model input ready viewport)
-                hint-fn $ {}
-                  :args $ [] 'Number 'Number 'Number 'Bool 'Number
-                  :return 'quamolit.retained-component/ExecutionDeclaration
+                hint-fn $ Fn Number Number Number Bool Number $ -> quamolit.retained-component/ExecutionDeclaration
                 declare-transform-color props model input ready viewport scale-end
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'Number 'Number 'Bool 'Number 'Number
+          :schema $ quote $ Fn Number Number Bool Number Number (-> quamolit.retained-component/ComponentPlan)
         'start-transform-scale $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn start-transform-scale (time model ready viewport scale-end)
             retained/build-execution-plan (request time model ready viewport)
               fn (props model input ready viewport)
-                hint-fn $ {}
-                  :args $ [] 'Number 'Number 'Number 'Bool 'Number
-                  :return 'quamolit.retained-component/ExecutionDeclaration
+                hint-fn $ Fn Number Number Number Bool Number $ -> quamolit.retained-component/ExecutionDeclaration
                 declare-transform-scale props model input ready viewport scale-end
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'Number 'Number 'Bool 'Number 'Number
+          :schema $ quote $ Fn Number Number Bool Number Number (-> quamolit.retained-component/ComponentPlan)
         'submit-batch! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn submit-batch! (host prepared)
             batch/submit-update! host $ :delta prepared
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-component/BatchPlan
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.gpu-component/RectRendererHost quamolit.gpu-component/BatchPlan (-> Unit) (:features :js-ffi)
         'transform-error-envelope $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn transform-error-envelope (program index)
             gpu/trs-precision
@@ -1184,73 +1027,60 @@
               :parameters program
               , index
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.motion/Vec2)
-            :args $ [] 'quamolit.gpu-scalar-program/ScalarProgram 'Number
+          :schema $ quote $ Fn quamolit.gpu-scalar-program/ScalarProgram Number (-> quamolit.motion/Vec2)
         'update-alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-alpha (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare-alpha
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'update-batch $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-batch (previous plan) (batch/update-batch previous plan)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-component/BatchPlan)
-            :args $ [] 'quamolit.gpu-component/BatchPlan 'quamolit.retained-component/ComponentPlan
+          :schema $ quote $ Fn quamolit.gpu-component/BatchPlan quamolit.retained-component/ComponentPlan (-> quamolit.gpu-component/BatchPlan)
         'update-color $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-color (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare-color
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'update-dual $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-dual (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare-dual
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'update-font $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-font (plan time spec)
             retained/update-execution-plan plan (font-request time spec) declare-font
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'quamolit.scene-ir/FontSpec
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan Number quamolit.scene-ir/FontSpec (-> quamolit.retained-component/ComponentPlan)
         'update-gpu! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-gpu! (host program plan) (gpu/update-program! host program plan)
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.gpu-scalar-program/ProgramResult)
-            :args $ [] 'quamolit.gpu-component/RectRendererHost 'quamolit.gpu-scalar-program/ScalarProgram 'quamolit.retained-component/ComponentPlan
-            :features $ #{} :js-ffi
+          :schema $ quote $ Fn quamolit.gpu-component/RectRendererHost quamolit.gpu-scalar-program/ScalarProgram quamolit.retained-component/ComponentPlan (-> quamolit.gpu-scalar-program/ProgramResult) (:features :js-ffi)
         'update-layered $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-layered (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare-layered
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'update-mirror $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-mirror (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare-mirror
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'update-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-plan (plan time model ready viewport)
             retained/update-execution-plan plan (request time model ready viewport) declare-execution
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'update-rects $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-rects (plan time model ready viewport)
             retained/update-component-plan plan (request time model ready viewport) declare
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
         'update-transform $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-transform (plan time model ready viewport)
             retained/update-execution-plan plan (request time model ready viewport) declare-transform
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'quamolit.retained-component/ComponentPlan)
-            :args $ [] 'quamolit.retained-component/ComponentPlan 'Number 'Number 'Bool 'Number
+          :schema $ quote $ Fn quamolit.retained-component/ComponentPlan Number Number Bool Number (-> quamolit.retained-component/ComponentPlan)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.main
           :require (quamolit.component-sample :as component) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.retained-component :as retained) (js-ffi.canvas-batches :as platform) (js-ffi.browser :as browser) (quamolit.gpu-scalar-program :as gpu) (quamolit.gpu-component :as batch) (quamolit.canvas-reference :as canvas) (quamolit.instance-resource :as resource) (quamolit.instance-gpu :as instance-gpu) (quamolit.webgpu-batches :as webgpu) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component) (quamolit.scene-binding :as binding) (quamolit.device-recovery :as recovery) (quamolit.font-resource :as font) (quamolit.resource-lifecycle :as lifecycle) (quamolit.resource-load-queue :as load-queue) (quamolit.scene-hit :as hit) (quamolit.canvas-scene :as canvas-scene) (quamolit.scene-pointer :as pointer) (quamolit.scene-pointer-browser :as pointer-browser) (js-ffi.shared :as errors)

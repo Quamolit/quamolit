@@ -12,24 +12,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#tag=0.2.5":
-  version: 0.2.5
-  resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=761a18f2464ced25dd067985ec6d4b786a8a73b5"
+"@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#tag=0.2.9":
+  version: 0.2.9
+  resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=cc2bd065b43ac035fdfa9165a4daeda7e53b0c63"
   dependencies:
-    "@calcit/procs": "npm:0.30.1"
-  checksum: 10c0/aaecaf2191a558dd343ab8ab4cfcb419fdf68a3d68282cc531de6482b79fcb080cc41afac86f13c320f0fad4dfca94881f5e602c8261cfbb64f4bbedd5e69a9c
+    "@calcit/procs": "npm:0.32.1"
+  checksum: 10c0/9193a618fe952b6de398e1b4a3fcb7e9544c251ba7eadc2a6f5e28616b16dd789e2c77e340d3d7abbf259b368e9c79b8f22b0e36d118e979fa9cbe0a3973c692
   languageName: node
   linkType: hard
 
-"@calcit/procs@npm:0.30.1":
-  version: 0.30.1
-  resolution: "@calcit/procs@npm:0.30.1"
+"@calcit/procs@npm:0.32.1":
+  version: 0.32.1
+  resolution: "@calcit/procs@npm:0.32.1"
   dependencies:
     "@calcit/finger-vec": "npm:0.1.1"
     "@calcit/ternary-tree": "npm:0.0.26"
     "@cirru/parser.ts": "npm:0.0.10"
     "@cirru/writer.ts": "npm:^0.1.9"
-  checksum: 10c0/a0f00e3c0c9b3a5a2aea8b97e09f2692aa25039a48a2f7ccb345801fdbc546cbf3bb34ee268a58526baba9fb697781bb7929a5d1f6622816c9422c6c3ba8537b
+  checksum: 10c0/54c505396a4653e643d24eaa71bf9a029b48034cabcd68ce47b2b40b565cf04a4693ac47c7feb34b8e84936621a397802743bffd3134ddeb37b08d23ef113923
   languageName: node
   linkType: hard
 
@@ -686,8 +686,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
-    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.5"
-    "@calcit/procs": "npm:0.30.1"
+    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.9"
+    "@calcit/procs": "npm:0.32.1"
     "@playwright/test": "npm:1.63.0"
     "@quamolit/touch-control": "npm:^0.0.13"
     bottom-tip: "npm:^0.1.5"
