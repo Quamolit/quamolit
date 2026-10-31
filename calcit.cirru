@@ -1558,16 +1558,16 @@
           :schema $ quote $ Ref Number
         'CanvasContextHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait CanvasContextHost
-            .scale $ quote $ Fn CanvasContextHost Number Number (-> Unit)
-            .translate $ quote $ Fn CanvasContextHost Number Number (-> Unit)
-            .clearRect $ quote $ Fn CanvasContextHost Number Number Number Number (-> Unit)
+            .scale $ quote $ Fn quamolit.core/CanvasContextHost Number Number (-> Unit)
+            .translate $ quote $ Fn quamolit.core/CanvasContextHost Number Number (-> Unit)
+            .clearRect $ quote $ Fn quamolit.core/CanvasContextHost Number Number Number Number (-> Unit)
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
         'CanvasHost $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ deftrait CanvasHost (:width 'Number) (:height 'Number) (:style 'CanvasStyleHost)
-            .get-context $ quote $ Fn CanvasHost String
-              -> $ JsNullish CanvasContextHost
+          :code $ quote $ deftrait CanvasHost (:width 'Number) (:height 'Number) (:style 'quamolit.core/CanvasStyleHost)
+            .get-context $ quote $ Fn quamolit.core/CanvasHost String
+              -> $ JsNullish quamolit.core/CanvasContextHost
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
             :writable $ #{} :height :width
@@ -1580,14 +1580,14 @@
           :schema $ quote Trait
         'EventHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait EventHost (:clientX 'Number) (:clientY 'Number) (:offsetX 'Number) (:offsetY 'Number) (:deltaY 'Number) (:metaKey 'Bool) (:ctrlKey 'Bool) (:shiftKey 'Bool)
-            .preventDefault $ quote $ Fn EventHost (-> Unit)
+            .preventDefault $ quote $ Fn quamolit.core/EventHost (-> Unit)
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
         'EventTargetHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait EventTargetHost
-            .addEventListener $ quote $ Fn EventTargetHost String
-              Fn EventHost $ -> Dynamic
+            .addEventListener $ quote $ Fn quamolit.core/EventTargetHost String
+              Fn quamolit.core/EventHost $ -> Dynamic
               -> Unit
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)

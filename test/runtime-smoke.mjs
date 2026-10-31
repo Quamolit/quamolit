@@ -8,6 +8,7 @@ import { distinct_values, init_tags, CalcitSliceList } from "../target/js/app/ca
 import { hsl } from "../target/js/app/quamolit.util.string.mjs";
 import { paint_rect } from "../target/js/app/quamolit.render.paint.mjs";
 import { create_shape } from "../target/js/app/quamolit.alias.mjs";
+import { configure_canvas } from "../target/js/app/quamolit.core.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
@@ -92,5 +93,22 @@ for (const value of [null, false]) {
 }
 assert.deepEqual(rectangle(map(tags.w, 0, tags.h, 0, tags.x, 0, tags.y, 0)), [0, 0, 0, 0]);
 assert.throws(() => rectangle(map(tags.w, "invalid")), /invalid-legacy-style-number/);
+
+// 实际 DPR=2 浏览器曾因未限定的嵌套 Trait 类型漏写 CSS 宽高，导致绘制与命中错位。
+globalThis.window = { devicePixelRatio: 2, innerWidth: 300, innerHeight: 150 };
+let configuredScale;
+const canvas = {
+  width: 0,
+  height: 0,
+  style: { width: "", height: "" },
+  getContext() {
+    return { clearRect() {}, translate() {}, scale: (...args) => (configuredScale = args) };
+  },
+};
+configure_canvas(canvas);
+delete globalThis.window;
+assert.deepEqual([canvas.width, canvas.height], [600, 300]);
+assert.deepEqual([canvas.style.width, canvas.style.height], ["300px", "150px"]);
+assert.deepEqual(configuredScale, [2, 2]);
 
 console.log(`Calcit CLI/runtime aligned at ${expectedVersion}`);

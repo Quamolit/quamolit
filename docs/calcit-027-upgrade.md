@@ -12,7 +12,7 @@ AST 叶查询不足以证明无 npm 消费者：实际编译产物仍在 typed-a
 
 需要调用方注意：直接读写旧 `*element-tree` Ref 的外部代码须改为匹配 `LegacyRoot` 的 empty/shape/component 三态，并通过 `cache-element-tree!` 写入。普通绘制入口继续接受 Shape/Component/nil；写入先检查名义身份，非法值不会污染缓存。focus/drag 两个 Ref 改为 Option，初始空列表/零坐标仍保留在 Some 内，释放使用 None。Model/Scene/Motion 与 wire 格式不变。
 
-Canvas/事件宿主改用实际 `js-cast` 检查，nullable 2D context 不再声明成必定存在。图片缓存保留对象身份；鼠标释放、键盘无焦点回退、缩放边界与实际旋转命中已通过当前生成 JS 的合成回放。旧旋转将弧度重复换算且丢失 sin 分量的问题按 [#254](https://github.com/Quamolit/quamolit/issues/254) 修复；高层角度仍只换算一次。这些 Node 合成宿主结果不算真实浏览器像素或 GPU 证据。
+Canvas/事件宿主改用实际 `js-cast` 检查，nullable 2D context 不再声明成必定存在。图片缓存保留对象身份；鼠标释放、键盘无焦点回退、缩放边界与实际旋转命中已通过当前生成 JS 的合成回放。旧旋转将弧度重复换算且丢失 sin 分量的问题按 [#254](https://github.com/Quamolit/quamolit/issues/254) 修复；高层角度仍只换算一次。这些 Node 合成宿主结果不算 GPU 证据。随后实际浏览器在 DPR=2 验收 0°/90° 的蓝色矩形：可见区域点击计数增加，对应空白区域不命中。此过程发现 CanvasStyleHost 未限定名会被当成未绑定泛型，导致 js-set 静默写入 :width 错键、CSS 尺寸失效；现已限定四个 Trait 的项目类型引用，并在原 runtime smoke 覆盖实际 DPR=2 宽高/缩放回归。7/7 strict 仍假通过的独立最小对照已报 [Calcit #2502](https://github.com/calcit-lang/calcit/issues/2502)，不在下游增加兼容开关或编译器固定改写规则。
 
 候选版本为 **0.0.18（尚未发布 tag）**。独立示例依赖该正式版本，移除历史 hash；正式版本发布前，本地画廊可显式使用 `QUAMOLIT_CONSUMER_REF=<已推送的候选提交> yarn compile`。原准备脚本在临时目录从 Git 安装该候选并编译到示例既有产物目录，不改写示例 deps、不引用作者工作树或 test 产物。Visual/Upload 沿用原 job、断言和预览路径，以 PR 精确 head 作为候选；未指定候选时仍消费正式 tag。
 
