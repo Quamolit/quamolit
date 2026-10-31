@@ -14,7 +14,9 @@ AST 叶查询不足以证明无 npm 消费者：实际编译产物仍在 typed-a
 
 Canvas/事件宿主改用实际 `js-cast` 检查，nullable 2D context 不再声明成必定存在。图片缓存保留对象身份；鼠标释放、键盘无焦点回退、缩放边界与实际旋转命中已通过当前生成 JS 的合成回放。旧旋转将弧度重复换算且丢失 sin 分量的问题按 [#254](https://github.com/Quamolit/quamolit/issues/254) 修复；高层角度仍只换算一次。这些 Node 合成宿主结果不算真实浏览器像素或 GPU 证据。
 
-候选尚未完成：独立消费者仍须对精确候选重新验收，其历史依赖提交在选择/发布可用版本前不宣称完成正式 tag 对齐。原 Benchmark/Upload/Visual、27 个入口和浏览器/硬件验收以本轮实际结果为准，不引用旧候选绿灯。临时事务与回放不进入日常源码，不新增 namespace、runner、CI job 或重复 COS 校验。未合并、部署或发版。
+候选版本为 **0.0.18（尚未发布 tag）**。独立示例依赖该正式版本，移除历史 hash；正式版本发布前，本地画廊可显式使用 `QUAMOLIT_CONSUMER_REF=<已推送的候选提交> yarn compile`。原准备脚本在临时目录从 Git 安装该候选并编译到示例既有产物目录，不改写示例 deps、不引用作者工作树或 test 产物。Visual/Upload 沿用原 job、断言和预览路径，以 PR 精确 head 作为候选；未指定候选时仍消费正式 tag。
+
+精确提交 `37b9f9e` 的原独立消费者已通过：干净目录安装、完整 strict、file/inline 显式重编译、37 个模块闭包搬移、1000 帧复用、真实 Canvas/字体/曲线/分层与恢复验收。四个 GPU 硬件专项均因 adapter-unavailable 明确 SKIP，不算硬件通过；Canvas 回退和 viewport/DPR 路径通过。版本元数据及画廊准备后续改动仍需用最终 head 重跑。原 Benchmark/Upload/Visual、27 个入口和浏览器验收以本轮实际结果为准，不引用旧候选绿灯。临时事务与回放不进入日常源码，不新增 namespace、runner、CI job 或重复 COS 校验。未合并、部署或发版。
 
 旧 `bound-x` 的反向区间公式已通过实际生成 JS 确认可能超界，另报 [#257](https://github.com/Quamolit/quamolit/issues/257)。当前只验证数字 FFI 返回，不悄悄改算法；既有反向区间合同与消费者须单独审查。这属于模块算法问题，不新增编译器固定改写规则。
 
