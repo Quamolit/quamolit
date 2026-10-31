@@ -1494,7 +1494,7 @@
                         Option :none
                         get
                           decode-map-as (:event shape)
-                            quote $ Map Tag Dynamic
+                            quote $ Map Dynamic Dynamic
                           , event-name
                       _ other $ Option :none
                   match maybe-listener
@@ -1518,7 +1518,7 @@
                   :children $ []
                 parent $ %{} Shape (:name :group)
                   :style $ {}
-                  :event $ {} $ :click handler
+                  :event $ {} (:click handler) (|metadata |synthetic) (7 true)
                   :children $ [] $ [] :kid child
                 tree $ %{} Component (:name :root) (:tree parent) (:on-tick nil)
               assert= true $ match
