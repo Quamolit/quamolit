@@ -127,12 +127,16 @@
         '>> $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn >> (states k)
             let
-                parent-cursor $ .unwrap-or (&map:get states :cursor) ([])
+                states $ if (map? states) states $ raise |Expected-state-map
+                parent-cursor $ decode-map-as
+                  .unwrap-or (&map:get states :cursor) ([])
+                  :: 'List 'Dynamic
                 branch $ match (&map:get states k)
                   (:some legacy-value) legacy-value
                   (:none) nil
+                branch $ either branch $ {}
               &map:assoc
-                either branch $ {}
+                if (map? branch) branch $ raise |Expected-state-map
                 , :cursor $ append parent-cursor k
           :examples $ []
           :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic)
@@ -188,7 +192,7 @@
             quasiquote $ defn ~comp-name ~args $ let
                 ret $ do ~@body
               cond
-                  &struct:matches? Shape ret
+                  and (struct? ret) (&struct:matches? ret Shape)
                   %{} Component
                     :name $ ~ $ turn-tag comp-name
                     :on-tick nil
@@ -1035,91 +1039,156 @@
         'comp-fade-fn $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-fade-fn (states props f1)
             let
-                cursor $ :cursor states
+                cursor $ .unwrap-or (get states :cursor) nil
                 v 4
-                state $ assert-type
+                state $ decode-map-as
                     get states :data
                     , .unwrap-or $ {} (:stage :hidden) (:opacity 0)
-                  quote $ Map Tag Dynamic
-                p1 $ f1 (>> states :renderer) (:opacity state)
-                  wo-log $ :stage state
+                  :: 'Map 'Dynamic 'Dynamic
+                p1 $ if (fn? f1)
+                  f1 (>> states :renderer)
+                    .unwrap-or (get state :opacity) nil
+                    .unwrap-or (get state :stage) nil
+                  raise |Expected-fade-callback-function
               []
                 fn (elapsed d!)
-                  match (:stage state)
-                    :hidden $ when (non-nil? p1)
-                      d! cursor $ merge state $ {} (:stage :showing)
-                        :opacity $ + (* elapsed v) 0
-                      write-node-cache! cursor f1
-                    :showing $ do
-                      if
-                        >= (:opacity state) 1
-                        d! cursor $ {} (:stage :show) (:opacity 1)
-                        d! cursor $ -> state $ update :opacity
-                          fn (x)
-                            + x $ * elapsed v
-                      write-node-cache! cursor f1
-                    :show $ if (nil? p1)
-                      d! cursor $ {} (:stage :hiding)
-                        :opacity $ - 1 $ * elapsed v
-                      write-node-cache! cursor f1
-                    :hiding $ if
-                      <= (:opacity state) 0
-                      do
-                        d! cursor $ {} (:stage :hidden) (:opacity 0.01)
-                        delete-node-cache! cursor
-                      d! cursor $ update state :opacity $ fn (x)
-                        - x $ * elapsed v
-                    _ $ println "|unknown stage" $ :stage state
+                  let
+                      elapsed $ decode-map-as elapsed 'Number
+                    match
+                      .unwrap-or (get state :stage) nil
+                      :hidden $ when (non-nil? p1)
+                        if (fn? d!)
+                          d! cursor $ merge state $ {} (:stage :showing)
+                            :opacity $ + (* elapsed v) 0
+                          raise |Expected-fade-callback-function
+                        write-node-cache! cursor f1
+                      :showing $ do
+                        if
+                          >=
+                            decode-map-as
+                              .unwrap-or (get state :opacity) nil
+                              , 'Number
+                            , 1
+                          if (fn? d!)
+                            d! cursor $ {} (:stage :show) (:opacity 1)
+                            raise |Expected-fade-callback-function
+                          if (fn? d!)
+                            d! cursor $ -> state $ update :opacity
+                              fn (x)
+                                let
+                                    x $ decode-map-as x 'Number
+                                  + x $ * elapsed v
+                            raise |Expected-fade-callback-function
+                        write-node-cache! cursor f1
+                      :show $ if (nil? p1)
+                        if (fn? d!)
+                          d! cursor $ {} (:stage :hiding)
+                            :opacity $ - 1 $ * elapsed v
+                          raise |Expected-fade-callback-function
+                        write-node-cache! cursor f1
+                      :hiding $ if
+                        <=
+                          decode-map-as
+                            .unwrap-or (get state :opacity) nil
+                            , 'Number
+                          , 0
+                        do
+                          if (fn? d!)
+                            d! cursor $ {} (:stage :hidden) (:opacity 0.01)
+                            raise |Expected-fade-callback-function
+                          delete-node-cache! cursor
+                        if (fn? d!)
+                          d! cursor $ update state :opacity $ fn (x)
+                            let
+                                x $ decode-map-as x 'Number
+                              - x $ * elapsed v
+                          raise |Expected-fade-callback-function
+                      _ $ println "|unknown stage" $ .unwrap-or (get state :stage) nil
                 alpha
-                  {} $ :opacity $ :opacity state
-                  match (:stage state) (:hidden nil)
+                  {} $ :opacity $ .unwrap-or (get state :opacity) nil
+                  match
+                    .unwrap-or (get state :stage) nil
+                    :hidden nil
                     _ $ either p1 $ &let
-                      old-f $ get-node! cursor
+                      old-f $ .unwrap-or (get-node! cursor) nil
                       if (non-nil? old-f)
-                        old-f (>> states :renderer) (:opacity state) (:stage state)
+                        if (fn? old-f)
+                          old-f (>> states :renderer)
+                            .unwrap-or (get state :opacity) nil
+                            .unwrap-or (get state :stage) nil
+                          raise |Expected-fade-callback-function
           :examples $ []
-          :schema $ quote $ Fn (Map Tag Dynamic) Dynamic Dynamic (-> Dynamic)
+          :schema $ quote $ Fn (Map Dynamic Dynamic) Dynamic Dynamic (-> quamolit.types/Component)
         'comp-fade-in-out $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-fade-in-out (states props p1)
             let
-                cursor $ :cursor states
+                cursor $ .unwrap-or (get states :cursor) nil
                 v 4
-                state $ assert-type
+                state $ decode-map-as
                     get states :data
                     , .unwrap-or $ {} (:stage :hidden) (:opacity 0)
-                  quote $ Map Tag Dynamic
+                  :: 'Map 'Dynamic 'Dynamic
               []
                 fn (elapsed d!)
-                  match (:stage state)
-                    :hidden $ when (non-nil? p1)
-                      d! cursor $ merge state $ {} (:stage :showing)
-                        :opacity $ + (* elapsed v) 0
-                      write-node-cache! cursor p1
-                    :showing $ if
-                      >= (:opacity state) 1
-                      do
-                        d! cursor $ {} (:stage :show) (:opacity 1)
+                  let
+                      elapsed $ decode-map-as elapsed 'Number
+                    match
+                      .unwrap-or (get state :stage) nil
+                      :hidden $ when (non-nil? p1)
+                        if (fn? d!)
+                          d! cursor $ merge state $ {} (:stage :showing)
+                            :opacity $ + (* elapsed v) 0
+                          raise |Expected-fade-callback-function
                         write-node-cache! cursor p1
-                      d! cursor $ update state :opacity $ fn (x)
-                        + x $ * elapsed v
-                    :show $ if (nil? p1)
-                      d! cursor $ {} (:stage :hiding)
-                        :opacity $ - 1 $ * elapsed v
-                      write-node-cache! cursor p1
-                    :hiding $ if
-                      <= (:opacity state) 0
-                      do
-                        d! cursor $ {} (:stage :hidden) (:opacity 0.01)
-                        delete-node-cache! cursor
-                      d! cursor $ update state :opacity $ fn (x)
-                        - x $ * elapsed v
-                    _ $ println "|unknown stage" $ :stage state
+                      :showing $ if
+                        >=
+                          decode-map-as
+                            .unwrap-or (get state :opacity) nil
+                            , 'Number
+                          , 1
+                        do
+                          if (fn? d!)
+                            d! cursor $ {} (:stage :show) (:opacity 1)
+                            raise |Expected-fade-callback-function
+                          write-node-cache! cursor p1
+                        if (fn? d!)
+                          d! cursor $ update state :opacity $ fn (x)
+                            let
+                                x $ decode-map-as x 'Number
+                              + x $ * elapsed v
+                          raise |Expected-fade-callback-function
+                      :show $ if (nil? p1)
+                        if (fn? d!)
+                          d! cursor $ {} (:stage :hiding)
+                            :opacity $ - 1 $ * elapsed v
+                          raise |Expected-fade-callback-function
+                        write-node-cache! cursor p1
+                      :hiding $ if
+                        <=
+                          decode-map-as
+                            .unwrap-or (get state :opacity) nil
+                            , 'Number
+                          , 0
+                        do
+                          if (fn? d!)
+                            d! cursor $ {} (:stage :hidden) (:opacity 0.01)
+                            raise |Expected-fade-callback-function
+                          delete-node-cache! cursor
+                        if (fn? d!)
+                          d! cursor $ update state :opacity $ fn (x)
+                            let
+                                x $ decode-map-as x 'Number
+                              - x $ * elapsed v
+                          raise |Expected-fade-callback-function
+                      _ $ println "|unknown stage" $ .unwrap-or (get state :stage) nil
                 alpha
-                  {} $ :opacity $ :opacity state
-                  match (:stage state) (:hidden nil)
-                    _ $ either p1 $ get-node! cursor
+                  {} $ :opacity $ .unwrap-or (get state :opacity) nil
+                  match
+                    .unwrap-or (get state :stage) nil
+                    :hidden nil
+                    _ $ either p1 $ .unwrap-or (get-node! cursor) nil
           :examples $ []
-          :schema $ quote $ Fn (Map Tag Dynamic) Dynamic Dynamic (-> Dynamic)
+          :schema $ quote $ Fn (Map Dynamic Dynamic) Dynamic Dynamic (-> quamolit.types/Component)
         'delete-node-cache! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn delete-node-cache! (path)
             swap! *nodes-cache $ fn (nodes) (dissoc nodes path)
@@ -1128,7 +1197,8 @@
         'get-node! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn get-node! (path) (get @*nodes-cache path)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic
+            -> $ Option Dynamic
         'write-node-cache! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn write-node-cache! (path node)
             swap! *nodes-cache $ fn (nodes) (assoc nodes path node)
@@ -1144,52 +1214,91 @@
         %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-slider (states options)
             let
-                cursor $ :cursor states
-                unit $ :unit options
-                position $ or (:position options) ([] 0 0)
-                state $ :data states
-                v-max $ either (:max options) 1000
-                v-min $ either (:min options) 1000
+                cursor $ .unwrap-or (get states :cursor) nil
+                unit $ .unwrap-or (get options :unit) nil
+                position $ decode-map-as
+                  or
+                    .unwrap-or (get options :position) nil
+                    [] 0 0
+                  :: 'List 'Number
+                state $ .unwrap-or (get states :data) nil
+                v-max $ decode-map-as
+                  either
+                    .unwrap-or (get options :max) nil
+                    , 1000
+                  , 'Number
+                v-min $ decode-map-as
+                  either
+                    .unwrap-or (get options :min) nil
+                    , 1000
+                  , 'Number
               []
                 fn (elapsed d!)
                   if
-                    nil? $ :data states
-                    d! cursor $ {} $ :local
-                      new-ref $ {}
-                        :v0 $ :value options
-                        :x0 0
+                    nil? $ .unwrap-or (get states :data) nil
+                    if (fn? d!)
+                      d! cursor $ {} $ :local
+                        new-ref $ {}
+                          :v0 $ .unwrap-or (get options :value) nil
+                          :x0 0
+                      raise |Expected-slider-dispatch-function
                 translate
                   {}
-                    :x $ nth position 0
-                    :y $ nth position 1
+                    :x $ .unwrap-or (nth position 0) 0
+                    :y $ .unwrap-or (nth position 1) 0
                   rect $ {} (:w 72) (:h 20)
                     :fill-style $ hsl 200 70 80
                     :event $ {}
                       :mousedown $ fn (e d!)
-                        ref-set! (:local state)
+                        ref-set!
+                          .unwrap-or
+                            get
+                              if (map? state) state $ raise |Expected-slider-state-or-options-map
+                              , :local
+                            , nil
                           {}
-                            :v0 $ :value options
-                            :x0 $ .-clientX e
+                            :v0 $ .unwrap-or (get options :value) nil
+                            :x0 $ decode-map-as (.-clientX e) 'Number
                       :mousemove $ fn (e d!)
                         let
-                            local $ ref-get $ :local state
-                            dx $ - (.-clientX e) (:x0 local)
-                            on-change $ :on-change options
+                            local $ decode-map-as
+                              ref-get $ .unwrap-or
+                                get
+                                  if (map? state) state $ raise |Expected-slider-state-or-options-map
+                                  , :local
+                                , nil
+                              :: 'Map 'Dynamic 'Dynamic
+                            dx $ -
+                              decode-map-as (.-clientX e) 'Number
+                              decode-map-as
+                                .unwrap-or (get local :x0) nil
+                                , 'Number
+                            on-change $ .unwrap-or (get options :on-change) nil
                           if (fn? on-change)
                             let
-                                next-v $ bound-x v-min v-max $ + (:v0 local) (* dx unit)
+                                next-v $ bound-x v-min v-max $ +
+                                  decode-map-as
+                                    .unwrap-or (get local :v0) nil
+                                    , 'Number
+                                  * dx $ decode-map-as unit 'Number
                               if
-                                not= next-v $ :v options
+                                not= next-v $ .unwrap-or (get options :v) nil
                                 on-change next-v d!
                   text $ {} (:x -36) (:y -20) (:text-align :left) (:size 14)
                     :fill-style $ hsl 330 90 70
                     :text $ str
-                      or (:title options) |Val
+                      or
+                        .unwrap-or (get options :title) nil
+                        , |Val
                       , "|: " $ .!toFixed
-                        either (:value options) 0
+                        decode-map-as
+                          either
+                            .unwrap-or (get options :value) nil
+                            , 0
+                          , 'Number
                         , 2
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn (Map Dynamic Dynamic) (Map Dynamic Dynamic) (-> quamolit.types/Component) (:features :js-ffi)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.comp.slider
           :require
@@ -1352,23 +1461,25 @@
             if (empty? coord) (Option :some tree)
               let
                   first-pos $ .unwrap-or (first coord) nil
-                if (&struct:matches? Component tree)
-                  if
-                    = first-pos $ :name tree
-                    recur (:tree tree) (slice coord 1)
+                struct-match tree
+                  Component component $ if
+                    = first-pos $ :name component
+                    recur (:tree component) (slice coord 1)
                     Option :none
-                  let
-                      picked-pair $ find (:children tree)
-                        fn (child-pair)
-                          =
-                            .unwrap-or (first child-pair) nil
-                            , first-pos
+                  Shape shape $ let
+                      children $ decode-map-as (:children shape)
+                        quote $ List $ List Dynamic
+                      picked-pair $ find children $ fn (child-pair)
+                        =
+                          .unwrap-or (first child-pair) nil
+                          , first-pos
                       picked $ picked-pair.map $ fn (pair)
                         .unwrap-or (last pair) nil
                     match picked
                       (:some value)
                         recur value $ slice coord 1
                       (:none) (Option :none)
+                  _ other $ raise |invalid-legacy-tree
           :examples $ []
           :schema $ quote $ Fn Dynamic (List Dynamic)
             -> $ Option Dynamic
@@ -1377,11 +1488,15 @@
             match (locate-target tree coord)
               (:some target)
                 let
-                    maybe-listener $ if
-                      and (&struct:matches? Shape target)
-                        non-nil? $ :event target
-                      get-in target $ [] :event event-name
-                      Option :none
+                    maybe-listener $ struct-match target
+                      Shape shape $ if
+                        nil? $ :event shape
+                        Option :none
+                        get
+                          decode-map-as (:event shape)
+                            quote $ Map Tag Dynamic
+                          , event-name
+                      _ other $ Option :none
                   match maybe-listener
                     (:some listener) (Option :some listener)
                     (:none)
@@ -1394,23 +1509,49 @@
           :examples $ []
           :schema $ quote $ Fn Dynamic Tag (List Dynamic)
             -> $ Option Dynamic
+          :tests $ [] $ %{} 'TestEntry (:name |nested-target-and-parent-listener)
+            :code $ quote $ let
+                handler $ fn () &unit
+                child $ %{} Shape (:name :rect)
+                  :style $ {}
+                  :event nil
+                  :children $ []
+                parent $ %{} Shape (:name :group)
+                  :style $ {}
+                  :event $ {} $ :click handler
+                  :children $ [] $ [] :kid child
+                tree $ %{} Component (:name :root) (:tree parent) (:on-tick nil)
+              assert= true $ match
+                resolve-target tree :click $ [] :root :kid
+                (:some listener) (identical? handler listener)
+                (:none) false
+              assert= true $
+                resolve-target tree :missing $ [] :root :kid
+                , .none?
+              assert= (Option :some child)
+                locate-target tree $ [] :root :kid
+            :tags $ #{} :event :legacy :unit
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.controller.resolve
           :require $ quamolit.types :refer $ Component Shape
     'quamolit.core $ %{} 'FileEntry
       :defs $ {}
         '*clicked-focus $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defref *clicked-focus ([])
+          :code $ quote $ defref *clicked-focus
+            Option :some $ []
           :examples $ []
-          :schema $ quote Dynamic
+          :schema $ quote $ Ref
+            Option $ List Dynamic
         '*drag-moving-cache $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defref *drag-moving-cache ([] 0 0)
+          :code $ quote $ defref *drag-moving-cache
+            Option :some $ [] 0 0
           :examples $ []
-          :schema $ quote $ Ref (List Number)
+          :schema $ quote $ Ref
+            Option $ List Number
         '*element-tree $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *element-tree nil
           :examples $ []
-          :schema $ quote Dynamic
+          :schema $ quote $ Ref Dynamic
         '*last-tick $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *last-tick (get-tick)
           :examples $ []
@@ -1424,9 +1565,9 @@
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
         'CanvasHost $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ deftrait CanvasHost (:width 'Number) (:height 'Number)
-            .style $ quote $ Fn CanvasHost (-> CanvasStyleHost)
-            .get-context $ quote $ Fn CanvasHost String (-> CanvasContextHost)
+          :code $ quote $ deftrait CanvasHost (:width 'Number) (:height 'Number) (:style 'CanvasStyleHost)
+            .get-context $ quote $ Fn CanvasHost String
+              -> $ JsNullish CanvasContextHost
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
             :writable $ #{} :height :width
@@ -1463,31 +1604,51 @@
         'call-paint $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn call-paint (tree target dispatch! elapsed tick?) (; js/console.log tree)
             let
-                ctx $ unsafe-coerce (.!getContext target |2d) 'CanvasContextHost
-                w js/window.innerWidth
-                h js/window.innerHeight
-                viewer-shift $ :move @*stage-config
-                viewer-scale $ :scale @*stage-config
-              reset! *touch-event-areas nil
+                ctx $ js-cast
+                  .get-context (js-cast target 'quamolit.core/CanvasHost) |2d
+                  , 'quamolit.core/CanvasContextHost
+                w $ decode-map-as js/window.innerWidth 'Number
+                h $ decode-map-as js/window.innerHeight 'Number
+                viewer-shift $ decode-map-as
+                  .unwrap $ get @*stage-config :move
+                  quote $ List Number
+                viewer-scale $ decode-map-as
+                  .unwrap $ get @*stage-config :scale
+                  , 'Number
+              reset! *touch-event-areas $ []
               .clearRect ctx 0 0 w h
               ; .!save ctx
               .translate ctx
-                &+ (* 0.5 w) (first viewer-shift)
-                &+ (* 0.5 h) (nth viewer-shift 1)
+                &+ (* 0.5 w)
+                  .unwrap $ first viewer-shift
+                &+ (* 0.5 h)
+                  .unwrap $ nth viewer-shift 1
               .scale ctx viewer-scale viewer-scale
-              swap! *tracked-transform update :offset $ fn (point) (point-add point viewer-shift)
+              swap! *tracked-transform update :offset $ fn (point)
+                point-add
+                  decode-map-as point $ quote $ List Number
+                  , viewer-shift
               swap! *tracked-transform update :transform $ fn (point)
-                point-times point $ [] viewer-scale 0
+                point-times
+                  decode-map-as point $ quote $ List Number
+                  [] viewer-scale 0
               paint ctx tree ([]) dispatch! elapsed tick?
               let
                   scale-back $ &/ 1 viewer-scale
                 .scale ctx scale-back scale-back
               swap! *tracked-transform update :transform $ fn (point)
-                point-times point $ [] (&/ 1 viewer-scale) 0
-              swap! *tracked-transform update :offset $ fn (point) (point-minus point viewer-shift)
+                point-times
+                  decode-map-as point $ quote $ List Number
+                  [] (&/ 1 viewer-scale) 0
+              swap! *tracked-transform update :offset $ fn (point)
+                point-minus
+                  decode-map-as point $ quote $ List Number
+                  , viewer-shift
               .translate ctx
-                &- (* -0.5 w) (first viewer-shift)
-                &- (* -0.5 h) (nth viewer-shift 1)
+                &- (* -0.5 w)
+                  .unwrap $ first viewer-shift
+                &- (* -0.5 h)
+                  .unwrap $ nth viewer-shift 1
               ; .!restore ctx
               when
                 not $ empty? @*hud-logs
@@ -1498,13 +1659,13 @@
         'configure-canvas $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn configure-canvas (app-container)
             let
-                canvas $ unsafe-coerce app-container 'CanvasHost
+                canvas $ js-cast app-container 'quamolit.core/CanvasHost
                 raw-dpr js/window.devicePixelRatio
-                dpr $ if (js-present? raw-dpr) (unsafe-coerce raw-dpr Number) 1
-                width $ unsafe-coerce js/window.innerWidth Number
-                height $ unsafe-coerce js/window.innerHeight Number
-                style $ canvas .style
-                ctx $ unsafe-coerce (canvas .get-context |2d) 'CanvasContextHost
+                dpr $ if (js-present? raw-dpr) (decode-map-as raw-dpr 'Number) 1
+                width $ decode-map-as js/window.innerWidth 'Number
+                height $ decode-map-as js/window.innerHeight 'Number
+                style $ canvas :style
+                ctx $ js-cast (canvas .get-context |2d) 'quamolit.core/CanvasContextHost
               js-set canvas :width $ * dpr width
               js-set canvas :height $ * dpr height
               js-set style :width $ str width |px
@@ -1516,52 +1677,102 @@
           :code $ quote $ defn find-hit-area (point areas)
             if (empty? areas) (Option :none)
               let
-                  x $ nth areas 0
-                  transform $ :transform x
-                  p $ point-minus point $ point-add (:offset x)
-                    point-times (:position x) transform
+                  x $ .unwrap $ .first areas
+                  transform $ decode-map-as
+                    .unwrap-or (get x :transform) nil
+                    quote $ List Number
+                  p $ point-minus point $ point-add
+                    decode-map-as
+                      .unwrap-or (get x :offset) nil
+                      quote $ List Number
+                    point-times
+                      decode-map-as
+                        .unwrap-or (get x :position) nil
+                        quote $ List Number
+                      , transform
                   delta $ point-divide p transform
                 if
-                  match (:kind x)
+                  match
+                    .unwrap-or (get x :kind) nil
                     :rect $ and
                       <=
-                        js/Math.abs $ nth delta 0
-                        :half-w x
+                        decode-map-as
+                          js/Math.abs $ .unwrap $ nth delta 0
+                          , 'Number
+                        decode-map-as
+                          .unwrap-or (get x :half-w) nil
+                          , 'Number
                       <=
-                        js/Math.abs $ nth delta 1
-                        :half-h x
+                        decode-map-as
+                          js/Math.abs $ .unwrap $ nth delta 1
+                          , 'Number
+                        decode-map-as
+                          .unwrap-or (get x :half-h) nil
+                          , 'Number
                     :arc $ <=
                       +
-                        js/Math.pow (nth delta 0) 2
-                        js/Math.pow (nth delta 1) 2
-                      js/Math.pow (:r x) 2
+                        decode-map-as
+                          js/Math.pow
+                            .unwrap $ nth delta 0
+                            , 2
+                          , 'Number
+                        decode-map-as
+                          js/Math.pow
+                            .unwrap $ nth delta 1
+                            , 2
+                          , 'Number
+                      decode-map-as
+                        js/Math.pow
+                          .unwrap-or (get x :r) nil
+                          , 2
+                        , 'Number
                     _ $ do (js/console.warn |invalid-area-data x) false
                   Option :some x
-                  recur point $ nth areas 1
+                  recur point $ rest areas
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic
-            -> $ Option Dynamic
+          :schema $ quote $ Fn (List Number)
+            List $ Map Tag Dynamic
+            -> $ Option $ Map Tag Dynamic
             :features :js-ffi
         'handle-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn handle-event (coord event-name event dispatch) (; js/console.log "|handle event" coord event-name @*element-tree)
             if-let
-              maybe-listener $ resolve-target @*element-tree event-name $ either coord ([])
-              do (.!preventDefault event) (maybe-listener event dispatch)
+              maybe-listener $ resolve-target @*element-tree (decode-map-as event-name 'Tag)
+                decode-map-as
+                  either coord $ []
+                  quote $ List Dynamic
+              if (fn? maybe-listener)
+                do (.!preventDefault event) (maybe-listener event dispatch)
+                raise |invalid-legacy-listener
               ; js/console.log "|no target"
           :examples $ []
           :schema $ quote $ Fn Dynamic Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
         'on-control-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn on-control-event (elapsed states delta)
             if
-              and $ :left-b? states
+              and $ .unwrap-or
+                get
+                  decode-map-as states $ quote $ Map Tag Dynamic
+                  , :left-b?
+                , nil
               reset-stage-config!
               let
-                  move $ :left-move states
-                  scales $ :right-move delta
+                  move $ decode-map-as
+                    .unwrap $ get
+                      decode-map-as states $ quote $ Map Tag Dynamic
+                      , :left-move
+                    quote $ List Number
+                  scales $ decode-map-as
+                    .unwrap $ get
+                      decode-map-as delta $ quote $ Map Tag Dynamic
+                      , :right-move
+                    quote $ List Number
                 update-stage-config!
                   map move $ fn (x)
-                    * x (js/Math.abs x) 0.02
-                  nth scales 1
+                    * x
+                      decode-map-as (js/Math.abs x) 'Number
+                      , 0.02
+                  .unwrap $ nth scales 1
           :examples $ []
           :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
         'paint-context-at $ %{} 'CodeEntry
@@ -1624,82 +1835,111 @@
         'reset-stage-config! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reset-stage-config! ()
             let
-                move0 $ :move @*stage-config
-                scale0 $ :scale @*stage-config
+                move0 $ decode-map-as
+                  .unwrap $ get @*stage-config :move
+                  quote $ List Number
+                scale0 $ decode-map-as
+                  .unwrap $ get @*stage-config :scale
+                  , 'Number
               when
                 or
                   not= ([] 0 0) move0
                   not= 1 scale0
                 if
                   not= ([] 0 0) move0
-                  swap! *stage-config update :move $ fn (prev)
-                    &let
-                      l $ vec-length prev
-                      if (< l 4) ([] 0 0)
-                        &let
-                          move-back $ point-times prev $ [] (&/ -4 l) 0
-                          point-add prev move-back
-                if (not= scale0 1)
-                  swap! *stage-config update :scale $ fn (prev)
+                  swap! *stage-config update :move $ fn (raw-prev)
                     let
-                        delta $ - scale0 1
-                      if
-                        > 0.01 $ js/Math.abs delta
-                        , 1 $ + prev $ if (> delta 0) -0.01 0.01
+                        prev $ decode-map-as raw-prev $ quote (List Number)
+                      &let
+                        l $ decode-map-as (vec-length prev) 'Number
+                        if (< l 4) ([] 0 0)
+                          &let
+                            move-back $ point-times prev $ [] (&/ -4 l) 0
+                            point-add prev move-back
+                if (not= scale0 1)
+                  swap! *stage-config update :scale $ fn (raw-prev)
+                    let
+                        prev $ decode-map-as raw-prev 'Number
+                      let
+                          delta $ - scale0 1
+                        if
+                          > 0.01 $ decode-map-as (js/Math.abs delta) 'Number
+                          , 1 $ + prev $ if (> delta 0) -0.01 0.01
           :examples $ []
           :schema $ quote $ Fn (-> Dynamic) (:features :js-ffi)
         'setup-events $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn setup-events (root-element dispatch)
             let
-                root $ unsafe-coerce root-element 'EventTargetHost
-                window $ unsafe-coerce js/window 'EventTargetHost
+                root $ js-cast root-element 'quamolit.core/EventTargetHost
+                window $ js-cast js/window 'quamolit.core/EventTargetHost
               .addEventListener root |mousedown $ fn (event)
-                reset! *drag-moving-cache $ [] (.-clientX event) (.-clientY event)
+                reset! *drag-moving-cache $ Option :some $ []
+                  decode-map-as (.-clientX event) 'Number
+                  decode-map-as (.-clientY event) 'Number
                 when-let
                   target $ find-hit-area
                     []
-                      &- (.-offsetX event) (&* js/window.innerWidth 0.5)
-                      &- (.-offsetY event) (&* js/window.innerHeight 0.5)
+                      &-
+                        decode-map-as (.-offsetX event) 'Number
+                        &* (decode-map-as js/window.innerWidth 'Number) 0.5
+                      &-
+                        decode-map-as (.-offsetY event) 'Number
+                        &* (decode-map-as js/window.innerHeight 'Number) 0.5
                     , @*touch-event-areas
                   ; js/console.log |target target
                   let
-                      coord $ :coord target
-                    reset! *clicked-focus coord
+                      coord $ .unwrap-or (get target :coord) nil
+                    reset! *clicked-focus $ if (nil? coord) (Option :none)
+                      Option :some $ decode-map-as coord $ quote (List Dynamic)
                     handle-event coord :mousedown event dispatch
               .addEventListener root |mousemove $ fn (event)
                 if
                   and
                     or (.-metaKey event) (.-ctrlKey event) (.-shiftKey event)
-                    non-nil? @*drag-moving-cache
+                    not $ .none? @*drag-moving-cache
                   let
-                      prev @*drag-moving-cache
-                      current $ [] (.-clientX event) (.-clientY event)
+                      prev $ .unwrap @*drag-moving-cache
+                      current $ []
+                        decode-map-as (.-clientX event) 'Number
+                        decode-map-as (.-clientY event) 'Number
                       delta $ point-minus current prev
-                    reset! *drag-moving-cache current
-                    swap! *stage-config update :move $ fn (prev) (point-add prev delta)
+                    reset! *drag-moving-cache $ Option :some current
+                    swap! *stage-config update :move $ fn (prev)
+                      point-add
+                        decode-map-as prev $ quote $ List Number
+                        , delta
                   if-let (coord @*clicked-focus) (handle-event coord :mousemove event dispatch)
-              .addEventListener root |mouseup $ fn (event) (reset! *drag-moving-cache nil)
-                let
-                    coord @*clicked-focus
-                  when (non-nil? coord) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
-                    when-let
-                      target $ find-hit-area
-                        []
-                          &- (.-offsetX event) (&* js/window.innerWidth 0.5)
-                          &- (.-offsetY event) (&* js/window.innerHeight 0.5)
-                        , @*touch-event-areas
-                      if
-                        = coord $ :coord target
-                        handle-event coord :click event dispatch
+              .addEventListener root |mouseup $ fn (event)
+                reset! *drag-moving-cache $ Option :none
+                when-let (coord @*clicked-focus) (handle-event coord :mouseup event dispatch)
+                  reset! *clicked-focus $ Option :none
+                  when-let
+                    target $ find-hit-area
+                      []
+                        &-
+                          decode-map-as (.-offsetX event) 'Number
+                          &* (decode-map-as js/window.innerWidth 'Number) 0.5
+                        &-
+                          decode-map-as (.-offsetY event) 'Number
+                          &* (decode-map-as js/window.innerHeight 'Number) 0.5
+                      , @*touch-event-areas
+                    if
+                      = coord $ .unwrap-or (get target :coord) nil
+                      handle-event coord :click event dispatch
               .addEventListener root |mouseleave $ fn (event)
-                when-let (coord @*clicked-focus) (handle-event coord :click event dispatch) (handle-event coord :mouseup event dispatch) (reset! *clicked-focus nil)
+                when-let (coord @*clicked-focus) (handle-event coord :click event dispatch) (handle-event coord :mouseup event dispatch)
+                  reset! *clicked-focus $ Option :none
               .addEventListener window |keypress $ fn (event)
                 let
-                    coord @*clicked-focus
+                    coord $ match @*clicked-focus
+                      (:some focused-path) focused-path
+                      (:none) nil
                   handle-event coord :keypress event dispatch
               .addEventListener window |keydown $ fn (event)
                 let
-                    coord @*clicked-focus
+                    coord $ match @*clicked-focus
+                      (:some focused-path) focused-path
+                      (:none) nil
                   handle-event coord :keydown event dispatch
               .addEventListener window |click $ fn (event) (clear-prompt!)
               .addEventListener window |resize $ fn (event) (configure-canvas root-element)
@@ -1707,47 +1947,69 @@
                 if
                   or (.-metaKey event) (.-ctrlKey event) (.-shiftKey event)
                   let
-                      dy $ * 0.001 $ .-deltaY event
-                      scale $ :scale @*stage-config
+                      dy $ * 0.001 $ decode-map-as (.-deltaY event) 'Number
+                      scale $ decode-map-as
+                        .unwrap $ get @*stage-config :scale
+                        , 'Number
                       pointer $ point-minus
-                        [] (.-clientX event) (.-clientY event)
-                        [] (* 0.5 js/window.innerWidth) (* 0.5 js/window.innerHeight)
+                        []
+                          decode-map-as (.-clientX event) 'Number
+                          decode-map-as (.-clientY event) 'Number
+                        []
+                          * 0.5 $ decode-map-as js/window.innerWidth 'Number
+                          * 0.5 $ decode-map-as js/window.innerHeight 'Number
                     when
-                      not
+                      not $ or
                         and (<= scale 0.1)
-                          < (.-deltaY event) 0
+                          <
+                            decode-map-as (.-deltaY event) 'Number
+                            , 0
                         and (>= scale 4)
-                          > (.-deltaY event) 0
-                      swap! *stage-config update :move $ fn (pos)
+                          >
+                            decode-map-as (.-deltaY event) 'Number
+                            , 0
+                      swap! *stage-config update :move $ fn (raw-pos)
                         let
-                            shift $ point-minus pointer pos
-                          point-minus pos $ point-times shift $ [] (/ dy scale) 0
-                      swap! *stage-config update :scale $ fn (x) (+ x dy)
+                            pos $ decode-map-as raw-pos $ quote (List Number)
+                          let
+                              shift $ point-minus pointer pos
+                            point-minus pos $ point-times shift $ [] (/ dy scale) 0
+                      swap! *stage-config update :scale $ fn (raw-scale)
+                        let
+                            x $ decode-map-as raw-scale 'Number
+                          + x dy
           :examples $ []
           :schema $ quote $ Fn JsObject Dynamic (-> Unit) (:features :js-ffi)
         'update-stage-config! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-stage-config! (move scale-change)
             let
-                scale0 $ :scale @*stage-config
+                scale0 $ decode-map-as
+                  .unwrap $ get @*stage-config :scale
+                  , 'Number
               when
                 and
                   or
                     not= ([] 0 0) move
                     not= 0 scale-change
                   not $ and (> scale-change 0) (>= scale0 8)
-                swap! *stage-config update :move $ fn (prev)
-                  point-add
-                    point-minus prev $ point-scale
-                      [] (nth move 0)
-                        negate $ nth move 1
-                      , 0.05
-                    point-scale prev $ / (* 0.01 scale-change) scale0
-                swap! *stage-config update :scale $ fn (prev)
+                swap! *stage-config update :move $ fn (raw-prev)
                   let
-                      next $ &+ prev $ * 0.01 scale-change
-                    &max 0.2 $ &min next 8
+                      prev $ decode-map-as raw-prev $ quote (List Number)
+                    point-add
+                      point-minus prev $ point-scale
+                        []
+                          .unwrap $ nth move 0
+                          negate $ .unwrap $ nth move 1
+                        , 0.05
+                      point-scale prev $ / (* 0.01 scale-change) scale0
+                swap! *stage-config update :scale $ fn (raw-prev)
+                  let
+                      prev $ decode-map-as raw-prev 'Number
+                    let
+                        next $ &+ prev $ * 0.01 scale-change
+                      &max 0.2 $ &min next 8
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic)
+          :schema $ quote $ Fn (List Number) Number (-> Dynamic)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.core
           :require
@@ -1765,32 +2027,50 @@
         'gc-states $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gc-states (store op-data)
             let
-                cursor $ unsafe-coerce
+                cursor $ decode-map-as
                   match (&list:first op-data)
                     (:some legacy-value) legacy-value
                     (:none) nil
-                  quote $ List Tag
-                fields $ unsafe-coerce
+                  quote $ List Dynamic
+                fields $ decode-map-as
                   match (&list:last op-data)
                     (:some legacy-value) legacy-value
                     (:none) nil
-                  quote $ List Tag
+                  quote $ List Dynamic
               update-in store
                 concat ([] :states) cursor
                 fn (maybe-dict)
                   select-keys
-                    maybe-dict.unwrap-or $ {}
+                    decode-map-as
+                      maybe-dict.unwrap-or $ {}
+                      quote $ Map Dynamic Dynamic
                     conj fields :data
           :examples $ []
           :schema $ quote $ Fn Dynamic (List Dynamic) (-> Dynamic) (:features :js-ffi)
+          :tests $ [] $ %{} 'TestEntry (:name |preserves-mixed-keys-and-first-last-payload)
+            :code $ quote $ let
+                store $ {} $ :states
+                  {} $ |panel $ {}
+                    7 $ {} (:data |kept-data) (|name |selected) (:stale |remove)
+              assert=
+                {} $ :states $ {}
+                  |panel $ {} $ 7
+                    {} (:data |kept-data) (|name |selected)
+                gc-states store $ [] ([] |panel 7) :ignored-middle $ [] |name
+              assert=
+                {} $ :states $ {}
+                  |panel $ {} $ 7
+                    {} (:data 42) (|name |selected) (:stale |remove)
+                update-states store $ [] ([] |panel 7) :ignored-middle 42
+            :tags $ #{} :cursor :legacy :unit
         'update-states $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-states (store op-data)
             let
-                cursor $ unsafe-coerce
+                cursor $ decode-map-as
                   match (&list:first op-data)
                     (:some legacy-value) legacy-value
                     (:none) nil
-                  quote $ List Tag
+                  quote $ List Dynamic
                 data $ match (&list:last op-data)
                   (:some legacy-value) legacy-value
                   (:none) nil
@@ -2225,7 +2505,9 @@
                 slots $ :props initial
               execution/ExecutionDeclaration :component
                 component/ComponentDeclaration :scene (:scene initial) :motions $ []
-                , :transforms $ execution/TransformSampler :cpu $ fn (time) (sample-transforms slots time)
+                , :transforms $ execution/TransformSampler :cpu $ fn (time)
+                  hint-fn $ Fn Number $ -> (List quamolit.scene-ir/Matrix2D)
+                  sample-transforms slots time
           :examples $ []
           :schema $ quote $ Fn Number Number Number Number Number (-> quamolit.retained-component/ExecutionDeclaration)
         'draw! $ %{} 'CodeEntry (:doc |)
@@ -3134,26 +3416,34 @@
                     if (handle-pointer-event! surface phase event) (render!) &unit
                     , &unit
                 on-down $ fn (event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :down) event
                 on-move $ fn (event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :move) event
                 on-up $ fn (event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :up) event
                 on-cancel $ fn (event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :cancel) event
                 on-lost $ fn (host-event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   if
                     handle-lost-capture! $ pointer-browser/pointer-event-host host-event
                     render!
                     , &unit
                 on-host-loss $ fn (_event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   if (release-drag-pointer! surface) (render!) &unit
                 on-enter $ fn (host-event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   let
                       event $ pointer-browser/pointer-event-host host-event
                     reset! *drag-client-position $ Option :some $ motion/Vec2 :x (.-client-x event) :y (.-client-y event)
                     render!
                 on-leave $ fn (_event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   match (:capture @*drag-pointer-state)
                     (:none)
                       do
@@ -4910,20 +5200,26 @@
                     render!
                   , &unit
                 down $ fn (event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :down) event
                 move $ fn (event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :move) event
                 up $ fn (event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :up) event
                 cancel $ fn (event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :cancel) event
                 enter $ fn (host-event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   let
                       event $ pointer-browser/pointer-event-host host-event
                     reset! *dashboard-client-position $ Option :some $ motion/Vec2 :x (.-client-x event) :y (.-client-y event)
                     render!
                     , &unit
                 leave $ fn (_event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   match (:capture @*dashboard-pointer)
                     (:none)
                       do
@@ -4933,12 +5229,14 @@
                         , &unit
                     _ &unit
                 lost $ fn (event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   let
                       result $ pointer/lose-pointer-capture @*dashboard-pointer $ pointer-browser/pointer-id-from-event (pointer-browser/pointer-event-host event)
                     reset! *dashboard-pointer $ :state result
                     when (:capture-released result) (render!)
                     , &unit
                 blur $ fn (_event)
+                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
                   when (release-pointer! surface) (render!)
                   , &unit
               dom/element-add-event-listener! element |pointerdown down
@@ -7188,6 +7486,7 @@
                 items $ :items $ :presence model
                 rows $ :rows model
               retained/ExecutionDeclaration :component component :transforms $ retained/TransformSampler :cpu $ fn (time)
+                hint-fn $ Fn Number $ -> (List quamolit.scene-ir/Matrix2D)
                 map items $ fn (item)
                   let
                       row $ row-for-node rows $ :node (:entry item)
@@ -8372,15 +8671,18 @@
                   on-tick $ :on-tick component
                 when (fn? on-tick) (on-tick elapsed dispatch!)
                 tick-tree (:tree component) dispatch! elapsed
-              let
-                  shape $ assert-type tree Shape
-                &doseq
-                  cursor $ :children shape
-                  tick-tree
-                      last cursor
-                      , .unwrap-or nil
-                    , dispatch! elapsed
-                , &unit
+              if
+                and (struct? tree) (&struct:matches? tree Shape)
+                let
+                    shape $ assert-type tree Shape
+                  &doseq
+                    cursor $ :children shape
+                    tick-tree
+                        last cursor
+                        , .unwrap-or nil
+                      , dispatch! elapsed
+                  , &unit
+                raise "|Expected a Quamolit Shape or Component"
           :examples $ []
           :schema $ quote $ Fn Dynamic Dynamic Number (-> Unit)
           :tests $ [] $ %{} 'TestEntry (:name |parent-before-child)
@@ -8414,11 +8716,12 @@
               :move $ [] 0 0
               :scale 1
           :examples $ []
-          :schema $ quote Dynamic
+          :schema $ quote $ Ref (Map Tag Dynamic)
         '*touch-event-areas $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *touch-event-areas ([])
           :examples $ []
-          :schema $ quote $ Ref (List Dynamic)
+          :schema $ quote $ Ref
+            List $ Map Tag Dynamic
         '*tracked-transform $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *tracked-transform
             {}
@@ -10572,7 +10875,8 @@
                   , .unwrap-or 0
                 (nth b 1) .unwrap-or 0
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic)
+          :schema $ quote $ Fn (List Number) (List Number)
+            -> $ List Number
         'point-divide $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn point-divide (x y)
             let
@@ -10612,7 +10916,8 @@
                   , .unwrap-or 0
                 (nth b 1) .unwrap-or 0
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic)
+          :schema $ quote $ Fn (List Number) (List Number)
+            -> $ List Number
         'point-negate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn point-negate (a)
             []
@@ -10650,9 +10955,12 @@
             -> $ List Number
         'vec-length $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn vec-length (point)
-            let[] (x y) point $ js/Math.sqrt $ &+ (&* x x) (&* y y)
+            let
+                x $ .unwrap $ nth point 0
+                y $ .unwrap $ nth point 1
+              sqrt $ &+ (&* x x) (&* y y)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn (List Number) (-> Number)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.math
     'quamolit.motion $ %{} 'FileEntry
@@ -13647,54 +13955,78 @@
       :defs $ {}
         'alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp alpha (props & children)
-            {} $ :tree $ group ({})
-              native-save $ {}
-              native-alpha $ merge (&{} :opacity 0.01) props
-              , & children
+            {} $ :tree $ group ({}) &
+              conj
+                prepend
+                  prepend children $ native-alpha $ merge (&{} :opacity 0.01) props
+                  native-save $ {}
                 native-restore $ {}
           :examples $ []
           :schema $ quote $ Fn (Map Tag Dynamic) & Dynamic (-> Dynamic)
         'button $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp button (style) (; js/console.log |button style)
             let
-                guide-text $ or (:text style) |button
-                x $ or (:x style) 0
-                y $ or (:y style) 0
-                w $ or (:w style) 100
-                h $ or (:h style) 40
+                guide-text $ or
+                  .unwrap-or (get style :text) nil
+                  , |button
+                x $ or
+                  .unwrap-or (get style :x) nil
+                  , 0
+                y $ or
+                  .unwrap-or (get style :y) nil
+                  , 0
+                w $ or
+                  .unwrap-or (get style :w) nil
+                  , 100
+                h $ or
+                  .unwrap-or (get style :h) nil
+                  , 40
                 style-bg $ {} (:x x) (:y y)
-                  :fill-style $ or (:surface-color style) (hsl 0 80 80)
+                  :fill-style $ or
+                    .unwrap-or (get style :surface-color) nil
+                    hsl 0 80 80
                   :w w
                   :h h
-                  :event $ :event style
+                  :event $ .unwrap-or (get style :event) nil
                 style-text $ {}
-                  :fill-style $ or (:text-color style) (hsl 0 0 10)
+                  :fill-style $ or
+                    .unwrap-or (get style :text-color) nil
+                    hsl 0 0 10
                   :text guide-text
-                  :size $ or (:font-size style) 20
-                  :font-family $ or (:font-family style) |Optima
+                  :size $ or
+                    .unwrap-or (get style :font-size) nil
+                    , 20
+                  :font-family $ or
+                    .unwrap-or (get style :font-family) nil
+                    , |Optima
                   :text-align |center
                   :x x
                   :y y
               group ({}) (rect style-bg) (text style-text)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
         'input $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp input (style)
             let
-                w $ :w style
-                h $ :h style
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                w $ .unwrap-or (get style :w) nil
+                h $ .unwrap-or (get style :h) nil
                 style-bg $ {}
                   :fill-style $ hsl 0 50 80
                   :stroke-style $ hsl 0 0 50
                   :line-width 2
-                  :x $ or (:x style) 0
-                  :y $ or (:y style) 0
+                  :x $ or
+                    .unwrap-or (get style :x) nil
+                    , 0
+                  :y $ or
+                    .unwrap-or (get style :y) nil
+                    , 0
                   :w w
                   :h h
-                  :event $ :event style
+                  :event $ .unwrap-or (get style :event) nil
                 style-place-text $ {}
                 style-text $ {} (:text-align |center)
-                  :text $ :text style
+                  :text $ .unwrap-or (get style :text) nil
                   :font-family |Optima
                   :size 20
                   :fill-style $ hsl 0 0 0
@@ -13708,54 +14040,62 @@
         'rotate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp rotate (props & children)
             let
-                angle $ * pi-ratio $ .unwrap-or (&map:get props :angle) 30
-              group ({})
-                native-save $ {}
-                native-rotate $ &{} :angle angle
-                , & children $ native-restore $ {}
+                angle $ * pi-ratio $ decode-map-as
+                  .unwrap-or (&map:get props :angle) 30
+                  , 'Number
+              group ({}) & $ conj
+                prepend
+                  prepend children $ native-rotate $ &{} :angle angle
+                  native-save $ {}
+                native-restore $ {}
           :examples $ []
           :schema $ quote $ Fn (Map Tag Dynamic) & Dynamic (-> Dynamic)
         'scale $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp scale (props & children)
-            group ({})
-              native-save $ {}
-              native-scale $ merge (&{} :ratio 1) props
-              , & children $ native-restore $ {}
+            group ({}) & $ conj
+              prepend
+                prepend children $ native-scale $ merge (&{} :ratio 1) props
+                native-save $ {}
+              native-restore $ {}
           :examples $ []
           :schema $ quote $ Fn (Map Tag Dynamic) & Dynamic (-> Dynamic)
         'textbox $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp textbox (states props)
             let
-                cursor $ :cursor states
-                state $ assert-type
+                cursor $ .unwrap-or (get states :cursor) nil
+                state $ decode-map-as
                     get states :data
                     , .unwrap-or $ {} $ :text
                         get props :text
                         , .unwrap-or |
-                  quote $ Map Tag Dynamic
-                text $ assert-type
+                  :: 'Map 'Dynamic 'Dynamic
+                text $ decode-map-as
                     get state :text
                     , .unwrap-or |
                   , 'String
-              [] nil $ input $ assoc props :text text :event
+              [] nil $ input $ assoc (assoc props :text text) :event
                 &{} :keydown $ fn (event d!)
-                  let
-                      next-text $ match (.-keyCode event)
-                        32 $ str text "| "
-                        8 $ if
-                          <= (count text) 1
-                          , | $ slice text 0
-                            Option :some $ dec $ count text
-                        _ $ str text $ keycode->key (.-keyCode event) (.-shiftKey event)
-                    d! cursor $ assoc state :text next-text
+                  if (fn? d!)
+                    let
+                        event $ js-ffi.browser/keyboard-event-host event
+                        next-text $ match (event :key-code)
+                          32 $ str text "| "
+                          8 $ if
+                            <= (.len text) 1
+                            , | $ .slice text 0
+                              Option :some $ dec $ .len text
+                          _ $ str text $ keycode->key (event :key-code) (event :shift-key?)
+                      d! cursor $ assoc state :text next-text
+                    raise |Expected-textbox-dispatch-function
           :examples $ []
-          :schema $ quote $ Fn (Map Tag Dynamic) (Map Tag Dynamic) (-> Dynamic)
+          :schema $ quote $ Fn (Map Dynamic Dynamic) (Map Dynamic Dynamic) (-> quamolit.types/Component) (:features :js-ffi)
         'translate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp translate (props & children)
-            group ({})
-              native-save $ {}
-              native-translate $ merge (&{} :x 0 :y 0) props
-              , & children $ native-restore $ {}
+            group ({}) & $ conj
+              prepend
+                prepend children $ native-translate $ merge (&{} :x 0 :y 0) props
+                native-save $ {}
+              native-restore $ {}
           :examples $ []
           :schema $ quote $ Fn (Map Tag Dynamic) & Dynamic (-> Dynamic)
       :ns $ %{} 'NsEntry (:doc |)
@@ -13770,20 +14110,19 @@
         '*image-pool $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *image-pool ({})
           :examples $ []
-          :schema $ quote Dynamic
+          :schema $ quote $ Ref (Map String js-ffi.browser/ImageHost)
         'get-image $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn get-image (src)
-            if (&map:contains? @*image-pool src)
-              match (&map:get @*image-pool src)
-                (:some legacy-value) legacy-value
-                (:none) nil
-              let
-                  image $ image-create
-                image-src! image src
-                swap! *image-pool assoc src image
-                , image
+            match (get @*image-pool src)
+              (:some image) image
+              (:none)
+                let
+                    image $ image-create
+                  image-src! image src
+                  swap! *image-pool assoc src image
+                  , image
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn String (-> js-ffi.browser/ImageHost) (:features :js-ffi)
         'legacy-number $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn legacy-number (value fallback)
             if
@@ -13798,25 +14137,32 @@
         'paint-alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-alpha (ctx style)
             let
-                base-alpha $ match (&map:get @*tracked-transform :alpha)
-                  (:some legacy-value) legacy-value
-                  (:none) nil
-                opacity $ * base-alpha $ bound-opacity
-                  match (&map:get style :opacity)
+                base-alpha $ decode-map-as
+                  match (&map:get @*tracked-transform :alpha)
                     (:some legacy-value) legacy-value
                     (:none) nil
+                  , 'Number
+                opacity $ * base-alpha $ decode-map-as
+                  bound-opacity $ match (&map:get style :opacity)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  , 'Number
               set! (.-globalAlpha ctx) opacity
               swap! *tracked-transform assoc :alpha opacity
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
         'paint-arc $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-arc (ctx style coord event)
             let
                 x $ .unwrap-or (&map:get style :x) 0
                 y $ .unwrap-or (&map:get style :y) 0
                 r $ .unwrap-or (&map:get style :r) 40
-                s-angle $ * pi-ratio $ .unwrap-or (&map:get style :s-angle) 0
-                e-angle $ * pi-ratio $ .unwrap-or (&map:get style :e-angle) 300
+                s-angle $ * pi-ratio $ decode-map-as
+                  .unwrap-or (&map:get style :s-angle) 0
+                  , 'Number
+                e-angle $ * pi-ratio $ decode-map-as
+                  .unwrap-or (&map:get style :e-angle) 300
+                  , 'Number
                 line-width $ .unwrap-or (&map:get style :line-width) 4
                 counterclockwise $ .unwrap-or (&map:get style :counterclockwise) false
                 line-cap $ .unwrap-or (&map:get style :line-cap) |round
@@ -13824,17 +14170,15 @@
               .!beginPath ctx
               .!arc ctx x y r s-angle e-angle counterclockwise
               when (non-nil? event)
-                reset! *touch-event-areas $ prepend
-                  {} (:kind :arc) (:r r)
-                    :transform $ match (&map:get @*tracked-transform :transform)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
-                    :offset $ match (&map:get @*tracked-transform :offset)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
-                    :coord coord
-                    :position $ [] x y
-                  , @*touch-event-areas
+                reset! *touch-event-areas $ prepend @*touch-event-areas $ {} (:kind :arc) (:r r)
+                  :transform $ match (&map:get @*tracked-transform :transform)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  :offset $ match (&map:get @*tracked-transform :offset)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  :coord coord
+                  :position $ [] x y
               when (&map:contains? style :fill-style)
                 set! (.-fillStyle ctx)
                   match (&map:get style :fill-style)
@@ -13851,25 +14195,44 @@
                 set! (.-miterLimit ctx) miter-limit
                 .!stroke ctx
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
         'paint-image $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-image (ctx style coord)
             let
-                sx $ or (:sx style) 0
-                sy $ or (:sy style) 0
-                sw $ or (:sw style) 40
-                sh $ or (:sh style) 40
-                dx $ or (:dx style) 0
-                dy $ or (:dy style) 0
-                dw $ or (:dw style) 40
-                dh $ or (:dh style) 40
-                image $ get-image $ :src style
+                sx $ or
+                  .unwrap-or (get style :sx) nil
+                  , 0
+                sy $ or
+                  .unwrap-or (get style :sy) nil
+                  , 0
+                sw $ or
+                  .unwrap-or (get style :sw) nil
+                  , 40
+                sh $ or
+                  .unwrap-or (get style :sh) nil
+                  , 40
+                dx $ or
+                  .unwrap-or (get style :dx) nil
+                  , 0
+                dy $ or
+                  .unwrap-or (get style :dy) nil
+                  , 0
+                dw $ or
+                  .unwrap-or (get style :dw) nil
+                  , 40
+                dh $ or
+                  .unwrap-or (get style :dh) nil
+                  , 40
+                image $ get-image $ decode-map-as
+                  .unwrap-or (get style :src) nil
+                  , 'String
               .!drawImage ctx image sx sy sw sh dx dy dw dh
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) Dynamic (-> Dynamic) (:features :js-ffi)
         'paint-line $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-line (ctx style)
             let
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
                 x0 $ .unwrap-or (&map:get style :x0) 0
                 y0 $ .unwrap-or (&map:get style :y0) 0
                 x1 $ .unwrap-or (&map:get style :x1) 40
@@ -13913,7 +14276,8 @@
           :code $ quote $ defn paint-one (ctx directive coord)
             let
                 op $ :name directive
-                style $ :style directive
+                style $ decode-map-as (:style directive)
+                  quote $ Map Tag Dynamic
                 event $ :event directive
               ; js/console.log :paint-one op style
               cond
@@ -13937,12 +14301,12 @@
         'paint-path $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-path (ctx style)
             let
-                points $ match (&map:get style :points)
-                  (:some legacy-value) legacy-value
-                  (:none) nil
-                first-point $ match (&list:first points)
-                  (:some legacy-value) legacy-value
-                  (:none) nil
+                points $ decode-map-as
+                  match (&map:get style :points)
+                    (:some legacy-value) legacy-value
+                    (:none) nil
+                  quote $ List $ List Number
+                first-point $ .unwrap $ &list:first points
               .!beginPath ctx
               .!moveTo ctx
                 match (&list:first first-point)
@@ -13954,9 +14318,21 @@
               &doseq
                 coords $ rest points
                 match (count coords)
-                  2 $ .!lineTo ctx (nth coords 0) (nth coords 1)
-                  4 $ .!quadraticCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3)
-                  6 $ .!bezierCurveTo ctx (nth coords 0) (nth coords 1) (nth coords 2) (nth coords 3) (nth coords 4) (nth coords 5)
+                  2 $ .!lineTo ctx
+                    .unwrap $ nth coords 0
+                    .unwrap $ nth coords 1
+                  4 $ .!quadraticCurveTo ctx
+                    .unwrap $ nth coords 0
+                    .unwrap $ nth coords 1
+                    .unwrap $ nth coords 2
+                    .unwrap $ nth coords 3
+                  6 $ .!bezierCurveTo ctx
+                    .unwrap $ nth coords 0
+                    .unwrap $ nth coords 1
+                    .unwrap $ nth coords 2
+                    .unwrap $ nth coords 3
+                    .unwrap $ nth coords 4
+                    .unwrap $ nth coords 5
                   _ $ raise |not-supported-coords
               when (&map:contains? style :stroke-style)
                 set! (.-lineWidth ctx)
@@ -13980,10 +14356,11 @@
                 .!closePath ctx
                 .!fill ctx
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
         'paint-rect $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-rect (ctx style coord event)
             let
+                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
                 w $ legacy-number
                   match (&map:get style :w)
                     (:some legacy-value) legacy-value
@@ -14057,14 +14434,20 @@
         'paint-rotate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-rotate (ctx style)
             let
-                angle $ or (:angle style) 30
-                radius $ / (* angle js/Math 2) 180
+                angle $ decode-map-as
+                  or
+                    .unwrap-or (get style :angle) nil
+                    , 30
+                  , 'Number
               .!rotate ctx angle
               swap! *tracked-transform update :transform $ fn (point)
-                point-times point $ [] (js/Math.cos radius)
-                  negate $ js/Math.cos radius
+                point-times
+                  decode-map-as point $ quote $ List Number
+                  []
+                    decode-map-as (js/Math.cos angle) 'Number
+                    decode-map-as (js/Math.sin angle) 'Number
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
         'paint-save $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-save (ctx style) (.!save ctx) (swap! *transforms-memory conj @*tracked-transform)
           :examples $ []
@@ -14072,47 +14455,90 @@
         'paint-scale $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-scale (ctx style)
             let
-                ratio $ or (:ratio style) 1.2
+                ratio $ decode-map-as
+                  or
+                    .unwrap-or (get style :ratio) nil
+                    , 1.2
+                  , 'Number
               .!scale ctx ratio ratio
               swap! *tracked-transform update :transform $ fn (point)
-                point-times point $ [] ratio 0
+                point-times
+                  decode-map-as point $ quote $ List Number
+                  [] ratio 0
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
         'paint-text $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-text (ctx style)
             set! (.-fillStyle ctx)
-              or (:fill-style style) (hsl 0 0 0)
+              or
+                .unwrap-or (get style :fill-style) nil
+                hsl 0 0 0
             set! (.-textAlign ctx)
-              or (:text-align style) |center
+              or
+                .unwrap-or (get style :text-align) nil
+                , |center
             set! (.-textBaseline ctx)
-              or (:base-line style) |middle
+              or
+                .unwrap-or (get style :base-line) nil
+                , |middle
             set! (.-font ctx)
               str
-                or (:size style) 20
-                , "|px " $ or (:font-family style) |Optima
+                or
+                  .unwrap-or (get style :size) nil
+                  , 20
+                , "|px " $ or
+                  .unwrap-or (get style :font-family) nil
+                  , |Optima
             when (contains? style :fill-style)
-              .!fillText ctx (:text style)
-                or (:x style) 0
-                or (:y style) 0
-                or (:max-width style) 400
+              .!fillText ctx
+                .unwrap-or (get style :text) nil
+                or
+                  .unwrap-or (get style :x) nil
+                  , 0
+                or
+                  .unwrap-or (get style :y) nil
+                  , 0
+                or
+                  .unwrap-or (get style :max-width) nil
+                  , 400
             when (contains? style :stroke-style)
-              .!strokeText ctx (:text style)
-                or (:x style) 0
-                or (:y style) 0
-                or (:max-width style) 400
+              .!strokeText ctx
+                .unwrap-or (get style :text) nil
+                or
+                  .unwrap-or (get style :x) nil
+                  , 0
+                or
+                  .unwrap-or (get style :y) nil
+                  , 0
+                or
+                  .unwrap-or (get style :max-width) nil
+                  , 400
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
         'paint-translate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-translate (ctx style)
             let
-                x $ or (:x style) 0
-                y $ or (:y style) 0
-                transform $ :transform @*tracked-transform
+                x $ decode-map-as
+                  or
+                    .unwrap-or (get style :x) nil
+                    , 0
+                  , 'Number
+                y $ decode-map-as
+                  or
+                    .unwrap-or (get style :y) nil
+                    , 0
+                  , 'Number
+                transform $ decode-map-as
+                  .unwrap $ get @*tracked-transform :transform
+                  quote $ List Number
                 delta $ point-times transform $ [] x y
               .!translate ctx x y
-              swap! *tracked-transform update :offset $ fn (point) (point-add point delta)
+              swap! *tracked-transform update :offset $ fn (point)
+                point-add
+                  decode-map-as point $ quote $ List Number
+                  , delta
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
         'paint-tree-only-with $ %{} 'CodeEntry
           :doc "|Paint a scene without invoking on-tick callbacks or advancing frame time."
           :code $ quote $ defn paint-tree-only-with (ctx tree coord paint-leaf)
@@ -14123,18 +14549,21 @@
                 paint-tree-only-with ctx (:tree component)
                   conj coord $ :name component
                   , paint-leaf
-              let
-                  shape $ assert-type tree Shape
-                paint-leaf ctx shape coord
-                &doseq
-                  cursor $ :children shape
-                  paint-tree-only-with ctx
-                    (last cursor) .unwrap-or nil
-                    append coord $
-                      first cursor
-                      , .unwrap-or nil
-                    , paint-leaf
-                , &unit
+              if
+                and (struct? tree) (&struct:matches? tree Shape)
+                let
+                    shape $ assert-type tree Shape
+                  paint-leaf ctx shape coord
+                  &doseq
+                    cursor $ :children shape
+                    paint-tree-only-with ctx
+                      (last cursor) .unwrap-or nil
+                      append coord $
+                        first cursor
+                        , .unwrap-or nil
+                      , paint-leaf
+                  , &unit
+                raise "|Expected a Quamolit Shape or Component"
           :examples $ []
           :schema $ quote $ Fn C Dynamic (List Dynamic)
             Fn C quamolit.types/Shape (List Dynamic) (-> R) (:features :js-ffi)
@@ -18809,10 +19238,7 @@
         'constant-path-sample-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn constant-path-sample-plan (plan transforms)
             struct-with plan $ :sample $ fn (slots time)
-              hint-fn $ {}
-                :args $ [] (:: 'List 'quamolit.examples.binary-tree/BranchSlot) 'Number
-                :return $
-                  :: 'List 'quamolit.scene-ir/Matrix2D
+              hint-fn $ Fn (List quamolit.examples.binary-tree/BranchSlot) Number $ -> (List quamolit.scene-ir/Matrix2D)
               , transforms
           :examples $ []
           :schema $ quote $ Fn
@@ -20495,6 +20921,7 @@
                 state* $ ref $ pointer/initial-pointer-state
                 count* $ ref 0
                 handle! $ fn (phase event)
+                  hint-fn $ Fn quamolit.scene-pointer/PointerPhase quamolit.scene-pointer-browser/PointerEventHost (-> Unit) (:features :js-ffi)
                   let
                       input $ browser/pointer-input-from-event surface phase event
                       routed $ browser/route-event! surface @plan* @state* phase event
@@ -20517,6 +20944,7 @@
                           (:none) |
                       _ |
                 handle-lost! $ fn (event)
+                  hint-fn $ Fn quamolit.scene-pointer-browser/PointerEventHost (-> Unit) (:features :js-ffi)
                   let
                       reconciled $ pointer/lose-pointer-capture @state* $ browser/pointer-id-from-event event
                     reset! state* $ :state reconciled
@@ -20533,6 +20961,7 @@
                     dom/element-set-attribute! element |data-blur-released $ str $ :capture-released reconciled
                     dom/element-set-attribute! element |data-capture-cleared $ str $ capture-cleared? (:state reconciled)
                 set-disabled! $ fn (disabled?)
+                  hint-fn $ Fn Bool (-> Unit) (:features :js-ffi)
                   let
                       next-plan $ hit/compile-hit-plan $ fixture/routing-scene-subtree disabled?
                       reconciled $ browser/reconcile-pointer-surface! surface next-plan @state*
@@ -20890,11 +21319,14 @@
           :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic)
         'compare-number $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn compare-number (x y)
-            cond
-                &< x y
-                , -1
-              (&> x y) 1
-              true 0
+            let
+                x $ decode-map-as x 'Number
+                y $ decode-map-as y 'Number
+              cond
+                  &< x y
+                  , -1
+                (&> x y) 1
+                true 0
           :examples $ []
           :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic)
         'type-as-int $ %{} 'CodeEntry (:doc |)
@@ -20924,12 +21356,10 @@
           :code $ quote $ defn keycode->key (k shift?)
             if
               and (<= k 90) (>= k 65)
-              let
-                  letter $ unsafe-coerce (js/String.fromCharCode k) String
-                if shift? letter $ .!toLowerCase letter
+              char-from-code $ + (floor k) (if shift? 0 32)
               , |
           :examples $ []
-          :schema $ quote $ Fn Number Bool (-> String) (:features :js-ffi)
+          :schema $ quote $ Fn Number Bool (-> String)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.util.keyboard
     'quamolit.util.ref $ %{} 'FileEntry
