@@ -1,12 +1,12 @@
 {
-  "version": "0.0.18-alpha.1",
+  "version": "0.0.18",
   "dependencies": {
-    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.5",
-    "@calcit/procs": "0.30.1",
+    "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.9",
+    "@calcit/procs": "0.32.1",
     "@quamolit/touch-control": "^0.0.13"
   },
   "resolutions": {
-    "@calcit/procs": "0.30.1"
+    "@calcit/procs": "0.32.1"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
