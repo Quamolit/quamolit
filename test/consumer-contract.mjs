@@ -381,7 +381,8 @@ export function verifyLayeredConsumer(app, core) {
     })),
     "同一 Calcit 组件向 GPU 返回全部节点诊断，不能只报首个节点或静默漏绘",
   );
-  const prototype = nodes(plan).get(0).get(tags.content).enumPrototype;
+  const sampleContent = nodes(plan).get(0).get(tags.content);
+  const prototype = sampleContent.enumPrototype;
   const kinds = Object.keys(core.to_js_data(prototype.prototype)).sort();
   assert.deepEqual(
     kinds,
@@ -389,9 +390,11 @@ export function verifyLayeredConsumer(app, core) {
     "新增 Scene 种类必须同步能力表和门禁",
   );
   // 这里只测种类分类，不以空 payload 声称图元数据合法或已经绘制。
+  // Calcit 0.34 的 `%::` 会校验 payload 类型，所以直接构造未校验的枚举值，只保留种类。
+  const EnumValue = sampleContent.constructor;
   for (const kind of kinds) {
     const tag = core.init_tags([kind])[kind];
-    assert.equal(app.canvas_content_supported_$q_(core._PCT__$o__$o_(prototype, tag, null)), kind !== "instances");
+    assert.equal(app.canvas_content_supported_$q_(new EnumValue(tag, [null], prototype)), kind !== "instances");
   }
   const instance = nodes(plan)
     .get(4)
