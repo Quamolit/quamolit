@@ -130,7 +130,7 @@
                 states $ if (map? states) states $ raise |Expected-state-map
                 parent-cursor $ decode-map-as
                   .unwrap-or (&map:get states :cursor) ([])
-                  :: 'List 'Dynamic
+                  quote $ List Dynamic
                 branch $ match (&map:get states k)
                   (:some legacy-value) legacy-value
                   (:none) nil
@@ -367,7 +367,7 @@
     'quamolit.canvas-reference $ %{} 'FileEntry
       :defs $ {}
         'InstancesMetrics $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct InstancesMetrics (:boundary-calls 'Number) (:canvas-calls 'Number) (:instances 'Number) (:position-bytes-read 'Number)
+          :code $ quote $ defstruct InstancesMetrics (:boundary-calls Number) (:canvas-calls Number) (:instances Number) (:position-bytes-read Number)
           :examples $ []
           :schema $ quote StructDef
         'NativeTextInkHost $ %{} 'CodeEntry
@@ -924,14 +924,14 @@
     'quamolit.canvas-strokes $ %{} 'FileEntry
       :defs $ {}
         'RoundPolyline $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct RoundPolyline (:id 'String)
+          :code $ quote $ defstruct RoundPolyline (:id String)
             :points $ quote $ List quamolit.motion/Vec2
-            :width 'Number
-            :color 'quamolit.motion/ColorRgba
+            :width Number
+            :color quamolit.motion/ColorRgba
           :examples $ []
           :schema $ quote StructDef
         'StrokeSegment $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct StrokeSegment (:id 'String) (:x0 'Number) (:y0 'Number) (:x1 'Number) (:y1 'Number) (:width 'Number) (:color 'quamolit.motion/ColorRgba)
+          :code $ quote $ defstruct StrokeSegment (:id String) (:x0 Number) (:y0 Number) (:x1 Number) (:y1 Number) (:width Number) (:color quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ quote StructDef
         'draw-polyline! $ %{} 'CodeEntry (:doc |)
@@ -1044,7 +1044,7 @@
                 state $ decode-map-as
                     get states :data
                     , .unwrap-or $ {} (:stage :hidden) (:opacity 0)
-                  :: 'Map 'Dynamic 'Dynamic
+                  quote $ Map Dynamic Dynamic
                 p1 $ if (fn? f1)
                   f1 (>> states :renderer)
                     .unwrap-or (get state :opacity) nil
@@ -1109,14 +1109,14 @@
                   match
                     .unwrap-or (get state :stage) nil
                     :hidden nil
-                    _ $ either p1 $ &let
-                      old-f $ .unwrap-or (get-node! cursor) nil
-                      if (non-nil? old-f)
+                    _ $ either p1 $ match (get-node! cursor)
+                      (:some old-f)
                         if (fn? old-f)
                           old-f (>> states :renderer)
                             .unwrap-or (get state :opacity) nil
                             .unwrap-or (get state :stage) nil
                           raise |Expected-fade-callback-function
+                      (:none) nil
           :examples $ []
           :schema $ quote $ Fn (Map Dynamic Dynamic) Dynamic Dynamic (-> quamolit.types/Component)
         'comp-fade-in-out $ %{} 'CodeEntry (:doc |)
@@ -1127,7 +1127,7 @@
                 state $ decode-map-as
                     get states :data
                     , .unwrap-or $ {} (:stage :hidden) (:opacity 0)
-                  :: 'Map 'Dynamic 'Dynamic
+                  quote $ Map Dynamic Dynamic
               []
                 fn (elapsed d!)
                   let
@@ -1220,7 +1220,7 @@
                   or
                     .unwrap-or (get options :position) nil
                     [] 0 0
-                  :: 'List 'Number
+                  quote $ List Number
                 state $ .unwrap-or (get states :data) nil
                 v-max $ decode-map-as
                   either
@@ -1267,7 +1267,7 @@
                                   if (map? state) state $ raise |Expected-slider-state-or-options-map
                                   , :local
                                 , nil
-                              :: 'Map 'Dynamic 'Dynamic
+                              quote $ Map Dynamic Dynamic
                             dx $ -
                               decode-map-as (.-clientX e) 'Number
                               decode-map-as
@@ -1313,12 +1313,12 @@
       :defs $ {}
         'ComponentDeclaration $ %{} 'CodeEntry
           :doc "|声明式组件返回的 Scene 与版本化 Motion 描述列表；纯逻辑数据，不含宿主句柄或闭包。"
-          :code $ quote $ defstruct ComponentDeclaration (:scene 'quamolit.scene-ir/SceneDocument)
+          :code $ quote $ defstruct ComponentDeclaration (:scene quamolit.scene-ir/SceneDocument)
             :motions $ quote $ List quamolit.motion/ScalarDescriptor
           :examples $ []
           :schema $ quote StructDef
         'ComponentRequest $ %{} 'CodeEntry (:doc "|组件一次采样的显式身份、时间、六类依赖版本以及 props/Model/输入/资源/视口快照。")
-          :code $ quote $ defstruct ComponentRequest ([] 'P 'M 'I 'R 'V) (:id 'String) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:props 'P) (:model 'M) (:input 'I) (:resources 'R) (:viewport 'V)
+          :code $ quote $ defstruct ComponentRequest ([] P M I R V) (:id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:props P) (:model M) (:input I) (:resources R) (:viewport V)
           :examples $ []
           :schema $ quote StructDef
         'color-channel-descriptor $ %{} 'CodeEntry
@@ -1593,7 +1593,7 @@
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
         'LegacyRoot $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum LegacyRoot (:empty) (:shape 'quamolit.types/Shape) (:component 'quamolit.types/Component)
+          :code $ quote $ defenum LegacyRoot (:empty) (:shape quamolit.types/Shape) (:component quamolit.types/Component)
           :examples $ []
           :schema $ quote EnumDef
         'advance-frame-clock! $ %{} 'CodeEntry
@@ -1948,6 +1948,7 @@
                     if
                       = coord $ .unwrap-or (get target :coord) nil
                       handle-event coord :click event dispatch
+                      , &unit
               .addEventListener root |mouseleave $ fn (event)
                 when-let (coord @*clicked-focus) (handle-event coord :click event dispatch) (handle-event coord :mouseup event dispatch)
                   reset! *clicked-focus $ Option :none
@@ -2106,27 +2107,27 @@
     'quamolit.device-recovery $ %{} 'FileEntry
       :defs $ {}
         'CreateOutcome $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum CreateOutcome (:ready) (:failed 'String)
+          :code $ quote $ defenum CreateOutcome (:ready) (:failed String)
           :examples $ []
           :schema $ quote EnumDef
         'ProbeOutcome $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum ProbeOutcome (:ready) (:fallback 'String) (:failed 'String)
+          :code $ quote $ defenum ProbeOutcome (:ready) (:fallback String) (:failed String)
           :examples $ []
           :schema $ quote EnumDef
         'RecoveryAction $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum RecoveryAction (:probe 'Number 'Number) (:create 'Number 'Number) (:install 'Number 'Number) (:release 'Number) (:show-fallback 'Number 'String) (:show-failure 'Number 'String)
+          :code $ quote $ defenum RecoveryAction (:probe Number Number) (:create Number Number) (:install Number Number) (:release Number) (:show-fallback Number String) (:show-failure Number String)
           :examples $ []
           :schema $ quote EnumDef
         'RecoveryPhase $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum RecoveryPhase (:idle) (:probing) (:creating) (:ready) (:fallback 'String) (:failed 'String) (:closed)
+          :code $ quote $ defenum RecoveryPhase (:idle) (:probing) (:creating) (:ready) (:fallback String) (:failed String) (:closed)
           :examples $ []
           :schema $ quote EnumDef
         'RecoveryState $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct RecoveryState (:generation 'Number) (:phase 'quamolit.device-recovery/RecoveryPhase) (:resource-version 'Number) (:attempts 'Number) (:losses 'Number)
+          :code $ quote $ defstruct RecoveryState (:generation Number) (:phase quamolit.device-recovery/RecoveryPhase) (:resource-version Number) (:attempts Number) (:losses Number)
           :examples $ []
           :schema $ quote StructDef
         'RecoveryTransition $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct RecoveryTransition (:state 'quamolit.device-recovery/RecoveryState)
+          :code $ quote $ defstruct RecoveryTransition (:state quamolit.device-recovery/RecoveryState)
             :actions $ quote $ List quamolit.device-recovery/RecoveryAction
           :examples $ []
           :schema $ quote StructDef
@@ -2291,17 +2292,17 @@
       :defs $ {}
         'DirectFrame $ %{} 'CodeEntry
           :doc "|A sampled value plus the exact identity, time and revisions used to produce it."
-          :code $ quote $ defstruct DirectFrame ([] 'S) (:id 'String) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:scene 'S)
+          :code $ quote $ defstruct DirectFrame ([] S) (:id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:scene S)
           :examples $ []
           :schema $ quote StructDef
         'DirectRequest $ %{} 'CodeEntry
           :doc "|Typed, complete logical input for one arbitrary-time direct sample."
-          :code $ quote $ defstruct DirectRequest ([] 'D 'M 'I 'R 'V) (:id 'String) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:motion 'D) (:model 'M) (:input 'I) (:resources 'R) (:viewport 'V)
+          :code $ quote $ defstruct DirectRequest ([] D M I R V) (:id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:motion D) (:model M) (:input I) (:resources R) (:viewport V)
           :examples $ []
           :schema $ quote StructDef
         'FrameVersions $ %{} 'CodeEntry
           :doc "|Explicit nonnegative integer revisions for every declared direct-sampling dependency."
-          :code $ quote $ defstruct FrameVersions (:component 'Number) (:motion 'Number) (:model 'Number) (:input 'Number) (:resources 'Number) (:viewport 'Number)
+          :code $ quote $ defstruct FrameVersions (:component Number) (:motion Number) (:model Number) (:input Number) (:resources Number) (:viewport Number)
           :examples $ []
           :schema $ quote StructDef
         'resample-at $ %{} 'CodeEntry
@@ -2447,11 +2448,11 @@
     'quamolit.examples.binary-tree $ %{} 'FileEntry
       :defs $ {}
         'BranchPose $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct BranchPose (:x 'Number) (:y 'Number) (:angle 'Number) (:scale 'Number)
+          :code $ quote $ defstruct BranchPose (:x Number) (:y Number) (:angle Number) (:scale Number)
           :examples $ []
           :schema $ quote StructDef
         'BranchSlot $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct BranchSlot (:parent 'Number) (:left? 'Bool)
+          :code $ quote $ defstruct BranchSlot (:parent Number) (:left? Bool)
           :examples $ []
           :schema $ quote StructDef
         'branches $ %{} 'CodeEntry (:doc |)
@@ -2833,9 +2834,9 @@
     'quamolit.examples.cohort-pulse $ %{} 'FileEntry
       :defs $ {}
         'SwitchModel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct SwitchModel (:id 'String) (:initial 'Number) (:intent 'quamolit.transition/TransitionIntent)
+          :code $ quote $ defstruct SwitchModel (:id String) (:initial Number) (:intent quamolit.transition/TransitionIntent)
             :events $ quote $ List quamolit.transition/TransitionEvent
-            :at 'Number
+            :at Number
           :examples $ []
           :schema $ quote StructDef
         'active? $ %{} 'CodeEntry (:doc |)
@@ -3300,11 +3301,11 @@
             DragView :scale-x 1 :scale-y 1 :x 0 :y 0
           :examples $ []
         'DragModel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct DragModel (:x 'Number) (:y 'Number) (:value 'Number) (:kind 'String) (:pointer 'Number) (:anchor-x 'Number) (:anchor-y 'Number) (:start-value 'Number) (:enabled? 'Bool)
+          :code $ quote $ defstruct DragModel (:x Number) (:y Number) (:value Number) (:kind String) (:pointer Number) (:anchor-x Number) (:anchor-y Number) (:start-value Number) (:enabled? Bool)
           :examples $ []
           :schema $ quote StructDef
         'DragView $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct DragView (:scale-x 'Number) (:scale-y 'Number) (:x 'Number) (:y 'Number)
+          :code $ quote $ defstruct DragView (:scale-x Number) (:scale-y Number) (:x Number) (:y Number)
           :examples $ []
           :schema $ quote StructDef
         'begin-pointer $ %{} 'CodeEntry (:doc |)
@@ -3646,18 +3647,18 @@
     'quamolit.examples.finder $ %{} 'FileEntry
       :defs $ {}
         'FinderEvent $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct FinderEvent (:at 'Number) (:kind 'String) (:folder 'Number) (:card 'Number)
+          :code $ quote $ defstruct FinderEvent (:at Number) (:kind String) (:folder Number) (:card Number)
           :examples $ []
           :schema $ quote StructDef
         'FinderHit $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct FinderHit (:kind 'String) (:folder 'Number) (:card 'Number)
+          :code $ quote $ defstruct FinderHit (:kind String) (:folder Number) (:card Number)
           :examples $ []
           :schema $ quote StructDef
         'FinderModel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct FinderModel (:folder 'Number) (:card 'Number)
+          :code $ quote $ defstruct FinderModel (:folder Number) (:card Number)
             :folder-motions $ quote $ List quamolit.transition/TransitionIntent
             :card-motions $ quote $ List quamolit.transition/TransitionIntent
-            :at 'Number
+            :at Number
           :examples $ []
           :schema $ quote StructDef
         'add-card $ %{} 'CodeEntry (:doc |)
@@ -4360,15 +4361,15 @@
     'quamolit.examples.folding-fan $ %{} 'FileEntry
       :defs $ {}
         'FanEvent $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct FanEvent (:at 'Number)
+          :code $ quote $ defstruct FanEvent (:at Number)
           :examples $ []
           :schema $ quote StructDef
         'FanModel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct FanModel (:folded 'Bool) (:motion 'quamolit.transition/TransitionIntent) (:at 'Number)
+          :code $ quote $ defstruct FanModel (:folded Bool) (:motion quamolit.transition/TransitionIntent) (:at Number)
           :examples $ []
           :schema $ quote StructDef
         'FanSlice $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct FanSlice (:index 'Number) (:source-x 'Number) (:source-width 'Number) (:angle 'Number)
+          :code $ quote $ defstruct FanSlice (:index Number) (:source-x Number) (:source-width Number) (:angle Number)
           :examples $ []
           :schema $ quote StructDef
         'annotation-nodes $ %{} 'CodeEntry (:doc |)
@@ -4557,7 +4558,7 @@
     'quamolit.examples.icons $ %{} 'FileEntry
       :defs $ {}
         'IconModel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct IconModel (:count 'Number) (:increase 'quamolit.transition/TransitionIntent) (:playing 'Bool) (:play 'quamolit.transition/TransitionIntent) (:at 'Number)
+          :code $ quote $ defstruct IconModel (:count Number) (:increase quamolit.transition/TransitionIntent) (:playing Bool) (:play quamolit.transition/TransitionIntent) (:at Number)
           :examples $ []
           :schema $ quote StructDef
         'background-node $ %{} 'CodeEntry (:doc |)
@@ -4871,23 +4872,22 @@
           :examples $ []
           :schema $ quote $ Ref quamolit.scene-pointer/PointerState
         'DashboardLoadResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum DashboardLoadResult (:font 'quamolit.font-resource/QueuedFontLoadResult)
-            :image 'quamolit.image-resource-runner/QueuedImageLoadResult
+          :code $ quote $ defenum DashboardLoadResult (:font quamolit.font-resource/QueuedFontLoadResult)
+            :image quamolit.image-resource-runner/QueuedImageLoadResult
           :examples $ []
           :schema $ quote EnumDef
         'DashboardMedia $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct DashboardMedia (:registry 'quamolit.resource-lifecycle/ResourceRegistry) (:queue 'quamolit.resource-load-queue/ResourceLoadQueue) (:host 'quamolit.font-resource/FontResourceHost)
-            :images 'quamolit.image-resource-runner/ImageResourceHost
-            :descriptor 'quamolit.image-resource-runner/ImageResourceDescriptor
+          :code $ quote $ defstruct DashboardMedia (:registry quamolit.resource-lifecycle/ResourceRegistry) (:queue quamolit.resource-load-queue/ResourceLoadQueue) (:host quamolit.font-resource/FontResourceHost) (:images quamolit.image-resource-runner/ImageResourceHost)
+            :descriptor quamolit.image-resource-runner/ImageResourceDescriptor
             :references $ quote $ List quamolit.resource-lifecycle/ResourceIdentity
             :task $ quote $ Option quamolit.resource-load-queue/ResourceLoadTask
-            :revision 'Number
-            :closed? 'Bool
-            :font-spec 'quamolit.scene-ir/FontSpec
+            :revision Number
+            :closed? Bool
+            :font-spec quamolit.scene-ir/FontSpec
           :examples $ []
           :schema $ quote StructDef
         'VisibilityEvent $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct VisibilityEvent (:time 'Number) (:visible 'Bool) (:chart-visible 'Bool) (:line-chart 'Bool)
+          :code $ quote $ defstruct VisibilityEvent (:time Number) (:visible Bool) (:chart-visible Bool) (:line-chart Bool)
           :examples $ []
           :schema $ quote StructDef
         'advance $ %{} 'CodeEntry (:doc |)
@@ -5787,9 +5787,9 @@
     'quamolit.examples.signal-weave $ %{} 'FileEntry
       :defs $ {}
         'SignalModel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct SignalModel (:initial 'Number) (:intent 'quamolit.transition/TransitionIntent)
+          :code $ quote $ defstruct SignalModel (:initial Number) (:intent quamolit.transition/TransitionIntent)
             :events $ quote $ List quamolit.transition/TransitionEvent
-            :at 'Number
+            :at Number
           :examples $ []
           :schema $ quote StructDef
         'active? $ %{} 'CodeEntry (:doc |)
@@ -6283,23 +6283,23 @@
     'quamolit.examples.tidal-bloom $ %{} 'FileEntry
       :defs $ {}
         'ChartSeriesModel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ChartSeriesModel (:initial 'Number) (:intent 'quamolit.transition/TransitionIntent)
+          :code $ quote $ defstruct ChartSeriesModel (:initial Number) (:intent quamolit.transition/TransitionIntent)
             :events $ quote $ List quamolit.transition/TransitionEvent
-            :at 'Number
+            :at Number
           :examples $ []
           :schema $ quote StructDef
         'FlowField $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct FlowField (:target 'quamolit.scene-ir/ScalarTarget) (:descriptor 'quamolit.motion/ScalarDescriptor)
+          :code $ quote $ defstruct FlowField (:target quamolit.scene-ir/ScalarTarget) (:descriptor quamolit.motion/ScalarDescriptor)
           :examples $ []
           :schema $ quote StructDef
         'FlowProps $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct FlowProps (:phase 'Number) (:interactive 'Bool) (:view 'quamolit.motion/ScalarDescriptor) (:series 'quamolit.motion/ScalarDescriptor)
+          :code $ quote $ defstruct FlowProps (:phase Number) (:interactive Bool) (:view quamolit.motion/ScalarDescriptor) (:series quamolit.motion/ScalarDescriptor)
           :examples $ []
           :schema $ quote StructDef
         'MetricFlowModel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct MetricFlowModel (:initial 'Number) (:intent 'quamolit.transition/TransitionIntent)
+          :code $ quote $ defstruct MetricFlowModel (:initial Number) (:intent quamolit.transition/TransitionIntent)
             :events $ quote $ List quamolit.transition/TransitionEvent
-            :at 'Number
+            :at Number
           :examples $ []
           :schema $ quote StructDef
         'activity-nodes $ %{} 'CodeEntry (:doc |)
@@ -7257,32 +7257,32 @@
     'quamolit.examples.todolist $ %{} 'FileEntry
       :defs $ {}
         'Event $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct Event (:at 'Number) (:kind 'String) (:id 'String) (:text 'String)
+          :code $ quote $ defstruct Event (:at Number) (:kind String) (:id String) (:text String)
           :examples $ []
           :schema $ quote StructDef
         'Hit $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct Hit (:id 'String) (:action 'String) (:text 'String)
+          :code $ quote $ defstruct Hit (:id String) (:action String) (:text String)
           :examples $ []
           :schema $ quote StructDef
         'Model $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct Model
             :rows $ quote $ List quamolit.examples.todolist/Row
-            :presence 'quamolit.presence/PresenceModel
-            :revision 'Number
-            :next-id 'Number
-            :at 'Number
-            :released 'Number
-            :undo-id 'String
-            :undo-text 'String
-            :undo-done 'Bool
+            :presence quamolit.presence/PresenceModel
+            :revision Number
+            :next-id Number
+            :at Number
+            :released Number
+            :undo-id String
+            :undo-text String
+            :undo-done Bool
           :examples $ []
           :schema $ quote StructDef
         'Row $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct Row (:id 'String) (:text 'String) (:done 'Bool) (:present 'Bool) (:y 'quamolit.transition/TransitionIntent) (:progress 'quamolit.transition/TransitionIntent)
+          :code $ quote $ defstruct Row (:id String) (:text String) (:done Bool) (:present Bool) (:y quamolit.transition/TransitionIntent) (:progress quamolit.transition/TransitionIntent)
           :examples $ []
           :schema $ quote StructDef
         'Session $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct Session (:model 'quamolit.examples.todolist/Model) (:cursor 'Number) (:time 'Number)
+          :code $ quote $ defstruct Session (:model quamolit.examples.todolist/Model) (:cursor Number) (:time Number)
           :examples $ []
           :schema $ quote StructDef
         'advance $ %{} 'CodeEntry (:doc |)
@@ -8039,7 +8039,7 @@
       :defs $ {}
         'SimulationState $ %{} 'CodeEntry
           :doc "|Immutable simulation checkpoint; tick is an integer, dt is fixed seconds, seed and state are explicit."
-          :code $ quote $ defstruct SimulationState ([] 'S) (:tick 'Number) (:dt 'Number) (:seed 'Number) (:state 'S)
+          :code $ quote $ defstruct SimulationState ([] S) (:tick Number) (:dt Number) (:seed Number) (:state S)
           :examples $ []
           :schema $ quote StructDef
         'advance-simulation $ %{} 'CodeEntry
@@ -8180,30 +8180,30 @@
           :schema $ quote Trait
         'FontLoadCompletion $ %{} 'CodeEntry
           :doc "|只有当前任务与loading资源都接受结果时loaded为some；调用方消费ResourceAction后安装并提升Scene资源修订。未保存长期宿主缓存。"
-          :code $ quote $ defstruct FontLoadCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue) (:transition 'quamolit.resource-lifecycle/ResourceTransition)
+          :code $ quote $ defstruct FontLoadCompletion (:queue quamolit.resource-load-queue/ResourceLoadQueue) (:transition quamolit.resource-lifecycle/ResourceTransition)
             :loaded $ quote $ Option quamolit.font-resource/LoadedFont
           :examples $ []
           :schema $ quote StructDef
         'FontLoadOutcome $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum FontLoadOutcome (:ready 'quamolit.font-resource/LoadedFont) (:failed 'String)
+          :code $ quote $ defenum FontLoadOutcome (:ready quamolit.font-resource/LoadedFont) (:failed String)
           :examples $ []
           :schema $ quote EnumDef
         'FontRegistryCompletion $ %{} 'CodeEntry
           :doc "|现有队列、registry和字体宿主的完成结果；宿主安装/释放已执行，wake/error动作仍由应用消费。"
-          :code $ quote $ defstruct FontRegistryCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue) (:host 'quamolit.font-resource/FontResourceHost) (:transition 'quamolit.resource-lifecycle/RegistryTransition)
+          :code $ quote $ defstruct FontRegistryCompletion (:queue quamolit.resource-load-queue/ResourceLoadQueue) (:host quamolit.font-resource/FontResourceHost) (:transition quamolit.resource-lifecycle/RegistryTransition)
           :examples $ []
           :schema $ quote StructDef
         'FontResourceHandle $ %{} 'CodeEntry
           :doc "|宿主字体句柄以完整identity和resource generation定位，不进入Scene或逻辑registry。"
-          :code $ quote $ defstruct FontResourceHandle (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:generation 'Number) (:loaded 'quamolit.font-resource/LoadedFont) (:installed? 'Bool)
+          :code $ quote $ defstruct FontResourceHandle (:identity quamolit.resource-lifecycle/ResourceIdentity) (:generation Number) (:loaded quamolit.font-resource/LoadedFont) (:installed? Bool)
           :examples $ []
           :schema $ quote StructDef
         'FontResourceHost $ %{} 'CodeEntry
           :doc "|仅保存接纳的宿主引用；accepted/released统计所有权转移，不是FontFace构造或物理内存计数。"
           :code $ quote $ defstruct FontResourceHost
             :handles $ quote $ List quamolit.font-resource/FontResourceHandle
-            :accepted 'Number
-            :released 'Number
+            :accepted Number
+            :released Number
           :examples $ []
           :schema $ quote StructDef
         'FontSetHost $ %{} 'CodeEntry
@@ -8216,12 +8216,12 @@
             :names $ {} (:add! |add) (:delete! |delete)
           :schema $ quote Trait
         'LoadedFont $ %{} 'CodeEntry (:doc "|Scene之外的字体加载结果；显式携带申请时版本，安装时与当前Model描述核对。")
-          :code $ quote $ defstruct LoadedFont (:spec 'quamolit.scene-ir/FontSpec) (:face 'quamolit.font-resource/FontFaceHost)
+          :code $ quote $ defstruct LoadedFont (:spec quamolit.scene-ir/FontSpec) (:face quamolit.font-resource/FontFaceHost)
           :examples $ []
           :schema $ quote StructDef
         'QueuedFontLoadResult $ %{} 'CodeEntry
           :doc "|带完整任务身份的字体加载结果；加载不安装，任务完成后必须先经过complete-font-load。"
-          :code $ quote $ defstruct QueuedFontLoadResult (:task 'quamolit.resource-load-queue/ResourceLoadTask) (:outcome 'quamolit.font-resource/FontLoadOutcome)
+          :code $ quote $ defstruct QueuedFontLoadResult (:task quamolit.resource-load-queue/ResourceLoadTask) (:outcome quamolit.font-resource/FontLoadOutcome)
           :examples $ []
           :schema $ quote StructDef
         'apply-font-registry-actions! $ %{} 'CodeEntry
@@ -8510,7 +8510,7 @@
       :defs $ {}
         'FrameSample $ %{} 'CodeEntry
           :doc "|Pure absolute-time frame sample in seconds; elapsed is zero for a repeated timestamp."
-          :code $ quote $ defstruct FrameSample (:time 'Number) (:elapsed 'Number)
+          :code $ quote $ defstruct FrameSample (:time Number) (:elapsed Number)
           :examples $ []
           :schema $ quote StructDef
         'elapsed-between $ %{} 'CodeEntry
@@ -8579,7 +8579,7 @@
     'quamolit.frame-eval $ %{} 'FileEntry
       :defs $ {}
         'EvaluatedFrame $ %{} 'CodeEntry (:doc "|一次显式求值的时间采样、模型和场景；泛型保留模型与场景的类型。")
-          :code $ quote $ defstruct EvaluatedFrame ([] 'M 'S) (:sample 'quamolit.frame-clock/FrameSample) (:model 'M) (:scene 'S)
+          :code $ quote $ defstruct EvaluatedFrame ([] M S) (:sample quamolit.frame-clock/FrameSample) (:model M) (:scene S)
           :examples $ []
           :schema $ quote StructDef
         'evaluate-at $ %{} 'CodeEntry
@@ -8762,20 +8762,20 @@
     'quamolit.gpu-component $ %{} 'FileEntry
       :defs $ {}
         'BatchPlan $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct BatchPlan (:source 'quamolit.retained-component/ComponentPlan) (:prepared 'quamolit.gpu-component/PreparedFrame) (:delta 'quamolit.gpu-component/RectUpdate)
+          :code $ quote $ defstruct BatchPlan (:source quamolit.retained-component/ComponentPlan) (:prepared quamolit.gpu-component/PreparedFrame) (:delta quamolit.gpu-component/RectUpdate)
             :indices $ quote $ List Number
-            :full-builds 'Number
-            :candidates 'Number
+            :full-builds Number
+            :candidates Number
           :examples $ []
           :schema $ quote StructDef
         'FastResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct FastResult (:prepared 'quamolit.gpu-component/PreparedFrame)
+          :code $ quote $ defstruct FastResult (:prepared quamolit.gpu-component/PreparedFrame)
             :writes $ quote $ List quamolit.gpu-component/RectWrite
-            :candidates 'Number
+            :candidates Number
           :examples $ []
           :schema $ quote StructDef
         'PreparedFrame $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum PreparedFrame (:rects 'quamolit.gpu-component/RectFrame) (:fallback 'String)
+          :code $ quote $ defenum PreparedFrame (:rects quamolit.gpu-component/RectFrame) (:fallback String)
           :examples $ []
           :schema $ quote EnumDef
         'RectFrame $ %{} 'CodeEntry (:doc |)
@@ -8784,7 +8784,7 @@
           :examples $ []
           :schema $ quote StructDef
         'RectRecord $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct RectRecord (:id 'String) (:rect 'quamolit.scene-ir/RectNode) (:matrix 'quamolit.scene-ir/Matrix2D)
+          :code $ quote $ defstruct RectRecord (:id String) (:rect quamolit.scene-ir/RectNode) (:matrix quamolit.scene-ir/Matrix2D)
           :examples $ []
           :schema $ quote StructDef
         'RectRendererHost $ %{} 'CodeEntry (:doc |)
@@ -8793,14 +8793,14 @@
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
         'RectUpdate $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct RectUpdate (:frame 'quamolit.gpu-component/RectFrame)
+          :code $ quote $ defstruct RectUpdate (:frame quamolit.gpu-component/RectFrame)
             :writes $ quote $ List quamolit.gpu-component/RectWrite
-            :uploaded-bytes 'Number
-            :instances 'Number
+            :uploaded-bytes Number
+            :instances Number
           :examples $ []
           :schema $ quote StructDef
         'RectWrite $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct RectWrite (:index 'Number) (:record 'quamolit.gpu-component/RectRecord)
+          :code $ quote $ defstruct RectWrite (:index Number) (:record quamolit.gpu-component/RectRecord)
           :examples $ []
           :schema $ quote StructDef
         'build-batch $ %{} 'CodeEntry (:doc |)
@@ -9227,39 +9227,39 @@
         'InstanceParametersResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum InstanceParametersResult
             :ready $ quote $ List quamolit.gpu-scalar-program/ScalarParameter
-            :fallback 'String
+            :fallback String
           :examples $ []
           :schema $ quote EnumDef
         'InstanceProgram $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct InstanceProgram (:source 'quamolit.scene-ir/InstanceNode)
+          :code $ quote $ defstruct InstanceProgram (:source quamolit.scene-ir/InstanceNode)
             :motions $ quote $ List quamolit.motion/Vec2Descriptor
-            :frame 'quamolit.gpu-component/RectFrame
+            :frame quamolit.gpu-component/RectFrame
             :parameters $ quote $ List quamolit.gpu-scalar-program/ScalarParameter
-            :precision-base 'Number
-            :precision-slope 'Number
+            :precision-base Number
+            :precision-slope Number
           :examples $ []
           :schema $ quote StructDef
         'InstanceProgramResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum InstanceProgramResult (:ready 'quamolit.gpu-scalar-program/InstanceProgram) (:fallback 'String)
+          :code $ quote $ defenum InstanceProgramResult (:ready quamolit.gpu-scalar-program/InstanceProgram) (:fallback String)
           :examples $ []
           :schema $ quote EnumDef
         'ParameterResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum ParameterResult (:ready 'quamolit.gpu-scalar-program/ScalarParameter) (:fallback 'String)
+          :code $ quote $ defenum ParameterResult (:ready quamolit.gpu-scalar-program/ScalarParameter) (:fallback String)
           :examples $ []
           :schema $ quote EnumDef
         'ProgramResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum ProgramResult (:ready 'quamolit.gpu-scalar-program/ScalarProgram) (:fallback 'String)
+          :code $ quote $ defenum ProgramResult (:ready quamolit.gpu-scalar-program/ScalarProgram) (:fallback String)
           :examples $ []
           :schema $ quote EnumDef
         'ScalarParameter $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ScalarParameter (:index 'Number) (:axis 'Number) (:start 'Number) (:duration 'Number) (:from 'Number) (:to 'Number) (:easing 'Number)
+          :code $ quote $ defstruct ScalarParameter (:index Number) (:axis Number) (:start Number) (:duration Number) (:from Number) (:to Number) (:easing Number)
           :examples $ []
           :schema $ quote StructDef
         'ScalarProgram $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ScalarProgram (:source 'quamolit.retained-component/ComponentPlan) (:frame 'quamolit.gpu-component/RectFrame)
+          :code $ quote $ defstruct ScalarProgram (:source quamolit.retained-component/ComponentPlan) (:frame quamolit.gpu-component/RectFrame)
             :parameters $ quote $ List quamolit.gpu-scalar-program/ScalarParameter
-            :precision-base 'Number
-            :precision-slope 'Number
+            :precision-base Number
+            :precision-slope Number
           :examples $ []
           :schema $ quote StructDef
         'axis-of $ %{} 'CodeEntry (:doc |)
@@ -9941,17 +9941,17 @@
     'quamolit.gpu-vec2-translation $ %{} 'FileEntry
       :defs $ {}
         'GpuVec2TranslationFrame $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct GpuVec2TranslationFrame (:from 'quamolit.motion/Vec2) (:to 'quamolit.motion/Vec2) (:time 'Number) (:start 'Number) (:duration 'Number) (:easing 'String)
+          :code $ quote $ defstruct GpuVec2TranslationFrame (:from quamolit.motion/Vec2) (:to quamolit.motion/Vec2) (:time Number) (:start Number) (:duration Number) (:easing String)
           :examples $ []
           :schema $ quote StructDef
         'GpuVec2TranslationLowering $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum GpuVec2TranslationLowering
-            :ready 'quamolit.gpu-vec2-translation/GpuVec2TranslationPlan
-            :unsupported 'String
+            :ready quamolit.gpu-vec2-translation/GpuVec2TranslationPlan
+            :unsupported String
           :examples $ []
           :schema $ quote EnumDef
         'GpuVec2TranslationPlan $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct GpuVec2TranslationPlan (:id 'String) (:version 'Number) (:from 'quamolit.motion/Vec2) (:to 'quamolit.motion/Vec2) (:start 'Number) (:duration 'Number) (:easing 'String)
+          :code $ quote $ defstruct GpuVec2TranslationPlan (:id String) (:version Number) (:from quamolit.motion/Vec2) (:to quamolit.motion/Vec2) (:start Number) (:duration Number) (:easing String)
           :examples $ []
           :schema $ quote StructDef
         'finite-f32? $ %{} 'CodeEntry (:doc |)
@@ -10054,7 +10054,7 @@
       :defs $ {}
         'HostClock $ %{} 'CodeEntry
           :doc "|Immutable mapping from a monotonic host timestamp to animation seconds. Negative speed is allowed for direct playback, not implicit reverse simulation."
-          :code $ quote $ defstruct HostClock (:host-anchor 'Number) (:animation-anchor 'Number) (:speed 'Number) (:paused 'Bool)
+          :code $ quote $ defstruct HostClock (:host-anchor Number) (:animation-anchor Number) (:speed Number) (:paused Bool)
           :examples $ []
           :schema $ quote StructDef
         'pause-clock $ %{} 'CodeEntry
@@ -10210,49 +10210,45 @@
     'quamolit.image-resource-runner $ %{} 'FileEntry
       :defs $ {}
         'ImageActionQueueResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ImageActionQueueResult (:queue 'quamolit.resource-load-queue/ResourceLoadQueue) (:backpressured 'Number)
+          :code $ quote $ defstruct ImageActionQueueResult (:queue quamolit.resource-load-queue/ResourceLoadQueue) (:backpressured Number)
           :examples $ []
           :schema $ quote StructDef
         'ImageLoadCompletion $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ImageLoadCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
-            :host 'quamolit.image-resource-runner/ImageResourceHost
-            :transition 'quamolit.resource-lifecycle/ResourceTransition
+          :code $ quote $ defstruct ImageLoadCompletion (:queue quamolit.resource-load-queue/ResourceLoadQueue) (:host quamolit.image-resource-runner/ImageResourceHost) (:transition quamolit.resource-lifecycle/ResourceTransition)
           :examples $ []
           :schema $ quote StructDef
         'ImageLoadOutcome $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum ImageLoadOutcome (:ready 'Number) (:failed 'String)
+          :code $ quote $ defenum ImageLoadOutcome (:ready Number) (:failed String)
           :examples $ []
           :schema $ quote EnumDef
         'ImageRegistryCompletion $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ImageRegistryCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
-            :host 'quamolit.image-resource-runner/ImageResourceHost
-            :transition 'quamolit.resource-lifecycle/RegistryTransition
+          :code $ quote $ defstruct ImageRegistryCompletion (:queue quamolit.resource-load-queue/ResourceLoadQueue) (:host quamolit.image-resource-runner/ImageResourceHost) (:transition quamolit.resource-lifecycle/RegistryTransition)
           :examples $ []
           :schema $ quote StructDef
         'ImageResourceDescriptor $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ImageResourceDescriptor (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:url 'String) (:width 'Number) (:height 'Number)
+          :code $ quote $ defstruct ImageResourceDescriptor (:identity quamolit.resource-lifecycle/ResourceIdentity) (:url String) (:width Number) (:height Number)
           :examples $ []
           :schema $ quote StructDef
         'ImageResourceHandle $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ImageResourceHandle (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number) (:image 'js-ffi.browser/ImageHost) (:installed? 'Bool)
+          :code $ quote $ defstruct ImageResourceHandle (:identity quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation Number) (:image js-ffi.browser/ImageHost) (:installed? Bool)
           :examples $ []
           :schema $ quote StructDef
         'ImageResourceHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ImageResourceHost
             :handles $ quote $ List quamolit.image-resource-runner/ImageResourceHandle
-            :created 'Number
-            :released 'Number
-            :decoded-bytes 'Number
+            :created Number
+            :released Number
+            :decoded-bytes Number
           :examples $ []
           :schema $ quote StructDef
         'ImageResourceMetrics $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ImageResourceMetrics (:created 'Number) (:released 'Number) (:live 'Number) (:decoded-bytes 'Number)
+          :code $ quote $ defstruct ImageResourceMetrics (:created Number) (:released Number) (:live Number) (:decoded-bytes Number)
           :examples $ []
           :schema $ quote StructDef
         'QueuedImageLoadResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct QueuedImageLoadResult (:token 'Number)
-            :handle 'quamolit.image-resource-runner/ImageResourceHandle
-            :outcome 'quamolit.image-resource-runner/ImageLoadOutcome
+          :code $ quote $ defstruct QueuedImageLoadResult (:token Number)
+            :handle quamolit.image-resource-runner/ImageResourceHandle
+            :outcome quamolit.image-resource-runner/ImageLoadOutcome
           :examples $ []
           :schema $ quote StructDef
         'apply-image-actions $ %{} 'CodeEntry (:doc |)
@@ -10535,7 +10531,7 @@
       :defs $ {}
         'CanvasRectMetrics $ %{} 'CodeEntry
           :doc "|Canvas2D 矩形实例批次的边界调用、fillRect 调用、实例数和读取字节计数；不是 GPU 上传量。"
-          :code $ quote $ defstruct CanvasRectMetrics (:boundary-calls 'Number) (:canvas-calls 'Number) (:instances 'Number) (:position-bytes-read 'Number)
+          :code $ quote $ defstruct CanvasRectMetrics (:boundary-calls Number) (:canvas-calls Number) (:instances Number) (:position-bytes-read Number)
           :examples $ []
           :schema $ quote StructDef
         'at $ %{} 'CodeEntry (:doc "|诊断用有界读取；热帧不得逐实例调用。")
@@ -10587,11 +10583,11 @@
     'quamolit.instance-gpu $ %{} 'FileEntry
       :defs $ {}
         'SourceDraw $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct SourceDraw (:version 'Number) (:uploaded? 'Bool) (:upload-bytes 'Number) (:instances 'Number) (:draw-calls 'Number)
+          :code $ quote $ defstruct SourceDraw (:version Number) (:uploaded? Bool) (:upload-bytes Number) (:instances Number) (:draw-calls Number)
           :examples $ []
           :schema $ quote StructDef
         'SourceUpload $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct SourceUpload (:version 'Number) (:bytes 'Number) (:uploaded? 'Bool)
+          :code $ quote $ defstruct SourceUpload (:version Number) (:bytes Number) (:uploaded? Bool)
           :examples $ []
           :schema $ quote StructDef
         'draw-source! $ %{} 'CodeEntry (:doc |)
@@ -10640,7 +10636,7 @@
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
         'PatchInfo $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PatchInfo (:available? 'Bool) (:base-version 'Number) (:start 'Number) (:count 'Number) (:positions 'js-ffi.typed-arrays/Float32ArrayHost)
+          :code $ quote $ defstruct PatchInfo (:available? Bool) (:base-version Number) (:start Number) (:count Number) (:positions js-ffi.typed-arrays/Float32ArrayHost)
           :examples $ []
           :schema $ quote StructDef
         'create-table! $ %{} 'CodeEntry (:doc |)
@@ -10715,20 +10711,20 @@
     'quamolit.layers $ %{} 'FileEntry
       :defs $ {}
         'LayerBackend $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum LayerBackend (:canvas 'String) (:webgpu)
+          :code $ quote $ defenum LayerBackend (:canvas String) (:webgpu)
           :examples $ []
           :schema $ quote EnumDef
         'LayerFrame $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct LayerFrame (:time 'Number) (:viewport 'quamolit.layers/LayerViewport)
+          :code $ quote $ defstruct LayerFrame (:time Number) (:viewport quamolit.layers/LayerViewport)
             :layers $ quote $ List quamolit.layers/RenderLayer
           :examples $ []
           :schema $ quote StructDef
         'LayerHit $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct LayerHit (:layer-id 'String) (:hit 'quamolit.scene-hit/HitResult)
+          :code $ quote $ defstruct LayerHit (:layer-id String) (:hit quamolit.scene-hit/HitResult)
           :examples $ []
           :schema $ quote StructDef
         'LayerHitPlan $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct LayerHitPlan (:id 'String) (:plan 'quamolit.scene-hit/HitPlan)
+          :code $ quote $ defstruct LayerHitPlan (:id String) (:plan quamolit.scene-hit/HitPlan)
           :examples $ []
           :schema $ quote StructDef
         'LayerPolicy $ %{} 'CodeEntry (:doc |)
@@ -10736,11 +10732,11 @@
           :examples $ []
           :schema $ quote EnumDef
         'LayerViewport $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct LayerViewport (:css-width 'Number) (:css-height 'Number) (:dpr 'Number) (:width 'Number) (:height 'Number)
+          :code $ quote $ defstruct LayerViewport (:css-width Number) (:css-height Number) (:dpr Number) (:width Number) (:height Number)
           :examples $ []
           :schema $ quote StructDef
         'RenderLayer $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct RenderLayer (:id 'String) (:policy 'quamolit.layers/LayerPolicy) (:scene 'quamolit.scene-ir/SceneDocument)
+          :code $ quote $ defstruct RenderLayer (:id String) (:policy quamolit.layers/LayerPolicy) (:scene quamolit.scene-ir/SceneDocument)
           :examples $ []
           :schema $ quote StructDef
         'backend-for $ %{} 'CodeEntry (:doc |)
@@ -10989,32 +10985,32 @@
       :defs $ {}
         'ColorDescriptor $ %{} 'CodeEntry
           :doc "|Versioned identity for serializable color motion."
-          :code $ quote $ defstruct ColorDescriptor (:id 'String) (:version 'Number) (:motion 'quamolit.motion/ColorMotion)
+          :code $ quote $ defstruct ColorDescriptor (:id String) (:version Number) (:motion quamolit.motion/ColorMotion)
           :examples $ []
           :schema $ quote StructDef
         'ColorMotion $ %{} 'CodeEntry
           :doc "|Closed color motion without host handles or closures."
-          :code $ quote $ defenum ColorMotion (:constant 'quamolit.motion/ColorRgba) (:tween 'quamolit.motion/ColorTween)
+          :code $ quote $ defenum ColorMotion (:constant quamolit.motion/ColorRgba) (:tween quamolit.motion/ColorTween)
           :examples $ []
           :schema $ quote EnumDef
         'ColorRgba $ %{} 'CodeEntry
           :doc "|Straight-alpha sRGB channels in [0,1]; sampling validates their range."
-          :code $ quote $ defstruct ColorRgba (:r 'Number) (:g 'Number) (:b 'Number) (:a 'Number)
+          :code $ quote $ defstruct ColorRgba (:r Number) (:g Number) (:b Number) (:a Number)
           :examples $ []
           :schema $ quote StructDef
         'ColorTween $ %{} 'CodeEntry
           :doc "|Color interval in seconds, interpolated in linear sRGB with separate alpha."
-          :code $ quote $ defstruct ColorTween (:start 'Number) (:duration 'Number) (:from 'quamolit.motion/ColorRgba) (:to 'quamolit.motion/ColorRgba) (:easing 'quamolit.motion/Easing)
+          :code $ quote $ defstruct ColorTween (:start Number) (:duration Number) (:from quamolit.motion/ColorRgba) (:to quamolit.motion/ColorRgba) (:easing quamolit.motion/Easing)
           :examples $ []
           :schema $ quote StructDef
         'CpuGpuStatus $ %{} 'CodeEntry
           :doc "|CPU callbacks cannot lower to GPU; retain a diagnostic reason."
-          :code $ quote $ defenum CpuGpuStatus (:unsupported 'String)
+          :code $ quote $ defenum CpuGpuStatus (:unsupported String)
           :examples $ []
           :schema $ quote EnumDef
         'CpuScalarDescriptor $ %{} 'CodeEntry
           :doc "|Versioned serializable reference to a CPU sampler; never embeds a closure or GPU handle."
-          :code $ quote $ defstruct CpuScalarDescriptor (:id 'String) (:version 'Number) (:callback-id 'String) (:gpu-status 'quamolit.motion/CpuGpuStatus)
+          :code $ quote $ defstruct CpuScalarDescriptor (:id String) (:version Number) (:callback-id String) (:gpu-status quamolit.motion/CpuGpuStatus)
           :examples $ []
           :schema $ quote StructDef
         'CpuScalarRegistry $ %{} 'CodeEntry
@@ -11030,44 +11026,44 @@
           :schema $ quote EnumDef
         'ScalarComposeOp $ %{} 'CodeEntry
           :doc "|Unitless scalar operations; mix has a normalized right-hand weight."
-          :code $ quote $ defenum ScalarComposeOp (:add) (:multiply) (:mix 'Number)
+          :code $ quote $ defenum ScalarComposeOp (:add) (:multiply) (:mix Number)
           :examples $ []
           :schema $ quote EnumDef
         'ScalarComposition $ %{} 'CodeEntry
           :doc "|两个描述符的版本化组合；可通过 ScalarMotion :compose 嵌套。公共采样最多12层，每个内部节点仅有两个子描述符，拒绝超深输入。"
-          :code $ quote $ defstruct ScalarComposition (:id 'String) (:version 'Number) (:left 'quamolit.motion/ScalarDescriptor) (:right 'quamolit.motion/ScalarDescriptor) (:operation 'quamolit.motion/ScalarComposeOp)
+          :code $ quote $ defstruct ScalarComposition (:id String) (:version Number) (:left quamolit.motion/ScalarDescriptor) (:right quamolit.motion/ScalarDescriptor) (:operation quamolit.motion/ScalarComposeOp)
           :examples $ []
           :schema $ quote StructDef
         'ScalarDescriptor $ %{} 'CodeEntry
           :doc "|Versioned identity for a serializable scalar motion."
-          :code $ quote $ defstruct ScalarDescriptor (:id 'String) (:version 'Number) (:motion 'quamolit.motion/ScalarMotion)
+          :code $ quote $ defstruct ScalarDescriptor (:id String) (:version Number) (:motion quamolit.motion/ScalarMotion)
           :examples $ []
           :schema $ quote StructDef
         'ScalarKeyframe $ %{} 'CodeEntry
           :doc "|A scalar keyframe; sampling requires finite instant/value and easing applies to the following segment."
-          :code $ quote $ defstruct ScalarKeyframe (:at 'Number) (:value 'Number) (:easing 'quamolit.motion/Easing)
+          :code $ quote $ defstruct ScalarKeyframe (:at Number) (:value Number) (:easing quamolit.motion/Easing)
           :examples $ []
           :schema $ quote StructDef
         'ScalarMotion $ %{} 'CodeEntry
           :doc "|有限深度的纯数据标量表达式；compose复用两输入算子，at先采样clock再以其值采样value。不含闭包或宿主句柄；组合/时间重映射当前明确回退CPU。"
-          :code $ quote $ defenum ScalarMotion (:constant 'Number) (:time 'Number 'Number) (:tween 'quamolit.motion/ScalarTween) (:keyframes 'quamolit.motion/ScalarTrack) (:compose 'quamolit.motion/ScalarComposition) (:at 'quamolit.motion/ScalarDescriptor 'quamolit.motion/ScalarDescriptor)
+          :code $ quote $ defenum ScalarMotion (:constant Number) (:time Number Number) (:tween quamolit.motion/ScalarTween) (:keyframes quamolit.motion/ScalarTrack) (:compose quamolit.motion/ScalarComposition) (:at quamolit.motion/ScalarDescriptor quamolit.motion/ScalarDescriptor)
           :examples $ []
           :schema $ quote EnumDef
         'ScalarTrack $ %{} 'CodeEntry
           :doc "|Keyframes and loop mode; sampling validates non-empty ordered frames."
           :code $ quote $ defstruct ScalarTrack
             :frames $ quote $ List quamolit.motion/ScalarKeyframe
-            :loop 'quamolit.motion/TrackLoop
+            :loop quamolit.motion/TrackLoop
           :examples $ []
           :schema $ quote StructDef
         'ScalarTrackCursor $ %{} 'CodeEntry
           :doc "|Private scan state for deterministic keyframe reference sampling."
-          :code $ quote $ defstruct ScalarTrackCursor (:previous 'quamolit.motion/ScalarKeyframe) (:value 'Number) (:done 'Bool)
+          :code $ quote $ defstruct ScalarTrackCursor (:previous quamolit.motion/ScalarKeyframe) (:value Number) (:done Bool)
           :examples $ []
           :schema $ quote StructDef
         'ScalarTween $ %{} 'CodeEntry
           :doc "|A scalar interval in seconds; duration zero switches at start."
-          :code $ quote $ defstruct ScalarTween (:start 'Number) (:duration 'Number) (:from 'Number) (:to 'Number) (:easing 'quamolit.motion/Easing)
+          :code $ quote $ defstruct ScalarTween (:start Number) (:duration Number) (:from Number) (:to Number) (:easing quamolit.motion/Easing)
           :examples $ []
           :schema $ quote StructDef
         'TrackLoop $ %{} 'CodeEntry (:doc "|Clamp, half-open repeat, or mirrored repeat.")
@@ -11076,21 +11072,21 @@
           :schema $ quote EnumDef
         'Vec2 $ %{} 'CodeEntry
           :doc "|Two-dimensional coordinates in caller-defined units; sampling requires finite values."
-          :code $ quote $ defstruct Vec2 (:x 'Number) (:y 'Number)
+          :code $ quote $ defstruct Vec2 (:x Number) (:y Number)
           :examples $ []
           :schema $ quote StructDef
         'Vec2Descriptor $ %{} 'CodeEntry
           :doc "|Versioned identity for a serializable Vec2 motion."
-          :code $ quote $ defstruct Vec2Descriptor (:id 'String) (:version 'Number) (:motion 'quamolit.motion/Vec2Motion)
+          :code $ quote $ defstruct Vec2Descriptor (:id String) (:version Number) (:motion quamolit.motion/Vec2Motion)
           :examples $ []
           :schema $ quote StructDef
         'Vec2Motion $ %{} 'CodeEntry (:doc "|Closed two-dimensional expression.")
-          :code $ quote $ defenum Vec2Motion (:constant 'quamolit.motion/Vec2) (:tween 'quamolit.motion/Vec2Tween)
+          :code $ quote $ defenum Vec2Motion (:constant quamolit.motion/Vec2) (:tween quamolit.motion/Vec2Tween)
           :examples $ []
           :schema $ quote EnumDef
         'Vec2Tween $ %{} 'CodeEntry
           :doc "|A Vec2 interval in seconds with explicit easing."
-          :code $ quote $ defstruct Vec2Tween (:start 'Number) (:duration 'Number) (:from 'quamolit.motion/Vec2) (:to 'quamolit.motion/Vec2) (:easing 'quamolit.motion/Easing)
+          :code $ quote $ defstruct Vec2Tween (:start Number) (:duration Number) (:from quamolit.motion/Vec2) (:to quamolit.motion/Vec2) (:easing quamolit.motion/Easing)
           :examples $ []
           :schema $ quote StructDef
         'advance-track $ %{} 'CodeEntry
@@ -11898,21 +11894,21 @@
     'quamolit.motion-cpu $ %{} 'FileEntry
       :defs $ {}
         'CpuFunctionDescriptor $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CpuFunctionDescriptor (:id 'String) (:version 'Number) (:callback-id 'String) (:gpu-status 'quamolit.motion/CpuGpuStatus)
+          :code $ quote $ defstruct CpuFunctionDescriptor (:id String) (:version Number) (:callback-id String) (:gpu-status quamolit.motion/CpuGpuStatus)
           :examples $ []
           :schema $ quote StructDef
         'CpuFunctionFrame $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CpuFunctionFrame ([] 'O) (:descriptor-id 'String) (:descriptor-version 'Number) (:callback-id 'String) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:value 'O)
+          :code $ quote $ defstruct CpuFunctionFrame ([] O) (:descriptor-id String) (:descriptor-version Number) (:callback-id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:value O)
           :examples $ []
           :schema $ quote StructDef
         'CpuFunctionRegistry $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CpuFunctionRegistry ([] 'I 'O)
+          :code $ quote $ defstruct CpuFunctionRegistry ([] I O)
             :samplers $ quote $ Map String
               Fn I Number $ -> O
           :examples $ []
           :schema $ quote StructDef
         'CpuFunctionRequest $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CpuFunctionRequest ([] 'I) (:descriptor 'quamolit.motion-cpu/CpuFunctionDescriptor) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:input 'I)
+          :code $ quote $ defstruct CpuFunctionRequest ([] I) (:descriptor quamolit.motion-cpu/CpuFunctionDescriptor) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:input I)
           :examples $ []
           :schema $ quote StructDef
         'gpu-reason $ %{} 'CodeEntry (:doc |)
@@ -12047,35 +12043,35 @@
     'quamolit.motion-gpu $ %{} 'FileEntry
       :defs $ {}
         'GpuCompositionLowering $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum GpuCompositionLowering (:supported 'quamolit.motion-gpu/GpuCompositionPlan) (:unsupported 'String)
+          :code $ quote $ defenum GpuCompositionLowering (:supported quamolit.motion-gpu/GpuCompositionPlan) (:unsupported String)
           :examples $ []
           :schema $ quote EnumDef
         'GpuCompositionPlan $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct GpuCompositionPlan (:id 'String) (:version 'Number) (:left 'quamolit.motion-gpu/GpuScalarPlan) (:right 'quamolit.motion-gpu/GpuScalarPlan) (:operation 'quamolit.motion/ScalarComposeOp)
+          :code $ quote $ defstruct GpuCompositionPlan (:id String) (:version Number) (:left quamolit.motion-gpu/GpuScalarPlan) (:right quamolit.motion-gpu/GpuScalarPlan) (:operation quamolit.motion/ScalarComposeOp)
           :examples $ []
           :schema $ quote StructDef
         'GpuScalarKernel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum GpuScalarKernel (:constant 'Number) (:time 'Number 'Number) (:tween 'quamolit.motion/ScalarTween) (:keyframes 'quamolit.motion/ScalarTrack)
+          :code $ quote $ defenum GpuScalarKernel (:constant Number) (:time Number Number) (:tween quamolit.motion/ScalarTween) (:keyframes quamolit.motion/ScalarTrack)
           :examples $ []
           :schema $ quote EnumDef
         'GpuScalarLowering $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum GpuScalarLowering (:supported 'quamolit.motion-gpu/GpuScalarPlan) (:unsupported 'String)
+          :code $ quote $ defenum GpuScalarLowering (:supported quamolit.motion-gpu/GpuScalarPlan) (:unsupported String)
           :examples $ []
           :schema $ quote EnumDef
         'GpuScalarPlan $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct GpuScalarPlan (:id 'String) (:version 'Number) (:kernel 'quamolit.motion-gpu/GpuScalarKernel)
+          :code $ quote $ defstruct GpuScalarPlan (:id String) (:version Number) (:kernel quamolit.motion-gpu/GpuScalarKernel)
           :examples $ []
           :schema $ quote EnumDef
         'GpuVec2Kernel $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum GpuVec2Kernel (:constant 'quamolit.motion/Vec2) (:tween 'quamolit.motion/Vec2Tween)
+          :code $ quote $ defenum GpuVec2Kernel (:constant quamolit.motion/Vec2) (:tween quamolit.motion/Vec2Tween)
           :examples $ []
           :schema $ quote EnumDef
         'GpuVec2Lowering $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum GpuVec2Lowering (:supported 'quamolit.motion-gpu/GpuVec2Plan) (:unsupported 'String)
+          :code $ quote $ defenum GpuVec2Lowering (:supported quamolit.motion-gpu/GpuVec2Plan) (:unsupported String)
           :examples $ []
           :schema $ quote EnumDef
         'GpuVec2Plan $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct GpuVec2Plan (:id 'String) (:version 'Number) (:kernel 'quamolit.motion-gpu/GpuVec2Kernel)
+          :code $ quote $ defstruct GpuVec2Plan (:id String) (:version Number) (:kernel quamolit.motion-gpu/GpuVec2Kernel)
           :examples $ []
           :schema $ quote StructDef
         'gpu-keyframe-capacity $ %{} 'CodeEntry (:doc |)
@@ -12425,16 +12421,16 @@
           :code $ quote $ defstruct InstanceResourcePlan
             :references $ quote $ List quamolit.presence/InstanceResourceRef
             :release $ quote $ List quamolit.scene-ir/InstanceSource
-            :live-references 'Number
-            :live-sources 'Number
+            :live-references Number
+            :live-sources Number
           :examples $ []
           :schema $ quote StructDef
         'InstanceResourceRef $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct InstanceResourceRef (:key 'String) (:source 'quamolit.scene-ir/InstanceSource) (:count 'Number)
+          :code $ quote $ defstruct InstanceResourceRef (:key String) (:source quamolit.scene-ir/InstanceSource) (:count Number)
           :examples $ []
           :schema $ quote StructDef
         'PresenceItem $ %{} 'CodeEntry (:doc "|稳定 Scene 路径、保留展示数据、阶段和局部 alpha 意图。")
-          :code $ quote $ defstruct PresenceItem (:entry 'quamolit.scene-diff/SceneEntry) (:phase 'quamolit.presence/PresencePhase) (:alpha 'quamolit.motion/ScalarTween)
+          :code $ quote $ defstruct PresenceItem (:entry quamolit.scene-diff/SceneEntry) (:phase quamolit.presence/PresencePhase) (:alpha quamolit.motion/ScalarTween)
           :examples $ []
           :schema $ quote StructDef
         'PresenceModel $ %{} 'CodeEntry (:doc |)
@@ -12447,11 +12443,11 @@
           :examples $ []
           :schema $ quote EnumDef
         'PresenceSample $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PresenceSample (:entry 'quamolit.scene-diff/SceneEntry) (:alpha 'Number) (:interactive 'Bool)
+          :code $ quote $ defstruct PresenceSample (:entry quamolit.scene-diff/SceneEntry) (:alpha Number) (:interactive Bool)
           :examples $ []
           :schema $ quote StructDef
         'PresenceUpdate $ %{} 'CodeEntry (:doc "|返回新纯模型与恰好一次的逻辑释放通知，不持有宿主句柄。")
-          :code $ quote $ defstruct PresenceUpdate (:model 'quamolit.presence/PresenceModel)
+          :code $ quote $ defstruct PresenceUpdate (:model quamolit.presence/PresenceModel)
             :released $ quote $ List quamolit.scene-diff/SceneEntry
           :examples $ []
           :schema $ quote StructDef
@@ -13208,17 +13204,17 @@
     'quamolit.presence-device-coordinator $ %{} 'FileEntry
       :defs $ {}
         'PresenceDeviceAction $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum PresenceDeviceAction (:device 'quamolit.device-recovery/RecoveryAction) (:resource 'Number 'quamolit.resource-lifecycle/RegistryAction)
+          :code $ quote $ defenum PresenceDeviceAction (:device quamolit.device-recovery/RecoveryAction) (:resource Number quamolit.resource-lifecycle/RegistryAction)
           :examples $ []
           :schema $ quote EnumDef
         'PresenceDeviceState $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PresenceDeviceState (:recovery 'quamolit.device-recovery/RecoveryState)
-            :resources 'quamolit.presence-resource-registry/PresenceResources
+          :code $ quote $ defstruct PresenceDeviceState (:recovery quamolit.device-recovery/RecoveryState)
+            :resources quamolit.presence-resource-registry/PresenceResources
           :examples $ []
           :schema $ quote StructDef
         'PresenceDeviceTransition $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct PresenceDeviceTransition
-            :state 'quamolit.presence-device-coordinator/PresenceDeviceState
+            :state quamolit.presence-device-coordinator/PresenceDeviceState
             :actions $ quote $ List quamolit.presence-device-coordinator/PresenceDeviceAction
           :examples $ []
           :schema $ quote StructDef
@@ -13383,12 +13379,12 @@
       :defs $ {}
         'PresenceResourceTransition $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct PresenceResourceTransition
-            :state 'quamolit.presence-resource-registry/PresenceResources
+            :state quamolit.presence-resource-registry/PresenceResources
             :actions $ quote $ List quamolit.resource-lifecycle/RegistryAction
           :examples $ []
           :schema $ quote StructDef
         'PresenceResources $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PresenceResources (:plan 'quamolit.presence/InstanceResourcePlan) (:registry 'quamolit.resource-lifecycle/ResourceRegistry)
+          :code $ quote $ defstruct PresenceResources (:plan quamolit.presence/InstanceResourcePlan) (:registry quamolit.resource-lifecycle/ResourceRegistry)
           :examples $ []
           :schema $ quote StructDef
         'acquire-instance-sources $ %{} 'CodeEntry (:doc |)
@@ -13501,66 +13497,66 @@
     'quamolit.presence-webgpu-resources $ %{} 'FileEntry
       :defs $ {}
         'PresenceGpuHandle $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PresenceGpuHandle (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number) (:device-generation 'Number) (:source 'quamolit.scene-ir/InstanceSource) (:batch 'quamolit.webgpu-batches/RectBatchHost) (:installed? 'Bool)
+          :code $ quote $ defstruct PresenceGpuHandle (:identity quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation Number) (:device-generation Number) (:source quamolit.scene-ir/InstanceSource) (:batch quamolit.webgpu-batches/RectBatchHost) (:installed? Bool)
           :examples $ []
           :schema $ quote StructDef
         'PresenceGpuHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct PresenceGpuHost
             :handles $ quote $ List quamolit.presence-webgpu-resources/PresenceGpuHandle
-            :created 'Number
-            :released 'Number
-            :live-bytes 'Number
-            :uploaded-bytes 'Number
+            :created Number
+            :released Number
+            :live-bytes Number
+            :uploaded-bytes Number
           :examples $ []
           :schema $ quote StructDef
         'PresenceGpuLoadOutcome $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum PresenceGpuLoadOutcome
-            :ready 'quamolit.presence-webgpu-resources/PresenceGpuHandle 'Number
-            :failed 'String
+            :ready quamolit.presence-webgpu-resources/PresenceGpuHandle Number
+            :failed String
           :examples $ []
           :schema $ quote EnumDef
         'PresenceGpuMetrics $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PresenceGpuMetrics (:created 'Number) (:released 'Number) (:live 'Number) (:live-bytes 'Number) (:uploaded-bytes 'Number)
+          :code $ quote $ defstruct PresenceGpuMetrics (:created Number) (:released Number) (:live Number) (:live-bytes Number) (:uploaded-bytes Number)
           :examples $ []
           :schema $ quote StructDef
         'PresenceLoadCompletion $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct PresenceLoadCompletion
-            :host 'quamolit.presence-webgpu-resources/PresenceGpuHost
-            :transition 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+            :host quamolit.presence-webgpu-resources/PresenceGpuHost
+            :transition quamolit.presence-device-coordinator/PresenceDeviceTransition
           :examples $ []
           :schema $ quote StructDef
         'PresenceLoadRequest $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PresenceLoadRequest (:device-generation 'Number) (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number)
+          :code $ quote $ defstruct PresenceLoadRequest (:device-generation Number) (:identity quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation Number)
           :examples $ []
           :schema $ quote StructDef
         'PresenceLoadTaskOutcome $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum PresenceLoadTaskOutcome
-            :ready 'quamolit.presence-webgpu-resources/PresenceGpuHandle 'Number
-            :failed 'String
+            :ready quamolit.presence-webgpu-resources/PresenceGpuHandle Number
+            :failed String
             :ignored
           :examples $ []
           :schema $ quote EnumDef
         'PresenceLoadTaskResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PresenceLoadTaskResult (:device-generation 'Number) (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number)
-            :outcome 'quamolit.presence-webgpu-resources/PresenceLoadTaskOutcome
+          :code $ quote $ defstruct PresenceLoadTaskResult (:device-generation Number) (:identity quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation Number)
+            :outcome quamolit.presence-webgpu-resources/PresenceLoadTaskOutcome
           :examples $ []
           :schema $ quote StructDef
         'PresenceQueuedLoadCompletion $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PresenceQueuedLoadCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
-            :host 'quamolit.presence-webgpu-resources/PresenceGpuHost
-            :transition 'quamolit.presence-device-coordinator/PresenceDeviceTransition
+          :code $ quote $ defstruct PresenceQueuedLoadCompletion (:queue quamolit.resource-load-queue/ResourceLoadQueue)
+            :host quamolit.presence-webgpu-resources/PresenceGpuHost
+            :transition quamolit.presence-device-coordinator/PresenceDeviceTransition
           :examples $ []
           :schema $ quote StructDef
         'PresenceQueuedLoadResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PresenceQueuedLoadResult (:token 'Number)
-            :result 'quamolit.presence-webgpu-resources/PresenceLoadTaskResult
+          :code $ quote $ defstruct PresenceQueuedLoadResult (:token Number)
+            :result quamolit.presence-webgpu-resources/PresenceLoadTaskResult
           :examples $ []
           :schema $ quote StructDef
         'ReleaseResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ReleaseResult
             :handles $ quote $ List quamolit.presence-webgpu-resources/PresenceGpuHandle
-            :released? 'Bool
-            :bytes 'Number
+            :released? Bool
+            :bytes Number
           :examples $ []
           :schema $ quote StructDef
         'accept-presence-gpu-handle $ %{} 'CodeEntry (:doc |)
@@ -14030,7 +14026,7 @@
         'input $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp input (style)
             let
-                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                style $ decode-map-as style $ quote (Map Dynamic Dynamic)
                 w $ .unwrap-or (get style :w) nil
                 h $ .unwrap-or (get style :h) nil
                 style-bg $ {}
@@ -14090,7 +14086,7 @@
                     , .unwrap-or $ {} $ :text
                         get props :text
                         , .unwrap-or |
-                  :: 'Map 'Dynamic 'Dynamic
+                  quote $ Map Dynamic Dynamic
                 text $ decode-map-as
                     get state :text
                     , .unwrap-or |
@@ -14254,7 +14250,7 @@
         'paint-line $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-line (ctx style)
             let
-                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                style $ decode-map-as style $ quote (Map Dynamic Dynamic)
                 x0 $ .unwrap-or (&map:get style :x0) 0
                 y0 $ .unwrap-or (&map:get style :y0) 0
                 x1 $ .unwrap-or (&map:get style :x1) 40
@@ -14382,7 +14378,7 @@
         'paint-rect $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-rect (ctx style coord event)
             let
-                style $ decode-map-as style $ :: 'Map 'Dynamic 'Dynamic
+                style $ decode-map-as style $ quote (Map Dynamic Dynamic)
                 w $ legacy-number
                   match (&map:get style :w)
                     (:some legacy-value) legacy-value
@@ -14661,13 +14657,13 @@
     'quamolit.replay-archive $ %{} 'FileEntry
       :defs $ {}
         'ReplayArchive $ %{} 'CodeEntry (:doc "|完整 tick 输入日志与有界最近检查点的不可变 CPU 回放档案；原点永久保留。")
-          :code $ quote $ defstruct ReplayArchive ([] 'S 'I)
+          :code $ quote $ defstruct ReplayArchive ([] S I)
             :origin $ quote $ quamolit.fixed-step/SimulationState S
             :latest $ quote $ quamolit.fixed-step/SimulationState S
             :inputs $ quote $ Map Number I
             :checkpoints $ quote $ List (quamolit.fixed-step/SimulationState S)
-            :stride 'Number
-            :max-checkpoints 'Number
+            :stride Number
+            :max-checkpoints Number
           :examples $ []
           :schema $ quote StructDef
         'nearest-checkpoint $ %{} 'CodeEntry (:doc "|内部按目标 tick 选择最近的不晚于目标的检查点；找不到则使用原点。")
@@ -14799,41 +14795,41 @@
         'EvictionResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct EvictionResult
             :entries $ quote $ List quamolit.resource-lifecycle/RegistryEntry
-            :freed-bytes 'Number
+            :freed-bytes Number
             :actions $ quote $ List quamolit.resource-lifecycle/RegistryAction
           :examples $ []
           :schema $ quote StructDef
         'RegistryAction $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum RegistryAction (:resource 'quamolit.resource-lifecycle/ResourceIdentity 'quamolit.resource-lifecycle/ResourceAction)
+          :code $ quote $ defenum RegistryAction (:resource quamolit.resource-lifecycle/ResourceIdentity quamolit.resource-lifecycle/ResourceAction)
           :examples $ []
           :schema $ quote EnumDef
         'RegistryEntry $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct RegistryEntry (:state 'quamolit.resource-lifecycle/ResourceState) (:references 'Number) (:bytes 'Number) (:last-used 'Number)
+          :code $ quote $ defstruct RegistryEntry (:state quamolit.resource-lifecycle/ResourceState) (:references Number) (:bytes Number) (:last-used Number)
           :examples $ []
           :schema $ quote StructDef
         'RegistryMetrics $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct RegistryMetrics (:resident 'Number) (:leased 'Number) (:idle 'Number) (:resident-bytes 'Number) (:loads 'Number) (:evictions 'Number)
+          :code $ quote $ defstruct RegistryMetrics (:resident Number) (:leased Number) (:idle Number) (:resident-bytes Number) (:loads Number) (:evictions Number)
           :examples $ []
           :schema $ quote StructDef
         'RegistryRebuild $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct RegistryRebuild
             :entries $ quote $ List quamolit.resource-lifecycle/RegistryEntry
-            :resident-bytes 'Number
-            :loads 'Number
+            :resident-bytes Number
+            :loads Number
             :actions $ quote $ List quamolit.resource-lifecycle/RegistryAction
           :examples $ []
           :schema $ quote StructDef
         'RegistryTransition $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct RegistryTransition (:registry 'quamolit.resource-lifecycle/ResourceRegistry)
+          :code $ quote $ defstruct RegistryTransition (:registry quamolit.resource-lifecycle/ResourceRegistry)
             :actions $ quote $ List quamolit.resource-lifecycle/RegistryAction
           :examples $ []
           :schema $ quote StructDef
         'ResourceAction $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum ResourceAction (:load 'Number 'quamolit.resource-lifecycle/ResourceIdentity) (:install 'Number 'quamolit.resource-lifecycle/ResourceIdentity) (:release 'Number) (:wake-frame 'Number) (:show-error 'Number 'String)
+          :code $ quote $ defenum ResourceAction (:load Number quamolit.resource-lifecycle/ResourceIdentity) (:install Number quamolit.resource-lifecycle/ResourceIdentity) (:release Number) (:wake-frame Number) (:show-error Number String)
           :examples $ []
           :schema $ quote EnumDef
         'ResourceIdentity $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ResourceIdentity (:kind 'quamolit.resource-lifecycle/ResourceKind) (:id 'String) (:version 'Number)
+          :code $ quote $ defstruct ResourceIdentity (:kind quamolit.resource-lifecycle/ResourceKind) (:id String) (:version Number)
           :examples $ []
           :schema $ quote StructDef
         'ResourceKind $ %{} 'CodeEntry (:doc |)
@@ -14841,20 +14837,20 @@
           :examples $ []
           :schema $ quote EnumDef
         'ResourcePhase $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum ResourcePhase (:idle) (:loading) (:ready) (:error 'String) (:closed)
+          :code $ quote $ defenum ResourcePhase (:idle) (:loading) (:ready) (:error String) (:closed)
           :examples $ []
           :schema $ quote EnumDef
         'ResourceRegistry $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ResourceRegistry (:capacity-bytes 'Number) (:resident-bytes 'Number) (:clock 'Number) (:loads 'Number) (:evictions 'Number)
+          :code $ quote $ defstruct ResourceRegistry (:capacity-bytes Number) (:resident-bytes Number) (:clock Number) (:loads Number) (:evictions Number)
             :entries $ quote $ List quamolit.resource-lifecycle/RegistryEntry
           :examples $ []
           :schema $ quote StructDef
         'ResourceState $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ResourceState (:generation 'Number) (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:phase 'quamolit.resource-lifecycle/ResourcePhase) (:attempts 'Number)
+          :code $ quote $ defstruct ResourceState (:generation Number) (:identity quamolit.resource-lifecycle/ResourceIdentity) (:phase quamolit.resource-lifecycle/ResourcePhase) (:attempts Number)
           :examples $ []
           :schema $ quote StructDef
         'ResourceTransition $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ResourceTransition (:state 'quamolit.resource-lifecycle/ResourceState)
+          :code $ quote $ defstruct ResourceTransition (:state quamolit.resource-lifecycle/ResourceState)
             :actions $ quote $ List quamolit.resource-lifecycle/ResourceAction
           :examples $ []
           :schema $ quote StructDef
@@ -15212,25 +15208,25 @@
     'quamolit.resource-load-queue $ %{} 'FileEntry
       :defs $ {}
         'ResourceLoadEnqueue $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ResourceLoadEnqueue (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
-            :outcome 'quamolit.resource-load-queue/ResourceLoadEnqueueOutcome
+          :code $ quote $ defstruct ResourceLoadEnqueue (:queue quamolit.resource-load-queue/ResourceLoadQueue)
+            :outcome quamolit.resource-load-queue/ResourceLoadEnqueueOutcome
           :examples $ []
           :schema $ quote StructDef
         'ResourceLoadEnqueueOutcome $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum ResourceLoadEnqueueOutcome (:queued 'quamolit.resource-load-queue/ResourceLoadTask) (:deduplicated 'quamolit.resource-load-queue/ResourceLoadTask) (:backpressured)
+          :code $ quote $ defenum ResourceLoadEnqueueOutcome (:queued quamolit.resource-load-queue/ResourceLoadTask) (:deduplicated quamolit.resource-load-queue/ResourceLoadTask) (:backpressured)
           :examples $ []
           :schema $ quote EnumDef
         'ResourceLoadFinish $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ResourceLoadFinish (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
-            :outcome 'quamolit.resource-load-queue/ResourceLoadFinishOutcome
+          :code $ quote $ defstruct ResourceLoadFinish (:queue quamolit.resource-load-queue/ResourceLoadQueue)
+            :outcome quamolit.resource-load-queue/ResourceLoadFinishOutcome
           :examples $ []
           :schema $ quote StructDef
         'ResourceLoadFinishOutcome $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum ResourceLoadFinishOutcome (:accepted 'quamolit.resource-load-queue/ResourceLoadTask) (:discarded 'quamolit.resource-load-queue/ResourceLoadTask) (:unknown)
+          :code $ quote $ defenum ResourceLoadFinishOutcome (:accepted quamolit.resource-load-queue/ResourceLoadTask) (:discarded quamolit.resource-load-queue/ResourceLoadTask) (:unknown)
           :examples $ []
           :schema $ quote EnumDef
         'ResourceLoadMetrics $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ResourceLoadMetrics (:pending 'Number) (:running 'Number) (:cancelled-running 'Number) (:available 'Number)
+          :code $ quote $ defstruct ResourceLoadMetrics (:pending Number) (:running Number) (:cancelled-running Number) (:available Number)
           :examples $ []
           :schema $ quote StructDef
         'ResourceLoadPriority $ %{} 'CodeEntry (:doc |)
@@ -15238,24 +15234,24 @@
           :examples $ []
           :schema $ quote EnumDef
         'ResourceLoadQueue $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ResourceLoadQueue (:concurrency-limit 'Number) (:pending-limit 'Number) (:next-token 'Number) (:next-sequence 'Number)
+          :code $ quote $ defstruct ResourceLoadQueue (:concurrency-limit Number) (:pending-limit Number) (:next-token Number) (:next-sequence Number)
             :pending $ quote $ List quamolit.resource-load-queue/ResourceLoadTask
             :running $ quote $ List quamolit.resource-load-queue/ResourceLoadSlot
           :examples $ []
           :schema $ quote StructDef
         'ResourceLoadSlot $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ResourceLoadSlot (:task 'quamolit.resource-load-queue/ResourceLoadTask) (:cancelled? 'Bool)
+          :code $ quote $ defstruct ResourceLoadSlot (:task quamolit.resource-load-queue/ResourceLoadTask) (:cancelled? Bool)
           :examples $ []
           :schema $ quote StructDef
         'ResourceLoadTake $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ResourceLoadTake (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
+          :code $ quote $ defstruct ResourceLoadTake (:queue quamolit.resource-load-queue/ResourceLoadQueue)
             :task $ quote $ Option quamolit.resource-load-queue/ResourceLoadTask
           :examples $ []
           :schema $ quote StructDef
         'ResourceLoadTask $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ResourceLoadTask (:token 'Number) (:device-generation 'Number) (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number)
-            :priority 'quamolit.resource-load-queue/ResourceLoadPriority
-            :sequence 'Number
+          :code $ quote $ defstruct ResourceLoadTask (:token Number) (:device-generation Number) (:identity quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation Number)
+            :priority quamolit.resource-load-queue/ResourceLoadPriority
+            :sequence Number
           :examples $ []
           :schema $ quote StructDef
         'cancel-resource-loads $ %{} 'CodeEntry (:doc |)
@@ -15455,30 +15451,30 @@
     'quamolit.retained-component $ %{} 'FileEntry
       :defs $ {}
         'BoundScalar $ %{} 'CodeEntry (:doc "|构建时解析的标量绑定：节点索引、目标与描述符，不含宿主句柄。")
-          :code $ quote $ defstruct BoundScalar (:index 'Number) (:target 'quamolit.scene-ir/ScalarTarget) (:descriptor 'quamolit.motion/ScalarDescriptor)
+          :code $ quote $ defstruct BoundScalar (:index Number) (:target quamolit.scene-ir/ScalarTarget) (:descriptor quamolit.motion/ScalarDescriptor)
           :examples $ []
           :schema $ quote StructDef
         'ComponentPlan $ %{} 'CodeEntry
           :doc "|不可变组件保留计划；静态节点共享，更新返回新计划。计数为逻辑操作次数，不代表内存字节或 GPU 性能。"
-          :code $ quote $ defstruct ComponentPlan (:id 'String) (:time 'Number) (:versions 'quamolit.direct-frame/FrameVersions) (:scene 'quamolit.scene-ir/SceneDocument)
+          :code $ quote $ defstruct ComponentPlan (:id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:scene quamolit.scene-ir/SceneDocument)
             :slots $ quote $ List quamolit.retained-component/BoundScalar
-            :declarations 'Number
-            :plan-builds 'Number
-            :binding-samples 'Number
-            :node-writes 'Number
-            :skipped-updates 'Number
+            :declarations Number
+            :plan-builds Number
+            :binding-samples Number
+            :node-writes Number
+            :skipped-updates Number
             :transforms $ quote $ List quamolit.scene-ir/Matrix2D
-            :transform-sampler 'quamolit.retained-component/TransformSampler
-            :transform-samples 'Number
+            :transform-sampler quamolit.retained-component/TransformSampler
+            :transform-samples Number
           :examples $ []
           :schema $ quote StructDef
         'ExecutionDeclaration $ %{} 'CodeEntry (:doc "|统一组件执行声明：纯 Scene/Motion 描述 + 可选 CPU 变换提供者。")
-          :code $ quote $ defstruct ExecutionDeclaration (:component 'quamolit.component-sample/ComponentDeclaration) (:transforms 'quamolit.retained-component/TransformSampler)
+          :code $ quote $ defstruct ExecutionDeclaration (:component quamolit.component-sample/ComponentDeclaration) (:transforms quamolit.retained-component/TransformSampler)
           :examples $ []
           :schema $ quote StructDef
         'TransformMotion $ %{} 'CodeEntry
           :doc "|可序列化标准变换数据：constant为完整矩阵，trs按绝对时间独立采样。当前仅CPU参考与保留计划接线，尚未实现GPU变换kernel；任意闭包保留TransformSampler :cpu。"
-          :code $ quote $ defenum TransformMotion (:constant 'quamolit.scene-ir/Matrix2D) (:trs 'quamolit.retained-component/TrsMotion)
+          :code $ quote $ defenum TransformMotion (:constant quamolit.scene-ir/Matrix2D) (:trs quamolit.retained-component/TrsMotion)
           :examples $ []
           :schema $ quote EnumDef
         'TransformSampler $ %{} 'CodeEntry
@@ -15491,7 +15487,7 @@
           :schema $ quote EnumDef
         'TrsMotion $ %{} 'CodeEntry
           :doc "|标准二维变换数据：x/y为CSS像素平移，rotation为顺时针弧度，scale-x/y允许镜像与零缩放，pivot为局部坐标。矩阵顺序T(x,y)·T(pivot)·R·S·T(-pivot)，不包含闭包或宿主。各字段沿用ScalarDescriptor时间/身份规则，修改须提升组件实际依赖版本。"
-          :code $ quote $ defstruct TrsMotion (:x 'quamolit.motion/ScalarDescriptor) (:y 'quamolit.motion/ScalarDescriptor) (:rotation 'quamolit.motion/ScalarDescriptor) (:scale-x 'quamolit.motion/ScalarDescriptor) (:scale-y 'quamolit.motion/ScalarDescriptor) (:pivot 'quamolit.motion/Vec2)
+          :code $ quote $ defstruct TrsMotion (:x quamolit.motion/ScalarDescriptor) (:y quamolit.motion/ScalarDescriptor) (:rotation quamolit.motion/ScalarDescriptor) (:scale-x quamolit.motion/ScalarDescriptor) (:scale-y quamolit.motion/ScalarDescriptor) (:pivot quamolit.motion/Vec2)
           :examples $ []
           :schema $ quote StructDef
         'build-component-plan $ %{} 'CodeEntry
@@ -15742,13 +15738,13 @@
       :defs $ {}
         'PathPlan $ %{} 'CodeEntry
           :doc "|静态折线 Scene 与自定义 CPU 变换采样器的不可变计划。Scene 不保存闭包；运行计划可以。更换任何输入需重建。"
-          :code $ quote $ defstruct PathPlan ([] 'P) (:scene 'quamolit.scene-ir/SceneDocument) (:props 'P)
+          :code $ quote $ defstruct PathPlan ([] P) (:scene quamolit.scene-ir/SceneDocument) (:props P)
             :sample $ quote $ Fn P Number
               -> $ List quamolit.scene-ir/Matrix2D
-            :time 'Number
+            :time Number
             :transforms $ quote $ List quamolit.scene-ir/Matrix2D
-            :samples 'Number
-            :skipped 'Number
+            :samples Number
+            :skipped Number
           :examples $ []
           :schema $ quote StructDef
         'build-plan $ %{} 'CodeEntry
@@ -16208,60 +16204,60 @@
       :defs $ {}
         'DirtyFlags $ %{} 'CodeEntry
           :doc "|Independent reference flags; execution plan chooses actual work later."
-          :code $ quote $ defstruct DirtyFlags (:reference 'Bool) (:order 'Bool) (:geometry 'Bool) (:resources 'Bool) (:properties 'Bool) (:bindings 'Bool) (:interaction 'Bool)
+          :code $ quote $ defstruct DirtyFlags (:reference Bool) (:order Bool) (:geometry Bool) (:resources Bool) (:properties Bool) (:bindings Bool) (:interaction Bool)
           :examples $ []
           :schema $ quote StructDef
         'GeometrySignature $ %{} 'CodeEntry
           :doc "|Closed geometry-only projection of supported Scene content."
-          :code $ quote $ defenum GeometrySignature (:group 'quamolit.scene-ir/Matrix2D 'quamolit.scene-ir/ClipSpec) (:rect 'Number 'Number 'Number 'Number) (:instances 'Number 'Number)
+          :code $ quote $ defenum GeometrySignature (:group quamolit.scene-ir/Matrix2D quamolit.scene-ir/ClipSpec) (:rect Number Number Number Number) (:instances Number Number)
             :polyline
               quote $ List quamolit.motion/Vec2
-              , 'Number
-            :text 'Number 'Number 'Number 'String
-            :image 'quamolit.scene-ir/Matrix2D 'Number 'Number 'Number 'Number 'Number 'Number 'Number 'Number
+              , Number
+            :text Number Number Number String
+            :image quamolit.scene-ir/Matrix2D Number Number Number Number Number Number Number Number
             :polygon
               quote $ List quamolit.motion/Vec2
-              , 'Number
-            :cubic-path 'quamolit.motion/Vec2
+              , Number
+            :cubic-path quamolit.motion/Vec2
               quote $ List quamolit.scene-ir/CubicSegment
-              , 'Number
-            :circle 'Number 'Number 'Number 'Number
-            :arc 'Number 'Number 'Number 'Number 'Number 'Bool 'Number
+              , Number
+            :circle Number Number Number Number
+            :arc Number Number Number Number Number Bool Number
           :examples $ []
           :schema $ quote EnumDef
         'IdentitySegment $ %{} 'CodeEntry
           :doc "|One stable path segment uses sibling key and content kind, never buffer slot or temporary node ID."
-          :code $ quote $ defstruct IdentitySegment (:key 'String) (:kind 'String)
+          :code $ quote $ defstruct IdentitySegment (:key String) (:kind String)
           :examples $ []
           :schema $ quote StructDef
         'PropertySignature $ %{} 'CodeEntry
           :doc "|Closed visual-property projection; separate from geometry and resource versions."
-          :code $ quote $ defenum PropertySignature (:group 'Number) (:rect 'quamolit.motion/ColorRgba) (:instances 'quamolit.motion/ColorRgba) (:polyline 'quamolit.motion/ColorRgba) (:text 'quamolit.motion/ColorRgba) (:image) (:polygon 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba) (:cubic-path 'quamolit.motion/ColorRgba) (:circle 'quamolit.motion/ColorRgba 'quamolit.motion/ColorRgba) (:arc 'quamolit.motion/ColorRgba)
+          :code $ quote $ defenum PropertySignature (:group Number) (:rect quamolit.motion/ColorRgba) (:instances quamolit.motion/ColorRgba) (:polyline quamolit.motion/ColorRgba) (:text quamolit.motion/ColorRgba) (:image) (:polygon quamolit.motion/ColorRgba quamolit.motion/ColorRgba) (:cubic-path quamolit.motion/ColorRgba) (:circle quamolit.motion/ColorRgba quamolit.motion/ColorRgba) (:arc quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ quote EnumDef
         'ResourceSignature $ %{} 'CodeEntry
           :doc "|Versioned external instance source, or none for non-resource nodes."
-          :code $ quote $ defenum ResourceSignature (:none) (:instances 'quamolit.scene-ir/InstanceSource) (:image 'quamolit.scene-ir/ImageSource) (:font 'quamolit.scene-ir/FontSpec)
+          :code $ quote $ defenum ResourceSignature (:none) (:instances quamolit.scene-ir/InstanceSource) (:image quamolit.scene-ir/ImageSource) (:font quamolit.scene-ir/FontSpec)
           :examples $ []
           :schema $ quote EnumDef
         'SceneChange $ %{} 'CodeEntry
           :doc "|Add/remove or retained-node update; no host handle or mutable cache."
-          :code $ quote $ defenum SceneChange (:added 'quamolit.scene-diff/SceneEntry) (:removed 'quamolit.scene-diff/SceneEntry) (:updated 'quamolit.scene-diff/SceneEntry 'quamolit.scene-diff/DirtyFlags)
+          :code $ quote $ defenum SceneChange (:added quamolit.scene-diff/SceneEntry) (:removed quamolit.scene-diff/SceneEntry) (:updated quamolit.scene-diff/SceneEntry quamolit.scene-diff/DirtyFlags)
           :examples $ []
           :schema $ quote EnumDef
         'SceneDelta $ %{} 'CodeEntry
           :doc "|Logical changes plus an independent animation-time invalidation bit."
           :code $ quote $ defstruct SceneDelta
             :changes $ quote $ List quamolit.scene-diff/SceneChange
-            :time-changed 'Bool
+            :time-changed Bool
           :examples $ []
           :schema $ quote StructDef
         'SceneEntry $ %{} 'CodeEntry
           :doc "|Indexed node with resolved logical path and sibling position."
           :code $ quote $ defstruct SceneEntry
             :path $ quote $ List quamolit.scene-diff/IdentitySegment
-            :sibling-index 'Number
-            :node 'quamolit.scene-ir/SceneNode
+            :sibling-index Number
+            :node quamolit.scene-ir/SceneNode
           :examples $ []
           :schema $ quote StructDef
         'any-dirty? $ %{} 'CodeEntry (:doc |)
@@ -16630,19 +16626,19 @@
     'quamolit.scene-hit $ %{} 'FileEntry
       :defs $ {}
         'CubicStrokePart $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CubicStrokePart (:start 'quamolit.motion/Vec2) (:previous-guide 'quamolit.motion/Vec2) (:first-guide 'quamolit.motion/Vec2) (:width 'Number)
+          :code $ quote $ defstruct CubicStrokePart (:start quamolit.motion/Vec2) (:previous-guide quamolit.motion/Vec2) (:first-guide quamolit.motion/Vec2) (:width Number)
             :points $ quote $ List quamolit.motion/Vec2
           :examples $ []
           :schema $ quote StructDef
         'HitCandidate $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct HitCandidate (:node 'quamolit.scene-ir/SceneNode)
+          :code $ quote $ defstruct HitCandidate (:node quamolit.scene-ir/SceneNode)
             :curve-parts $ quote $ List quamolit.scene-hit/CubicStrokePart
             :instance-points $ quote $ List quamolit.motion/Vec2
             :text-bounds $ quote $ Option quamolit.scene-ir/ClipRect
           :examples $ []
           :schema $ quote StructDef
         'HitOutcome $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum HitOutcome (:miss 'Number) (:hit 'quamolit.scene-hit/HitResult)
+          :code $ quote $ defenum HitOutcome (:miss Number) (:hit quamolit.scene-hit/HitResult)
           :examples $ []
           :schema $ quote EnumDef
         'HitPlan $ %{} 'CodeEntry
@@ -16653,21 +16649,21 @@
           :examples $ []
           :schema $ quote StructDef
         'HitResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct HitResult (:target 'String) (:node-id 'String) (:visited 'Number)
+          :code $ quote $ defstruct HitResult (:target String) (:node-id String) (:visited Number)
           :examples $ []
           :schema $ quote StructDef
         'InstanceHitSource $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct InstanceHitSource (:source 'quamolit.scene-ir/InstanceSource)
+          :code $ quote $ defstruct InstanceHitSource (:source quamolit.scene-ir/InstanceSource)
             :points $ quote $ List quamolit.motion/Vec2
           :examples $ []
           :schema $ quote StructDef
         'PointProjection $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum PointProjection (:singular) (:point 'Number 'Number)
+          :code $ quote $ defenum PointProjection (:singular) (:point Number Number)
           :examples $ []
           :schema $ quote EnumDef
         'TextHitMetrics $ %{} 'CodeEntry
           :doc "|不含宿主句柄的原生文字墨迹度量快照。font/size/text必须与绘制相同；四个有符号距离对应left/middle/ltr绘制约定，不是advance width或glyph轮廓。调用方在字体ready/version变化后更新快照。"
-          :code $ quote $ defstruct TextHitMetrics (:font 'quamolit.scene-ir/FontSpec) (:size 'Number) (:text 'String) (:left 'Number) (:right 'Number) (:ascent 'Number) (:descent 'Number)
+          :code $ quote $ defstruct TextHitMetrics (:font quamolit.scene-ir/FontSpec) (:size Number) (:text String) (:left Number) (:right Number) (:ascent Number) (:descent Number)
           :examples $ []
           :schema $ quote StructDef
         'arc-endpoint-hit? $ %{} 'CodeEntry (:doc |)
@@ -17773,31 +17769,31 @@
     'quamolit.scene-ir $ %{} 'FileEntry
       :defs $ {}
         'ArcNode $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ArcNode (:cx 'Number) (:cy 'Number) (:radius 'Number) (:start-angle 'Number) (:end-angle 'Number) (:counterclockwise 'Bool) (:width 'Number) (:stroke 'quamolit.motion/ColorRgba)
+          :code $ quote $ defstruct ArcNode (:cx Number) (:cy Number) (:radius Number) (:start-angle Number) (:end-angle Number) (:counterclockwise Bool) (:width Number) (:stroke quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ quote StructDef
         'CircleNode $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CircleNode (:cx 'Number) (:cy 'Number) (:radius 'Number) (:width 'Number) (:fill 'quamolit.motion/ColorRgba) (:stroke 'quamolit.motion/ColorRgba)
+          :code $ quote $ defstruct CircleNode (:cx Number) (:cy Number) (:radius Number) (:width Number) (:fill quamolit.motion/ColorRgba) (:stroke quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ quote StructDef
         'ClipRect $ %{} 'CodeEntry (:doc "|Group-local rectangular clip in CSS pixels.")
-          :code $ quote $ defstruct ClipRect (:x 'Number) (:y 'Number) (:width 'Number) (:height 'Number)
+          :code $ quote $ defstruct ClipRect (:x Number) (:y Number) (:width Number) (:height Number)
           :examples $ []
           :schema $ quote StructDef
         'ClipSpec $ %{} 'CodeEntry
           :doc "|Closed clip declaration; no Canvas path or host resource handle."
-          :code $ quote $ defenum ClipSpec (:none) (:rect 'quamolit.scene-ir/ClipRect)
+          :code $ quote $ defenum ClipSpec (:none) (:rect quamolit.scene-ir/ClipRect)
           :examples $ []
           :schema $ quote EnumDef
         'CubicPathNode $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CubicPathNode (:start 'quamolit.motion/Vec2)
+          :code $ quote $ defstruct CubicPathNode (:start quamolit.motion/Vec2)
             :segments $ quote $ List quamolit.scene-ir/CubicSegment
-            :width 'Number
-            :stroke 'quamolit.motion/ColorRgba
+            :width Number
+            :stroke quamolit.motion/ColorRgba
           :examples $ []
           :schema $ quote StructDef
         'CubicSegment $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CubicSegment (:control-1 'quamolit.motion/Vec2) (:control-2 'quamolit.motion/Vec2) (:end 'quamolit.motion/Vec2)
+          :code $ quote $ defstruct CubicSegment (:control-1 quamolit.motion/Vec2) (:control-2 quamolit.motion/Vec2) (:end quamolit.motion/Vec2)
           :examples $ []
           :schema $ quote StructDef
         'FontFallback $ %{} 'CodeEntry (:doc "|明确的通用字体回退，不携带DOM句柄。")
@@ -17806,60 +17802,60 @@
           :schema $ quote EnumDef
         'FontSpec $ %{} 'CodeEntry
           :doc "|单个命名字体及通用回退；family空串只用fallback。version标识字体来源/字形版本，加载与Scene必须一致；ready仅提升组件资源修订，不自动改字体版本。宿主别名隔离同名不同版本，不含FontFace句柄。"
-          :code $ quote $ defstruct FontSpec (:family 'String) (:fallback 'quamolit.scene-ir/FontFallback) (:version 'Number)
+          :code $ quote $ defstruct FontSpec (:family String) (:fallback quamolit.scene-ir/FontFallback) (:version Number)
           :examples $ []
           :schema $ quote StructDef
         'GroupNode $ %{} 'CodeEntry
           :doc "|Group transform, clip and isolated opacity declaration."
-          :code $ quote $ defstruct GroupNode (:transform 'quamolit.scene-ir/Matrix2D) (:clip 'quamolit.scene-ir/ClipSpec) (:opacity 'Number)
+          :code $ quote $ defstruct GroupNode (:transform quamolit.scene-ir/Matrix2D) (:clip quamolit.scene-ir/ClipSpec) (:opacity Number)
           :examples $ []
           :schema $ quote StructDef
         'ImageNode $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ImageNode (:source 'quamolit.scene-ir/ImageSource) (:matrix 'quamolit.scene-ir/Matrix2D) (:sx 'Number) (:sy 'Number) (:sw 'Number) (:sh 'Number) (:dx 'Number) (:dy 'Number) (:dw 'Number) (:dh 'Number)
+          :code $ quote $ defstruct ImageNode (:source quamolit.scene-ir/ImageSource) (:matrix quamolit.scene-ir/Matrix2D) (:sx Number) (:sy Number) (:sw Number) (:sh Number) (:dx Number) (:dy Number) (:dw Number) (:dh Number)
           :examples $ []
           :schema $ quote StructDef
         'ImageSource $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ImageSource (:id 'String) (:version 'Number) (:width 'Number) (:height 'Number)
+          :code $ quote $ defstruct ImageSource (:id String) (:version Number) (:width Number) (:height Number)
           :examples $ []
           :schema $ quote StructDef
         'InstanceNode $ %{} 'CodeEntry
           :doc "|One logical instance layer referencing external positions and shared geometry/color."
-          :code $ quote $ defstruct InstanceNode (:source 'quamolit.scene-ir/InstanceSource) (:width 'Number) (:height 'Number) (:fill 'quamolit.motion/ColorRgba)
+          :code $ quote $ defstruct InstanceNode (:source quamolit.scene-ir/InstanceSource) (:width Number) (:height Number) (:fill quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ quote StructDef
         'InstanceSource $ %{} 'CodeEntry
           :doc "|Versioned external typed-array source; count does not create child nodes."
-          :code $ quote $ defstruct InstanceSource (:id 'String) (:version 'Number) (:count 'Number)
+          :code $ quote $ defstruct InstanceSource (:id String) (:version Number) (:count Number)
           :examples $ []
           :schema $ quote StructDef
         'Matrix2D $ %{} 'CodeEntry (:doc "|CSS-pixel affine matrix [a c e; b d f; 0 0 1].")
-          :code $ quote $ defstruct Matrix2D (:a 'Number) (:b 'Number) (:c 'Number) (:d 'Number) (:e 'Number) (:f 'Number)
+          :code $ quote $ defstruct Matrix2D (:a Number) (:b Number) (:c Number) (:d Number) (:e Number) (:f Number)
           :examples $ []
           :schema $ quote StructDef
         'PolygonNode $ %{} 'CodeEntry
           :doc "|填充闭合多边形；points 至少三个，width=0 时只填充。用于 Solar 圆盘和 Icons 实心形变。"
           :code $ quote $ defstruct PolygonNode
             :points $ quote $ List quamolit.motion/Vec2
-            :width 'Number
-            :fill 'quamolit.motion/ColorRgba
-            :stroke 'quamolit.motion/ColorRgba
+            :width Number
+            :fill quamolit.motion/ColorRgba
+            :stroke quamolit.motion/ColorRgba
           :examples $ []
           :schema $ quote StructDef
         'PolylineNode $ %{} 'CodeEntry (:doc "|开放圆头/圆连接折线；至少两点，有限非负宽度，直通道 sRGB 颜色，不含宿主句柄。")
           :code $ quote $ defstruct PolylineNode
             :points $ quote $ List quamolit.motion/Vec2
-            :width 'Number
-            :stroke 'quamolit.motion/ColorRgba
+            :width Number
+            :stroke quamolit.motion/ColorRgba
           :examples $ []
           :schema $ quote StructDef
         'RectNode $ %{} 'CodeEntry
           :doc "|Solid rectangle geometry and straight-alpha sRGB color."
-          :code $ quote $ defstruct RectNode (:x 'Number) (:y 'Number) (:width 'Number) (:height 'Number) (:fill 'quamolit.motion/ColorRgba)
+          :code $ quote $ defstruct RectNode (:x Number) (:y Number) (:width Number) (:height Number) (:fill quamolit.motion/ColorRgba)
           :examples $ []
           :schema $ quote StructDef
         'ScalarBinding $ %{} 'CodeEntry
           :doc "|Versioned reference to a Motion descriptor, never an executable closure."
-          :code $ quote $ defstruct ScalarBinding (:target 'quamolit.scene-ir/ScalarTarget) (:motion-id 'String) (:version 'Number)
+          :code $ quote $ defstruct ScalarBinding (:target quamolit.scene-ir/ScalarTarget) (:motion-id String) (:version Number)
           :examples $ []
           :schema $ quote StructDef
         'ScalarTarget $ %{} 'CodeEntry
@@ -17869,11 +17865,11 @@
           :schema $ quote EnumDef
         'SceneContent $ %{} 'CodeEntry
           :doc "|Closed primitive/group/instance-layer union, independent from execution plans."
-          :code $ quote $ defenum SceneContent (:group 'quamolit.scene-ir/GroupNode) (:rect 'quamolit.scene-ir/RectNode) (:instances 'quamolit.scene-ir/InstanceNode) (:polyline 'quamolit.scene-ir/PolylineNode) (:text 'quamolit.scene-ir/TextNode) (:image 'quamolit.scene-ir/ImageNode) (:polygon 'quamolit.scene-ir/PolygonNode) (:cubic-path 'quamolit.scene-ir/CubicPathNode) (:circle 'quamolit.scene-ir/CircleNode) (:arc 'quamolit.scene-ir/ArcNode)
+          :code $ quote $ defenum SceneContent (:group quamolit.scene-ir/GroupNode) (:rect quamolit.scene-ir/RectNode) (:instances quamolit.scene-ir/InstanceNode) (:polyline quamolit.scene-ir/PolylineNode) (:text quamolit.scene-ir/TextNode) (:image quamolit.scene-ir/ImageNode) (:polygon quamolit.scene-ir/PolygonNode) (:cubic-path quamolit.scene-ir/CubicPathNode) (:circle quamolit.scene-ir/CircleNode) (:arc quamolit.scene-ir/ArcNode)
           :examples $ []
           :schema $ quote EnumDef
         'SceneDiagnostic $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct SceneDiagnostic (:id 'String) (:key 'String) (:kind 'String) (:reason 'String)
+          :code $ quote $ defstruct SceneDiagnostic (:id String) (:key String) (:kind String) (:reason String)
           :examples $ []
           :schema $ quote StructDef
         'SceneDocument $ %{} 'CodeEntry
@@ -17884,18 +17880,18 @@
           :schema $ quote StructDef
         'SceneInteraction $ %{} 'CodeEntry
           :doc "|Logical event target reference; hit testing is not performed during paint."
-          :code $ quote $ defenum SceneInteraction (:none) (:target 'String) (:disabled)
+          :code $ quote $ defenum SceneInteraction (:none) (:target String) (:disabled)
           :examples $ []
           :schema $ quote EnumDef
         'SceneNode $ %{} 'CodeEntry
           :doc "|Flat node: stable unique id, parent id, sibling key, typed content and metadata."
-          :code $ quote $ defstruct SceneNode (:id 'String) (:parent 'String) (:key 'String) (:content 'quamolit.scene-ir/SceneContent)
+          :code $ quote $ defstruct SceneNode (:id String) (:parent String) (:key String) (:content quamolit.scene-ir/SceneContent)
             :bindings $ quote $ List quamolit.scene-ir/ScalarBinding
-            :interaction 'quamolit.scene-ir/SceneInteraction
+            :interaction quamolit.scene-ir/SceneInteraction
           :examples $ []
           :schema $ quote StructDef
         'TextNode $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct TextNode (:x 'Number) (:y 'Number) (:size 'Number) (:text 'String) (:fill 'quamolit.motion/ColorRgba) (:font 'quamolit.scene-ir/FontSpec)
+          :code $ quote $ defstruct TextNode (:x Number) (:y Number) (:size Number) (:text String) (:fill quamolit.motion/ColorRgba) (:font quamolit.scene-ir/FontSpec)
           :examples $ []
           :schema $ quote StructDef
         'canonical-scalar-target $ %{} 'CodeEntry
@@ -18476,19 +18472,19 @@
     'quamolit.scene-pointer $ %{} 'FileEntry
       :defs $ {}
         'EventTarget $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct EventTarget (:target 'String) (:node-id 'String)
+          :code $ quote $ defstruct EventTarget (:target String) (:node-id String)
           :examples $ []
           :schema $ quote StructDef
         'PointerCapture $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum PointerCapture (:none) (:captured 'Number 'String 'String)
+          :code $ quote $ defenum PointerCapture (:none) (:captured Number String String)
           :examples $ []
           :schema $ quote EnumDef
         'PointerDispatch $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum PointerDispatch (:none) (:routed 'quamolit.scene-pointer/PointerRoute)
+          :code $ quote $ defenum PointerDispatch (:none) (:routed quamolit.scene-pointer/PointerRoute)
           :examples $ []
           :schema $ quote EnumDef
         'PointerInput $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PointerInput (:pointer-id 'Number) (:phase 'quamolit.scene-pointer/PointerPhase) (:x 'Number) (:y 'Number)
+          :code $ quote $ defstruct PointerInput (:pointer-id Number) (:phase quamolit.scene-pointer/PointerPhase) (:x Number) (:y Number)
           :examples $ []
           :schema $ quote StructDef
         'PointerPhase $ %{} 'CodeEntry (:doc |)
@@ -18496,20 +18492,20 @@
           :examples $ []
           :schema $ quote EnumDef
         'PointerReconcile $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PointerReconcile (:state 'quamolit.scene-pointer/PointerState) (:capture-released 'Bool)
+          :code $ quote $ defstruct PointerReconcile (:state quamolit.scene-pointer/PointerState) (:capture-released Bool)
           :examples $ []
           :schema $ quote StructDef
         'PointerRoute $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PointerRoute (:pointer-id 'Number) (:phase 'quamolit.scene-pointer/PointerPhase) (:x 'Number) (:y 'Number) (:captured 'Bool) (:source-node 'String)
+          :code $ quote $ defstruct PointerRoute (:pointer-id Number) (:phase quamolit.scene-pointer/PointerPhase) (:x Number) (:y Number) (:captured Bool) (:source-node String)
             :targets $ quote $ List quamolit.scene-pointer/EventTarget
           :examples $ []
           :schema $ quote StructDef
         'PointerState $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PointerState (:capture 'quamolit.scene-pointer/PointerCapture) (:hover-target 'String) (:hover-node 'String)
+          :code $ quote $ defstruct PointerState (:capture quamolit.scene-pointer/PointerCapture) (:hover-target String) (:hover-node String)
           :examples $ []
           :schema $ quote StructDef
         'PointerUpdate $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PointerUpdate (:state 'quamolit.scene-pointer/PointerState) (:dispatch 'quamolit.scene-pointer/PointerDispatch) (:capture-released 'Bool)
+          :code $ quote $ defstruct PointerUpdate (:state quamolit.scene-pointer/PointerState) (:dispatch quamolit.scene-pointer/PointerDispatch) (:capture-released Bool)
           :examples $ []
           :schema $ quote StructDef
         'capture-dispatch $ %{} 'CodeEntry (:doc |)
@@ -18976,7 +18972,7 @@
     'quamolit.test.cpu-motion-fixture $ %{} 'FileEntry
       :defs $ {}
         'CustomInput $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CustomInput (:base 'quamolit.motion/Vec2) (:ready 'Bool) (:viewport 'Number)
+          :code $ quote $ defstruct CustomInput (:base quamolit.motion/Vec2) (:ready Bool) (:viewport Number)
           :examples $ []
           :schema $ quote StructDef
         'frame-at $ %{} 'CodeEntry (:doc |)
@@ -19062,7 +19058,7 @@
     'quamolit.test.fade-migration-fixture $ %{} 'FileEntry
       :defs $ {}
         'FadeModel $ %{} 'CodeEntry (:doc "|旧 fade 迁移用的显式应用 Model：保存过渡意图、描述版本和进入/退出阶段。")
-          :code $ quote $ defstruct FadeModel (:intent 'quamolit.transition/TransitionIntent) (:revision 'Number) (:phase 'quamolit.test.fade-migration-fixture/FadePhase)
+          :code $ quote $ defstruct FadeModel (:intent quamolit.transition/TransitionIntent) (:revision Number) (:phase quamolit.test.fade-migration-fixture/FadePhase)
           :examples $ []
           :schema $ quote StructDef
         'FadePhase $ %{} 'CodeEntry (:doc |)
@@ -19420,7 +19416,7 @@
           :code $ quote $ defstruct PresenceFixtureFrame
             :samples $ quote $ List quamolit.presence/PresenceSample
             :released $ quote $ List quamolit.scene-diff/SceneEntry
-            :needs-frame 'Bool
+            :needs-frame Bool
           :examples $ []
           :schema $ quote StructDef
         'bound-scene-document-at $ %{} 'CodeEntry (:doc |)
@@ -19802,7 +19798,7 @@
     'quamolit.test.playback-fixture $ %{} 'FileEntry
       :defs $ {}
         'PlaybackFixtureFrame $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct PlaybackFixtureFrame (:animation-time 'Number) (:value 'Number) (:tick 'Number) (:state 'Number) (:ready 'Bool)
+          :code $ quote $ defstruct PlaybackFixtureFrame (:animation-time Number) (:value Number) (:tick Number) (:state Number) (:ready Bool)
           :examples $ []
           :schema $ quote StructDef
         'main! $ %{} 'CodeEntry (:doc |)
@@ -20850,11 +20846,11 @@
     'quamolit.test.scene-pointer-browser-fixture $ %{} 'FileEntry
       :defs $ {}
         'BrowserDisposeTrace $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct BrowserDisposeTrace (:capture-released 'Bool) (:capture-cleared 'Bool)
+          :code $ quote $ defstruct BrowserDisposeTrace (:capture-released Bool) (:capture-cleared Bool)
           :examples $ []
           :schema $ quote StructDef
         'BrowserPointerTrace $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct BrowserPointerTrace (:down-target 'String) (:move-target 'String) (:move-captured 'Bool) (:up-released 'Bool) (:capture-cleared 'Bool)
+          :code $ quote $ defstruct BrowserPointerTrace (:down-target String) (:move-target String) (:move-captured Bool) (:up-released Bool) (:capture-cleared Bool)
           :examples $ []
           :schema $ quote StructDef
         'capture-cleared? $ %{} 'CodeEntry (:doc |)
@@ -21056,11 +21052,11 @@
     'quamolit.transition $ %{} 'FileEntry
       :defs $ {}
         'TransitionEvent $ %{} 'CodeEntry (:doc "|固定输入日志中的一次目标变更；事件时间必须按非降序排列。")
-          :code $ quote $ defstruct TransitionEvent (:at 'Number) (:to 'Number) (:duration 'Number) (:easing 'quamolit.motion/Easing)
+          :code $ quote $ defstruct TransitionEvent (:at Number) (:to Number) (:duration Number) (:easing quamolit.motion/Easing)
           :examples $ []
           :schema $ quote StructDef
         'TransitionIntent $ %{} 'CodeEntry (:doc "|组件 key 与显式 ScalarTween 意图；只保证位置连续的 CPU 过渡模型。")
-          :code $ quote $ defstruct TransitionIntent (:key 'String) (:tween 'quamolit.motion/ScalarTween)
+          :code $ quote $ defstruct TransitionIntent (:key String) (:tween quamolit.motion/ScalarTween)
           :examples $ []
           :schema $ quote StructDef
         'empty-events $ %{} 'CodeEntry (:doc |)
@@ -21223,11 +21219,11 @@
     'quamolit.types $ %{} 'FileEntry
       :defs $ {}
         'Component $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct Component (:name 'Dynamic) (:on-tick 'Dynamic) (:tree 'Dynamic)
+          :code $ quote $ defstruct Component (:name Dynamic) (:on-tick Dynamic) (:tree Dynamic)
           :examples $ []
           :schema $ quote StructDef
         'Shape $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct Shape (:name 'Dynamic) (:style 'Dynamic) (:event 'Dynamic) (:children 'Dynamic)
+          :code $ quote $ defstruct Shape (:name Dynamic) (:style Dynamic) (:event Dynamic) (:children Dynamic)
           :examples $ []
           :schema $ quote StructDef
       :ns $ %{} 'NsEntry (:doc |)
@@ -21235,11 +21231,11 @@
     'quamolit.ui-motion $ %{} 'FileEntry
       :defs $ {}
         'PresenceFrame $ %{} 'CodeEntry (:doc "|进入与退出合成后的展示帧；mounted 为 false 时调用方应从 Scene 移除节点。")
-          :code $ quote $ defstruct PresenceFrame (:alpha 'Number) (:offset 'Number) (:mounted 'Bool)
+          :code $ quote $ defstruct PresenceFrame (:alpha Number) (:offset Number) (:mounted Bool)
           :examples $ []
           :schema $ quote StructDef
         'StaggerSpec $ %{} 'CodeEntry (:doc "|描述一组按稳定索引错峰进入的绝对时间参数。")
-          :code $ quote $ defstruct StaggerSpec (:start 'Number) (:gap 'Number) (:duration 'Number) (:easing 'quamolit.motion/Easing)
+          :code $ quote $ defstruct StaggerSpec (:start Number) (:gap Number) (:duration Number) (:easing quamolit.motion/Easing)
           :examples $ []
           :schema $ quote StructDef
         'crossfade-in $ %{} 'CodeEntry (:doc "|返回新界面的交叉渐入 alpha。")
@@ -21451,27 +21447,27 @@
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
         'RectColor $ %{} 'CodeEntry (:doc "|矩形图层的 RGBA 直通道颜色；shader 输出时转预乘 alpha。")
-          :code $ quote $ defstruct RectColor (:r 'Number) (:g 'Number) (:b 'Number) (:a 'Number)
+          :code $ quote $ defstruct RectColor (:r Number) (:g Number) (:b Number) (:a Number)
           :examples $ []
           :schema $ quote StructDef
         'RectMetrics $ %{} 'CodeEntry (:doc "|单次矩形图层绘制的批次、实例、上传及资源创建指标。")
-          :code $ quote $ defstruct RectMetrics (:draw-calls 'Number) (:instances 'Number) (:position-bytes-uploaded 'Number) (:uniform-bytes-uploaded 'Number) (:pipelines-created 'Number) (:buffers-created 'Number)
+          :code $ quote $ defstruct RectMetrics (:draw-calls Number) (:instances Number) (:position-bytes-uploaded Number) (:uniform-bytes-uploaded Number) (:pipelines-created Number) (:buffers-created Number)
           :examples $ []
           :schema $ quote StructDef
         'RectPixel $ %{} 'CodeEntry (:doc "|测试诊断读回的单个 RGBA 像素。")
-          :code $ quote $ defstruct RectPixel (:r 'Number) (:g 'Number) (:b 'Number) (:a 'Number)
+          :code $ quote $ defstruct RectPixel (:r Number) (:g Number) (:b Number) (:a Number)
           :examples $ []
           :schema $ quote StructDef
         'RectTranslation $ %{} 'CodeEntry (:doc "|Quamolit 矩形图层共享的 Vec2 绝对时间位移参数。")
-          :code $ quote $ defstruct RectTranslation (:from 'quamolit.webgpu-batches/RectVec2) (:to 'quamolit.webgpu-batches/RectVec2) (:time 'Number) (:start 'Number) (:duration 'Number) (:easing 'String)
+          :code $ quote $ defstruct RectTranslation (:from quamolit.webgpu-batches/RectVec2) (:to quamolit.webgpu-batches/RectVec2) (:time Number) (:start Number) (:duration Number) (:easing String)
           :examples $ []
           :schema $ quote StructDef
         'RectTranslationSample $ %{} 'CodeEntry (:doc "|GPU 诊断读回的单个 f32 Vec2 位移样本。")
-          :code $ quote $ defstruct RectTranslationSample (:x 'Number) (:y 'Number)
+          :code $ quote $ defstruct RectTranslationSample (:x Number) (:y Number)
           :examples $ []
           :schema $ quote StructDef
         'RectVec2 $ %{} 'CodeEntry (:doc "|Quamolit 矩形图层的实际像素坐标二维向量。")
-          :code $ quote $ defstruct RectVec2 (:x 'Number) (:y 'Number)
+          :code $ quote $ defstruct RectVec2 (:x Number) (:y Number)
           :examples $ []
           :schema $ quote StructDef
         'clear! $ %{} 'CodeEntry (:doc "|提交零实例帧，在完整图层边界清屏。")
@@ -21635,8 +21631,7 @@
     'quamolit.webgpu-images $ %{} 'FileEntry
       :defs $ {}
         'BoundImage $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct BoundImage
-            :texture 'quamolit.webgpu-texture-runner/WebGpuTextureHost
+          :code $ quote $ defstruct BoundImage (:texture quamolit.webgpu-texture-runner/WebGpuTextureHost)
             :parameters $ quote $ List Number
           :examples $ []
           :schema $ quote StructDef
@@ -21650,22 +21645,22 @@
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
         'ImageMetrics $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ImageMetrics (:frames 'Number) (:draw-calls 'Number) (:uniform-bytes-uploaded 'Number) (:pipelines-created 'Number) (:buffers-created 'Number) (:bind-groups-created 'Number)
+          :code $ quote $ defstruct ImageMetrics (:frames Number) (:draw-calls Number) (:uniform-bytes-uploaded Number) (:pipelines-created Number) (:buffers-created Number) (:bind-groups-created Number)
           :examples $ []
           :schema $ quote StructDef
         'ImageRenderDecision $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum ImageRenderDecision (:webgpu) (:canvas 'String)
+          :code $ quote $ defenum ImageRenderDecision (:webgpu) (:canvas String)
           :examples $ []
           :schema $ quote EnumDef
         'ImageRuntime $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ImageRuntime (:layer 'quamolit.webgpu-images/ImageLayerHost)
-            :resources 'quamolit.webgpu-texture-runner/TextureResourceHost
-            :registry 'quamolit.resource-lifecycle/ResourceRegistry
-            :identity 'quamolit.resource-lifecycle/ResourceIdentity
+          :code $ quote $ defstruct ImageRuntime (:layer quamolit.webgpu-images/ImageLayerHost)
+            :resources quamolit.webgpu-texture-runner/TextureResourceHost
+            :registry quamolit.resource-lifecycle/ResourceRegistry
+            :identity quamolit.resource-lifecycle/ResourceIdentity
           :examples $ []
           :schema $ quote StructDef
         'ImageScope $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct ImageScope (:matrix 'quamolit.scene-ir/Matrix2D) (:clip 'quamolit.scene-ir/ClipRect)
+          :code $ quote $ defstruct ImageScope (:matrix quamolit.scene-ir/Matrix2D) (:clip quamolit.scene-ir/ClipRect)
           :examples $ []
           :schema $ quote StructDef
         'checked-parameters $ %{} 'CodeEntry (:doc |)
@@ -22030,63 +22025,60 @@
     'quamolit.webgpu-texture-runner $ %{} 'FileEntry
       :defs $ {}
         'QueuedTextureLoadResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct QueuedTextureLoadResult (:token 'Number) (:device-generation 'Number) (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number)
-            :outcome 'quamolit.webgpu-texture-runner/TextureLoadOutcome
+          :code $ quote $ defstruct QueuedTextureLoadResult (:token Number) (:device-generation Number) (:identity quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation Number)
+            :outcome quamolit.webgpu-texture-runner/TextureLoadOutcome
           :examples $ []
           :schema $ quote StructDef
         'TextureActionQueueResult $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct TextureActionQueueResult (:queue 'quamolit.resource-load-queue/ResourceLoadQueue) (:backpressured 'Number)
+          :code $ quote $ defstruct TextureActionQueueResult (:queue quamolit.resource-load-queue/ResourceLoadQueue) (:backpressured Number)
           :examples $ []
           :schema $ quote StructDef
         'TextureDeviceRebuild $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct TextureDeviceRebuild (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
-            :host 'quamolit.webgpu-texture-runner/TextureResourceHost
-            :transition 'quamolit.resource-lifecycle/RegistryTransition
-            :backpressured 'Number
+          :code $ quote $ defstruct TextureDeviceRebuild (:queue quamolit.resource-load-queue/ResourceLoadQueue)
+            :host quamolit.webgpu-texture-runner/TextureResourceHost
+            :transition quamolit.resource-lifecycle/RegistryTransition
+            :backpressured Number
           :examples $ []
           :schema $ quote StructDef
         'TextureLoadCompletion $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct TextureLoadCompletion (:queue 'quamolit.resource-load-queue/ResourceLoadQueue)
-            :host 'quamolit.webgpu-texture-runner/TextureResourceHost
-            :transition 'quamolit.resource-lifecycle/RegistryTransition
+          :code $ quote $ defstruct TextureLoadCompletion (:queue quamolit.resource-load-queue/ResourceLoadQueue)
+            :host quamolit.webgpu-texture-runner/TextureResourceHost
+            :transition quamolit.resource-lifecycle/RegistryTransition
           :examples $ []
           :schema $ quote StructDef
         'TextureLoadOutcome $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum TextureLoadOutcome
-            :ready 'quamolit.webgpu-texture-runner/TextureResourceHandle 'Number
+            :ready quamolit.webgpu-texture-runner/TextureResourceHandle Number
             :failed
               quote $ Option quamolit.webgpu-texture-runner/TextureResourceHandle
-              , 'String
+              , String
           :examples $ []
           :schema $ quote EnumDef
         'TextureReleaseResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct TextureReleaseResult
             :handles $ quote $ List quamolit.webgpu-texture-runner/TextureResourceHandle
-            :released? 'Bool
-            :bytes 'Number
+            :released? Bool
+            :bytes Number
           :examples $ []
           :schema $ quote StructDef
         'TextureResourceDescriptor $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct TextureResourceDescriptor (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:url 'String) (:width 'Number) (:height 'Number) (:format 'String)
+          :code $ quote $ defstruct TextureResourceDescriptor (:identity quamolit.resource-lifecycle/ResourceIdentity) (:url String) (:width Number) (:height Number) (:format String)
           :examples $ []
           :schema $ quote StructDef
         'TextureResourceHandle $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct TextureResourceHandle (:identity 'quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation 'Number) (:device-generation 'Number)
-            :texture 'quamolit.webgpu-texture-runner/WebGpuTextureHost
-            :bytes 'Number
-            :installed? 'Bool
+          :code $ quote $ defstruct TextureResourceHandle (:identity quamolit.resource-lifecycle/ResourceIdentity) (:resource-generation Number) (:device-generation Number) (:texture quamolit.webgpu-texture-runner/WebGpuTextureHost) (:bytes Number) (:installed? Bool)
           :examples $ []
           :schema $ quote StructDef
         'TextureResourceHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct TextureResourceHost
             :handles $ quote $ List quamolit.webgpu-texture-runner/TextureResourceHandle
-            :created 'Number
-            :released 'Number
-            :uploaded-bytes 'Number
+            :created Number
+            :released Number
+            :uploaded-bytes Number
           :examples $ []
           :schema $ quote StructDef
         'TextureResourceMetrics $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct TextureResourceMetrics (:created 'Number) (:released 'Number) (:live 'Number) (:live-bytes 'Number) (:uploaded-bytes 'Number)
+          :code $ quote $ defstruct TextureResourceMetrics (:created Number) (:released Number) (:live Number) (:live-bytes Number) (:uploaded-bytes Number)
           :examples $ []
           :schema $ quote StructDef
         'WebGpuTextureHost $ %{} 'CodeEntry (:doc |)
