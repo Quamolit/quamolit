@@ -280,6 +280,7 @@
                     , :font spec
                 , :motions $ []
               , :transforms $ retained/TransformSampler :cpu $ fn (time)
+                hint-fn $ Fn Number $ -> (List quamolit.scene-ir/Matrix2D)
                 [] $ scene/Matrix2D :a 1 :b 0 :c 0 :d 1 :e
                   * 40 $ if (<= time 0) 0 $ if (>= time 1) 1 time
                   , :f 0

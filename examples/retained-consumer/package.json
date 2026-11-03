@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "yarn@4.18.0",
   "dependencies": {
-    "@calcit/procs": "0.32.1"
+    "@calcit/procs": "0.34.3"
   },
   "scripts": {
     "compile": "caps --ci && calcit --emit-path target/js/app/ js"

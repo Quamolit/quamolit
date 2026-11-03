@@ -34,7 +34,10 @@ export function expandManifest(manifest) {
 export function parseNamespaces(output) {
   const header = output.match(/^Project namespaces: \((\d+) namespaces\)$/m);
   assert.ok(header, "Calcit 查询格式变化；不可把空输出算覆盖通过");
-  const names = [...output.matchAll(/^  (quamolit\.[\w.$-]+)$/gm)].map((match) => match[1]);
+  // Calcit 0.34 marks the generated `quamolit.$meta` line with a "(generated, not in Snapshot)" suffix.
+  const names = [...output.matchAll(/^  (quamolit\.[\w.$-]+)(?: \(generated, not in Snapshot\))?$/gm)].map(
+    (match) => match[1],
+  );
   assert.equal(names.length, Number(header[1]));
   assert.equal(new Set(names).size, names.length);
   return names;

@@ -9,15 +9,15 @@
           "PresenceFrame",
           [
             ":alpha",
-            "'Number"
+            "Number"
           ],
           [
             ":offset",
-            "'Number"
+            "Number"
           ],
           [
             ":mounted",
-            "'Bool"
+            "Bool"
           ]
         ]
       },
@@ -28,19 +28,19 @@
           "StaggerSpec",
           [
             ":start",
-            "'Number"
+            "Number"
           ],
           [
             ":gap",
-            "'Number"
+            "Number"
           ],
           [
             ":duration",
-            "'Number"
+            "Number"
           ],
           [
             ":easing",
-            "'quamolit.motion/Easing"
+            "quamolit.motion/Easing"
           ]
         ]
       },
