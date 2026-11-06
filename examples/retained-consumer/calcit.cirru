@@ -11,7 +11,7 @@
     %{} 'FileEntry
       :defs $ {}
         'InstanceFrame $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct InstanceFrame (:index 'Number) (:x 'Number) (:y 'Number)
+          :code $ quote $ defstruct InstanceFrame (:index Number) (:x Number) (:y Number)
           :examples $ []
           :schema $ quote StructDef
         'arc-document $ %{} 'CodeEntry (:doc |)

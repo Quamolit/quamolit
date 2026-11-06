@@ -2,7 +2,7 @@
 
 本目录是单独的 Calcit/Yarn 项目，不是 Quamolit workspace 子包。主要源码是 `calcit.cirru` 中的 `app.main`；通过统一 Calcit 执行入口声明静态横条、标量 Motion 矩形及 CPU 变换折线，使用同一个 ComponentPlan 绘制 Canvas。JS 入口只连接页面按钮、传入 Canvas 原生上下文与展示诊断计数，不实现动画或渲染循环。
 
-使用配套的正式 Calcit／runtime 0.30.1、Node.js 24 和 Yarn 4.18.0；候选源码验收不等于 Quamolit 正式版已发布：
+使用配套的正式 Calcit／runtime 0.35.1、Node.js 24 和 Yarn 4.18.0；候选源码验收不等于 Quamolit 正式版已发布：
 
 ```sh
 cd examples/retained-consumer
@@ -12,7 +12,7 @@ calcit query def app.main/declare --raw
 calcit query def app.main/update-plan --raw
 ```
 
-`deps.cirru` 固定一个已推送的 Quamolit 候选提交，用于公共 API 验证；它不是发布 tag。要验证另一已推送提交或发布 tag，使用 `caps --ci add Quamolit/quamolit -r <完整 SHA 或 tag>`，再编译。不需要 npm 的 Quamolit 包或 `@calcit/js-ffi` 包；当前路径唯一 npm 直接依赖是 `@calcit/procs`。
+`deps.cirru` 默认使用已发布的 Quamolit 0.0.19。要验证已推送的候选提交或其他发布 tag，使用 `caps --ci add Quamolit/quamolit -r <完整 SHA 或 tag>`，再编译。不需要 npm 的 Quamolit 包或 `@calcit/js-ffi` 包；当前路径唯一 npm 直接依赖是 `@calcit/procs`。
 
 从 Quamolit 根目录可运行 `yarn vite examples/retained-consumer --host 127.0.0.1 --port 5183` 查看页面。Vite 只是开发服务器，不是 Calcit 消费者的运行时依赖。点击时间按钮可乱序查看中间帧，在相同时间修改 Model、资源 ready 与宽度版本，观察声明次数及画面更新。
 
@@ -20,7 +20,7 @@ calcit query def app.main/update-plan --raw
 
 同页“GPU卡片旋转与缩放”或`?motion=transform-gpu`消费相同声明，通过公共Calcit `prepare-program`、`install-program!`与`update-program!`驱动既有renderer；消费者本地对应`prepare-gpu`等类型化函数。GPU不可用、精度域拒绝或设备失败均整层回退，模拟device loss后可恢复；离开模式释放宿主。按窗口×DPR建立原生表面，逻辑320×180居中contain，resize不重装动画参数。JS仅连接DOM和宿主动作，公共库只需Calcit导入，inline/file随模块编译，不手工引入宿主JS。该页面仍采样计划作诊断，不是零CPU变换或性能验收；完整旋转边缘和投影误差域仍未完成。
 
-当前 `deps.cirru` 的静态 pin 同时包含标准变换、线性光颜色、公共呈现矩阵和配套0.30工具链，尚非发布版本。安装、编译搬移、1000帧、支点独立公式和原生Canvas旋转缩放对照复用 `test:consumer`，不另建renderer、测试命令或导航页面；旧tag不能代替该组合的消费验收。
+正式依赖包含标准变换、线性光颜色和公共呈现矩阵。安装、编译搬移、1000帧、支点独立公式和原生Canvas旋转缩放对照复用 `test:consumer`，不另建renderer、测试命令或导航页面；旧tag不能代替该组合的消费验收。
 
 原页面的“矩形透明度渐入”或 `?motion=alpha` 使用 Calcit `declare-alpha` 复用原两矩形 Scene，以两点 clamp 关键帧声明0→1的smoothstep alpha；GPU冷准备归一化到已有tween内核。界面显示Canvas参考，GPU采样/上传/数值和画面对照复用已有双轴硬件专项，多段、repeat 与group opacity仍不支持。十六槽布局的冷安装成本见[GPU合同](../../docs/gpu-scalar-program.md)，旧性能样本仍属于旧源码。
 
