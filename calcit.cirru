@@ -130,7 +130,7 @@
                 states $ if (map? states) states $ raise |Expected-state-map
                 parent-cursor $ decode-map-as
                   .unwrap-or (&map:get states :cursor) ([])
-                  quote $ List Dynamic
+                  List Dynamic
                 branch $ match (&map:get states k)
                   (:some legacy-value) legacy-value
                   (:none) nil
@@ -164,14 +164,15 @@
             if
               not $ map? props
               raise $ new js/Error |Props-expected-to-be-a-map
-            %{} Shape (:name shape-name)
-              :style $ match (&map:get props :style)
+            Shape :name shape-name :style
+              match (&map:get props :style)
                 (:some legacy-value) legacy-value
                 (:none) nil
-              :event $ match (&map:get props :event)
-                (:some legacy-value) legacy-value
-                (:none) nil
-              :children children
+              , :event
+                match (&map:get props :event)
+                  (:some legacy-value) legacy-value
+                  (:none) nil
+                , :children children
           :examples $ []
           :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
         'create-shape $ %{} 'CodeEntry (:doc |)
@@ -179,12 +180,11 @@
             if
               not $ map? props
               raise $ new js/Error "|Props expeced to be a map!"
-            %{} Shape (:name shape-name)
-              :style $ &map:dissoc props :event
-              :event $ match (&map:get props :event)
+            Shape :name shape-name :style (&map:dissoc props :event) :event
+              match (&map:get props :event)
                 (:some legacy-value) legacy-value
                 (:none) nil
-              :children $ arrange-children children
+              , :children $ arrange-children children
           :examples $ []
           :schema $ quote $ Fn Dynamic Dynamic (List Dynamic) (-> Dynamic) (:features :js-ffi)
         'defcomp $ %{} 'CodeEntry (:doc |)
@@ -570,20 +570,19 @@
           :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.scene-ir/PolylineNode (-> Unit) (:features :js-ffi)
         'draw-text! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-text! (context text)
-            do
-              assert |invalid-scene-text $ scene/valid-content? $ scene/SceneContent :text text
-              context .save!
-              try
-                do
-                  js-set context :font $ str (:size text) "|px " $ font-family-css (:font text)
-                  js-set context :text-align |left
-                  js-set context :text-baseline |middle
-                  js-set context :direction |ltr
-                  js-set context :fill-style $ color-css $ :fill text
-                  context .fill-text! (:text text) (:x text) (:y text)
-                fn (error) (context .restore!) (raise error)
-              context .restore!
-              , &unit
+            assert |invalid-scene-text $ scene/valid-content? $ scene/SceneContent :text text
+            context .save!
+            try
+              do
+                js-set context :font $ str (:size text) "|px " $ font-family-css (:font text)
+                js-set context :text-align |left
+                js-set context :text-baseline |middle
+                js-set context :direction |ltr
+                js-set context :fill-style $ color-css $ :fill text
+                context .fill-text! (:text text) (:x text) (:y text)
+              fn (error) (context .restore!) (raise error)
+            context .restore!
+            , &unit
           :examples $ []
           :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.scene-ir/TextNode (-> Unit) (:features :js-ffi)
         'font-family-css $ %{} 'CodeEntry
@@ -619,26 +618,25 @@
         'measure-text-hit! $ %{} 'CodeEntry
           :doc "|按draw-text!的字体别名/left/middle/ltr约定原生测量一次，恢复宿主状态；异常也restore，不画图、不加载字体、不更新Model。返回纯Calcit度量快照，缺字段或非法值明确失败。"
           :code $ quote $ defn measure-text-hit! (context text)
-            do
-              assert |invalid-scene-text $ scene/valid-content? $ scene/SceneContent :text text
-              context .save!
-              let
-                  metrics $ try
-                    do
-                      js-set context :font $ str (:size text) "|px " $ font-family-css (:font text)
-                      js-set context :text-align |left
-                      js-set context :text-baseline |middle
-                      js-set context :direction |ltr
-                      let
-                          native $ js-cast
-                            context .measure-text $ :text text
-                            , NativeTextInkHost
-                          measured $ hit/TextHitMetrics :font (:font text) :size (:size text) :text (:text text) :left (native :left) :right (native :right) :ascent (native :ascent) :descent $ native :descent
-                        hit/text-hit-bounds text measured
-                        , measured
-                    fn (error) (context .restore!) (raise error)
-                context .restore!
-                , metrics
+            assert |invalid-scene-text $ scene/valid-content? $ scene/SceneContent :text text
+            context .save!
+            let
+                metrics $ try
+                  do
+                    js-set context :font $ str (:size text) "|px " $ font-family-css (:font text)
+                    js-set context :text-align |left
+                    js-set context :text-baseline |middle
+                    js-set context :direction |ltr
+                    let
+                        native $ js-cast
+                          context .measure-text $ :text text
+                          , NativeTextInkHost
+                        measured $ hit/TextHitMetrics :font (:font text) :size (:size text) :text (:text text) :left (native :left) :right (native :right) :ascent (native :ascent) :descent $ native :descent
+                      hit/text-hit-bounds text measured
+                      , measured
+                  fn (error) (context .restore!) (raise error)
+              context .restore!
+              , metrics
           :examples $ []
           :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.scene-ir/TextNode (-> quamolit.scene-hit/TextHitMetrics) (:features :js-ffi)
         'measure-text-hit-plan! $ %{} 'CodeEntry
@@ -925,7 +923,7 @@
       :defs $ {}
         'RoundPolyline $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct RoundPolyline (:id String)
-            :points $ quote $ List quamolit.motion/Vec2
+            :points $ List quamolit.motion/Vec2
             :width Number
             :color quamolit.motion/ColorRgba
           :examples $ []
@@ -1044,7 +1042,7 @@
                 state $ decode-map-as
                     get states :data
                     , .unwrap-or $ {} (:stage :hidden) (:opacity 0)
-                  quote $ Map Dynamic Dynamic
+                  Map Dynamic Dynamic
                 p1 $ if (fn? f1)
                   f1 (>> states :renderer)
                     .unwrap-or (get state :opacity) nil
@@ -1127,7 +1125,7 @@
                 state $ decode-map-as
                     get states :data
                     , .unwrap-or $ {} (:stage :hidden) (:opacity 0)
-                  quote $ Map Dynamic Dynamic
+                  Map Dynamic Dynamic
               []
                 fn (elapsed d!)
                   let
@@ -1220,7 +1218,7 @@
                   or
                     .unwrap-or (get options :position) nil
                     [] 0 0
-                  quote $ List Number
+                  List Number
                 state $ .unwrap-or (get states :data) nil
                 v-max $ decode-map-as
                   either
@@ -1267,7 +1265,7 @@
                                   if (map? state) state $ raise |Expected-slider-state-or-options-map
                                   , :local
                                 , nil
-                              quote $ Map Dynamic Dynamic
+                              Map Dynamic Dynamic
                             dx $ -
                               decode-map-as (.-clientX e) 'Number
                               decode-map-as
@@ -1314,7 +1312,7 @@
         'ComponentDeclaration $ %{} 'CodeEntry
           :doc "|声明式组件返回的 Scene 与版本化 Motion 描述列表；纯逻辑数据，不含宿主句柄或闭包。"
           :code $ quote $ defstruct ComponentDeclaration (:scene quamolit.scene-ir/SceneDocument)
-            :motions $ quote $ List quamolit.motion/ScalarDescriptor
+            :motions $ List quamolit.motion/ScalarDescriptor
           :examples $ []
           :schema $ quote StructDef
         'ComponentRequest $ %{} 'CodeEntry (:doc "|组件一次采样的显式身份、时间、六类依赖版本以及 props/Model/输入/资源/视口快照。")
@@ -1461,42 +1459,45 @@
             if (empty? coord) (Option :some tree)
               let
                   first-pos $ .unwrap-or (first coord) nil
-                struct-match tree
-                  Component component $ if
-                    = first-pos $ :name component
-                    recur (:tree component) (slice coord 1)
-                    Option :none
-                  Shape shape $ let
-                      children $ decode-map-as (:children shape)
-                        quote $ List $ List Dynamic
-                      picked-pair $ find children $ fn (child-pair)
-                        =
-                          .unwrap-or (first child-pair) nil
-                          , first-pos
-                      picked $ picked-pair.map $ fn (pair)
-                        .unwrap-or (last pair) nil
-                    match picked
-                      (:some value)
-                        recur value $ slice coord 1
-                      (:none) (Option :none)
-                  _ other $ raise |invalid-legacy-tree
+                match tree
+                  (quamolit.types/Component component)
+                    if
+                      = first-pos $ :name component
+                      recur
+                        decode-map-as (:tree component) quamolit.types/LegacyNode
+                        slice coord 1
+                      Option :none
+                  (quamolit.types/Shape shape)
+                    let
+                        children $ decode-map-as (:children shape)
+                          List $ List Dynamic
+                        picked-pair $ find children $ fn (child-pair)
+                          =
+                            .unwrap-or (first child-pair) nil
+                            , first-pos
+                        picked $ picked-pair.map $ fn (pair)
+                          .unwrap-or (last pair) nil
+                      match picked
+                        (:some value)
+                          recur (decode-map-as value quamolit.types/LegacyNode) (slice coord 1)
+                        (:none) (Option :none)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (List Dynamic)
-            -> $ Option Dynamic
+          :schema $ quote $ Fn quamolit.types/LegacyNode (List Dynamic)
+            -> $ Option quamolit.types/LegacyNode
         'resolve-target $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn resolve-target (tree event-name coord)
             match (locate-target tree coord)
               (:some target)
                 let
-                    maybe-listener $ struct-match target
-                      Shape shape $ if
-                        nil? $ :event shape
-                        Option :none
-                        get
-                          decode-map-as (:event shape)
-                            quote $ Map Dynamic Dynamic
-                          , event-name
-                      _ other $ Option :none
+                    maybe-listener $ match target
+                      (quamolit.types/Shape shape)
+                        if
+                          nil? $ :event shape
+                          Option :none
+                          get
+                            decode-map-as (:event shape) (Map Dynamic Dynamic)
+                            , event-name
+                      (quamolit.types/Component component) (Option :none)
                   match maybe-listener
                     (:some listener) (Option :some listener)
                     (:none)
@@ -1507,7 +1508,7 @@
                           - (.len coord) 1
               (:none) (Option :none)
           :examples $ []
-          :schema $ quote $ Fn Dynamic Tag (List Dynamic)
+          :schema $ quote $ Fn quamolit.types/LegacyNode Tag (List Dynamic)
             -> $ Option Dynamic
           :tests $ [] $ %{} 'TestEntry (:name |nested-target-and-parent-listener)
             :code $ quote $ let
@@ -1558,16 +1559,15 @@
           :schema $ quote $ Ref Number
         'CanvasContextHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait CanvasContextHost
-            .scale $ quote $ Fn quamolit.core/CanvasContextHost Number Number (-> Unit)
-            .translate $ quote $ Fn quamolit.core/CanvasContextHost Number Number (-> Unit)
-            .clearRect $ quote $ Fn quamolit.core/CanvasContextHost Number Number Number Number (-> Unit)
+            .scale $ Fn quamolit.core/CanvasContextHost Number Number $ -> Unit
+            .translate $ Fn quamolit.core/CanvasContextHost Number Number $ -> Unit
+            .clearRect $ Fn quamolit.core/CanvasContextHost Number Number Number Number $ -> Unit
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
         'CanvasHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait CanvasHost (:width 'Number) (:height 'Number) (:style 'quamolit.core/CanvasStyleHost)
-            .get-context $ quote $ Fn quamolit.core/CanvasHost String
-              -> $ JsNullish quamolit.core/CanvasContextHost
+            .get-context $ Fn quamolit.core/CanvasHost String $ -> (JsNullish quamolit.core/CanvasContextHost)
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
             :writable $ #{} :height :width
@@ -1580,13 +1580,13 @@
           :schema $ quote Trait
         'EventHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait EventHost (:clientX 'Number) (:clientY 'Number) (:offsetX 'Number) (:offsetY 'Number) (:deltaY 'Number) (:metaKey 'Bool) (:ctrlKey 'Bool) (:shiftKey 'Bool)
-            .preventDefault $ quote $ Fn quamolit.core/EventHost (-> Unit)
+            .preventDefault $ Fn quamolit.core/EventHost $ -> Unit
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
         'EventTargetHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait EventTargetHost
-            .addEventListener $ quote $ Fn quamolit.core/EventTargetHost String
+            .addEventListener $ Fn quamolit.core/EventTargetHost String
               Fn quamolit.core/EventHost $ -> Dynamic
               -> Unit
           :examples $ []
@@ -1628,7 +1628,7 @@
                 h $ decode-map-as js/window.innerHeight 'Number
                 viewer-shift $ decode-map-as
                   .unwrap $ get @*stage-config :move
-                  quote $ List Number
+                  List Number
                 viewer-scale $ decode-map-as
                   .unwrap $ get @*stage-config :scale
                   , 'Number
@@ -1643,11 +1643,11 @@
               .scale ctx viewer-scale viewer-scale
               swap! *tracked-transform update :offset $ fn (point)
                 point-add
-                  decode-map-as point $ quote $ List Number
+                  decode-map-as point $ List Number
                   , viewer-shift
               swap! *tracked-transform update :transform $ fn (point)
                 point-times
-                  decode-map-as point $ quote $ List Number
+                  decode-map-as point $ List Number
                   [] viewer-scale 0
               paint ctx tree ([]) dispatch! elapsed tick?
               let
@@ -1655,11 +1655,11 @@
                 .scale ctx scale-back scale-back
               swap! *tracked-transform update :transform $ fn (point)
                 point-times
-                  decode-map-as point $ quote $ List Number
+                  decode-map-as point $ List Number
                   [] (&/ 1 viewer-scale) 0
               swap! *tracked-transform update :offset $ fn (point)
                 point-minus
-                  decode-map-as point $ quote $ List Number
+                  decode-map-as point $ List Number
                   , viewer-shift
               .translate ctx
                 &- (* -0.5 w)
@@ -1697,15 +1697,15 @@
                   x $ .unwrap $ .first areas
                   transform $ decode-map-as
                     .unwrap-or (get x :transform) nil
-                    quote $ List Number
+                    List Number
                   p $ point-minus point $ point-add
                     decode-map-as
                       .unwrap-or (get x :offset) nil
-                      quote $ List Number
+                      List Number
                     point-times
                       decode-map-as
                         .unwrap-or (get x :position) nil
-                        quote $ List Number
+                        List Number
                       , transform
                   delta $ point-divide p transform
                 if
@@ -1754,15 +1754,15 @@
         'handle-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn handle-event (coord event-name event dispatch) (; js/console.log "|handle event" coord event-name @*element-tree)
             if-let
-              maybe-listener $ resolve-target
+              maybe-listener $ let
+                  event-name $ decode-map-as event-name 'Tag
+                  coord $ decode-map-as
+                    either coord $ []
+                    List Dynamic
                 match @*element-tree
-                  (:empty) nil
-                  (:shape value) value
-                  (:component value) value
-                decode-map-as event-name 'Tag
-                decode-map-as
-                  either coord $ []
-                  quote $ List Dynamic
+                  (:empty) (Option :none)
+                  (:shape value) (resolve-target value event-name coord)
+                  (:component value) (resolve-target value event-name coord)
               if (fn? maybe-listener)
                 do (.!preventDefault event) (maybe-listener event dispatch)
                 raise |invalid-legacy-listener
@@ -1774,21 +1774,21 @@
             if
               and $ .unwrap-or
                 get
-                  decode-map-as states $ quote $ Map Tag Dynamic
+                  decode-map-as states $ Map Tag Dynamic
                   , :left-b?
                 , nil
               reset-stage-config!
               let
                   move $ decode-map-as
                     .unwrap $ get
-                      decode-map-as states $ quote $ Map Tag Dynamic
+                      decode-map-as states $ Map Tag Dynamic
                       , :left-move
-                    quote $ List Number
+                    List Number
                   scales $ decode-map-as
                     .unwrap $ get
-                      decode-map-as delta $ quote $ Map Tag Dynamic
+                      decode-map-as delta $ Map Tag Dynamic
                       , :right-move
-                    quote $ List Number
+                    List Number
                 update-stage-config!
                   map move $ fn (x)
                     * x
@@ -1859,7 +1859,7 @@
             let
                 move0 $ decode-map-as
                   .unwrap $ get @*stage-config :move
-                  quote $ List Number
+                  List Number
                 scale0 $ decode-map-as
                   .unwrap $ get @*stage-config :scale
                   , 'Number
@@ -1871,7 +1871,7 @@
                   not= ([] 0 0) move0
                   swap! *stage-config update :move $ fn (raw-prev)
                     let
-                        prev $ decode-map-as raw-prev $ quote (List Number)
+                        prev $ decode-map-as raw-prev $ List Number
                       &let
                         l $ decode-map-as (vec-length prev) 'Number
                         if (< l 4) ([] 0 0)
@@ -1912,7 +1912,7 @@
                   let
                       coord $ .unwrap-or (get target :coord) nil
                     reset! *clicked-focus $ if (nil? coord) (Option :none)
-                      Option :some $ decode-map-as coord $ quote (List Dynamic)
+                      Option :some $ decode-map-as coord $ List Dynamic
                     handle-event coord :mousedown event dispatch
               .addEventListener root |mousemove $ fn (event)
                 if
@@ -1928,7 +1928,7 @@
                     reset! *drag-moving-cache $ Option :some current
                     swap! *stage-config update :move $ fn (prev)
                       point-add
-                        decode-map-as prev $ quote $ List Number
+                        decode-map-as prev $ List Number
                         , delta
                   if-let (coord @*clicked-focus) (handle-event coord :mousemove event dispatch)
               .addEventListener root |mouseup $ fn (event)
@@ -1993,7 +1993,7 @@
                             , 0
                       swap! *stage-config update :move $ fn (raw-pos)
                         let
-                            pos $ decode-map-as raw-pos $ quote (List Number)
+                            pos $ decode-map-as raw-pos $ List Number
                           let
                               shift $ point-minus pointer pos
                             point-minus pos $ point-times shift $ [] (/ dy scale) 0
@@ -2017,7 +2017,7 @@
                   not $ and (> scale-change 0) (>= scale0 8)
                 swap! *stage-config update :move $ fn (raw-prev)
                   let
-                      prev $ decode-map-as raw-prev $ quote (List Number)
+                      prev $ decode-map-as raw-prev $ List Number
                     point-add
                       point-minus prev $ point-scale
                         []
@@ -2054,19 +2054,19 @@
                   match (&list:first op-data)
                     (:some legacy-value) legacy-value
                     (:none) nil
-                  quote $ List Dynamic
+                  List Dynamic
                 fields $ decode-map-as
                   match (&list:last op-data)
                     (:some legacy-value) legacy-value
                     (:none) nil
-                  quote $ List Dynamic
+                  List Dynamic
               update-in store
                 concat ([] :states) cursor
                 fn (maybe-dict)
                   select-keys
                     decode-map-as
                       maybe-dict.unwrap-or $ {}
-                      quote $ Map Dynamic Dynamic
+                      Map Dynamic Dynamic
                     conj fields :data
           :examples $ []
           :schema $ quote $ Fn Dynamic (List Dynamic) (-> Dynamic) (:features :js-ffi)
@@ -2093,7 +2093,7 @@
                   match (&list:first op-data)
                     (:some legacy-value) legacy-value
                     (:none) nil
-                  quote $ List Dynamic
+                  List Dynamic
                 data $ match (&list:last op-data)
                   (:some legacy-value) legacy-value
                   (:none) nil
@@ -2128,7 +2128,7 @@
           :schema $ quote StructDef
         'RecoveryTransition $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct RecoveryTransition (:state quamolit.device-recovery/RecoveryState)
-            :actions $ quote $ List quamolit.device-recovery/RecoveryAction
+            :actions $ List quamolit.device-recovery/RecoveryAction
           :examples $ []
           :schema $ quote StructDef
         'close-recovery $ %{} 'CodeEntry (:doc |)
@@ -2835,7 +2835,7 @@
       :defs $ {}
         'SwitchModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct SwitchModel (:id String) (:initial Number) (:intent quamolit.transition/TransitionIntent)
-            :events $ quote $ List quamolit.transition/TransitionEvent
+            :events $ List quamolit.transition/TransitionEvent
             :at Number
           :examples $ []
           :schema $ quote StructDef
@@ -3284,8 +3284,7 @@
       :defs $ {}
         '*drag-client-position $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *drag-client-position
-            assert-type (Option :none)
-              quote $ Option quamolit.motion/Vec2
+            assert-type (Option :none) (Option quamolit.motion/Vec2)
           :examples $ []
           :schema $ quote $ Ref (Option quamolit.motion/Vec2)
         '*drag-model $ %{} 'CodeEntry (:doc |)
@@ -3656,8 +3655,8 @@
           :schema $ quote StructDef
         'FinderModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct FinderModel (:folder Number) (:card Number)
-            :folder-motions $ quote $ List quamolit.transition/TransitionIntent
-            :card-motions $ quote $ List quamolit.transition/TransitionIntent
+            :folder-motions $ List quamolit.transition/TransitionIntent
+            :card-motions $ List quamolit.transition/TransitionIntent
             :at Number
           :examples $ []
           :schema $ quote StructDef
@@ -4858,8 +4857,7 @@
       :defs $ {}
         '*dashboard-client-position $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *dashboard-client-position
-            assert-type (Option :none)
-              quote $ Option quamolit.motion/Vec2
+            assert-type (Option :none) (Option quamolit.motion/Vec2)
           :examples $ []
           :schema $ quote $ Ref (Option quamolit.motion/Vec2)
         '*dashboard-plan $ %{} 'CodeEntry (:doc |)
@@ -4879,8 +4877,8 @@
         'DashboardMedia $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct DashboardMedia (:registry quamolit.resource-lifecycle/ResourceRegistry) (:queue quamolit.resource-load-queue/ResourceLoadQueue) (:host quamolit.font-resource/FontResourceHost) (:images quamolit.image-resource-runner/ImageResourceHost)
             :descriptor quamolit.image-resource-runner/ImageResourceDescriptor
-            :references $ quote $ List quamolit.resource-lifecycle/ResourceIdentity
-            :task $ quote $ Option quamolit.resource-load-queue/ResourceLoadTask
+            :references $ List quamolit.resource-lifecycle/ResourceIdentity
+            :task $ Option quamolit.resource-load-queue/ResourceLoadTask
             :revision Number
             :closed? Bool
             :font-spec quamolit.scene-ir/FontSpec
@@ -5788,7 +5786,7 @@
       :defs $ {}
         'SignalModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct SignalModel (:initial Number) (:intent quamolit.transition/TransitionIntent)
-            :events $ quote $ List quamolit.transition/TransitionEvent
+            :events $ List quamolit.transition/TransitionEvent
             :at Number
           :examples $ []
           :schema $ quote StructDef
@@ -6284,7 +6282,7 @@
       :defs $ {}
         'ChartSeriesModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ChartSeriesModel (:initial Number) (:intent quamolit.transition/TransitionIntent)
-            :events $ quote $ List quamolit.transition/TransitionEvent
+            :events $ List quamolit.transition/TransitionEvent
             :at Number
           :examples $ []
           :schema $ quote StructDef
@@ -6298,7 +6296,7 @@
           :schema $ quote StructDef
         'MetricFlowModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct MetricFlowModel (:initial Number) (:intent quamolit.transition/TransitionIntent)
-            :events $ quote $ List quamolit.transition/TransitionEvent
+            :events $ List quamolit.transition/TransitionEvent
             :at Number
           :examples $ []
           :schema $ quote StructDef
@@ -7266,7 +7264,7 @@
           :schema $ quote StructDef
         'Model $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct Model
-            :rows $ quote $ List quamolit.examples.todolist/Row
+            :rows $ List quamolit.examples.todolist/Row
             :presence quamolit.presence/PresenceModel
             :revision Number
             :next-id Number
@@ -7313,16 +7311,14 @@
           :schema $ quote $ Fn quamolit.examples.todolist/Session (List quamolit.examples.todolist/Event) Number (-> quamolit.examples.todolist/Session)
         'append-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn append-event (log at kind id label)
-            do
-              assert |todo-log-capacity $ < (.len log) 2000
-              do
-                assert |invalid-todo-event-time $ and (motion/finite-number? at) (>= at 0)
-                assert |unknown-todo-event $ includes?
-                  [] |add |toggle |edit |remove |restore |front |reverse |clear
-                  , kind
-                assert |invalid-todo-label $ or
-                  not $ includes? ([] |add |edit) kind
-                  valid-label? label
+            assert |todo-log-capacity $ < (.len log) 2000
+            assert |invalid-todo-event-time $ and (motion/finite-number? at) (>= at 0)
+            assert |unknown-todo-event $ includes?
+              [] |add |toggle |edit |remove |restore |front |reverse |clear
+              , kind
+            assert |invalid-todo-label $ or
+              not $ includes? ([] |add |edit) kind
+              valid-label? label
             assert |nonmonotonic-todo-log $ or (empty? log)
               >= at $ :at $ &list:nth log
                 dec $ .len log
@@ -8181,7 +8177,7 @@
         'FontLoadCompletion $ %{} 'CodeEntry
           :doc "|只有当前任务与loading资源都接受结果时loaded为some；调用方消费ResourceAction后安装并提升Scene资源修订。未保存长期宿主缓存。"
           :code $ quote $ defstruct FontLoadCompletion (:queue quamolit.resource-load-queue/ResourceLoadQueue) (:transition quamolit.resource-lifecycle/ResourceTransition)
-            :loaded $ quote $ Option quamolit.font-resource/LoadedFont
+            :loaded $ Option quamolit.font-resource/LoadedFont
           :examples $ []
           :schema $ quote StructDef
         'FontLoadOutcome $ %{} 'CodeEntry (:doc |)
@@ -8201,7 +8197,7 @@
         'FontResourceHost $ %{} 'CodeEntry
           :doc "|仅保存接纳的宿主引用；accepted/released统计所有权转移，不是FontFace构造或物理内存计数。"
           :code $ quote $ defstruct FontResourceHost
-            :handles $ quote $ List quamolit.font-resource/FontResourceHandle
+            :handles $ List quamolit.font-resource/FontResourceHandle
             :accepted Number
             :released Number
           :examples $ []
@@ -8209,8 +8205,8 @@
         'FontSetHost $ %{} 'CodeEntry
           :doc "|document.fonts原生集合薄桥；不是Quamolit资源表或排版器，js-ffi#158交付后替换。"
           :code $ quote $ deftrait FontSetHost
-            .add! $ quote $ Fn quamolit.font-resource/FontSetHost quamolit.font-resource/FontFaceHost (-> quamolit.font-resource/FontSetHost) (:features :js-ffi)
-            .delete! $ quote $ Fn quamolit.font-resource/FontSetHost quamolit.font-resource/FontFaceHost (-> Bool) (:features :js-ffi)
+            .add! $ Fn quamolit.font-resource/FontSetHost quamolit.font-resource/FontFaceHost (-> quamolit.font-resource/FontSetHost) (:features :js-ffi)
+            .delete! $ Fn quamolit.font-resource/FontSetHost quamolit.font-resource/FontFaceHost (-> Bool) (:features :js-ffi)
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
             :names $ {} (:add! |add) (:delete! |delete)
@@ -8555,8 +8551,7 @@
         'step-frame $ %{} 'CodeEntry
           :doc "|Calculate a pure frame sample from two absolute times in seconds; reject rewinds."
           :code $ quote $ defn step-frame (previous current)
-            %{} FrameSample (:time current)
-              :elapsed $ elapsed-between previous current
+            FrameSample :time current :elapsed $ elapsed-between previous current
           :examples $ []
           :schema $ quote $ Fn Number Number (-> quamolit.frame-clock/FrameSample)
           :tests $ []
@@ -8591,13 +8586,10 @@
                   , time
               if
                 = 0 $ :elapsed sample
-                %{} EvaluatedFrame (:sample sample)
-                  :model $ :model previous
-                  :scene $ :scene previous
+                EvaluatedFrame :sample sample :model (:model previous) :scene $ :scene previous
                 let
                     model $ update-model (:model previous) sample
-                  %{} EvaluatedFrame (:sample sample) (:model model)
-                    :scene $ view model
+                  EvaluatedFrame :sample sample :model model :scene $ view model
           :examples $ []
           :schema $ quote $ Fn (quamolit.frame-eval/EvaluatedFrame M S) Number
             Fn M quamolit.frame-clock/FrameSample $ -> M
@@ -8674,10 +8666,7 @@
               :tags $ #{} :frame-clock :unit
         'initial-frame $ %{} 'CodeEntry (:doc "|从给定时间和模型建立起点，调用纯视图一次；可用于显式重置或重放。")
           :code $ quote $ defn initial-frame (time model view)
-            %{} EvaluatedFrame
-              :sample $ step-frame time time
-              :model model
-              :scene $ view model
+            EvaluatedFrame :sample (step-frame time time) :model model :scene $ view model
           :examples $ []
           :schema $ quote $ Fn Number M
             Fn M $ -> S
@@ -8763,14 +8752,14 @@
       :defs $ {}
         'BatchPlan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct BatchPlan (:source quamolit.retained-component/ComponentPlan) (:prepared quamolit.gpu-component/PreparedFrame) (:delta quamolit.gpu-component/RectUpdate)
-            :indices $ quote $ List Number
+            :indices $ List Number
             :full-builds Number
             :candidates Number
           :examples $ []
           :schema $ quote StructDef
         'FastResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct FastResult (:prepared quamolit.gpu-component/PreparedFrame)
-            :writes $ quote $ List quamolit.gpu-component/RectWrite
+            :writes $ List quamolit.gpu-component/RectWrite
             :candidates Number
           :examples $ []
           :schema $ quote StructDef
@@ -8780,7 +8769,7 @@
           :schema $ quote EnumDef
         'RectFrame $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct RectFrame
-            :records $ quote $ List quamolit.gpu-component/RectRecord
+            :records $ List quamolit.gpu-component/RectRecord
           :examples $ []
           :schema $ quote StructDef
         'RectRecord $ %{} 'CodeEntry (:doc |)
@@ -8794,7 +8783,7 @@
           :schema $ quote Trait
         'RectUpdate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct RectUpdate (:frame quamolit.gpu-component/RectFrame)
-            :writes $ quote $ List quamolit.gpu-component/RectWrite
+            :writes $ List quamolit.gpu-component/RectWrite
             :uploaded-bytes Number
             :instances Number
           :examples $ []
@@ -9226,15 +9215,15 @@
       :defs $ {}
         'InstanceParametersResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum InstanceParametersResult
-            :ready $ quote $ List quamolit.gpu-scalar-program/ScalarParameter
+            :ready $ List quamolit.gpu-scalar-program/ScalarParameter
             :fallback String
           :examples $ []
           :schema $ quote EnumDef
         'InstanceProgram $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct InstanceProgram (:source quamolit.scene-ir/InstanceNode)
-            :motions $ quote $ List quamolit.motion/Vec2Descriptor
+            :motions $ List quamolit.motion/Vec2Descriptor
             :frame quamolit.gpu-component/RectFrame
-            :parameters $ quote $ List quamolit.gpu-scalar-program/ScalarParameter
+            :parameters $ List quamolit.gpu-scalar-program/ScalarParameter
             :precision-base Number
             :precision-slope Number
           :examples $ []
@@ -9257,7 +9246,7 @@
           :schema $ quote StructDef
         'ScalarProgram $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ScalarProgram (:source quamolit.retained-component/ComponentPlan) (:frame quamolit.gpu-component/RectFrame)
-            :parameters $ quote $ List quamolit.gpu-scalar-program/ScalarParameter
+            :parameters $ List quamolit.gpu-scalar-program/ScalarParameter
             :precision-base Number
             :precision-slope Number
           :examples $ []
@@ -9315,32 +9304,31 @@
             if (empty? slots) (finish-program plan frame parameters)
               let
                   slot $ first-slot slots
-                do
-                  assert |gpu-scalar-binding-index $ and
-                    motion/valid-motion-version? $ :index slot
-                    < (:index slot)
-                      .len $ :records frame
-                  let
-                      context $ str |;key=
-                        :key $ &list:nth
-                          :nodes $ :scene plan
-                          :index slot
-                        , |;target=
-                          &enum:nth (:target slot) 0
-                          , |;motion= $ &enum:nth
-                            :motion $ :descriptor slot
-                            , 0
-                    match (prepare-slot slot)
-                      (:fallback reason)
-                        ProgramResult :fallback $ str reason context
-                      (:ready parameter)
-                        if
-                          any? parameters $ fn (old)
-                            and
-                              = (:index old) (:index parameter)
-                              = (:axis old) (:axis parameter)
-                          ProgramResult :fallback $ str |duplicate-gpu-scalar-target context
-                          recur (rest slots) plan frame $ append parameters parameter
+                assert |gpu-scalar-binding-index $ and
+                  motion/valid-motion-version? $ :index slot
+                  < (:index slot)
+                    .len $ :records frame
+                let
+                    context $ str |;key=
+                      :key $ &list:nth
+                        :nodes $ :scene plan
+                        :index slot
+                      , |;target=
+                        &enum:nth (:target slot) 0
+                        , |;motion= $ &enum:nth
+                          :motion $ :descriptor slot
+                          , 0
+                  match (prepare-slot slot)
+                    (:fallback reason)
+                      ProgramResult :fallback $ str reason context
+                    (:ready parameter)
+                      if
+                        any? parameters $ fn (old)
+                          and
+                            = (:index old) (:index parameter)
+                            = (:axis old) (:axis parameter)
+                        ProgramResult :fallback $ str |duplicate-gpu-scalar-target context
+                        recur (rest slots) plan frame $ append parameters parameter
           :examples $ []
           :schema $ quote $ Fn (List quamolit.retained-component/BoundScalar) quamolit.retained-component/ComponentPlan quamolit.gpu-component/RectFrame (List quamolit.gpu-scalar-program/ScalarParameter) (-> quamolit.gpu-scalar-program/ProgramResult)
         'collect-transforms $ %{} 'CodeEntry (:doc |)
@@ -10235,7 +10223,7 @@
           :schema $ quote StructDef
         'ImageResourceHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ImageResourceHost
-            :handles $ quote $ List quamolit.image-resource-runner/ImageResourceHandle
+            :handles $ List quamolit.image-resource-runner/ImageResourceHandle
             :created Number
             :released Number
             :decoded-bytes Number
@@ -10626,12 +10614,12 @@
         'InstanceTableHost $ %{} 'CodeEntry
           :doc "|Quamolit 实例源表专属宿主类型；由 create-table! 创建，公共参数不再使用裸 JsObject。"
           :code $ quote $ deftrait InstanceTableHost
-            .register $ quote $ Fn quamolit.instance-resource/InstanceTableHost String Number Number js-ffi.typed-arrays/Float32ArrayHost (-> js-ffi.typed-arrays/Float32ArrayHost)
-            .register-patch $ quote $ Fn quamolit.instance-resource/InstanceTableHost String Number Number Number Number js-ffi.typed-arrays/Float32ArrayHost (-> Number)
-            .resolve $ quote $ Fn quamolit.instance-resource/InstanceTableHost String Number Number (-> js-ffi.typed-arrays/Float32ArrayHost)
-            .patch-info $ quote $ Fn quamolit.instance-resource/InstanceTableHost String Number Number (-> JsObject)
-            .release $ quote $ Fn quamolit.instance-resource/InstanceTableHost String Number Number (-> Bool)
-            .live-count $ quote $ Fn quamolit.instance-resource/InstanceTableHost (-> Number)
+            .register $ Fn quamolit.instance-resource/InstanceTableHost String Number Number js-ffi.typed-arrays/Float32ArrayHost $ -> js-ffi.typed-arrays/Float32ArrayHost
+            .register-patch $ Fn quamolit.instance-resource/InstanceTableHost String Number Number Number Number js-ffi.typed-arrays/Float32ArrayHost $ -> Number
+            .resolve $ Fn quamolit.instance-resource/InstanceTableHost String Number Number $ -> js-ffi.typed-arrays/Float32ArrayHost
+            .patch-info $ Fn quamolit.instance-resource/InstanceTableHost String Number Number $ -> JsObject
+            .release $ Fn quamolit.instance-resource/InstanceTableHost String Number Number $ -> Bool
+            .live-count $ Fn quamolit.instance-resource/InstanceTableHost $ -> Number
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
@@ -10716,7 +10704,7 @@
           :schema $ quote EnumDef
         'LayerFrame $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct LayerFrame (:time Number) (:viewport quamolit.layers/LayerViewport)
-            :layers $ quote $ List quamolit.layers/RenderLayer
+            :layers $ List quamolit.layers/RenderLayer
           :examples $ []
           :schema $ quote StructDef
         'LayerHit $ %{} 'CodeEntry (:doc |)
@@ -10861,7 +10849,7 @@
                     , 0
                   (> x 1) 1
                   true x
-              true $ do $ js/console.warn "|invalid value to bound:" x
+              true $ js/console.warn "|invalid value to bound:" x
           :examples $ []
           :schema $ quote $ Fn Dynamic (-> Dynamic) (:features :js-ffi)
         'bound-opacity $ %{} 'CodeEntry (:doc |)
@@ -11016,8 +11004,7 @@
         'CpuScalarRegistry $ %{} 'CodeEntry
           :doc "|Runtime-only immutable map of CPU scalar callbacks; excluded from Motion IR serialization and GPU lowering."
           :code $ quote $ defstruct CpuScalarRegistry
-            :samplers $ quote $ Map String
-              Fn Number $ -> Number
+            :samplers $ Map String $ Fn Number (-> Number)
           :examples $ []
           :schema $ quote StructDef
         'Easing $ %{} 'CodeEntry (:doc "|Scalar easing for interpolation.")
@@ -11052,7 +11039,7 @@
         'ScalarTrack $ %{} 'CodeEntry
           :doc "|Keyframes and loop mode; sampling validates non-empty ordered frames."
           :code $ quote $ defstruct ScalarTrack
-            :frames $ quote $ List quamolit.motion/ScalarKeyframe
+            :frames $ List quamolit.motion/ScalarKeyframe
             :loop quamolit.motion/TrackLoop
           :examples $ []
           :schema $ quote StructDef
@@ -11903,8 +11890,7 @@
           :schema $ quote StructDef
         'CpuFunctionRegistry $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct CpuFunctionRegistry ([] I O)
-            :samplers $ quote $ Map String
-              Fn I Number $ -> O
+            :samplers $ Map String $ Fn I Number (-> O)
           :examples $ []
           :schema $ quote StructDef
         'CpuFunctionRequest $ %{} 'CodeEntry (:doc |)
@@ -12079,18 +12065,17 @@
           :examples $ []
           :schema $ quote $ Fn (-> Number)
         'lower-composition $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn lower-composition (composition)
-            do (motion/sample-scalar-composition composition 0)
-              let
-                  left $ lower-scalar $ :left composition
-                  right $ lower-scalar $ :right composition
-                match left
-                  (:unsupported reason) (GpuCompositionLowering :unsupported reason)
-                  (:supported left-plan)
-                    match right
-                      (:unsupported reason) (GpuCompositionLowering :unsupported reason)
-                      (:supported right-plan)
-                        GpuCompositionLowering :supported $ GpuCompositionPlan :id (:id composition) :version (:version composition) :left left-plan :right right-plan :operation $ :operation composition
+          :code $ quote $ defn lower-composition (composition) (motion/sample-scalar-composition composition 0)
+            let
+                left $ lower-scalar $ :left composition
+                right $ lower-scalar $ :right composition
+              match left
+                (:unsupported reason) (GpuCompositionLowering :unsupported reason)
+                (:supported left-plan)
+                  match right
+                    (:unsupported reason) (GpuCompositionLowering :unsupported reason)
+                    (:supported right-plan)
+                      GpuCompositionLowering :supported $ GpuCompositionPlan :id (:id composition) :version (:version composition) :left left-plan :right right-plan :operation $ :operation composition
           :examples $ []
           :schema $ quote $ Fn quamolit.motion/ScalarComposition (-> quamolit.motion-gpu/GpuCompositionLowering)
           :tests $ []
@@ -12124,15 +12109,14 @@
               :tags $ #{} :motion-gpu :unit
         'lower-cpu-scalar $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn lower-cpu-scalar (descriptor)
-            do
-              assert |invalid-cpu-motion-id $ not $ empty? (:id descriptor)
-              assert |invalid-cpu-motion-version $ motion/valid-motion-version? $ :version descriptor
-              assert |empty-cpu-callback-id $ not $ empty? (:callback-id descriptor)
-              match (:gpu-status descriptor)
-                (:unsupported reason)
-                  do
-                    assert |missing-cpu-gpu-diagnostic $ not $ empty? reason
-                    GpuScalarLowering :unsupported reason
+            assert |invalid-cpu-motion-id $ not $ empty? (:id descriptor)
+            assert |invalid-cpu-motion-version $ motion/valid-motion-version? $ :version descriptor
+            assert |empty-cpu-callback-id $ not $ empty? (:callback-id descriptor)
+            match (:gpu-status descriptor)
+              (:unsupported reason)
+                do
+                  assert |missing-cpu-gpu-diagnostic $ not $ empty? reason
+                  GpuScalarLowering :unsupported reason
           :examples $ []
           :schema $ quote $ Fn quamolit.motion/CpuScalarDescriptor (-> quamolit.motion-gpu/GpuScalarLowering)
           :tests $ []
@@ -12155,26 +12139,25 @@
                   lower-cpu-scalar $ make |custom 2 |callback
               :tags $ #{} :motion-gpu :unit
         'lower-scalar $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn lower-scalar (descriptor)
-            do (motion/sample-scalar descriptor 0)
-              match (:motion descriptor)
-                (:constant amount)
-                  GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :constant amount
-                (:time scale offset)
-                  GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :time scale offset
-                (:tween tween)
-                  do
-                    motion/sample-tween tween $ :start tween
-                    GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :tween tween
-                (:keyframes track)
-                  if
-                    <=
-                      .len $ :frames track
-                      gpu-keyframe-capacity
-                    GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :keyframes track
-                    GpuScalarLowering :unsupported |keyframe-capacity-exceeded
-                (:compose composition) (GpuScalarLowering :unsupported |scalar-composition-kernel-not-supported)
-                (:at value clock) (GpuScalarLowering :unsupported |scalar-time-remap-kernel-not-supported)
+          :code $ quote $ defn lower-scalar (descriptor) (motion/sample-scalar descriptor 0)
+            match (:motion descriptor)
+              (:constant amount)
+                GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :constant amount
+              (:time scale offset)
+                GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :time scale offset
+              (:tween tween)
+                do
+                  motion/sample-tween tween $ :start tween
+                  GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :tween tween
+              (:keyframes track)
+                if
+                  <=
+                    .len $ :frames track
+                    gpu-keyframe-capacity
+                  GpuScalarLowering :supported $ GpuScalarPlan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuScalarKernel :keyframes track
+                  GpuScalarLowering :unsupported |keyframe-capacity-exceeded
+              (:compose composition) (GpuScalarLowering :unsupported |scalar-composition-kernel-not-supported)
+              (:at value clock) (GpuScalarLowering :unsupported |scalar-time-remap-kernel-not-supported)
           :examples $ []
           :schema $ quote $ Fn quamolit.motion/ScalarDescriptor (-> quamolit.motion-gpu/GpuScalarLowering)
           :tests $ []
@@ -12248,15 +12231,14 @@
                 is= (GpuScalarLowering :unsupported |keyframe-capacity-exceeded) (lower-scalar descriptor17)
               :tags $ #{} :motion-gpu :unit
         'lower-vec2 $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn lower-vec2 (descriptor)
-            do (motion/sample-vec2 descriptor 0)
-              match (:motion descriptor)
-                (:constant value)
-                  GpuVec2Lowering :supported $ GpuVec2Plan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuVec2Kernel :constant value
-                (:tween tween)
-                  do
-                    motion/sample-vec2 descriptor $ :start tween
-                    GpuVec2Lowering :supported $ GpuVec2Plan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuVec2Kernel :tween tween
+          :code $ quote $ defn lower-vec2 (descriptor) (motion/sample-vec2 descriptor 0)
+            match (:motion descriptor)
+              (:constant value)
+                GpuVec2Lowering :supported $ GpuVec2Plan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuVec2Kernel :constant value
+              (:tween tween)
+                do
+                  motion/sample-vec2 descriptor $ :start tween
+                  GpuVec2Lowering :supported $ GpuVec2Plan :id (:id descriptor) :version (:version descriptor) :kernel $ GpuVec2Kernel :tween tween
           :examples $ []
           :schema $ quote $ Fn quamolit.motion/Vec2Descriptor (-> quamolit.motion-gpu/GpuVec2Lowering)
           :tests $ []
@@ -12419,8 +12401,8 @@
       :defs $ {}
         'InstanceResourcePlan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct InstanceResourcePlan
-            :references $ quote $ List quamolit.presence/InstanceResourceRef
-            :release $ quote $ List quamolit.scene-ir/InstanceSource
+            :references $ List quamolit.presence/InstanceResourceRef
+            :release $ List quamolit.scene-ir/InstanceSource
             :live-references Number
             :live-sources Number
           :examples $ []
@@ -12435,7 +12417,7 @@
           :schema $ quote StructDef
         'PresenceModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct PresenceModel
-            :items $ quote $ List quamolit.presence/PresenceItem
+            :items $ List quamolit.presence/PresenceItem
           :examples $ []
           :schema $ quote StructDef
         'PresencePhase $ %{} 'CodeEntry (:doc "|Scene 逻辑实例的进入、稳定展示与退出阶段。")
@@ -12448,7 +12430,7 @@
           :schema $ quote StructDef
         'PresenceUpdate $ %{} 'CodeEntry (:doc "|返回新纯模型与恰好一次的逻辑释放通知，不持有宿主句柄。")
           :code $ quote $ defstruct PresenceUpdate (:model quamolit.presence/PresenceModel)
-            :released $ quote $ List quamolit.scene-diff/SceneEntry
+            :released $ List quamolit.scene-diff/SceneEntry
           :examples $ []
           :schema $ quote StructDef
         'alpha-active? $ %{} 'CodeEntry (:doc |)
@@ -13215,7 +13197,7 @@
         'PresenceDeviceTransition $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct PresenceDeviceTransition
             :state quamolit.presence-device-coordinator/PresenceDeviceState
-            :actions $ quote $ List quamolit.presence-device-coordinator/PresenceDeviceAction
+            :actions $ List quamolit.presence-device-coordinator/PresenceDeviceAction
           :examples $ []
           :schema $ quote StructDef
         'accepted-create-ready? $ %{} 'CodeEntry (:doc |)
@@ -13380,7 +13362,7 @@
         'PresenceResourceTransition $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct PresenceResourceTransition
             :state quamolit.presence-resource-registry/PresenceResources
-            :actions $ quote $ List quamolit.resource-lifecycle/RegistryAction
+            :actions $ List quamolit.resource-lifecycle/RegistryAction
           :examples $ []
           :schema $ quote StructDef
         'PresenceResources $ %{} 'CodeEntry (:doc |)
@@ -13502,7 +13484,7 @@
           :schema $ quote StructDef
         'PresenceGpuHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct PresenceGpuHost
-            :handles $ quote $ List quamolit.presence-webgpu-resources/PresenceGpuHandle
+            :handles $ List quamolit.presence-webgpu-resources/PresenceGpuHandle
             :created Number
             :released Number
             :live-bytes Number
@@ -13554,7 +13536,7 @@
           :schema $ quote StructDef
         'ReleaseResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ReleaseResult
-            :handles $ quote $ List quamolit.presence-webgpu-resources/PresenceGpuHandle
+            :handles $ List quamolit.presence-webgpu-resources/PresenceGpuHandle
             :released? Bool
             :bytes Number
           :examples $ []
@@ -14026,7 +14008,7 @@
         'input $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp input (style)
             let
-                style $ decode-map-as style $ quote (Map Dynamic Dynamic)
+                style $ decode-map-as style $ Map Dynamic Dynamic
                 w $ .unwrap-or (get style :w) nil
                 h $ .unwrap-or (get style :h) nil
                 style-bg $ {}
@@ -14086,7 +14068,7 @@
                     , .unwrap-or $ {} $ :text
                         get props :text
                         , .unwrap-or |
-                  quote $ Map Dynamic Dynamic
+                  Map Dynamic Dynamic
                 text $ decode-map-as
                     get state :text
                     , .unwrap-or |
@@ -14250,7 +14232,7 @@
         'paint-line $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-line (ctx style)
             let
-                style $ decode-map-as style $ quote (Map Dynamic Dynamic)
+                style $ decode-map-as style $ Map Dynamic Dynamic
                 x0 $ .unwrap-or (&map:get style :x0) 0
                 y0 $ .unwrap-or (&map:get style :y0) 0
                 x1 $ .unwrap-or (&map:get style :x1) 40
@@ -14294,8 +14276,7 @@
           :code $ quote $ defn paint-one (ctx directive coord)
             let
                 op $ :name directive
-                style $ decode-map-as (:style directive)
-                  quote $ Map Tag Dynamic
+                style $ decode-map-as (:style directive) (Map Tag Dynamic)
                 event $ :event directive
               ; js/console.log :paint-one op style
               cond
@@ -14313,7 +14294,7 @@
                 (identical? op :arc) (paint-arc ctx style coord event)
                 (identical? op :image) (paint-image ctx style coord)
                 (identical? op :group) nil
-                true $ do $ js/console.log "|painting not implemented" directive
+                true $ js/console.log "|painting not implemented" directive
           :examples $ []
           :schema $ quote $ Fn Dynamic quamolit.types/Shape (List Dynamic) (-> Dynamic) (:features :js-ffi)
         'paint-path $ %{} 'CodeEntry (:doc |)
@@ -14323,7 +14304,7 @@
                   match (&map:get style :points)
                     (:some legacy-value) legacy-value
                     (:none) nil
-                  quote $ List $ List Number
+                  List $ List Number
                 first-point $ .unwrap $ &list:first points
               .!beginPath ctx
               .!moveTo ctx
@@ -14378,7 +14359,7 @@
         'paint-rect $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-rect (ctx style coord event)
             let
-                style $ decode-map-as style $ quote (Map Dynamic Dynamic)
+                style $ decode-map-as style $ Map Dynamic Dynamic
                 w $ legacy-number
                   match (&map:get style :w)
                     (:some legacy-value) legacy-value
@@ -14460,7 +14441,7 @@
               .!rotate ctx angle
               swap! *tracked-transform update :transform $ fn (point)
                 point-times
-                  decode-map-as point $ quote $ List Number
+                  decode-map-as point $ List Number
                   []
                     decode-map-as (js/Math.cos angle) 'Number
                     decode-map-as (js/Math.sin angle) 'Number
@@ -14481,7 +14462,7 @@
               .!scale ctx ratio ratio
               swap! *tracked-transform update :transform $ fn (point)
                 point-times
-                  decode-map-as point $ quote $ List Number
+                  decode-map-as point $ List Number
                   [] ratio 0
           :examples $ []
           :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
@@ -14548,12 +14529,12 @@
                   , 'Number
                 transform $ decode-map-as
                   .unwrap $ get @*tracked-transform :transform
-                  quote $ List Number
+                  List Number
                 delta $ point-times transform $ [] x y
               .!translate ctx x y
               swap! *tracked-transform update :offset $ fn (point)
                 point-add
-                  decode-map-as point $ quote $ List Number
+                  decode-map-as point $ List Number
                   , delta
           :examples $ []
           :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
@@ -14615,9 +14596,8 @@
             :tags $ #{} :frame-clock :unit
         'paint-tree-with $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-tree-with (ctx tree coord dispatch! elapsed tick? paint-leaf)
-            do
-              when tick? $ tick-tree tree dispatch! elapsed
-              paint-tree-only-with ctx tree coord paint-leaf
+            when tick? $ tick-tree tree dispatch! elapsed
+            paint-tree-only-with ctx tree coord paint-leaf
           :examples $ []
           :schema $ quote $ Fn C Dynamic (List Dynamic) Dynamic Number Bool
             Fn C quamolit.types/Shape (List Dynamic) (-> R) (:features :js-ffi)
@@ -14658,10 +14638,10 @@
       :defs $ {}
         'ReplayArchive $ %{} 'CodeEntry (:doc "|完整 tick 输入日志与有界最近检查点的不可变 CPU 回放档案；原点永久保留。")
           :code $ quote $ defstruct ReplayArchive ([] S I)
-            :origin $ quote $ quamolit.fixed-step/SimulationState S
-            :latest $ quote $ quamolit.fixed-step/SimulationState S
-            :inputs $ quote $ Map Number I
-            :checkpoints $ quote $ List (quamolit.fixed-step/SimulationState S)
+            :origin $ quamolit.fixed-step/SimulationState S
+            :latest $ quamolit.fixed-step/SimulationState S
+            :inputs $ Map Number I
+            :checkpoints $ List $ quamolit.fixed-step/SimulationState S
             :stride Number
             :max-checkpoints Number
           :examples $ []
@@ -14671,7 +14651,7 @@
             if (empty? checkpoints) best $ let
                 candidate $ assert-type
                   -> (first checkpoints) .unwrap
-                  quote $ quamolit.fixed-step/SimulationState S
+                  quamolit.fixed-step/SimulationState S
                 next-best $ if
                   <= (:tick candidate) target
                   , candidate best
@@ -14794,9 +14774,9 @@
       :defs $ {}
         'EvictionResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct EvictionResult
-            :entries $ quote $ List quamolit.resource-lifecycle/RegistryEntry
+            :entries $ List quamolit.resource-lifecycle/RegistryEntry
             :freed-bytes Number
-            :actions $ quote $ List quamolit.resource-lifecycle/RegistryAction
+            :actions $ List quamolit.resource-lifecycle/RegistryAction
           :examples $ []
           :schema $ quote StructDef
         'RegistryAction $ %{} 'CodeEntry (:doc |)
@@ -14813,15 +14793,15 @@
           :schema $ quote StructDef
         'RegistryRebuild $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct RegistryRebuild
-            :entries $ quote $ List quamolit.resource-lifecycle/RegistryEntry
+            :entries $ List quamolit.resource-lifecycle/RegistryEntry
             :resident-bytes Number
             :loads Number
-            :actions $ quote $ List quamolit.resource-lifecycle/RegistryAction
+            :actions $ List quamolit.resource-lifecycle/RegistryAction
           :examples $ []
           :schema $ quote StructDef
         'RegistryTransition $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct RegistryTransition (:registry quamolit.resource-lifecycle/ResourceRegistry)
-            :actions $ quote $ List quamolit.resource-lifecycle/RegistryAction
+            :actions $ List quamolit.resource-lifecycle/RegistryAction
           :examples $ []
           :schema $ quote StructDef
         'ResourceAction $ %{} 'CodeEntry (:doc |)
@@ -14842,7 +14822,7 @@
           :schema $ quote EnumDef
         'ResourceRegistry $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ResourceRegistry (:capacity-bytes Number) (:resident-bytes Number) (:clock Number) (:loads Number) (:evictions Number)
-            :entries $ quote $ List quamolit.resource-lifecycle/RegistryEntry
+            :entries $ List quamolit.resource-lifecycle/RegistryEntry
           :examples $ []
           :schema $ quote StructDef
         'ResourceState $ %{} 'CodeEntry (:doc |)
@@ -14851,7 +14831,7 @@
           :schema $ quote StructDef
         'ResourceTransition $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ResourceTransition (:state quamolit.resource-lifecycle/ResourceState)
-            :actions $ quote $ List quamolit.resource-lifecycle/ResourceAction
+            :actions $ List quamolit.resource-lifecycle/ResourceAction
           :examples $ []
           :schema $ quote StructDef
         'acquire-registry $ %{} 'CodeEntry (:doc |)
@@ -15235,8 +15215,8 @@
           :schema $ quote EnumDef
         'ResourceLoadQueue $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ResourceLoadQueue (:concurrency-limit Number) (:pending-limit Number) (:next-token Number) (:next-sequence Number)
-            :pending $ quote $ List quamolit.resource-load-queue/ResourceLoadTask
-            :running $ quote $ List quamolit.resource-load-queue/ResourceLoadSlot
+            :pending $ List quamolit.resource-load-queue/ResourceLoadTask
+            :running $ List quamolit.resource-load-queue/ResourceLoadSlot
           :examples $ []
           :schema $ quote StructDef
         'ResourceLoadSlot $ %{} 'CodeEntry (:doc |)
@@ -15245,7 +15225,7 @@
           :schema $ quote StructDef
         'ResourceLoadTake $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct ResourceLoadTake (:queue quamolit.resource-load-queue/ResourceLoadQueue)
-            :task $ quote $ Option quamolit.resource-load-queue/ResourceLoadTask
+            :task $ Option quamolit.resource-load-queue/ResourceLoadTask
           :examples $ []
           :schema $ quote StructDef
         'ResourceLoadTask $ %{} 'CodeEntry (:doc |)
@@ -15457,13 +15437,13 @@
         'ComponentPlan $ %{} 'CodeEntry
           :doc "|不可变组件保留计划；静态节点共享，更新返回新计划。计数为逻辑操作次数，不代表内存字节或 GPU 性能。"
           :code $ quote $ defstruct ComponentPlan (:id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:scene quamolit.scene-ir/SceneDocument)
-            :slots $ quote $ List quamolit.retained-component/BoundScalar
+            :slots $ List quamolit.retained-component/BoundScalar
             :declarations Number
             :plan-builds Number
             :binding-samples Number
             :node-writes Number
             :skipped-updates Number
-            :transforms $ quote $ List quamolit.scene-ir/Matrix2D
+            :transforms $ List quamolit.scene-ir/Matrix2D
             :transform-sampler quamolit.retained-component/TransformSampler
             :transform-samples Number
           :examples $ []
@@ -15480,9 +15460,8 @@
         'TransformSampler $ %{} 'CodeEntry
           :doc "|组件变换提供者：none、任意CPU函数或按Scene节点顺序一一对应的标准TransformMotion列表。标准数据不含闭包；数量严格匹配，当前时间采样在Calcit，GPU标准变换kernel尚未接通。"
           :code $ quote $ defenum TransformSampler (:none)
-            :cpu $ quote $ Fn Number
-              -> $ List quamolit.scene-ir/Matrix2D
-            :motions $ quote $ List quamolit.retained-component/TransformMotion
+            :cpu $ Fn Number $ -> (List quamolit.scene-ir/Matrix2D)
+            :motions $ List quamolit.retained-component/TransformMotion
           :examples $ []
           :schema $ quote EnumDef
         'TrsMotion $ %{} 'CodeEntry
@@ -15739,10 +15718,9 @@
         'PathPlan $ %{} 'CodeEntry
           :doc "|静态折线 Scene 与自定义 CPU 变换采样器的不可变计划。Scene 不保存闭包；运行计划可以。更换任何输入需重建。"
           :code $ quote $ defstruct PathPlan ([] P) (:scene quamolit.scene-ir/SceneDocument) (:props P)
-            :sample $ quote $ Fn P Number
-              -> $ List quamolit.scene-ir/Matrix2D
+            :sample $ Fn P Number $ -> (List quamolit.scene-ir/Matrix2D)
             :time Number
-            :transforms $ quote $ List quamolit.scene-ir/Matrix2D
+            :transforms $ List quamolit.scene-ir/Matrix2D
             :samples Number
             :skipped Number
           :examples $ []
@@ -16081,15 +16059,14 @@
             -> $ List quamolit.scene-ir/SceneNode
         'resolve-scene $ %{} 'CodeEntry
           :doc "|按绝对时间解析 Scene 标量绑定并返回合法的新 SceneDocument；这是全量 CPU 正确性参考，不是保留式执行计划。"
-          :code $ quote $ defn resolve-scene (document descriptors time)
-            do (scene-ir/validate-scene document) (validate-descriptors descriptors)
-              if
-                not $ motion/finite-number? time
-                raise |invalid-scene-sample-time
-                let
-                    resolved $ scene-ir/SceneDocument :nodes $ resolve-nodes-prefix (:nodes document) (empty-nodes) descriptors time
-                  scene-ir/validate-scene resolved
-                  , resolved
+          :code $ quote $ defn resolve-scene (document descriptors time) (scene-ir/validate-scene document) (validate-descriptors descriptors)
+            if
+              not $ motion/finite-number? time
+              raise |invalid-scene-sample-time
+              let
+                  resolved $ scene-ir/SceneDocument :nodes $ resolve-nodes-prefix (:nodes document) (empty-nodes) descriptors time
+                scene-ir/validate-scene resolved
+                , resolved
           :examples $ []
           :schema $ quote $ Fn quamolit.scene-ir/SceneDocument (List quamolit.motion/ScalarDescriptor) Number (-> quamolit.scene-ir/SceneDocument)
           :tests $ []
@@ -16210,17 +16187,11 @@
         'GeometrySignature $ %{} 'CodeEntry
           :doc "|Closed geometry-only projection of supported Scene content."
           :code $ quote $ defenum GeometrySignature (:group quamolit.scene-ir/Matrix2D quamolit.scene-ir/ClipSpec) (:rect Number Number Number Number) (:instances Number Number)
-            :polyline
-              quote $ List quamolit.motion/Vec2
-              , Number
+            :polyline (List quamolit.motion/Vec2) Number
             :text Number Number Number String
             :image quamolit.scene-ir/Matrix2D Number Number Number Number Number Number Number Number
-            :polygon
-              quote $ List quamolit.motion/Vec2
-              , Number
-            :cubic-path quamolit.motion/Vec2
-              quote $ List quamolit.scene-ir/CubicSegment
-              , Number
+            :polygon (List quamolit.motion/Vec2) Number
+            :cubic-path quamolit.motion/Vec2 (List quamolit.scene-ir/CubicSegment) Number
             :circle Number Number Number Number
             :arc Number Number Number Number Number Bool Number
           :examples $ []
@@ -16248,14 +16219,14 @@
         'SceneDelta $ %{} 'CodeEntry
           :doc "|Logical changes plus an independent animation-time invalidation bit."
           :code $ quote $ defstruct SceneDelta
-            :changes $ quote $ List quamolit.scene-diff/SceneChange
+            :changes $ List quamolit.scene-diff/SceneChange
             :time-changed Bool
           :examples $ []
           :schema $ quote StructDef
         'SceneEntry $ %{} 'CodeEntry
           :doc "|Indexed node with resolved logical path and sibling position."
           :code $ quote $ defstruct SceneEntry
-            :path $ quote $ List quamolit.scene-diff/IdentitySegment
+            :path $ List quamolit.scene-diff/IdentitySegment
             :sibling-index Number
             :node quamolit.scene-ir/SceneNode
           :examples $ []
@@ -16627,14 +16598,14 @@
       :defs $ {}
         'CubicStrokePart $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct CubicStrokePart (:start quamolit.motion/Vec2) (:previous-guide quamolit.motion/Vec2) (:first-guide quamolit.motion/Vec2) (:width Number)
-            :points $ quote $ List quamolit.motion/Vec2
+            :points $ List quamolit.motion/Vec2
           :examples $ []
           :schema $ quote StructDef
         'HitCandidate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct HitCandidate (:node quamolit.scene-ir/SceneNode)
-            :curve-parts $ quote $ List quamolit.scene-hit/CubicStrokePart
-            :instance-points $ quote $ List quamolit.motion/Vec2
-            :text-bounds $ quote $ Option quamolit.scene-ir/ClipRect
+            :curve-parts $ List quamolit.scene-hit/CubicStrokePart
+            :instance-points $ List quamolit.motion/Vec2
+            :text-bounds $ Option quamolit.scene-ir/ClipRect
           :examples $ []
           :schema $ quote StructDef
         'HitOutcome $ %{} 'CodeEntry (:doc |)
@@ -16644,8 +16615,8 @@
         'HitPlan $ %{} 'CodeEntry
           :doc "|预编译的独立命中计划：保留完整 Scene 节点和逆绘制顺序的交互候选，可在同一 Scene 的多次指针查询间复用。"
           :code $ quote $ defstruct HitPlan
-            :nodes $ quote $ List quamolit.scene-ir/SceneNode
-            :candidates $ quote $ List quamolit.scene-hit/HitCandidate
+            :nodes $ List quamolit.scene-ir/SceneNode
+            :candidates $ List quamolit.scene-hit/HitCandidate
           :examples $ []
           :schema $ quote StructDef
         'HitResult $ %{} 'CodeEntry (:doc |)
@@ -16654,7 +16625,7 @@
           :schema $ quote StructDef
         'InstanceHitSource $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct InstanceHitSource (:source quamolit.scene-ir/InstanceSource)
-            :points $ quote $ List quamolit.motion/Vec2
+            :points $ List quamolit.motion/Vec2
           :examples $ []
           :schema $ quote StructDef
         'PointProjection $ %{} 'CodeEntry (:doc |)
@@ -16959,18 +16930,17 @@
         'compile-hit-plan $ %{} 'CodeEntry
           :doc "|校验 Scene 并排除无 target 或暂不支持的叶图元，生成可缓存候选索引；Scene 改变后必须重新编译。"
           :code $ quote $ defn compile-hit-plan (document)
-            do
-              assert |invalid-scene-hit-document $ scene/validate-scene document
-              let
-                  nodes $ :nodes document
-                  candidates $ map
-                    filter (reverse nodes)
-                      fn (node)
-                        and
-                          supported-leaf? $ :content node
-                          not $ empty? $ effective-target nodes node
-                    , compile-hit-candidate
-                HitPlan :nodes nodes :candidates candidates
+            assert |invalid-scene-hit-document $ scene/validate-scene document
+            let
+                nodes $ :nodes document
+                candidates $ map
+                  filter (reverse nodes)
+                    fn (node)
+                      and
+                        supported-leaf? $ :content node
+                        not $ empty? $ effective-target nodes node
+                  , compile-hit-candidate
+              HitPlan :nodes nodes :candidates candidates
           :examples $ []
           :schema $ quote $ Fn quamolit.scene-ir/SceneDocument (-> quamolit.scene-hit/HitPlan)
           :tests $ [] $ %{} 'TestEntry (:name |exclude-noninteractive)
@@ -16989,22 +16959,21 @@
             :tags $ #{} :scene-hit
         'compile-hit-plan-with-positions $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn compile-hit-plan-with-positions (document lookup)
-            do
-              assert |invalid-scene-hit-document $ scene/validate-scene document
-              let
-                  nodes $ :nodes document
-                  candidates $ map
-                    filter (reverse nodes)
-                      fn (node)
-                        and
-                          or
-                            supported-leaf? $ :content node
-                            match (:content node)
-                              (:instances _) true
-                              _ false
-                          not $ empty? $ effective-target nodes node
-                    fn (node) (compile-resolved-hit-candidate node lookup)
-                HitPlan :nodes nodes :candidates candidates
+            assert |invalid-scene-hit-document $ scene/validate-scene document
+            let
+                nodes $ :nodes document
+                candidates $ map
+                  filter (reverse nodes)
+                    fn (node)
+                      and
+                        or
+                          supported-leaf? $ :content node
+                          match (:content node)
+                            (:instances _) true
+                            _ false
+                        not $ empty? $ effective-target nodes node
+                  fn (node) (compile-resolved-hit-candidate node lookup)
+              HitPlan :nodes nodes :candidates candidates
           :examples $ []
           :schema $ quote $ Fn quamolit.scene-ir/SceneDocument
             Fn quamolit.scene-ir/InstanceSource $ -> quamolit.scene-hit/InstanceHitSource
@@ -17239,14 +17208,13 @@
           :schema $ quote $ Fn (List quamolit.scene-ir/SceneNode) String Number Number (-> Bool)
         'instance-hit-index $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn instance-hit-index (plan node-id x y)
-            do
-              assert |invalid-hit-coordinate $ and (motion/finite-number? x) (motion/finite-number? y)
-              foldl (:candidates plan) (Option :none)
-                fn (result candidate)
-                  if
-                    = node-id $ :id $ :node candidate
-                    candidate-instance-index (:nodes plan) candidate x y
-                    , result
+            assert |invalid-hit-coordinate $ and (motion/finite-number? x) (motion/finite-number? y)
+            foldl (:candidates plan) (Option :none)
+              fn (result candidate)
+                if
+                  = node-id $ :id $ :node candidate
+                  candidate-instance-index (:nodes plan) candidate x y
+                  , result
           :examples $ []
           :schema $ quote $ Fn quamolit.scene-hit/HitPlan String Number Number
             -> $ Option Number
@@ -17649,29 +17617,28 @@
         'text-hit-bounds $ %{} 'CodeEntry
           :doc "|纯Calcit墨迹矩形：x-left、y-ascent、left+right、ascent+descent。保留负距离，验证度量身份与有限边界；位置不进入测量身份，移动可以复用度量。"
           :code $ quote $ defn text-hit-bounds (text metrics)
-            do
-              assert |stale-text-hit-metrics $ and
-                = (:font text) (:font metrics)
-                = (:size text) (:size metrics)
-                = (:text text) (:text metrics)
-              assert |invalid-text-hit-metrics $ and
-                motion/finite-number? $ :left metrics
-                motion/finite-number? $ :right metrics
-                motion/finite-number? $ :ascent metrics
-                motion/finite-number? $ :descent metrics
-                >=
-                  + (:left metrics) (:right metrics)
-                  , 0
-                >=
-                  + (:ascent metrics) (:descent metrics)
-                  , 0
-              let
-                  left $ - (:x text) (:left metrics)
-                  top $ - (:y text) (:ascent metrics)
-                  width $ + (:left metrics) (:right metrics)
-                  height $ + (:ascent metrics) (:descent metrics)
-                assert |invalid-text-hit-bounds $ and (motion/finite-number? left) (motion/finite-number? top) (motion/finite-number? width) (motion/finite-number? height)
-                scene/ClipRect :x left :y top :width width :height height
+            assert |stale-text-hit-metrics $ and
+              = (:font text) (:font metrics)
+              = (:size text) (:size metrics)
+              = (:text text) (:text metrics)
+            assert |invalid-text-hit-metrics $ and
+              motion/finite-number? $ :left metrics
+              motion/finite-number? $ :right metrics
+              motion/finite-number? $ :ascent metrics
+              motion/finite-number? $ :descent metrics
+              >=
+                + (:left metrics) (:right metrics)
+                , 0
+              >=
+                + (:ascent metrics) (:descent metrics)
+                , 0
+            let
+                left $ - (:x text) (:left metrics)
+                top $ - (:y text) (:ascent metrics)
+                width $ + (:left metrics) (:right metrics)
+                height $ + (:ascent metrics) (:descent metrics)
+              assert |invalid-text-hit-bounds $ and (motion/finite-number? left) (motion/finite-number? top) (motion/finite-number? width) (motion/finite-number? height)
+              scene/ClipRect :x left :y top :width width :height height
           :examples $ []
           :schema $ quote $ Fn quamolit.scene-ir/TextNode quamolit.scene-hit/TextHitMetrics (-> quamolit.scene-ir/ClipRect)
           :tests $ []
@@ -17787,7 +17754,7 @@
           :schema $ quote EnumDef
         'CubicPathNode $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct CubicPathNode (:start quamolit.motion/Vec2)
-            :segments $ quote $ List quamolit.scene-ir/CubicSegment
+            :segments $ List quamolit.scene-ir/CubicSegment
             :width Number
             :stroke quamolit.motion/ColorRgba
           :examples $ []
@@ -17835,7 +17802,7 @@
         'PolygonNode $ %{} 'CodeEntry
           :doc "|填充闭合多边形；points 至少三个，width=0 时只填充。用于 Solar 圆盘和 Icons 实心形变。"
           :code $ quote $ defstruct PolygonNode
-            :points $ quote $ List quamolit.motion/Vec2
+            :points $ List quamolit.motion/Vec2
             :width Number
             :fill quamolit.motion/ColorRgba
             :stroke quamolit.motion/ColorRgba
@@ -17843,7 +17810,7 @@
           :schema $ quote StructDef
         'PolylineNode $ %{} 'CodeEntry (:doc "|开放圆头/圆连接折线；至少两点，有限非负宽度，直通道 sRGB 颜色，不含宿主句柄。")
           :code $ quote $ defstruct PolylineNode
-            :points $ quote $ List quamolit.motion/Vec2
+            :points $ List quamolit.motion/Vec2
             :width Number
             :stroke quamolit.motion/ColorRgba
           :examples $ []
@@ -17875,7 +17842,7 @@
         'SceneDocument $ %{} 'CodeEntry
           :doc "|Preorder node list; order is paint order, parent appears before child."
           :code $ quote $ defstruct SceneDocument
-            :nodes $ quote $ List quamolit.scene-ir/SceneNode
+            :nodes $ List quamolit.scene-ir/SceneNode
           :examples $ []
           :schema $ quote StructDef
         'SceneInteraction $ %{} 'CodeEntry
@@ -17886,7 +17853,7 @@
         'SceneNode $ %{} 'CodeEntry
           :doc "|Flat node: stable unique id, parent id, sibling key, typed content and metadata."
           :code $ quote $ defstruct SceneNode (:id String) (:parent String) (:key String) (:content quamolit.scene-ir/SceneContent)
-            :bindings $ quote $ List quamolit.scene-ir/ScalarBinding
+            :bindings $ List quamolit.scene-ir/ScalarBinding
             :interaction quamolit.scene-ir/SceneInteraction
           :examples $ []
           :schema $ quote StructDef
@@ -18497,7 +18464,7 @@
           :schema $ quote StructDef
         'PointerRoute $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct PointerRoute (:pointer-id Number) (:phase quamolit.scene-pointer/PointerPhase) (:x Number) (:y Number) (:captured Bool) (:source-node String)
-            :targets $ quote $ List quamolit.scene-pointer/EventTarget
+            :targets $ List quamolit.scene-pointer/EventTarget
           :examples $ []
           :schema $ quote StructDef
         'PointerState $ %{} 'CodeEntry (:doc |)
@@ -18519,9 +18486,8 @@
         'capture-target $ %{} 'CodeEntry
           :doc "|仅允许捕获最近一次 PointerRoute 目标链中的逻辑 target，同时保留原 source 节点用于画布外继续路由。"
           :code $ quote $ defn capture-target (state route target)
-            do
-              assert |missing-pointer-route-target $ target-chain-has? (:targets route) target
-              struct-with state $ :capture $ PointerCapture :captured (:pointer-id route) target (:source-node route)
+            assert |missing-pointer-route-target $ target-chain-has? (:targets route) target
+            struct-with state $ :capture $ PointerCapture :captured (:pointer-id route) target (:source-node route)
           :examples $ []
           :schema $ quote $ Fn quamolit.scene-pointer/PointerState quamolit.scene-pointer/PointerRoute String (-> quamolit.scene-pointer/PointerState)
         'capture-valid? $ %{} 'CodeEntry (:doc |)
@@ -18646,27 +18612,26 @@
         'route-pointer $ %{} 'CodeEntry
           :doc "|以新 HitPlan 协调旧捕获后路由一个归一化指针输入；返回纯状态、逻辑投递及恰好一次的捕获释放信号。"
           :code $ quote $ defn route-pointer (plan state input)
-            do
-              assert |invalid-pointer-id $ >= (:pointer-id input) 0
-              let
-                  reconciled $ reconcile-pointer-state plan state
-                  current $ :state reconciled
-                  released-before? $ :capture-released reconciled
-                match (:capture current)
-                  (:none) (route-uncaptured plan current input released-before?)
-                  (:captured pointer-id target node-id)
-                    if
-                      not $ = pointer-id $ :pointer-id input
-                      route-uncaptured plan current input released-before?
-                      let
-                          node $ scene/node-for-id (:nodes plan) node-id
-                          dispatch $ route-node (:nodes plan) node input true
-                          should-release? $ release-phase? $ :phase input
-                          next-state $ if should-release?
-                            struct-with (state-with-hover current dispatch)
-                              :capture $ PointerCapture :none
-                            state-with-hover current dispatch
-                        PointerUpdate :state next-state :dispatch dispatch :capture-released $ or released-before? should-release?
+            assert |invalid-pointer-id $ >= (:pointer-id input) 0
+            let
+                reconciled $ reconcile-pointer-state plan state
+                current $ :state reconciled
+                released-before? $ :capture-released reconciled
+              match (:capture current)
+                (:none) (route-uncaptured plan current input released-before?)
+                (:captured pointer-id target node-id)
+                  if
+                    not $ = pointer-id $ :pointer-id input
+                    route-uncaptured plan current input released-before?
+                    let
+                        node $ scene/node-for-id (:nodes plan) node-id
+                        dispatch $ route-node (:nodes plan) node input true
+                        should-release? $ release-phase? $ :phase input
+                        next-state $ if should-release?
+                          struct-with (state-with-hover current dispatch)
+                            :capture $ PointerCapture :none
+                          state-with-hover current dispatch
+                      PointerUpdate :state next-state :dispatch dispatch :capture-released $ or released-before? should-release?
           :examples $ []
           :schema $ quote $ Fn quamolit.scene-hit/HitPlan quamolit.scene-pointer/PointerState quamolit.scene-pointer/PointerInput (-> quamolit.scene-pointer/PointerUpdate)
         'route-uncaptured $ %{} 'CodeEntry (:doc |)
@@ -18734,18 +18699,18 @@
           :schema $ quote Trait
         'PointerEventHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait PointerEventHost (:pointer-id 'Number) (:client-x 'Number) (:client-y 'Number)
-            .prevent-default! $ quote $ Fn quamolit.scene-pointer-browser/PointerEventHost (-> Unit)
+            .prevent-default! $ Fn quamolit.scene-pointer-browser/PointerEventHost $ -> Unit
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
             :names $ {} (:client-x |clientX) (:client-y |clientY) (:pointer-id |pointerId) (:prevent-default! |preventDefault)
           :schema $ quote Trait
         'PointerSurfaceHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait PointerSurfaceHost
-            .get-pointer-bounds $ quote $ Fn quamolit.scene-pointer-browser/PointerSurfaceHost (-> quamolit.scene-pointer-browser/PointerBoundsHost)
-            .set-pointer-capture! $ quote $ Fn quamolit.scene-pointer-browser/PointerSurfaceHost Number (-> Unit)
-            .release-pointer-capture! $ quote $ Fn quamolit.scene-pointer-browser/PointerSurfaceHost Number (-> Unit)
-            .has-pointer-capture? $ quote $ Fn quamolit.scene-pointer-browser/PointerSurfaceHost Number (-> Bool)
-            .add-pointer-listener! $ quote $ Fn quamolit.scene-pointer-browser/PointerSurfaceHost String
+            .get-pointer-bounds $ Fn quamolit.scene-pointer-browser/PointerSurfaceHost $ -> quamolit.scene-pointer-browser/PointerBoundsHost
+            .set-pointer-capture! $ Fn quamolit.scene-pointer-browser/PointerSurfaceHost Number $ -> Unit
+            .release-pointer-capture! $ Fn quamolit.scene-pointer-browser/PointerSurfaceHost Number $ -> Unit
+            .has-pointer-capture? $ Fn quamolit.scene-pointer-browser/PointerSurfaceHost Number $ -> Bool
+            .add-pointer-listener! $ Fn quamolit.scene-pointer-browser/PointerSurfaceHost String
               Fn quamolit.scene-pointer-browser/PointerEventHost $ -> Unit
               -> Unit
           :examples $ []
@@ -18992,7 +18957,7 @@
             let
                 base-registry $ assert-type
                   cpu/CpuFunctionRegistry :samplers $ {}
-                  quote $ quamolit.motion-cpu/CpuFunctionRegistry quamolit.test.cpu-motion-fixture/CustomInput quamolit.motion/Vec2
+                  quamolit.motion-cpu/CpuFunctionRegistry quamolit.test.cpu-motion-fixture/CustomInput quamolit.motion/Vec2
               cpu/register-function base-registry |move sample-custom
           :examples $ []
           :schema $ quote $ Fn
@@ -19414,8 +19379,8 @@
       :defs $ {}
         'PresenceFixtureFrame $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct PresenceFixtureFrame
-            :samples $ quote $ List quamolit.presence/PresenceSample
-            :released $ quote $ List quamolit.scene-diff/SceneEntry
+            :samples $ List quamolit.presence/PresenceSample
+            :released $ List quamolit.scene-diff/SceneEntry
             :needs-frame Bool
           :examples $ []
           :schema $ quote StructDef
@@ -19896,7 +19861,7 @@
             let
                 base-archive $ assert-type
                   archive/start-archive (fixed/start-simulation 0.25 7 0) 2 2
-                  quote $ quamolit.replay-archive/ReplayArchive Number Number
+                  quamolit.replay-archive/ReplayArchive Number Number
                 a1 $ archive/record-input base-archive 2 update-state
                 a2 $ archive/record-input a1 4 update-state
                 a3 $ archive/record-input a2 -2 update-state
@@ -20926,9 +20891,8 @@
             :features :js-ffi
         'install-browser-capture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn install-browser-capture! (element)
-            do
-              install-browser-plan! element $ hit/compile-hit-plan $ fixture/routing-scene-subtree false
-              , &unit
+            install-browser-plan! element $ hit/compile-hit-plan $ fixture/routing-scene-subtree false
+            , &unit
           :examples $ []
           :schema $ quote $ Fn js-ffi.browser/DomElementHost (-> Unit) (:features :js-ffi)
         'install-browser-plan! $ %{} 'CodeEntry (:doc |)
@@ -21101,9 +21065,8 @@
               is= false $ transition-active? instant 0.5
             :tags $ #{} :transition :unit
         'replay-active? $ %{} 'CodeEntry (:doc "|重放到给定时间后判断是否仍需连续过渡帧。")
-          :code $ quote $ defn replay-active? (initial events time)
-            do (replay-transition initial events)
-              transition-active? (replay-prefix-until initial events time) time
+          :code $ quote $ defn replay-active? (initial events time) (replay-transition initial events)
+            transition-active? (replay-prefix-until initial events time) time
           :examples $ []
           :schema $ quote $ Fn quamolit.transition/TransitionIntent (List quamolit.transition/TransitionEvent) Number (-> Bool)
         'replay-prefix $ %{} 'CodeEntry (:doc |)
@@ -21155,9 +21118,8 @@
               is-throws $ interrupt-transition initial (/ 0 0) 0.5 1 easing
             :tags $ #{} :transition :unit
         'sample-replay $ %{} 'CodeEntry (:doc "|按固定事件序列在任意绝对时间重放并采样，不依赖上一次绘制帧。")
-          :code $ quote $ defn sample-replay (initial events time)
-            do (replay-transition initial events)
-              sample-transition (replay-prefix-until initial events time) time
+          :code $ quote $ defn sample-replay (initial events time) (replay-transition initial events)
+            sample-transition (replay-prefix-until initial events time) time
           :examples $ []
           :schema $ quote $ Fn quamolit.transition/TransitionIntent (List quamolit.transition/TransitionEvent) Number (-> Number)
           :tests $ [] $ %{} 'TestEntry (:name |arbitrary-time-replay)
@@ -21222,6 +21184,10 @@
           :code $ quote $ defstruct Component (:name Dynamic) (:on-tick Dynamic) (:tree Dynamic)
           :examples $ []
           :schema $ quote StructDef
+        'LegacyNode $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defunion LegacyNode quamolit.types/Shape quamolit.types/Component
+          :examples $ []
+          :schema $ quote UnionDef
         'Shape $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct Shape (:name Dynamic) (:style Dynamic) (:event Dynamic) (:children Dynamic)
           :examples $ []
@@ -21404,8 +21370,7 @@
           :examples $ []
           :schema $ quote $ Ref Number
         'gen-id! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn gen-id! ()
-            do (swap! *counter inc) @*counter
+          :code $ quote $ defn gen-id! () (swap! *counter inc) @*counter
           :examples $ []
           :schema $ quote $ Fn (-> Number)
         'hsl $ %{} 'CodeEntry (:doc |)
@@ -21437,12 +21402,12 @@
         'RectBatchHost $ %{} 'CodeEntry
           :doc "|Quamolit 矩形图层的 WebGPU 宿主句柄；只由本仓库 create! 创建，调用方负责 dispose!。"
           :code $ quote $ deftrait RectBatchHost
-            .upload $ quote $ Fn quamolit.webgpu-batches/RectBatchHost js-ffi.typed-arrays/Float32ArrayHost Number Number (-> JsObject)
-            .upload-patch $ quote $ Fn quamolit.webgpu-batches/RectBatchHost js-ffi.typed-arrays/Float32ArrayHost Number Number (-> JsObject)
-            .draw $ quote $ Fn quamolit.webgpu-batches/RectBatchHost JsObject (-> JsObject)
-            .read-translation $ quote $ Fn quamolit.webgpu-batches/RectBatchHost (-> JsObject)
-            .read-pixel $ quote $ Fn quamolit.webgpu-batches/RectBatchHost Number Number (-> JsObject)
-            .dispose $ quote $ Fn quamolit.webgpu-batches/RectBatchHost (-> Bool)
+            .upload $ Fn quamolit.webgpu-batches/RectBatchHost js-ffi.typed-arrays/Float32ArrayHost Number Number $ -> JsObject
+            .upload-patch $ Fn quamolit.webgpu-batches/RectBatchHost js-ffi.typed-arrays/Float32ArrayHost Number Number $ -> JsObject
+            .draw $ Fn quamolit.webgpu-batches/RectBatchHost JsObject $ -> JsObject
+            .read-translation $ Fn quamolit.webgpu-batches/RectBatchHost $ -> JsObject
+            .read-pixel $ Fn quamolit.webgpu-batches/RectBatchHost Number Number $ -> JsObject
+            .dispose $ Fn quamolit.webgpu-batches/RectBatchHost $ -> Bool
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
@@ -21632,15 +21597,15 @@
       :defs $ {}
         'BoundImage $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct BoundImage (:texture quamolit.webgpu-texture-runner/WebGpuTextureHost)
-            :parameters $ quote $ List Number
+            :parameters $ List Number
           :examples $ []
           :schema $ quote StructDef
         'ImageLayerHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait ImageLayerHost (:capacity 'Number)
-            .begin $ quote $ Fn quamolit.webgpu-images/ImageLayerHost Number Number Number Number Number Number (-> Unit)
-            .image $ quote $ Fn quamolit.webgpu-images/ImageLayerHost quamolit.webgpu-texture-runner/WebGpuTextureHost JsObject (-> Unit)
-            .submit $ quote $ Fn quamolit.webgpu-images/ImageLayerHost (-> JsObject)
-            .dispose $ quote $ Fn quamolit.webgpu-images/ImageLayerHost (-> Bool)
+            .begin $ Fn quamolit.webgpu-images/ImageLayerHost Number Number Number Number Number Number $ -> Unit
+            .image $ Fn quamolit.webgpu-images/ImageLayerHost quamolit.webgpu-texture-runner/WebGpuTextureHost JsObject $ -> Unit
+            .submit $ Fn quamolit.webgpu-images/ImageLayerHost $ -> JsObject
+            .dispose $ Fn quamolit.webgpu-images/ImageLayerHost $ -> Bool
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
@@ -22050,13 +22015,13 @@
           :code $ quote $ defenum TextureLoadOutcome
             :ready quamolit.webgpu-texture-runner/TextureResourceHandle Number
             :failed
-              quote $ Option quamolit.webgpu-texture-runner/TextureResourceHandle
+              Option quamolit.webgpu-texture-runner/TextureResourceHandle
               , String
           :examples $ []
           :schema $ quote EnumDef
         'TextureReleaseResult $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct TextureReleaseResult
-            :handles $ quote $ List quamolit.webgpu-texture-runner/TextureResourceHandle
+            :handles $ List quamolit.webgpu-texture-runner/TextureResourceHandle
             :released? Bool
             :bytes Number
           :examples $ []
@@ -22071,7 +22036,7 @@
           :schema $ quote StructDef
         'TextureResourceHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct TextureResourceHost
-            :handles $ quote $ List quamolit.webgpu-texture-runner/TextureResourceHandle
+            :handles $ List quamolit.webgpu-texture-runner/TextureResourceHandle
             :created Number
             :released Number
             :uploaded-bytes Number
@@ -22083,7 +22048,7 @@
           :schema $ quote StructDef
         'WebGpuTextureHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait WebGpuTextureHost (:width 'Number) (:height 'Number) (:format 'String)
-            .destroy $ quote $ Fn quamolit.webgpu-texture-runner/WebGpuTextureHost (-> Unit)
+            .destroy $ Fn quamolit.webgpu-texture-runner/WebGpuTextureHost $ -> Unit
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ quote Trait
