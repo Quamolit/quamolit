@@ -132,9 +132,9 @@
                   .unwrap-or (&map:get states :cursor) ([])
                   List Dynamic
                 branch $ match (&map:get states k)
-                  (:some legacy-value) legacy-value
-                  (:none) nil
-                branch $ either branch $ {}
+                  (:some legacy-value)
+                    either legacy-value $ {}
+                  (:none) ({})
               &map:assoc
                 if (map? branch) branch $ raise |Expected-state-map
                 , :cursor $ append parent-cursor k
@@ -165,13 +165,13 @@
               not $ map? props
               raise $ new js/Error |Props-expected-to-be-a-map
             Shape :name shape-name :style
-              match (&map:get props :style)
-                (:some legacy-value) legacy-value
-                (:none) nil
+              if (&map:contains? props :style)
+                .unwrap $ &map:get props :style
+                , nil
               , :event
-                match (&map:get props :event)
-                  (:some legacy-value) legacy-value
-                  (:none) nil
+                if (&map:contains? props :event)
+                  .unwrap $ &map:get props :event
+                  , nil
                 , :children children
           :examples $ []
           :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
@@ -181,9 +181,9 @@
               not $ map? props
               raise $ new js/Error "|Props expeced to be a map!"
             Shape :name shape-name :style (&map:dissoc props :event) :event
-              match (&map:get props :event)
-                (:some legacy-value) legacy-value
-                (:none) nil
+              if (&map:contains? props :event)
+                .unwrap $ &map:get props :event
+                , nil
               , :children $ arrange-children children
           :examples $ []
           :schema $ quote $ Fn Dynamic Dynamic (List Dynamic) (-> Dynamic) (:features :js-ffi)
@@ -202,21 +202,17 @@
                     assert |expected-on-tick-and-tree $ = 2 $ count ret
                     %{} Component
                       :name $ ~ $ turn-tag comp-name
-                      :on-tick $ match (&list:first ret)
-                        (:some legacy-value) legacy-value
-                        (:none) nil
-                      :tree $ match (&list:last ret)
-                        (:some legacy-value) legacy-value
-                        (:none) nil
+                      :on-tick $ .unwrap $ &list:first ret
+                      :tree $ .unwrap $ &list:last ret
                 (map? ret)
                   %{} Component
                     :name $ ~ $ turn-tag comp-name
-                    :on-tick $ match (&map:get ret :on-tick)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
-                    :tree $ match (&map:get ret :tree)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
+                    :on-tick $ if (&map:contains? ret :on-tick)
+                      .unwrap $ &map:get ret :on-tick
+                      , nil
+                    :tree $ if (&map:contains? ret :tree)
+                      .unwrap $ &map:get ret :tree
+                      , nil
                 true $ raise |unknown-component
           :examples $ []
           :schema $ quote $ Macro SyntaxSymbol SyntaxList (& Syntax)
@@ -1037,7 +1033,7 @@
         'comp-fade-fn $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-fade-fn (states props f1)
             let
-                cursor $ .unwrap-or (get states :cursor) nil
+                cursor $ .unwrap-or (get states :cursor) ([])
                 v 4
                 state $ decode-map-as
                     get states :data
@@ -1045,15 +1041,15 @@
                   Map Dynamic Dynamic
                 p1 $ if (fn? f1)
                   f1 (>> states :renderer)
-                    .unwrap-or (get state :opacity) nil
-                    .unwrap-or (get state :stage) nil
+                    .unwrap-or (get state :opacity) 0
+                    .unwrap-or (get state :stage) :hidden
                   raise |Expected-fade-callback-function
               []
                 fn (elapsed d!)
                   let
                       elapsed $ decode-map-as elapsed 'Number
                     match
-                      .unwrap-or (get state :stage) nil
+                      .unwrap-or (get state :stage) :hidden
                       :hidden $ when (non-nil? p1)
                         if (fn? d!)
                           d! cursor $ merge state $ {} (:stage :showing)
@@ -1064,7 +1060,7 @@
                         if
                           >=
                             decode-map-as
-                              .unwrap-or (get state :opacity) nil
+                              .unwrap-or (get state :opacity) 0
                               , 'Number
                             , 1
                           if (fn? d!)
@@ -1087,7 +1083,7 @@
                       :hiding $ if
                         <=
                           decode-map-as
-                            .unwrap-or (get state :opacity) nil
+                            .unwrap-or (get state :opacity) 0
                             , 'Number
                           , 0
                         do
@@ -1101,26 +1097,26 @@
                                 x $ decode-map-as x 'Number
                               - x $ * elapsed v
                           raise |Expected-fade-callback-function
-                      _ $ println "|unknown stage" $ .unwrap-or (get state :stage) nil
+                      _ $ println "|unknown stage" $ .unwrap-or (get state :stage) :hidden
                 alpha
-                  {} $ :opacity $ .unwrap-or (get state :opacity) nil
+                  {} $ :opacity $ .unwrap-or (get state :opacity) 0
                   match
-                    .unwrap-or (get state :stage) nil
+                    .unwrap-or (get state :stage) :hidden
                     :hidden nil
-                    _ $ either p1 $ match (get-node! cursor)
+                    _ $ match (get-node! cursor)
                       (:some old-f)
-                        if (fn? old-f)
+                        either p1 $ if (fn? old-f)
                           old-f (>> states :renderer)
-                            .unwrap-or (get state :opacity) nil
-                            .unwrap-or (get state :stage) nil
+                            .unwrap-or (get state :opacity) 0
+                            .unwrap-or (get state :stage) :hidden
                           raise |Expected-fade-callback-function
-                      (:none) nil
+                      (:none) p1
           :examples $ []
           :schema $ quote $ Fn (Map Dynamic Dynamic) Dynamic Dynamic (-> quamolit.types/Component)
         'comp-fade-in-out $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-fade-in-out (states props p1)
             let
-                cursor $ .unwrap-or (get states :cursor) nil
+                cursor $ .unwrap-or (get states :cursor) ([])
                 v 4
                 state $ decode-map-as
                     get states :data
@@ -1131,7 +1127,7 @@
                   let
                       elapsed $ decode-map-as elapsed 'Number
                     match
-                      .unwrap-or (get state :stage) nil
+                      .unwrap-or (get state :stage) :hidden
                       :hidden $ when (non-nil? p1)
                         if (fn? d!)
                           d! cursor $ merge state $ {} (:stage :showing)
@@ -1141,7 +1137,7 @@
                       :showing $ if
                         >=
                           decode-map-as
-                            .unwrap-or (get state :opacity) nil
+                            .unwrap-or (get state :opacity) 0
                             , 'Number
                           , 1
                         do
@@ -1164,7 +1160,7 @@
                       :hiding $ if
                         <=
                           decode-map-as
-                            .unwrap-or (get state :opacity) nil
+                            .unwrap-or (get state :opacity) 0
                             , 'Number
                           , 0
                         do
@@ -1178,13 +1174,15 @@
                                 x $ decode-map-as x 'Number
                               - x $ * elapsed v
                           raise |Expected-fade-callback-function
-                      _ $ println "|unknown stage" $ .unwrap-or (get state :stage) nil
+                      _ $ println "|unknown stage" $ .unwrap-or (get state :stage) :hidden
                 alpha
-                  {} $ :opacity $ .unwrap-or (get state :opacity) nil
+                  {} $ :opacity $ .unwrap-or (get state :opacity) 0
                   match
-                    .unwrap-or (get state :stage) nil
+                    .unwrap-or (get state :stage) :hidden
                     :hidden nil
-                    _ $ either p1 $ .unwrap-or (get-node! cursor) nil
+                    _ $ match (get-node! cursor)
+                      (:some old-node) (either p1 old-node)
+                      (:none) p1
           :examples $ []
           :schema $ quote $ Fn (Map Dynamic Dynamic) Dynamic Dynamic (-> quamolit.types/Component)
         'delete-node-cache! $ %{} 'CodeEntry (:doc |)
@@ -1212,32 +1210,35 @@
         %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-slider (states options)
             let
-                cursor $ .unwrap-or (get states :cursor) nil
-                unit $ .unwrap-or (get options :unit) nil
+                cursor $ .unwrap-or (get states :cursor) ([])
+                unit $ .unwrap-or (get options :unit) 1
                 position $ decode-map-as
-                  or
-                    .unwrap-or (get options :position) nil
-                    [] 0 0
+                  match (get options :position)
+                    (:some v)
+                      or v $ [] 0 0
+                    (:none) ([] 0 0)
                   List Number
-                state $ .unwrap-or (get states :data) nil
+                state $ get states :data
                 v-max $ decode-map-as
-                  either
-                    .unwrap-or (get options :max) nil
-                    , 1000
+                  match (get options :max)
+                    (:some v) (either v 1000)
+                    (:none) 1000
                   , 'Number
                 v-min $ decode-map-as
-                  either
-                    .unwrap-or (get options :min) nil
-                    , 1000
+                  match (get options :min)
+                    (:some v) (either v 1000)
+                    (:none) 1000
                   , 'Number
               []
                 fn (elapsed d!)
                   if
-                    nil? $ .unwrap-or (get states :data) nil
+                    match (get states :data)
+                      (:some v) (nil? v)
+                      (:none) true
                     if (fn? d!)
                       d! cursor $ {} $ :local
                         new-ref $ {}
-                          :v0 $ .unwrap-or (get options :value) nil
+                          :v0 $ .unwrap-or (get options :value) 0
                           :x0 0
                       raise |Expected-slider-dispatch-function
                 translate
@@ -1249,50 +1250,54 @@
                     :event $ {}
                       :mousedown $ fn (e d!)
                         ref-set!
-                          .unwrap-or
-                            get
-                              if (map? state) state $ raise |Expected-slider-state-or-options-map
-                              , :local
-                            , nil
+                          .unwrap $ get
+                            match state
+                              (:some data)
+                                if (map? data) data $ raise |Expected-slider-state-or-options-map
+                              (:none) (raise |Expected-slider-state-or-options-map)
+                            , :local
                           {}
-                            :v0 $ .unwrap-or (get options :value) nil
+                            :v0 $ .unwrap-or (get options :value) 0
                             :x0 $ decode-map-as (.-clientX e) 'Number
                       :mousemove $ fn (e d!)
                         let
                             local $ decode-map-as
-                              ref-get $ .unwrap-or
-                                get
-                                  if (map? state) state $ raise |Expected-slider-state-or-options-map
-                                  , :local
-                                , nil
+                              ref-get $ .unwrap $ get
+                                match state
+                                  (:some data)
+                                    if (map? data) data $ raise |Expected-slider-state-or-options-map
+                                  (:none) (raise |Expected-slider-state-or-options-map)
+                                , :local
                               Map Dynamic Dynamic
                             dx $ -
                               decode-map-as (.-clientX e) 'Number
                               decode-map-as
-                                .unwrap-or (get local :x0) nil
+                                .unwrap-or (get local :x0) 0
                                 , 'Number
-                            on-change $ .unwrap-or (get options :on-change) nil
+                            on-change $ .unwrap-or (get options :on-change) false
                           if (fn? on-change)
                             let
                                 next-v $ bound-x v-min v-max $ +
                                   decode-map-as
-                                    .unwrap-or (get local :v0) nil
+                                    .unwrap-or (get local :v0) 0
                                     , 'Number
                                   * dx $ decode-map-as unit 'Number
                               if
-                                not= next-v $ .unwrap-or (get options :v) nil
+                                match (get options :v)
+                                  (:some v) (not= next-v v)
+                                  (:none) true
                                 on-change next-v d!
                   text $ {} (:x -36) (:y -20) (:text-align :left) (:size 14)
                     :fill-style $ hsl 330 90 70
                     :text $ str
-                      or
-                        .unwrap-or (get options :title) nil
-                        , |Val
+                      match (get options :title)
+                        (:some v) (or v |Val)
+                        (:none) |Val
                       , "|: " $ .!toFixed
                         decode-map-as
-                          either
-                            .unwrap-or (get options :value) nil
-                            , 0
+                          match (get options :value)
+                            (:some v) (either v 0)
+                            (:none) 0
                           , 'Number
                         , 2
           :examples $ []
@@ -1458,7 +1463,7 @@
           :code $ quote $ defn locate-target (tree coord)
             if (empty? coord) (Option :some tree)
               let
-                  first-pos $ .unwrap-or (first coord) nil
+                  first-pos $ .unwrap $ first coord
                 match tree
                   (quamolit.types/Component component)
                     if
@@ -1473,10 +1478,10 @@
                           List $ List Dynamic
                         picked-pair $ find children $ fn (child-pair)
                           =
-                            .unwrap-or (first child-pair) nil
+                            .unwrap $ first child-pair
                             , first-pos
                         picked $ picked-pair.map $ fn (pair)
-                          .unwrap-or (last pair) nil
+                          .unwrap $ last pair
                       match picked
                         (:some value)
                           recur (decode-map-as value quamolit.types/LegacyNode) (slice coord 1)
@@ -1696,35 +1701,35 @@
               let
                   x $ .unwrap $ .first areas
                   transform $ decode-map-as
-                    .unwrap-or (get x :transform) nil
+                    .unwrap $ get x :transform
                     List Number
                   p $ point-minus point $ point-add
                     decode-map-as
-                      .unwrap-or (get x :offset) nil
+                      .unwrap $ get x :offset
                       List Number
                     point-times
                       decode-map-as
-                        .unwrap-or (get x :position) nil
+                        .unwrap $ get x :position
                         List Number
                       , transform
                   delta $ point-divide p transform
                 if
                   match
-                    .unwrap-or (get x :kind) nil
+                    .unwrap-or (get x :kind) :unknown
                     :rect $ and
                       <=
                         decode-map-as
                           js/Math.abs $ .unwrap $ nth delta 0
                           , 'Number
                         decode-map-as
-                          .unwrap-or (get x :half-w) nil
+                          .unwrap $ get x :half-w
                           , 'Number
                       <=
                         decode-map-as
                           js/Math.abs $ .unwrap $ nth delta 1
                           , 'Number
                         decode-map-as
-                          .unwrap-or (get x :half-h) nil
+                          .unwrap $ get x :half-h
                           , 'Number
                     :arc $ <=
                       +
@@ -1740,7 +1745,7 @@
                           , 'Number
                       decode-map-as
                         js/Math.pow
-                          .unwrap-or (get x :r) nil
+                          .unwrap $ get x :r
                           , 2
                         , 'Number
                     _ $ do (js/console.warn |invalid-area-data x) false
@@ -1776,7 +1781,7 @@
                 get
                   decode-map-as states $ Map Tag Dynamic
                   , :left-b?
-                , nil
+                , false
               reset-stage-config!
               let
                   move $ decode-map-as
@@ -1910,7 +1915,7 @@
                     , @*touch-event-areas
                   ; js/console.log |target target
                   let
-                      coord $ .unwrap-or (get target :coord) nil
+                      coord $ .unwrap $ get target :coord
                     reset! *clicked-focus $ if (nil? coord) (Option :none)
                       Option :some $ decode-map-as coord $ List Dynamic
                     handle-event coord :mousedown event dispatch
@@ -1946,7 +1951,7 @@
                           &* (decode-map-as js/window.innerHeight 'Number) 0.5
                       , @*touch-event-areas
                     if
-                      = coord $ .unwrap-or (get target :coord) nil
+                      = coord $ .unwrap $ get target :coord
                       handle-event coord :click event dispatch
                       , &unit
               .addEventListener root |mouseleave $ fn (event)
@@ -1956,13 +1961,13 @@
                 let
                     coord $ match @*clicked-focus
                       (:some focused-path) focused-path
-                      (:none) nil
+                      (:none) ([])
                   handle-event coord :keypress event dispatch
               .addEventListener window |keydown $ fn (event)
                 let
                     coord $ match @*clicked-focus
                       (:some focused-path) focused-path
-                      (:none) nil
+                      (:none) ([])
                   handle-event coord :keydown event dispatch
               .addEventListener window |click $ fn (event) (clear-prompt!)
               .addEventListener window |resize $ fn (event) (configure-canvas root-element)
@@ -2051,14 +2056,10 @@
           :code $ quote $ defn gc-states (store op-data)
             let
                 cursor $ decode-map-as
-                  match (&list:first op-data)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  .unwrap $ &list:first op-data
                   List Dynamic
                 fields $ decode-map-as
-                  match (&list:last op-data)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  .unwrap $ &list:last op-data
                   List Dynamic
               update-in store
                 concat ([] :states) cursor
@@ -2090,13 +2091,9 @@
           :code $ quote $ defn update-states (store op-data)
             let
                 cursor $ decode-map-as
-                  match (&list:first op-data)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  .unwrap $ &list:first op-data
                   List Dynamic
-                data $ match (&list:last op-data)
-                  (:some legacy-value) legacy-value
-                  (:none) nil
+                data $ .unwrap $ &list:last op-data
               assoc-in store
                 concat ([] :states) cursor $ [] :data
                 , data
@@ -8689,8 +8686,7 @@
                   &doseq
                     cursor $ :children shape
                     tick-tree
-                        last cursor
-                        , .unwrap-or nil
+                      .unwrap $ last cursor
                       , dispatch! elapsed
                   , &unit
                 raise "|Expected a Quamolit Shape or Component"
@@ -13965,39 +13961,45 @@
         'button $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp button (style) (; js/console.log |button style)
             let
-                guide-text $ or
-                  .unwrap-or (get style :text) nil
-                  , |button
-                x $ or
-                  .unwrap-or (get style :x) nil
-                  , 0
-                y $ or
-                  .unwrap-or (get style :y) nil
-                  , 0
-                w $ or
-                  .unwrap-or (get style :w) nil
-                  , 100
-                h $ or
-                  .unwrap-or (get style :h) nil
-                  , 40
-                style-bg $ {} (:x x) (:y y)
-                  :fill-style $ or
-                    .unwrap-or (get style :surface-color) nil
-                    hsl 0 80 80
-                  :w w
-                  :h h
-                  :event $ .unwrap-or (get style :event) nil
+                guide-text $ match (get style :text)
+                  (:some v) (or v |button)
+                  (:none) |button
+                x $ match (get style :x)
+                  (:some v) (or v 0)
+                  (:none) 0
+                y $ match (get style :y)
+                  (:some v) (or v 0)
+                  (:none) 0
+                w $ match (get style :w)
+                  (:some v) (or v 100)
+                  (:none) 100
+                h $ match (get style :h)
+                  (:some v) (or v 40)
+                  (:none) 40
+                style-bg $ merge
+                  {} (:x x) (:y y)
+                    :fill-style $ match (get style :surface-color)
+                      (:some v)
+                        or v $ hsl 0 80 80
+                      (:none) (hsl 0 80 80)
+                    :w w
+                    :h h
+                  match (get style :event)
+                    (:some event)
+                      {} $ :event event
+                    (:none) ({})
                 style-text $ {}
-                  :fill-style $ or
-                    .unwrap-or (get style :text-color) nil
-                    hsl 0 0 10
+                  :fill-style $ match (get style :text-color)
+                    (:some v)
+                      or v $ hsl 0 0 10
+                    (:none) (hsl 0 0 10)
                   :text guide-text
-                  :size $ or
-                    .unwrap-or (get style :font-size) nil
-                    , 20
-                  :font-family $ or
-                    .unwrap-or (get style :font-family) nil
-                    , |Optima
+                  :size $ match (get style :font-size)
+                    (:some v) (or v 20)
+                    (:none) 20
+                  :font-family $ match (get style :font-family)
+                    (:some v) (or v |Optima)
+                    (:none) |Optima
                   :text-align |center
                   :x x
                   :y y
@@ -14008,30 +14010,36 @@
           :code $ quote $ defcomp input (style)
             let
                 style $ decode-map-as style $ Map Dynamic Dynamic
-                w $ .unwrap-or (get style :w) nil
-                h $ .unwrap-or (get style :h) nil
-                style-bg $ {}
-                  :fill-style $ hsl 0 50 80
-                  :stroke-style $ hsl 0 0 50
-                  :line-width 2
-                  :x $ or
-                    .unwrap-or (get style :x) nil
-                    , 0
-                  :y $ or
-                    .unwrap-or (get style :y) nil
-                    , 0
-                  :w w
-                  :h h
-                  :event $ .unwrap-or (get style :event) nil
+                w $ .unwrap-or (get style :w) 100
+                h $ .unwrap-or (get style :h) 40
+                style-bg $ merge
+                  {}
+                    :fill-style $ hsl 0 50 80
+                    :stroke-style $ hsl 0 0 50
+                    :line-width 2
+                    :x $ match (get style :x)
+                      (:some v) (or v 0)
+                      (:none) 0
+                    :y $ match (get style :y)
+                      (:some v) (or v 0)
+                      (:none) 0
+                    :w w
+                    :h h
+                  match (get style :event)
+                    (:some event)
+                      {} $ :event event
+                    (:none) ({})
                 style-place-text $ {}
                 style-text $ {} (:text-align |center)
-                  :text $ .unwrap-or (get style :text) nil
+                  :text $ .unwrap-or (get style :text) |
                   :font-family |Optima
                   :size 20
                   :fill-style $ hsl 0 0 0
                   :x 0
                   :y 0
-                  :max-width w
+                  :max-width $ match (get style :w)
+                    (:some v) (or v 400)
+                    (:none) 400
               group ({}) (rect style-bg)
                 translate style-place-text $ text style-text
           :examples $ []
@@ -14061,7 +14069,7 @@
         'textbox $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp textbox (states props)
             let
-                cursor $ .unwrap-or (get states :cursor) nil
+                cursor $ .unwrap-or (get states :cursor) ([])
                 state $ decode-map-as
                     get states :data
                     , .unwrap-or $ {} $ :text
@@ -14137,14 +14145,12 @@
           :code $ quote $ defn paint-alpha (ctx style)
             let
                 base-alpha $ decode-map-as
-                  match (&map:get @*tracked-transform :alpha)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  .unwrap $ &map:get @*tracked-transform :alpha
                   , 'Number
                 opacity $ * base-alpha $ decode-map-as
-                  bound-opacity $ match (&map:get style :opacity)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  match (&map:get style :opacity)
+                    (:some legacy-value) (bound-opacity legacy-value)
+                    (:none) 1
                   , 'Number
               set! (.-globalAlpha ctx) opacity
               swap! *tracked-transform assoc :alpha opacity
@@ -14180,16 +14186,12 @@
                   :position $ [] x y
               when (&map:contains? style :fill-style)
                 set! (.-fillStyle ctx)
-                  match (&map:get style :fill-style)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  .unwrap $ &map:get style :fill-style
                 .!fill ctx
               when (&map:contains? style :stroke-style)
                 set! (.-lineWidth ctx) line-width
                 set! (.-strokeStyle ctx)
-                  match (&map:get style :stroke-style)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  .unwrap $ &map:get style :stroke-style
                 set! (.-lineCap ctx) line-cap
                 set! (.-miterLimit ctx) miter-limit
                 .!stroke ctx
@@ -14198,32 +14200,32 @@
         'paint-image $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-image (ctx style coord)
             let
-                sx $ or
-                  .unwrap-or (get style :sx) nil
-                  , 0
-                sy $ or
-                  .unwrap-or (get style :sy) nil
-                  , 0
-                sw $ or
-                  .unwrap-or (get style :sw) nil
-                  , 40
-                sh $ or
-                  .unwrap-or (get style :sh) nil
-                  , 40
-                dx $ or
-                  .unwrap-or (get style :dx) nil
-                  , 0
-                dy $ or
-                  .unwrap-or (get style :dy) nil
-                  , 0
-                dw $ or
-                  .unwrap-or (get style :dw) nil
-                  , 40
-                dh $ or
-                  .unwrap-or (get style :dh) nil
-                  , 40
+                sx $ match (get style :sx)
+                  (:some v) (or v 0)
+                  (:none) 0
+                sy $ match (get style :sy)
+                  (:some v) (or v 0)
+                  (:none) 0
+                sw $ match (get style :sw)
+                  (:some v) (or v 40)
+                  (:none) 40
+                sh $ match (get style :sh)
+                  (:some v) (or v 40)
+                  (:none) 40
+                dx $ match (get style :dx)
+                  (:some v) (or v 0)
+                  (:none) 0
+                dy $ match (get style :dy)
+                  (:some v) (or v 0)
+                  (:none) 0
+                dw $ match (get style :dw)
+                  (:some v) (or v 40)
+                  (:none) 40
+                dh $ match (get style :dh)
+                  (:some v) (or v 40)
+                  (:none) 40
                 image $ get-image $ decode-map-as
-                  .unwrap-or (get style :src) nil
+                  .unwrap $ get style :src
                   , 'String
               .!drawImage ctx image sx sy sw sh dx dy dw dh
           :examples $ []
@@ -14236,31 +14238,22 @@
                 y0 $ .unwrap-or (&map:get style :y0) 0
                 x1 $ .unwrap-or (&map:get style :x1) 40
                 y1 $ .unwrap-or (&map:get style :y1) 40
-                line-width $ or
-                  match (&map:get style :line-width)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 4
-                stroke-style $ or
-                  match (&map:get style :stroke-style)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  hsl 200 70 50
-                line-cap $ or
-                  match (&map:get style :line-cap)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , |round
-                line-join $ or
-                  match (&map:get style :line-join)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , |round
-                miter-limit $ or
-                  match (&map:get style :miter-limit)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 8
+                line-width $ match (&map:get style :line-width)
+                  (:some legacy-value) (or legacy-value 4)
+                  (:none) 4
+                stroke-style $ match (&map:get style :stroke-style)
+                  (:some legacy-value)
+                    or legacy-value $ hsl 200 70 50
+                  (:none) (hsl 200 70 50)
+                line-cap $ match (&map:get style :line-cap)
+                  (:some legacy-value) (or legacy-value |round)
+                  (:none) |round
+                line-join $ match (&map:get style :line-join)
+                  (:some legacy-value) (or legacy-value |round)
+                  (:none) |round
+                miter-limit $ match (&map:get style :miter-limit)
+                  (:some legacy-value) (or legacy-value 8)
+                  (:none) 8
               .!beginPath ctx
               .!moveTo ctx x0 y0
               .!lineTo ctx x1 y1
@@ -14300,19 +14293,13 @@
           :code $ quote $ defn paint-path (ctx style)
             let
                 points $ decode-map-as
-                  match (&map:get style :points)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  .unwrap $ &map:get style :points
                   List $ List Number
                 first-point $ .unwrap $ &list:first points
               .!beginPath ctx
               .!moveTo ctx
-                match (&list:first first-point)
-                  (:some legacy-value) legacy-value
-                  (:none) nil
-                match (&list:last first-point)
-                  (:some legacy-value) legacy-value
-                  (:none) nil
+                .unwrap $ &list:first first-point
+                .unwrap $ &list:last first-point
               &doseq
                 coords $ rest points
                 match (count coords)
@@ -14336,9 +14323,7 @@
                 set! (.-lineWidth ctx)
                   .unwrap-or (&map:get style :line-width) 4
                 set! (.-strokeStyle ctx)
-                  match (&map:get style :stroke-style)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  .unwrap $ &map:get style :stroke-style
                 set! (.-lineCap ctx)
                   .unwrap-or (&map:get style :line-cap) |round
                 set! (.-lineJoin ctx)
@@ -14348,9 +14333,7 @@
                 .!stroke ctx
               when (&map:contains? style :fill-style)
                 set! (.-fillStyle ctx)
-                  match (&map:get style :fill-style)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  .unwrap $ &map:get style :fill-style
                 .!closePath ctx
                 .!fill ctx
           :examples $ []
@@ -14359,35 +14342,25 @@
           :code $ quote $ defn paint-rect (ctx style coord event)
             let
                 style $ decode-map-as style $ Map Dynamic Dynamic
-                w $ legacy-number
-                  match (&map:get style :w)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 100
-                h $ legacy-number
-                  match (&map:get style :h)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 40
+                w $ match (&map:get style :w)
+                  (:some legacy-value) (legacy-number legacy-value 100)
+                  (:none) 100
+                h $ match (&map:get style :h)
+                  (:some legacy-value) (legacy-number legacy-value 40)
+                  (:none) 40
                 x $ -
-                  legacy-number
-                    match (&map:get style :x)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
-                    , 0
+                  match (&map:get style :x)
+                    (:some legacy-value) (legacy-number legacy-value 0)
+                    (:none) 0
                   / w 2
                 y $ -
-                  legacy-number
-                    match (&map:get style :y)
-                      (:some legacy-value) legacy-value
-                      (:none) nil
-                    , 0
+                  match (&map:get style :y)
+                    (:some legacy-value) (legacy-number legacy-value 0)
+                    (:none) 0
                   / h 2
-                line-width $ legacy-number
-                  match (&map:get style :line-width)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
-                  , 2
+                line-width $ match (&map:get style :line-width)
+                  (:some legacy-value) (legacy-number legacy-value 2)
+                  (:none) 2
               .!beginPath ctx
               .!rect ctx x y w h
               when (non-nil? event)
@@ -14406,15 +14379,11 @@
                     &+ y $ &* 0.5 h
               when (&map:contains? style :fill-style)
                 set! (.-fillStyle ctx)
-                  match (&map:get style :fill-style)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  .unwrap $ &map:get style :fill-style
                 .!fill ctx
               when (&map:contains? style :stroke-style)
                 set! (.-strokeStyle ctx)
-                  match (&map:get style :stroke-style)
-                    (:some legacy-value) legacy-value
-                    (:none) nil
+                  .unwrap $ &map:get style :stroke-style
                 set! (.-lineWidth ctx) line-width
                 .!stroke ctx
           :examples $ []
@@ -14433,9 +14402,9 @@
           :code $ quote $ defn paint-rotate (ctx style)
             let
                 angle $ decode-map-as
-                  or
-                    .unwrap-or (get style :angle) nil
-                    , 30
+                  match (get style :angle)
+                    (:some v) (or v 30)
+                    (:none) 30
                   , 'Number
               .!rotate ctx angle
               swap! *tracked-transform update :transform $ fn (point)
@@ -14454,9 +14423,9 @@
           :code $ quote $ defn paint-scale (ctx style)
             let
                 ratio $ decode-map-as
-                  or
-                    .unwrap-or (get style :ratio) nil
-                    , 1.2
+                  match (get style :ratio)
+                    (:some v) (or v 1.2)
+                    (:none) 1.2
                   , 'Number
               .!scale ctx ratio ratio
               swap! *tracked-transform update :transform $ fn (point)
@@ -14468,63 +14437,64 @@
         'paint-text $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-text (ctx style)
             set! (.-fillStyle ctx)
-              or
-                .unwrap-or (get style :fill-style) nil
-                hsl 0 0 0
+              match (get style :fill-style)
+                (:some v)
+                  or v $ hsl 0 0 0
+                (:none) (hsl 0 0 0)
             set! (.-textAlign ctx)
-              or
-                .unwrap-or (get style :text-align) nil
-                , |center
+              match (get style :text-align)
+                (:some v) (or v |center)
+                (:none) |center
             set! (.-textBaseline ctx)
-              or
-                .unwrap-or (get style :base-line) nil
-                , |middle
+              match (get style :base-line)
+                (:some v) (or v |middle)
+                (:none) |middle
             set! (.-font ctx)
               str
-                or
-                  .unwrap-or (get style :size) nil
-                  , 20
-                , "|px " $ or
-                  .unwrap-or (get style :font-family) nil
-                  , |Optima
+                match (get style :size)
+                  (:some v) (or v 20)
+                  (:none) 20
+                , "|px " $ match (get style :font-family)
+                  (:some v) (or v |Optima)
+                  (:none) |Optima
             when (contains? style :fill-style)
               .!fillText ctx
-                .unwrap-or (get style :text) nil
-                or
-                  .unwrap-or (get style :x) nil
-                  , 0
-                or
-                  .unwrap-or (get style :y) nil
-                  , 0
-                or
-                  .unwrap-or (get style :max-width) nil
-                  , 400
+                .unwrap-or (get style :text) |
+                match (get style :x)
+                  (:some v) (or v 0)
+                  (:none) 0
+                match (get style :y)
+                  (:some v) (or v 0)
+                  (:none) 0
+                match (get style :max-width)
+                  (:some v) (or v 400)
+                  (:none) 400
             when (contains? style :stroke-style)
               .!strokeText ctx
-                .unwrap-or (get style :text) nil
-                or
-                  .unwrap-or (get style :x) nil
-                  , 0
-                or
-                  .unwrap-or (get style :y) nil
-                  , 0
-                or
-                  .unwrap-or (get style :max-width) nil
-                  , 400
+                .unwrap-or (get style :text) |
+                match (get style :x)
+                  (:some v) (or v 0)
+                  (:none) 0
+                match (get style :y)
+                  (:some v) (or v 0)
+                  (:none) 0
+                match (get style :max-width)
+                  (:some v) (or v 400)
+                  (:none) 400
           :examples $ []
           :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
         'paint-translate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-translate (ctx style)
             let
                 x $ decode-map-as
-                  or
-                    .unwrap-or (get style :x) nil
-                    , 0
+                  match (get style :x)
+                    (:some v) (or v 0)
+                    (:none) 0
                   , 'Number
                 y $ decode-map-as
-                  or
-                    .unwrap-or (get style :y) nil
-                    , 0
+                  match (get style :y)
+                    (:some v) (or v 0)
+                    (:none) 0
                   , 'Number
                 transform $ decode-map-as
                   .unwrap $ get @*tracked-transform :transform
@@ -14555,10 +14525,8 @@
                   &doseq
                     cursor $ :children shape
                     paint-tree-only-with ctx
-                      (last cursor) .unwrap-or nil
-                      append coord $
-                        first cursor
-                        , .unwrap-or nil
+                      .unwrap $ last cursor
+                      append coord $ .unwrap $ first cursor
                       , paint-leaf
                   , &unit
                 raise "|Expected a Quamolit Shape or Component"
