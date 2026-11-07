@@ -143,7 +143,7 @@
         'arc $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arc (props & children) (create-shape :arc props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'arrange-children $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arrange-children (children)
             if (every? children non-nil?)
@@ -158,7 +158,7 @@
         'bezier $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn bezier (props & children) (create-shape :bezier props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'create-list-shape $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-list-shape (shape-name props children)
             if
@@ -219,20 +219,20 @@
                       (:none) nil
                 true $ raise |unknown-component
           :examples $ []
-          :schema $ quote $ Macro SyntaxSymbol SyntaxList & Syntax
+          :schema $ quote $ Macro SyntaxSymbol SyntaxList (& Syntax)
             -> $ Definition Fn
         'group $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn group (props & children) (create-shape :group props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'image $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn image (props & children) (create-shape :image props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'line $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn line (props & children) (create-shape :line props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'list-> $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn list-> (props children) (create-list-shape :group props children)
           :examples $ []
@@ -240,47 +240,47 @@
         'native-alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-alpha (props & children) (create-shape :native-alpha props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'native-clip $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-clip (props & children) (create-shape :native-clip props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'native-restore $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-restore (props & children) (create-shape :native-restore props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'native-rotate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-rotate (props & children) (create-shape :native-rotate props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'native-save $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-save (props & children) (create-shape :native-save props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'native-scale $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-scale (props & children) (create-shape :native-scale props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'native-transform $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-transform (props & children) (create-shape :native-transform props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'native-translate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-translate (props & children) (create-shape :native-translate props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'path $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn path (props & children) (create-shape :path props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'rect $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn rect (props & children) (create-shape :rect props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
         'text $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text (props & children) (create-shape :text props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Dynamic)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.alias
           :require $ quamolit.types :refer $ Component Shape
@@ -8698,8 +8698,7 @@
           :schema $ quote $ Fn Dynamic Dynamic Number (-> Unit)
           :tests $ [] $ %{} 'TestEntry (:name |parent-before-child)
             :code $ quote $ let
-                seen $ ref $ assert-type ([])
-                  quote $ List Tag
+                seen $ ref $ assert-type ([]) (List Tag)
                 child $ %{} Component (:name :child) (:tree nil)
                   :on-tick $ fn (elapsed dispatch!) (swap! seen conj :child)
                 parent $ %{} Component (:name :parent)
@@ -10192,7 +10191,7 @@
           :code $ quote $ defn hud-log (& xs)
             swap! *hud-logs conj $ xs .join-string "|, "
           :examples $ []
-          :schema $ quote $ Fn & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn (& Dynamic) (-> Dynamic)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.hud-logs
     'quamolit.image-resource-runner $ %{} 'FileEntry
@@ -11987,7 +11986,7 @@
                     , false
                   empty-registry $ assert-type
                     CpuFunctionRegistry :samplers $ {}
-                    quote $ quamolit.motion-cpu/CpuFunctionRegistry quamolit.test.cpu-motion-fixture/CustomInput quamolit.motion/Vec2
+                    quamolit.motion-cpu/CpuFunctionRegistry quamolit.test.cpu-motion-fixture/CustomInput quamolit.motion/Vec2
                 is-throws $ sample-function request registry reject-output
                 is-throws $ sample-function request empty-registry quamolit.test.cpu-motion-fixture/valid-output?
               :tags $ #{} :motion-cpu :unit
@@ -13962,7 +13961,7 @@
                   native-save $ {}
                 native-restore $ {}
           :examples $ []
-          :schema $ quote $ Fn (Map Tag Dynamic) & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn (Map Tag Dynamic) (& Dynamic) (-> Dynamic)
         'button $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp button (style) (; js/console.log |button style)
             let
@@ -14049,7 +14048,7 @@
                   native-save $ {}
                 native-restore $ {}
           :examples $ []
-          :schema $ quote $ Fn (Map Tag Dynamic) & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn (Map Tag Dynamic) (& Dynamic) (-> Dynamic)
         'scale $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp scale (props & children)
             group ({}) & $ conj
@@ -14058,7 +14057,7 @@
                 native-save $ {}
               native-restore $ {}
           :examples $ []
-          :schema $ quote $ Fn (Map Tag Dynamic) & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn (Map Tag Dynamic) (& Dynamic) (-> Dynamic)
         'textbox $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp textbox (states props)
             let
@@ -14097,7 +14096,7 @@
                 native-save $ {}
               native-restore $ {}
           :examples $ []
-          :schema $ quote $ Fn (Map Tag Dynamic) & Dynamic (-> Dynamic)
+          :schema $ quote $ Fn (Map Tag Dynamic) (& Dynamic) (-> Dynamic)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.render.element
           :require
@@ -14687,7 +14686,7 @@
             :code $ quote $ let
                 base-archive $ assert-type
                   start-archive (fixed/start-simulation 0.25 7 0) 2 0
-                  quote $ quamolit.replay-archive/ReplayArchive Number Number
+                  quamolit.replay-archive/ReplayArchive Number Number
                 step-one $ record-input base-archive 2 quamolit.test.replay-archive-fixture/update-state
                 step-two $ record-input step-one 4 quamolit.test.replay-archive-fixture/update-state
                 reset-state $ reset-archive step-two
@@ -21380,7 +21379,7 @@
                   a $ .unwrap $ first alpha
                 str "|hsla(" h |, s |%, l |%, a "|)"
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic & Dynamic (-> String)
+          :schema $ quote $ Fn Dynamic Dynamic Dynamic (& Dynamic) (-> String)
           :tests $ [] $ %{} 'TestEntry (:name |formats-css-color)
             :code $ quote $ do
               assert= "|hsl(200,70%,80%)" $ hsl 200 70 80
