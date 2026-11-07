@@ -21,15 +21,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@calcit/procs@npm:0.35.1":
-  version: 0.35.1
-  resolution: "@calcit/procs@npm:0.35.1"
+"@calcit/procs@npm:0.36.0":
+  version: 0.36.0
+  resolution: "@calcit/procs@npm:0.36.0"
   dependencies:
     "@calcit/finger-vec": "npm:0.1.1"
     "@calcit/ternary-tree": "npm:0.0.26"
     "@cirru/parser.ts": "npm:0.0.10"
     "@cirru/writer.ts": "npm:^0.1.9"
-  checksum: 10c0/c39ab807cdda677cfd9fa9f6ae8adbb468347d5dd85ac38355a27a048cc9a1b7301d4f9c73f3bbf815269ecc7a59d824f61c8c46a9d56ae6a67f3b5cb21be3de
+  checksum: 10c0/b090936bc868e316795075e74e22029d3912e9575a5dfcf8484939c73b698a9ea3b57110c64ca317b0d468d754b19773f0ab012b5b42d42910f20912355393fe
   languageName: node
   linkType: hard
 
@@ -687,7 +687,7 @@ __metadata:
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
     "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.13"
-    "@calcit/procs": "npm:0.35.1"
+    "@calcit/procs": "npm:0.36.0"
     "@playwright/test": "npm:1.63.0"
     "@quamolit/touch-control": "npm:^0.0.13"
     bottom-tip: "npm:^0.1.5"
