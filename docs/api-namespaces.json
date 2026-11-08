@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "calcitVersion": "0.36.0",
+  "calcitVersion": "0.37.0",
   "stableTypes": ["quamolit.motion/Easing"],
   "groups": [
     {

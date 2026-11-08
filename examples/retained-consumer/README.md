@@ -2,7 +2,7 @@
 
 本目录是单独的 Calcit/Yarn 项目，不是 Quamolit workspace 子包。主要源码是 `calcit.cirru` 中的 `app.main`；通过统一 Calcit 执行入口声明静态横条、标量 Motion 矩形及 CPU 变换折线，使用同一个 ComponentPlan 绘制 Canvas。JS 入口只连接页面按钮、传入 Canvas 原生上下文与展示诊断计数，不实现动画或渲染循环。
 
-使用配套的正式 Calcit／runtime 0.35.1、Node.js 24 和 Yarn 4.18.0；候选源码验收不等于 Quamolit 正式版已发布：
+使用配套的正式 Calcit／runtime 0.37.0、Node.js 24 和 Yarn 4.18.0。Quamolit 0.0.20 发布后，可直接使用以下命令：
 
 ```sh
 cd examples/retained-consumer
@@ -12,7 +12,7 @@ calcit query def app.main/declare --raw
 calcit query def app.main/update-plan --raw
 ```
 
-`deps.cirru` 默认使用已发布的 Quamolit 0.0.19。要验证已推送的候选提交或其他发布 tag，使用 `caps --ci add Quamolit/quamolit -r <完整 SHA 或 tag>`，再编译。不需要 npm 的 Quamolit 包或 `@calcit/js-ffi` 包；当前路径唯一 npm 直接依赖是 `@calcit/procs`。
+`deps.cirru` 固定 Quamolit 0.0.20。发布前，在仓库根目录用 `QUAMOLIT_CONSUMER_REF=<已推送的候选提交> yarn compile` 通过临时项目构建，CI 也使用对应候选提交。旧版 0.0.19 使用 Calcit 0.37.0 已移除的 rest 参数类型写法。不需要 npm 的 Quamolit 包或 `@calcit/js-ffi` 包；当前路径唯一 npm 直接依赖是 `@calcit/procs`。
 
 从 Quamolit 根目录可运行 `yarn vite examples/retained-consumer --host 127.0.0.1 --port 5183` 查看页面。Vite 只是开发服务器，不是 Calcit 消费者的运行时依赖。点击时间按钮可乱序查看中间帧，在相同时间修改 Model、资源 ready 与宽度版本，观察声明次数及画面更新。
 
