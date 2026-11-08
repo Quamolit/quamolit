@@ -1757,23 +1757,22 @@
             -> $ Option $ Map Tag Dynamic
             :features :js-ffi
         'handle-event $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn handle-event (coord event-name event dispatch) (; js/console.log "|handle event" coord event-name @*element-tree)
-            if-let
-              maybe-listener $ let
-                  event-name $ decode-map-as event-name 'Tag
-                  coord $ decode-map-as
-                    either coord $ []
-                    List Dynamic
-                match @*element-tree
+          :code $ quote $ defn handle-event (coord event-name event dispatch)
+            let
+                path $ decode-map-as
+                  either coord $ []
+                  List Dynamic
+              if-let
+                maybe-listener $ match @*element-tree
                   (:empty) (Option :none)
-                  (:shape value) (resolve-target value event-name coord)
-                  (:component value) (resolve-target value event-name coord)
-              if (fn? maybe-listener)
-                do (.!preventDefault event) (maybe-listener event dispatch)
-                raise |invalid-legacy-listener
-              ; js/console.log "|no target"
+                  (:shape shape) (resolve-target shape event-name path)
+                  (:component component) (resolve-target component event-name path)
+                if (fn? maybe-listener)
+                  do (.preventDefault event) (maybe-listener event dispatch)
+                  raise |invalid-legacy-listener
+                ; js/console.log "|no target"
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Tag quamolit.core/EventHost Dynamic (-> Dynamic) (:features :js-ffi)
         'on-control-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn on-control-event (elapsed states delta)
             if
