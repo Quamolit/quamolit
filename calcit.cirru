@@ -1809,7 +1809,7 @@
               cache-element-tree! tree
               paint ctx tree ([]) dispatch! elapsed true
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic Number (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic Dynamic Number (-> Unit) (:features :js-ffi)
         'paint-logs! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-logs! (ctx logs)
             set! (.-fillStyle ctx) "|hsla(0,0%,0%,0.5)"
@@ -1833,7 +1833,7 @@
           :code $ quote $ defn redraw-context (tree ctx dispatch!) (cache-element-tree! tree)
             paint ctx tree ([]) dispatch! 0 false
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Unit) (:features :js-ffi)
         'redraw-page $ %{} 'CodeEntry
           :doc "|Repaint a browser canvas without advancing on-tick callbacks; pass a freshly constructed scene after a deterministic step."
           :code $ quote $ defn redraw-page (tree target dispatch!) (cache-element-tree! tree) (call-paint tree target dispatch! 0 false)
@@ -14139,7 +14139,7 @@
         'paint $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint (ctx tree coord dispatch! elapsed tick?) (; js/console.log |paint tree) (paint-tree-with ctx tree coord dispatch! elapsed tick? paint-one)
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (List Dynamic) Dynamic Number Bool (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic (List Dynamic) Dynamic Number Bool (-> Unit) (:features :js-ffi)
         'paint-alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-alpha (ctx style)
             let
@@ -21266,7 +21266,7 @@
                 ty $ type-as-int y
               if (identical? tx ty) (compare-number x y) (compare-number tx ty)
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic Dynamic (-> Number)
         'compare-number $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn compare-number (x y)
             let
@@ -21278,7 +21278,7 @@
                 (&> x y) 1
                 true 0
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic Dynamic (-> Number)
         'type-as-int $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn type-as-int (x)
             cond
