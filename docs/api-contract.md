@@ -243,7 +243,7 @@ alpha 阶段也不静默破坏稳定合同。稳定 API 的破坏性修改须在
 | --- | --- | --- | --- |
 | `quamolit.alias` | 22；comp.debug、comp.fade-in-out、comp.slider、render.element、test.frame-fixture | retained-component / scene-ir / scene-hit | L；M3 |
 | `quamolit.core` | 25；无仓内定义引用或require | host-clock / playback / retained-component | L；M3 |
-| `quamolit.types` | 3，含旧事件路由使用的 `LegacyNode`；alias、controller.resolve、frame-eval、render.paint、test.frame-fixture；core为import-only | Scene/Motion类型 | L，先迁完整旧依赖链；M3 |
+| `quamolit.types` | 4，旧树的事件路由、逐帧更新与绘制共用 `LegacyNode`；`read-legacy-node` 在遍历前验证旧节点 | Scene/Motion类型 | L，先迁完整旧依赖链；M3 |
 | `quamolit.comp.debug` | 2；无定义引用或require | 已有DOM诊断浮层 | L；M3 |
 | `quamolit.comp.fade-in-out` | 6；无定义引用；comp.slider为import-only | presence / ui-motion | L；M3 |
 | `quamolit.comp.slider` | 1；无定义引用或require | 实际Drag示例与声明式交互 | L；M3 |
