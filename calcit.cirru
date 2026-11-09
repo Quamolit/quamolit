@@ -1612,14 +1612,10 @@
           :schema $ quote $ Fn Number (-> Number)
         'cache-element-tree! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn cache-element-tree! (tree)
-            reset! *element-tree $ cond
-                nil? tree
-                LegacyRoot :empty
-              (and (struct? tree) (&struct:matches? tree quamolit.types/Shape))
-                LegacyRoot :shape tree
-              (and (struct? tree) (&struct:matches? tree quamolit.types/Component))
-                LegacyRoot :component tree
-              true $ raise "|Expected a Quamolit Shape or Component"
+            reset! *element-tree $ if (nil? tree) (LegacyRoot :empty)
+              match (quamolit.types/read-legacy-node tree)
+                (quamolit.types/Shape shape) (LegacyRoot :shape shape)
+                (quamolit.types/Component component) (LegacyRoot :component component)
             , &unit
           :examples $ []
           :schema $ quote $ Fn Dynamic (-> Unit)
@@ -8671,24 +8667,20 @@
         'tick-tree $ %{} 'CodeEntry
           :doc "|Invoke component on-tick callbacks in tree order without drawing; callers rebuild the scene after updates."
           :code $ quote $ defn tick-tree (tree dispatch! elapsed)
-            if (nil? tree) &unit $ if
-              and (struct? tree) (&struct:matches? tree Component)
-              let
-                  component $ assert-type tree Component
-                  on-tick $ :on-tick component
-                when (fn? on-tick) (on-tick elapsed dispatch!)
-                tick-tree (:tree component) dispatch! elapsed
-              if
-                and (struct? tree) (&struct:matches? tree Shape)
+            if (nil? tree) &unit $ match (quamolit.types/read-legacy-node tree)
+              (quamolit.types/Component component)
                 let
-                    shape $ assert-type tree Shape
+                    on-tick $ :on-tick component
+                  when (fn? on-tick) (on-tick elapsed dispatch!)
+                  tick-tree (:tree component) dispatch! elapsed
+              (quamolit.types/Shape shape)
+                do
                   &doseq
                     cursor $ :children shape
                     tick-tree
                       .unwrap $ last cursor
                       , dispatch! elapsed
                   , &unit
-                raise "|Expected a Quamolit Shape or Component"
           :examples $ []
           :schema $ quote $ Fn Dynamic Dynamic Number (-> Unit)
           :tests $ [] $ %{} 'TestEntry (:name |parent-before-child)
@@ -14509,18 +14501,13 @@
         'paint-tree-only-with $ %{} 'CodeEntry
           :doc "|Paint a scene without invoking on-tick callbacks or advancing frame time."
           :code $ quote $ defn paint-tree-only-with (ctx tree coord paint-leaf)
-            if (nil? tree) &unit $ if
-              and (struct? tree) (&struct:matches? tree Component)
-              let
-                  component $ assert-type tree Component
+            if (nil? tree) &unit $ match (quamolit.types/read-legacy-node tree)
+              (quamolit.types/Component component)
                 paint-tree-only-with ctx (:tree component)
                   conj coord $ :name component
                   , paint-leaf
-              if
-                and (struct? tree) (&struct:matches? tree Shape)
-                let
-                    shape $ assert-type tree Shape
-                  paint-leaf ctx shape coord
+              (quamolit.types/Shape shape)
+                do (paint-leaf ctx shape coord)
                   &doseq
                     cursor $ :children shape
                     paint-tree-only-with ctx
@@ -14528,7 +14515,6 @@
                       append coord $ .unwrap $ first cursor
                       , paint-leaf
                   , &unit
-                raise "|Expected a Quamolit Shape or Component"
           :examples $ []
           :schema $ quote $ Fn C Dynamic (List Dynamic)
             Fn C quamolit.types/Shape (List Dynamic) (-> R) (:features :js-ffi)
@@ -21158,6 +21144,16 @@
           :code $ quote $ defstruct Shape (:name Dynamic) (:style Dynamic) (:event Dynamic) (:children Dynamic)
           :examples $ []
           :schema $ quote StructDef
+        'read-legacy-node $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn read-legacy-node (tree)
+            cond
+                and (struct? tree) (&struct:matches? tree quamolit.types/Shape)
+                assert-type tree quamolit.types/Shape
+              (and (struct? tree) (&struct:matches? tree quamolit.types/Component))
+                assert-type tree quamolit.types/Component
+              true $ raise "|Expected a Quamolit Shape or Component"
+          :examples $ []
+          :schema $ quote $ Fn T (-> quamolit.types/LegacyNode) (:generics T)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.types
     'quamolit.ui-motion $ %{} 'FileEntry
