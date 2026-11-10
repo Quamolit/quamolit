@@ -93,7 +93,7 @@
           ],
           [
             ":return",
-            "'quamolit.ui-motion/StaggerSpec"
+            "'StaggerSpec"
           ],
           [
             ":args",
@@ -102,7 +102,7 @@
               "'Number",
               "'Number",
               "'Number",
-              "'quamolit.motion/Easing"
+              "'motion/Easing"
             ]
           ]
         ]
@@ -160,7 +160,7 @@
           ],
           [
             ":return",
-            "'quamolit.ui-motion/PresenceFrame"
+            "'PresenceFrame"
           ],
           [
             ":args",
@@ -183,7 +183,7 @@
           ],
           [
             ":return",
-            "'quamolit.ui-motion/StaggerSpec"
+            "'StaggerSpec"
           ],
           [
             ":args",
@@ -211,7 +211,7 @@
             ":args",
             [
               "[]",
-              "'quamolit.ui-motion/StaggerSpec",
+              "'StaggerSpec",
               "'Number",
               "'Number"
             ]
