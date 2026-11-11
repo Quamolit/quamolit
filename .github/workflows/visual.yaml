@@ -44,13 +44,21 @@ jobs:
 
       - name: Install pinned Chromium and system dependencies
         run: |
-          if ! getent ahostsv4 azure.archive.ubuntu.com >/dev/null || ! getent ahostsv4 security.ubuntu.com >/dev/null; then
-            echo "Ubuntu mirror DNS failed; using the Kernel.org mirror."
-            for source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources; do
-              if [ -f "$source" ]; then
-                sudo sed -Ei 's#https?://(azure\.archive|archive|security)\.ubuntu\.com/ubuntu/?#https://mirrors.edge.kernel.org/ubuntu/#g' "$source"
-              fi
-            done
+          reachable=0
+          for host in azure.archive.ubuntu.com archive.ubuntu.com security.ubuntu.com; do
+            if getent ahostsv4 "$host" >/dev/null; then
+              reachable=$((reachable + 1))
+            fi
+          done
+          if [ "$reachable" -lt 3 ] && [ -f /etc/apt/apt-mirrors.txt ]; then
+            priority=4
+            # Avoid per-package DNS retries when all three default mirrors are down.
+            if [ "$reachable" -eq 0 ]; then priority=0; fi
+            echo "Ubuntu mirror DNS failed; adding the Kernel.org mirror."
+            printf 'https://mirrors.edge.kernel.org/ubuntu/\tpriority:%s\n' "$priority" | sudo tee -a /etc/apt/apt-mirrors.txt
+            if [ -f /etc/apt/sources.list.d/ubuntu.sources ] && ! getent ahostsv4 security.ubuntu.com >/dev/null; then
+              sudo sed -Ei 's#^(URIs: )https?://security\.ubuntu\.com/ubuntu/?$#\1mirror+file:/etc/apt/apt-mirrors.txt#' /etc/apt/sources.list.d/ubuntu.sources
+            fi
           fi
           yarn playwright install --with-deps chromium
 
