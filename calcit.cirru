@@ -143,7 +143,7 @@
         'arc $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arc (props & children) (create-shape :arc props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'arrange-children $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arrange-children (children)
             if (every? children non-nil?)
@@ -153,12 +153,13 @@
                 filter $ fn (entry)
                   .some? $ last entry
           :examples $ []
-          :schema $ quote $ Fn (List Dynamic)
-            -> $ List Dynamic
+          :schema $ quote $ Fn (List C)
+            -> $ List $ List Dynamic
+            :generics C
         'bezier $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn bezier (props & children) (create-shape :bezier props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'create-list-shape $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-list-shape (shape-name props children)
             if
@@ -174,7 +175,7 @@
                   , nil
                 , :children children
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Shape) (:features :js-ffi)
+          :schema $ quote $ Fn N P C (-> Shape) (:generics N P C) (:features :js-ffi)
         'create-shape $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-shape (shape-name props children)
             if
@@ -186,7 +187,7 @@
                 , nil
               , :children $ arrange-children children
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (List Dynamic) (-> Shape) (:features :js-ffi)
+          :schema $ quote $ Fn N P (List C) (-> Shape) (:generics N P C) (:features :js-ffi)
         'defcomp $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defmacro defcomp (comp-name args & body)
             quasiquote $ defn ~comp-name ~args $ let
@@ -220,63 +221,63 @@
         'group $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn group (props & children) (create-shape :group props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'image $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn image (props & children) (create-shape :image props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'line $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn line (props & children) (create-shape :line props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'list-> $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn list-> (props children) (create-list-shape :group props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Shape)
+          :schema $ quote $ Fn P C (-> Shape) (:generics P C)
         'native-alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-alpha (props & children) (create-shape :native-alpha props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'native-clip $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-clip (props & children) (create-shape :native-clip props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'native-restore $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-restore (props & children) (create-shape :native-restore props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'native-rotate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-rotate (props & children) (create-shape :native-rotate props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'native-save $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-save (props & children) (create-shape :native-save props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'native-scale $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-scale (props & children) (create-shape :native-scale props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'native-transform $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-transform (props & children) (create-shape :native-transform props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'native-translate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn native-translate (props & children) (create-shape :native-translate props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'path $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn path (props & children) (create-shape :path props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'rect $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn rect (props & children) (create-shape :rect props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'text $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text (props & children) (create-shape :text props children)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (& Dynamic) (-> Shape)
+          :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.alias
           :require $ quamolit.types :refer $ Component Shape
