@@ -3292,6 +3292,7 @@
           :code $ quote $ defref *drag-view
             DragView :scale-x 1 :scale-y 1 :x 0 :y 0
           :examples $ []
+          :schema $ quote $ Ref DragView
         'DragModel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct DragModel (:x Number) (:y Number) (:value Number) (:kind String) (:pointer Number) (:anchor-x Number) (:anchor-y Number) (:start-value Number) (:enabled? Bool)
           :examples $ []
@@ -10135,12 +10136,14 @@
           :code $ quote $ defn clear-hud-logs! ()
             reset! *hud-logs $ []
           :examples $ []
-          :schema $ quote $ Fn (-> Dynamic)
+          :schema $ quote $ Fn
+            -> $ List String
         'hud-log $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hud-log (& xs)
             swap! *hud-logs conj $ xs .join-string "|, "
           :examples $ []
-          :schema $ quote $ Fn (& Dynamic) (-> Dynamic)
+          :schema $ quote $ Fn (& Dynamic)
+            -> $ List String
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.hud-logs
     'quamolit.image-resource-runner $ %{} 'FileEntry
