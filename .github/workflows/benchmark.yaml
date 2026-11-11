@@ -27,7 +27,17 @@ jobs:
           node-version: 24
       - run: corepack enable
       - run: yarn install --immutable
-      - run: yarn playwright install --with-deps chromium
+      - name: Install pinned Chromium and system dependencies
+        run: |
+          if ! getent ahostsv4 azure.archive.ubuntu.com >/dev/null || ! getent ahostsv4 security.ubuntu.com >/dev/null; then
+            echo "Ubuntu mirror DNS failed; using the Kernel.org mirror."
+            for source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources; do
+              if [ -f "$source" ]; then
+                sudo sed -Ei 's#https?://(azure\.archive|archive|security)\.ubuntu\.com/ubuntu/?#https://mirrors.edge.kernel.org/ubuntu/#g' "$source"
+              fi
+            done
+          fi
+          yarn playwright install --with-deps chromium
       - run: yarn test:fixtures
       - run: yarn test:bench
       - name: Browser smoke (not a hardware performance baseline)
