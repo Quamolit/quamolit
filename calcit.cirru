@@ -466,7 +466,7 @@
           :schema $ quote $ Fn canvas/CanvasContextHost scene/CubicPathNode (-> Unit) (:features :js-ffi)
         'draw-instances! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw-instances! (context instances positions)
-            hint-fn $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.scene-ir/InstanceNode js-ffi.typed-arrays/Float32ArrayHost (-> quamolit.canvas-reference/InstancesMetrics) (:features :js-ffi)
+            hint-fn $ Fn canvas/CanvasContextHost scene/InstanceNode js-ffi.typed-arrays/Float32ArrayHost (-> InstancesMetrics) (:features :js-ffi)
             let
                 result $ raw-draw-instances! (unsafe-coerce context JsObject) (unsafe-coerce positions JsObject) 0
                   :count $ :source instances
@@ -523,7 +523,7 @@
         'draw-reference-rects! $ %{} 'CodeEntry
           :doc "|仅供基础 Scene IR 的纯色矩形参考画面使用；按节点顺序绘制矩形，当前不处理 group 语义或 instances。Quamolit 负责 Scene 遍历，js-ffi 只提供通用 Canvas 方法。"
           :code $ quote $ defn draw-reference-rects! (context document)
-            hint-fn $ Fn js-ffi.canvas-batches/CanvasContextHost quamolit.scene-ir/SceneDocument (-> Unit) (:features :js-ffi)
+            hint-fn $ Fn canvas/CanvasContextHost scene/SceneDocument (-> Unit) (:features :js-ffi)
             each (:nodes document)
               fn (node)
                 match (:content node)
@@ -1322,7 +1322,7 @@
           :examples $ []
           :schema $ quote StructDef
         'ComponentRequest $ %{} 'CodeEntry (:doc "|组件一次采样的显式身份、时间、六类依赖版本以及 props/Model/输入/资源/视口快照。")
-          :code $ quote $ defstruct ComponentRequest ([] P M I R V) (:id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:props P) (:model M) (:input I) (:resources R) (:viewport V)
+          :code $ quote $ defstruct ComponentRequest (:generics P M I R V) (:id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:props P) (:model M) (:input I) (:resources R) (:viewport V)
           :examples $ []
           :schema $ quote StructDef
         'color-channel-descriptor $ %{} 'CodeEntry
@@ -1330,7 +1330,7 @@
           :code $ quote $ defn color-channel-descriptor (descriptor node-id target)
             let
                 channel $ fn (color)
-                  hint-fn $ Fn quamolit.motion/ColorRgba $ -> Number
+                  hint-fn $ Fn motion/ColorRgba $ -> Number
                   match target
                     (:linear-red)
                       motion/srgb-to-linear $ :r color
@@ -2286,12 +2286,12 @@
       :defs $ {}
         'DirectFrame $ %{} 'CodeEntry
           :doc "|A sampled value plus the exact identity, time and revisions used to produce it."
-          :code $ quote $ defstruct DirectFrame ([] S) (:id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:scene S)
+          :code $ quote $ defstruct DirectFrame (:generics S) (:id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:scene S)
           :examples $ []
           :schema $ quote StructDef
         'DirectRequest $ %{} 'CodeEntry
           :doc "|Typed, complete logical input for one arbitrary-time direct sample."
-          :code $ quote $ defstruct DirectRequest ([] D M I R V) (:id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:motion D) (:model M) (:input I) (:resources R) (:viewport V)
+          :code $ quote $ defstruct DirectRequest (:generics D M I R V) (:id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:motion D) (:model M) (:input I) (:resources R) (:viewport V)
           :examples $ []
           :schema $ quote StructDef
         'FrameVersions $ %{} 'CodeEntry
@@ -2323,14 +2323,14 @@
                     ScalarTween :start 0 :duration 1 :from 20 :to 30 :easing $ Easing :linear
                   versions $ FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources 0 :viewport 0
                   make-versions $ fn (component motion model input resources viewport)
-                    hint-fn $ Fn Number Number Number Number Number Number $ -> quamolit.direct-frame/FrameVersions
+                    hint-fn $ Fn Number Number Number Number Number Number $ -> FrameVersions
                     FrameVersions :component component :motion motion :model model :input input :resources resources :viewport viewport
                   make-request $ fn (id time revisions motion model input resources viewport)
-                    hint-fn $ Fn String Number quamolit.direct-frame/FrameVersions quamolit.motion/ScalarDescriptor Number Number Bool Number $ -> (quamolit.direct-frame/DirectRequest quamolit.motion/ScalarDescriptor Number Number Bool Number)
+                    hint-fn $ Fn String Number FrameVersions ScalarDescriptor Number Number Bool Number $ -> (DirectRequest ScalarDescriptor Number Number Bool Number)
                     DirectRequest :id id :time time :versions revisions :motion motion :model model :input input :resources resources :viewport viewport
                   request $ make-request |badge 0.5 versions descriptor 0 0 false 100
                   evaluate $ fn (motion model input resources viewport time)
-                    hint-fn $ Fn quamolit.motion/ScalarDescriptor Number Number Bool Number Number $ -> Number
+                    hint-fn $ Fn ScalarDescriptor Number Number Bool Number Number $ -> Number
                     +
                       +
                         +
@@ -2340,7 +2340,7 @@
                       / viewport 10
                   baseline $ sample-at request evaluate
                   reused $ resample-at baseline request $ fn (motion model input resources viewport time)
-                    hint-fn $ Fn quamolit.motion/ScalarDescriptor Number Number Bool Number Number $ -> Number
+                    hint-fn $ Fn ScalarDescriptor Number Number Bool Number Number $ -> Number
                     raise |unexpected-re-evaluation
                   model-request $ make-request |badge 0.5 (make-versions 0 0 1 0 0 0) descriptor 5 0 false 100
                   resource-request $ make-request |badge 0.5 (make-versions 0 0 0 0 1 0) descriptor 0 0 true 100
@@ -2373,10 +2373,10 @@
                   descriptor $ ScalarDescriptor :id |fade :version 1 :motion $ ScalarMotion :constant 10
                   versions $ FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources 0 :viewport 0
                   make-request $ fn (id time revisions)
-                    hint-fn $ Fn String Number quamolit.direct-frame/FrameVersions $ -> (quamolit.direct-frame/DirectRequest quamolit.motion/ScalarDescriptor Number Number Bool Number)
+                    hint-fn $ Fn String Number FrameVersions $ -> (DirectRequest ScalarDescriptor Number Number Bool Number)
                     DirectRequest :id id :time time :versions revisions :motion descriptor :model 0 :input 0 :resources false :viewport 100
                   evaluate $ fn (motion model input resources viewport time)
-                    hint-fn $ Fn quamolit.motion/ScalarDescriptor Number Number Bool Number Number $ -> Number
+                    hint-fn $ Fn ScalarDescriptor Number Number Bool Number Number $ -> Number
                     sample-scalar motion time
                   baseline $ sample-at (make-request |badge 0 versions) evaluate
                 is-throws $ sample-at (make-request | 0 versions) evaluate
@@ -2523,7 +2523,7 @@
               execution/ExecutionDeclaration :component
                 component/ComponentDeclaration :scene (:scene initial) :motions $ []
                 , :transforms $ execution/TransformSampler :cpu $ fn (time)
-                  hint-fn $ Fn Number $ -> (List quamolit.scene-ir/Matrix2D)
+                  hint-fn $ Fn Number $ -> (List scene/Matrix2D)
                   sample-transforms slots time
           :examples $ []
           :schema $ quote $ Fn Number Number Number Number Number (-> execution/ExecutionDeclaration)
@@ -3278,7 +3278,7 @@
       :defs $ {}
         '*drag-client-position $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *drag-client-position
-            assert-type None $ Option quamolit.motion/Vec2
+            assert-type None $ Option motion/Vec2
           :examples $ []
           :schema $ quote $ Ref (Option motion/Vec2)
         '*drag-model $ %{} 'CodeEntry (:doc |)
@@ -3426,41 +3426,41 @@
             let
                 surface $ pointer-browser/pointer-surface-host element
                 route! $ fn (phase host-event)
-                  hint-fn $ Fn quamolit.scene-pointer/PointerPhase js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn pointer/PointerPhase dom/EventHost (-> Unit) (:features :js-ffi)
                   let
                       event $ pointer-browser/pointer-event-host host-event
                     host-event .prevent-default!
                     if (handle-pointer-event! surface phase event) (render!) &unit
                     , &unit
                 on-down $ fn (event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :down) event
                 on-move $ fn (event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :move) event
                 on-up $ fn (event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :up) event
                 on-cancel $ fn (event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :cancel) event
                 on-lost $ fn (host-event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   if
                     handle-lost-capture! $ pointer-browser/pointer-event-host host-event
                     render!
                     , &unit
                 on-host-loss $ fn (_event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   if (release-drag-pointer! surface) (render!) &unit
                 on-enter $ fn (host-event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   let
                       event $ pointer-browser/pointer-event-host host-event
                     reset! *drag-client-position $ Some $ motion/Vec2 :x (.-client-x event) :y (.-client-y event)
                     render!
                 on-leave $ fn (_event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   match (:capture @*drag-pointer-state)
                     (:none)
                       do (reset! *drag-client-position None)
@@ -4019,7 +4019,7 @@
         'events-through $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn events-through (log time)
             filter log $ fn (event)
-              hint-fn $ Fn quamolit.examples.finder/FinderEvent $ -> Bool
+              hint-fn $ Fn FinderEvent $ -> Bool
               <= (:at event) time
           :examples $ []
           :schema $ quote $ Fn (List FinderEvent) Number
@@ -4190,7 +4190,7 @@
         'max-motion-value $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn max-motion-value (motions time)
             foldl motions 0 $ fn (acc intent)
-              hint-fn $ Fn Number quamolit.transition/TransitionIntent $ -> Number
+              hint-fn $ Fn Number transition/TransitionIntent $ -> Number
               &max acc $ transition/sample-transition intent time
           :examples $ []
           :schema $ quote $ Fn (List transition/TransitionIntent) Number (-> Number)
@@ -4243,7 +4243,7 @@
             assert |invalid-finder-time $ and (motion/finite-number? time) (>= time 0)
             foldl (events-through log time) (initial)
               fn (model event)
-                hint-fn $ Fn quamolit.examples.finder/FinderModel quamolit.examples.finder/FinderEvent $ -> quamolit.examples.finder/FinderModel
+                hint-fn $ Fn FinderModel FinderEvent $ -> FinderModel
                 dispatch model event
           :examples $ []
           :schema $ quote $ Fn (List FinderEvent) Number (-> FinderModel)
@@ -4449,7 +4449,7 @@
           :code $ quote $ defn events-through (log time)
             assert |invalid-fan-time $ and (motion/finite-number? time) (>= time 0)
             filter log $ fn (event)
-              hint-fn $ Fn quamolit.examples.folding-fan/FanEvent $ -> Bool
+              hint-fn $ Fn FanEvent $ -> Bool
               <= (:at event) time
           :examples $ []
           :schema $ quote $ Fn (List FanEvent) Number
@@ -4478,7 +4478,7 @@
           :code $ quote $ defn replay (log time)
             foldl (events-through log time) (initial)
               fn (model event)
-                hint-fn $ Fn quamolit.examples.folding-fan/FanModel quamolit.examples.folding-fan/FanEvent $ -> quamolit.examples.folding-fan/FanModel
+                hint-fn $ Fn FanModel FanEvent $ -> FanModel
                 toggle model $ :at event
           :examples $ []
           :schema $ quote $ Fn (List FanEvent) Number (-> FanModel)
@@ -4851,7 +4851,7 @@
       :defs $ {}
         '*dashboard-client-position $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *dashboard-client-position
-            assert-type None $ Option quamolit.motion/Vec2
+            assert-type None $ Option motion/Vec2
           :examples $ []
           :schema $ quote $ Ref (Option motion/Vec2)
         '*dashboard-plan $ %{} 'CodeEntry (:doc |)
@@ -4899,7 +4899,7 @@
         'animation-end $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn animation-end (model)
             foldl (:items model) 1 $ fn (end item)
-              hint-fn $ Fn Number quamolit.presence/PresenceItem $ -> Number
+              hint-fn $ Fn Number presence/PresenceItem $ -> Number
               let
                   finish $ +
                     :start $ :alpha item
@@ -5199,33 +5199,33 @@
             let
                 surface $ pointer-browser/pointer-surface-host element
                 route! $ fn (phase host-event)
-                  hint-fn $ Fn quamolit.scene-pointer/PointerPhase js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn pointer/PointerPhase dom/EventHost (-> Unit) (:features :js-ffi)
                   host-event .prevent-default!
                   when
                     handle-pointer! surface phase $ pointer-browser/pointer-event-host host-event
                     render!
                   , &unit
                 down $ fn (event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :down) event
                 move $ fn (event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :move) event
                 up $ fn (event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :up) event
                 cancel $ fn (event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   route! (pointer/PointerPhase :cancel) event
                 enter $ fn (host-event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   let
                       event $ pointer-browser/pointer-event-host host-event
                     reset! *dashboard-client-position $ Some $ motion/Vec2 :x (.-client-x event) :y (.-client-y event)
                     render!
                     , &unit
                 leave $ fn (_event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   match (:capture @*dashboard-pointer)
                     (:none)
                       do (reset! *dashboard-client-position None)
@@ -5234,14 +5234,14 @@
                         , &unit
                     _ &unit
                 lost $ fn (event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   let
                       result $ pointer/lose-pointer-capture @*dashboard-pointer $ pointer-browser/pointer-id-from-event (pointer-browser/pointer-event-host event)
                     reset! *dashboard-pointer $ :state result
                     when (:capture-released result) (render!)
                     , &unit
                 blur $ fn (_event)
-                  hint-fn $ Fn js-ffi.browser/EventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn dom/EventHost (-> Unit) (:features :js-ffi)
                   when (release-pointer! surface) (render!)
                   , &unit
               dom/element-add-event-listener! element |pointerdown down
@@ -5442,10 +5442,7 @@
           :schema $ quote $ Fn DashboardMedia (-> DashboardMedia) (:features :js-ffi)
         'run-media-task! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn run-media-task! (source state task)
-            hint-fn $ Fn String quamolit.examples.layered-dashboard/DashboardMedia quamolit.resource-load-queue/ResourceLoadTask
-              -> quamolit.examples.layered-dashboard/DashboardLoadResult
-              :features :js-ffi
-              :async
+            hint-fn $ Fn String DashboardMedia queue/ResourceLoadTask (-> DashboardLoadResult) (:features :js-ffi) (:async)
             match
               :kind $ :identity task
               (:font)
@@ -6460,7 +6457,7 @@
                   if (>= phase 6) (breakdown-nodes 8) ([])
                 component $ foldl
                   map nodes $ fn (node)
-                    hint-fn $ Fn quamolit.scene-ir/SceneNode $ -> quamolit.component-sample/ComponentDeclaration
+                    hint-fn $ Fn scene/SceneNode $ -> component/ComponentDeclaration
                     flow-node node props
                   component/ComponentDeclaration :scene
                     scene/SceneDocument :nodes $ []
@@ -6515,7 +6512,7 @@
         'event-prefix-size $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn event-prefix-size (events time)
             foldl events 0 $ fn (total event)
-              hint-fn $ Fn Number quamolit.transition/TransitionEvent $ -> Number
+              hint-fn $ Fn Number transition/TransitionEvent $ -> Number
               if
                 <= (:at event) time
                 inc total
@@ -7321,7 +7318,7 @@
                 range $ .len nodes
                 scene/empty-scene-nodes
                 fn (out index)
-                  hint-fn $ Fn (List quamolit.scene-ir/SceneNode) Number $ -> (List quamolit.scene-ir/SceneNode)
+                  hint-fn $ Fn (List scene/SceneNode) Number $ -> (List scene/SceneNode)
                   if
                     ends-with?
                       :id $ &list:nth nodes index
@@ -7468,7 +7465,7 @@
                 items $ :items $ :presence model
                 rows $ :rows model
               retained/ExecutionDeclaration :component component :transforms $ retained/TransformSampler :cpu $ fn (time)
-                hint-fn $ Fn Number $ -> (List quamolit.scene-ir/Matrix2D)
+                hint-fn $ Fn Number $ -> (List scene/Matrix2D)
                 map items $ fn (item)
                   let
                       row $ row-for-node rows $ :node (:entry item)
@@ -7638,7 +7635,7 @@
             match
               find (:rows model)
                 fn (row)
-                  hint-fn $ Fn quamolit.examples.todolist/Row $ -> Bool
+                  hint-fn $ Fn Row $ -> Bool
                   and (:present row)
                     = id $ :id row
               (:some row) row
@@ -7684,7 +7681,7 @@
                 range $ .len nodes
                 scene/empty-scene-nodes
                 fn (out index)
-                  hint-fn $ Fn (List quamolit.scene-ir/SceneNode) Number $ -> (List quamolit.scene-ir/SceneNode)
+                  hint-fn $ Fn (List scene/SceneNode) Number $ -> (List scene/SceneNode)
                   let
                       sampled-node $ &list:nth nodes index
                       matrix $ &list:nth transforms index
@@ -7733,7 +7730,7 @@
                   match
                     find (:rows model)
                       fn (row)
-                        hint-fn $ Fn quamolit.examples.todolist/Row $ -> Bool
+                        hint-fn $ Fn Row $ -> Bool
                         = (:target result)
                           str (:id row) |/card
                     (:none) (raise |missing-todo-hit-row)
@@ -7882,7 +7879,7 @@
             match
               find (:rows model)
                 fn (row)
-                  hint-fn $ Fn quamolit.examples.todolist/Row $ -> Bool
+                  hint-fn $ Fn Row $ -> Bool
                   = (:id row) (:undo-id model)
               (:some row)
                 struct-with row $ :present true
@@ -7900,7 +7897,7 @@
               find
                 :items $ :presence model
                 fn (item)
-                  hint-fn $ Fn quamolit.presence/PresenceItem $ -> Bool
+                  hint-fn $ Fn presence/PresenceItem $ -> Bool
                   =
                     :id $ :node $ :entry item
                     str (:id row) |/card
@@ -7912,7 +7909,7 @@
           :code $ quote $ defn row-for-node (rows node)
             match
               find rows $ fn (row)
-                hint-fn $ Fn quamolit.examples.todolist/Row $ -> Bool
+                hint-fn $ Fn Row $ -> Bool
                 starts-with? (:id node)
                   str (:id row) |/
               (:some row) row
@@ -7999,7 +7996,7 @@
       :defs $ {}
         'SimulationState $ %{} 'CodeEntry
           :doc "|Immutable simulation checkpoint; tick is an integer, dt is fixed seconds, seed and state are explicit."
-          :code $ quote $ defstruct SimulationState ([] S) (:tick Number) (:dt Number) (:seed Number) (:state S)
+          :code $ quote $ defstruct SimulationState (:generics S) (:tick Number) (:dt Number) (:seed Number) (:state S)
           :examples $ []
           :schema $ quote StructDef
         'advance-simulation $ %{} 'CodeEntry
@@ -8358,7 +8355,7 @@
         'load-font! $ %{} 'CodeEntry
           :doc "|显式异步加载，不安装、不绘制、不修改Model；失败返回封闭枚举。调用方按版本处理结果并提升字体可用性修订。"
           :code $ quote $ defn load-font! (spec source)
-            hint-fn $ Fn quamolit.scene-ir/FontSpec String (-> quamolit.font-resource/FontLoadOutcome) (:features :js-ffi) (:async)
+            hint-fn $ Fn scene/FontSpec String (-> FontLoadOutcome) (:features :js-ffi) (:async)
             if
               and (scene/valid-font? spec)
                 not $ empty? $ :family spec
@@ -8421,7 +8418,7 @@
         'run-font-load-task! $ %{} 'CodeEntry
           :doc "|复用通用加载队列的完整任务与token；平台Promise不能强制中断，完成后由当前queue/state决定是否接受。无自动安装。"
           :code $ quote $ defn run-font-load-task! (spec source task)
-            hint-fn $ Fn quamolit.scene-ir/FontSpec String quamolit.resource-load-queue/ResourceLoadTask (-> quamolit.font-resource/QueuedFontLoadResult) (:features :js-ffi) (:async)
+            hint-fn $ Fn scene/FontSpec String load-queue/ResourceLoadTask (-> QueuedFontLoadResult) (:features :js-ffi) (:async)
             assert |non-font-resource-in-font-loader $ = (resource/ResourceKind :font)
               :kind $ :identity task
             assert |font-load-task-version-mismatch $ = (:version spec)
@@ -8434,7 +8431,7 @@
             assert |invalid-font-budget $ and (motion/finite-number? budget) (> budget 0)
             .each (concat previous next)
               fn (font-ref)
-                hint-fn $ Fn quamolit.resource-lifecycle/ResourceIdentity $ -> Unit
+                hint-fn $ Fn resource/ResourceIdentity $ -> Unit
                 assert |invalid-font-reference $ = (:kind font-ref) (resource/ResourceKind :font)
                 assert |invalid-font-reference $ = font-ref $ resource/resource (:kind font-ref) (:id font-ref) (:version font-ref)
             assert |duplicate-font-reference $ every? previous $ fn (font-ref)
@@ -8537,7 +8534,7 @@
     'quamolit.frame-eval $ %{} 'FileEntry
       :defs $ {}
         'EvaluatedFrame $ %{} 'CodeEntry (:doc "|一次显式求值的时间采样、模型和场景；泛型保留模型与场景的类型。")
-          :code $ quote $ defstruct EvaluatedFrame ([] M S) (:sample quamolit.frame-clock/FrameSample) (:model M) (:scene S)
+          :code $ quote $ defstruct EvaluatedFrame (:generics M S) (:sample quamolit.frame-clock/FrameSample) (:model M) (:scene S)
           :examples $ []
           :schema $ quote StructDef
         'evaluate-at $ %{} 'CodeEntry
@@ -8563,7 +8560,7 @@
             %{} 'TestEntry (:name |replay-and-step)
               :code $ quote $ let
                   update-model $ fn (model sample)
-                    hint-fn $ Fn Number quamolit.frame-clock/FrameSample $ -> Number
+                    hint-fn $ Fn Number FrameSample $ -> Number
                     + model $ :elapsed sample
                   view $ fn (model)
                     hint-fn $ Fn Number $ -> Number
@@ -8583,7 +8580,7 @@
             %{} 'TestEntry (:name |repeated-time-skips-callbacks)
               :code $ quote $ let
                   update-model $ fn (model sample)
-                    hint-fn $ Fn Number quamolit.frame-clock/FrameSample $ -> Number
+                    hint-fn $ Fn Number FrameSample $ -> Number
                     + model $ :elapsed sample
                   view $ fn (model)
                     hint-fn $ Fn Number $ -> Number
@@ -8591,7 +8588,7 @@
                   advanced $ evaluate-at (initial-frame 0 0 view) 0.5 update-model view
                   repeated $ evaluate-at advanced 0.5
                     fn (model sample)
-                      hint-fn $ Fn Number quamolit.frame-clock/FrameSample $ -> Number
+                      hint-fn $ Fn Number FrameSample $ -> Number
                       raise |unexpected-update
                     fn (model)
                       hint-fn $ Fn Number $ -> Number
@@ -8603,7 +8600,7 @@
             %{} 'TestEntry (:name |rewind-and-explicit-reset)
               :code $ quote $ let
                   update-model $ fn (model sample)
-                    hint-fn $ Fn Number quamolit.frame-clock/FrameSample $ -> Number
+                    hint-fn $ Fn Number FrameSample $ -> Number
                     + model $ :elapsed sample
                   view $ fn (model)
                     hint-fn $ Fn Number $ -> Number
@@ -8617,7 +8614,7 @@
             %{} 'TestEntry (:name |model-and-scene-types)
               :code $ quote $ let
                   update-model $ fn (model sample)
-                    hint-fn $ Fn Number quamolit.frame-clock/FrameSample $ -> Number
+                    hint-fn $ Fn Number FrameSample $ -> Number
                     + model $ :elapsed sample
                   view $ fn (model)
                     hint-fn $ Fn Number $ -> String
@@ -9226,7 +9223,7 @@
           :code $ quote $ defn axis-parameter (parameters index axis original)
             foldl parameters (constant-parameter index axis original)
               fn (acc p)
-                hint-fn $ Fn quamolit.gpu-scalar-program/ScalarParameter quamolit.gpu-scalar-program/ScalarParameter $ -> quamolit.gpu-scalar-program/ScalarParameter
+                hint-fn $ Fn ScalarParameter ScalarParameter $ -> ScalarParameter
                 if
                   and
                     = (:index p) index
@@ -9563,7 +9560,7 @@
           :code $ quote $ defn precision-envelope (parameters)
             foldl parameters (motion/Vec2 :x 0 :y 0)
               fn (acc p)
-                hint-fn $ Fn quamolit.motion/Vec2 quamolit.gpu-scalar-program/ScalarParameter $ -> quamolit.motion/Vec2
+                hint-fn $ Fn motion/Vec2 ScalarParameter $ -> motion/Vec2
                 let
                     cost $ parameter-precision p
                   motion/Vec2 :x
@@ -9653,7 +9650,7 @@
             assert |duplicate-gpu-instance-motion-id $ = (.len motions)
               .len $ foldl motions (#{})
                 fn (ids m)
-                  hint-fn $ Fn (Set String) quamolit.motion/Vec2Descriptor $ -> (Set String)
+                  hint-fn $ Fn (Set String) motion/Vec2Descriptor $ -> (Set String)
                   include ids $ :id m
             match
               collect-instance-parameters motions 0 $ empty-parameters
@@ -9709,7 +9706,7 @@
                 filter parameters $ fn (p)
                   = (:axis p) 8
                 , scalar $ fn (acc transform)
-                  hint-fn $ Fn quamolit.motion/Vec2 quamolit.gpu-scalar-program/ScalarParameter $ -> quamolit.motion/Vec2
+                  hint-fn $ Fn motion/Vec2 ScalarParameter $ -> motion/Vec2
                   let
                       index $ :index transform
                       cost $ trs-precision
@@ -9828,7 +9825,7 @@
                   * (+ dy 1) (+ my 1)
                 geometry $ foldl ([] x y width height px py) (motion/Vec2 :x 0 :y 0)
                   fn (acc p)
-                    hint-fn $ Fn quamolit.motion/Vec2 quamolit.gpu-scalar-program/ScalarParameter $ -> quamolit.motion/Vec2
+                    hint-fn $ Fn motion/Vec2 ScalarParameter $ -> motion/Vec2
                     sum-error acc $ parameter-error p
                 variable $ foldl
                   [] (parameter-error tx) (parameter-error ty)
@@ -9838,7 +9835,7 @@
                     scale-error (parameter-error sy) (+ dy 1)
                   motion/Vec2 :x 0 :y 0
                   fn (acc value)
-                    hint-fn $ Fn quamolit.motion/Vec2 quamolit.motion/Vec2 $ -> quamolit.motion/Vec2
+                    hint-fn $ Fn motion/Vec2 motion/Vec2 $ -> motion/Vec2
                     sum-error acc value
                 magnitude $ + 1 radius
                   abs $ :from px
@@ -9904,7 +9901,7 @@
           :schema $ quote $ Fn Number (-> Bool)
         'frame-at $ %{} 'CodeEntry (:doc "|给已准备的位移计划附加绝对时间；WebGPU 宿主仍负责 f32 和资源契约的最终校验。")
           :code $ quote $ defn frame-at (plan time)
-            hint-fn $ Fn quamolit.gpu-vec2-translation/GpuVec2TranslationPlan Number $ -> quamolit.gpu-vec2-translation/GpuVec2TranslationFrame
+            hint-fn $ Fn GpuVec2TranslationPlan Number $ -> GpuVec2TranslationFrame
             assert |gpu-translation-time-must-be-finite-f32 $ finite-f32? time
             GpuVec2TranslationFrame :from (:from plan) :to (:to plan) :time time :start (:start plan) :duration (:duration plan) :easing $ :easing plan
           :examples $ []
@@ -9922,7 +9919,7 @@
         'prepare $ %{} 'CodeEntry
           :doc "|将类型化 Vec2 Motion 计划转换为 WebGPU 位移参数；只处理 tween，不解释序列化 JS 对象。"
           :code $ quote $ defn prepare (lowering)
-            hint-fn $ Fn quamolit.motion-gpu/GpuVec2Lowering $ -> quamolit.gpu-vec2-translation/GpuVec2TranslationLowering
+            hint-fn $ Fn motion-gpu/GpuVec2Lowering $ -> GpuVec2TranslationLowering
             match lowering
               (:unsupported reason) (GpuVec2TranslationLowering :unsupported reason)
               (:supported descriptor)
@@ -9976,7 +9973,7 @@
         'require-ready $ %{} 'CodeEntry
           :doc "|调用方要求 GPU tween 时提取已准备计划；失败保留诊断。可把计划缓存，逐帧只调用 frame-at。"
           :code $ quote $ defn require-ready (lowering)
-            hint-fn $ Fn quamolit.gpu-vec2-translation/GpuVec2TranslationLowering $ -> quamolit.gpu-vec2-translation/GpuVec2TranslationPlan
+            hint-fn $ Fn GpuVec2TranslationLowering $ -> GpuVec2TranslationPlan
             match lowering
               (:ready plan) plan
               (:unsupported reason)
@@ -10410,10 +10407,7 @@
           :schema $ quote $ Fn ImageResourceHost resource/ResourceIdentity Number (-> ImageResourceHost)
         'run-image-load-task! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn run-image-load-task! (descriptor task)
-            hint-fn $ Fn quamolit.image-resource-runner/ImageResourceDescriptor quamolit.resource-load-queue/ResourceLoadTask
-              -> quamolit.image-resource-runner/QueuedImageLoadResult
-              :features :js-ffi
-              :async
+            hint-fn $ Fn ImageResourceDescriptor load-queue/ResourceLoadTask (-> QueuedImageLoadResult) (:features :js-ffi) (:async)
             assert |image-load-task-identity-mismatch $ = (:identity descriptor) (:identity task)
             let
                 image $ browser/image-create
@@ -10465,19 +10459,19 @@
           :schema $ quote StructDef
         'at $ %{} 'CodeEntry (:doc "|诊断用有界读取；热帧不得逐实例调用。")
           :code $ quote $ defn at (snapshot index)
-            hint-fn $ Fn js-ffi.typed-arrays/Float32SnapshotHost Number (-> Number) (:features :js-ffi)
+            hint-fn $ Fn arrays/Float32SnapshotHost Number (-> Number) (:features :js-ffi)
             arrays/float32-at snapshot index
           :examples $ []
           :schema $ quote $ Fn arrays/Float32SnapshotHost Number (-> Number) (:features :js-ffi)
         'copy-range $ %{} 'CodeEntry (:doc "|只在源版本首次被宿主消费时复制范围，并缓存返回数组。")
           :code $ quote $ defn copy-range (snapshot start amount)
-            hint-fn $ Fn js-ffi.typed-arrays/Float32SnapshotHost Number Number (-> js-ffi.typed-arrays/Float32ArrayHost) (:features :js-ffi)
+            hint-fn $ Fn arrays/Float32SnapshotHost Number Number (-> arrays/Float32ArrayHost) (:features :js-ffi)
             arrays/float32-copy-range snapshot start amount
           :examples $ []
           :schema $ quote $ Fn arrays/Float32SnapshotHost Number Number (-> arrays/Float32ArrayHost) (:features :js-ffi)
         'draw-canvas! $ %{} 'CodeEntry (:doc "|Scene 矩形数据一次提交 js-ffi Canvas 批次，并返回类型化调用计数。")
           :code $ quote $ defn draw-canvas! (context positions start amount width height fill-style alpha)
-            hint-fn $ Fn js-ffi.canvas-batches/CanvasContextHost js-ffi.typed-arrays/Float32ArrayHost Number Number Number Number String Number (-> quamolit.instance-ffi/CanvasRectMetrics) (:features :js-ffi)
+            hint-fn $ Fn js-ffi.canvas-batches/CanvasContextHost arrays/Float32ArrayHost Number Number Number Number String Number (-> CanvasRectMetrics) (:features :js-ffi)
             let
                 result $ raw-draw-canvas! (unsafe-coerce context JsObject) (unsafe-coerce positions JsObject) start amount width height fill-style alpha
                 boundary-calls $ contract/expect-number |CanvasRect.boundaryCalls $ contract/object-field |CanvasRect.draw result |boundaryCalls
@@ -10489,7 +10483,7 @@
           :schema $ quote $ Fn js-ffi.canvas-batches/CanvasContextHost arrays/Float32ArrayHost Number Number Number Number String Number (-> CanvasRectMetrics) (:features :js-ffi)
         'length $ %{} 'CodeEntry (:doc "|读取实例源快照元素数。")
           :code $ quote $ defn length (snapshot)
-            hint-fn $ Fn js-ffi.typed-arrays/Float32SnapshotHost (-> Number) (:features :js-ffi)
+            hint-fn $ Fn arrays/Float32SnapshotHost (-> Number) (:features :js-ffi)
             arrays/float32-length snapshot
           :examples $ []
           :schema $ quote $ Fn arrays/Float32SnapshotHost (-> Number) (:features :js-ffi)
@@ -10501,7 +10495,7 @@
           :schema $ quote $ Fn JsObject JsObject Number Number Number Number String Number (-> JsObject) (:features :js-ffi)
         'snapshot $ %{} 'CodeEntry (:doc "|登记前一次复制并校验 Float32 交错位置；ID/version 由上层持有。")
           :code $ quote $ defn snapshot (positions)
-            hint-fn $ Fn js-ffi.typed-arrays/Float32ArrayHost (-> js-ffi.typed-arrays/Float32SnapshotHost) (:features :js-ffi)
+            hint-fn $ Fn arrays/Float32ArrayHost (-> arrays/Float32SnapshotHost) (:features :js-ffi)
             arrays/snapshot-float32 positions
           :examples $ []
           :schema $ quote $ Fn arrays/Float32ArrayHost (-> arrays/Float32SnapshotHost) (:features :js-ffi)
@@ -11317,7 +11311,7 @@
                     CpuScalarRegistry :samplers $ {}
                     , |add-two sampler
                   make $ fn (id version)
-                    hint-fn $ Fn String Number $ -> quamolit.motion/CpuScalarDescriptor
+                    hint-fn $ Fn String Number $ -> CpuScalarDescriptor
                     CpuScalarDescriptor :id id :version version :callback-id |add-two :gpu-status $ CpuGpuStatus :unsupported |runtime-callback
                 is-throws $ sample-cpu-scalar (make | 1) 0 registry
                 is-throws $ sample-cpu-scalar (make |custom 1.5) 0 registry
@@ -11427,7 +11421,7 @@
                   left $ ScalarDescriptor :id |left :version 1 :motion $ ScalarMotion :constant 2
                   right $ ScalarDescriptor :id |right :version 1 :motion $ ScalarMotion :constant 3
                   make $ fn (id version)
-                    hint-fn $ Fn String Number $ -> quamolit.motion/ScalarComposition
+                    hint-fn $ Fn String Number $ -> ScalarComposition
                     ScalarComposition :id id :version version :left left :right right :operation $ ScalarComposeOp :add
                 is-throws $ sample-scalar-composition (make | 1) 0
                 is-throws $ sample-scalar-composition (make |sum 1.5) 0
@@ -11713,7 +11707,7 @@
               if
                 < time $ :at initial-frame
                 , initial $ foldl (rest frames) initial $ fn (cursor frame)
-                  hint-fn $ Fn quamolit.motion/ScalarTrackCursor quamolit.motion/ScalarKeyframe $ -> quamolit.motion/ScalarTrackCursor
+                  hint-fn $ Fn ScalarTrackCursor ScalarKeyframe $ -> ScalarTrackCursor
                   advance-track cursor frame time
           :examples $ []
           :schema $ quote $ Fn (List ScalarKeyframe) Number (-> ScalarTrackCursor)
@@ -11766,7 +11760,7 @@
                 assert |invalid-keyframe-time $ finite-number? $ :at initial
                 assert |invalid-keyframe-value $ finite-number? $ :value initial
                 foldl (rest frames) initial $ fn (previous frame)
-                  hint-fn $ Fn quamolit.motion/ScalarKeyframe quamolit.motion/ScalarKeyframe $ -> quamolit.motion/ScalarKeyframe
+                  hint-fn $ Fn ScalarKeyframe ScalarKeyframe $ -> ScalarKeyframe
                   assert |invalid-keyframe-time $ finite-number? $ :at frame
                   assert |invalid-keyframe-value $ finite-number? $ :value frame
                   assert |unordered-keyframes $ >= (:at frame) (:at previous)
@@ -11825,16 +11819,16 @@
           :examples $ []
           :schema $ quote StructDef
         'CpuFunctionFrame $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CpuFunctionFrame ([] O) (:descriptor-id String) (:descriptor-version Number) (:callback-id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:value O)
+          :code $ quote $ defstruct CpuFunctionFrame (:generics O) (:descriptor-id String) (:descriptor-version Number) (:callback-id String) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:value O)
           :examples $ []
           :schema $ quote StructDef
         'CpuFunctionRegistry $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CpuFunctionRegistry ([] I O)
+          :code $ quote $ defstruct CpuFunctionRegistry (:generics I O)
             :samplers $ Map String $ Fn I Number (-> O)
           :examples $ []
           :schema $ quote StructDef
         'CpuFunctionRequest $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct CpuFunctionRequest ([] I) (:descriptor quamolit.motion-cpu/CpuFunctionDescriptor) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:input I)
+          :code $ quote $ defstruct CpuFunctionRequest (:generics I) (:descriptor quamolit.motion-cpu/CpuFunctionDescriptor) (:time Number) (:versions quamolit.direct-frame/FrameVersions) (:input I)
           :examples $ []
           :schema $ quote StructDef
         'gpu-reason $ %{} 'CodeEntry (:doc |)
@@ -11923,11 +11917,11 @@
                   request $ quamolit.test.cpu-motion-fixture/make-request 0.5 0 false 100
                   registry $ quamolit.test.cpu-motion-fixture/make-registry
                   reject-output $ fn (value)
-                    hint-fn $ Fn quamolit.motion/Vec2 $ -> Bool
+                    hint-fn $ Fn motion/Vec2 $ -> Bool
                     , false
                   empty-registry $ assert-type
                     CpuFunctionRegistry :samplers $ {}
-                    quamolit.motion-cpu/CpuFunctionRegistry quamolit.test.cpu-motion-fixture/CustomInput quamolit.motion/Vec2
+                    CpuFunctionRegistry quamolit.test.cpu-motion-fixture/CustomInput motion/Vec2
                 is-throws $ sample-function request registry reject-output
                 is-throws $ sample-function request empty-registry quamolit.test.cpu-motion-fixture/valid-output?
               :tags $ #{} :motion-cpu :unit
@@ -12070,7 +12064,7 @@
             %{} 'TestEntry (:name |reject-invalid-identity)
               :code $ quote $ let
                   make $ fn (id version callback-id)
-                    hint-fn $ Fn String Number String $ -> quamolit.motion/CpuScalarDescriptor
+                    hint-fn $ Fn String Number String $ -> motion/CpuScalarDescriptor
                     motion/CpuScalarDescriptor :id id :version version :callback-id callback-id :gpu-status $ motion/CpuGpuStatus :unsupported |runtime-callback
                 is-throws $ lower-cpu-scalar $ make | 1 |callback
                 is-throws $ lower-cpu-scalar $ make |custom 1.5 |callback
@@ -12314,11 +12308,11 @@
                   direct/FrameVersions :component 0 :motion 0 :model 0 :input 0 :resources 1 :viewport 0
                   , :motion descriptor :model 5 :input 0 :resources true :viewport 100
                 evaluate $ fn (motion model input resources viewport time)
-                  hint-fn $ Fn quamolit.motion/ScalarDescriptor Number Number Bool Number Number $ -> Number
+                  hint-fn $ Fn motion/ScalarDescriptor Number Number Bool Number Number $ -> Number
                   + (motion/sample-scalar motion time) model input (if resources 20 0) (/ viewport 10)
                 baseline $ sample-at-host timeline 10.5 request evaluate
                 reused $ resample-at-host baseline paused 20 request $ fn (motion model input resources viewport time)
-                  hint-fn $ Fn quamolit.motion/ScalarDescriptor Number Number Bool Number Number $ -> Number
+                  hint-fn $ Fn motion/ScalarDescriptor Number Number Bool Number Number $ -> Number
                   raise |unexpected-evaluation
               is= 0.5 $ :time baseline
               is= 30 $ :scene baseline
@@ -13096,7 +13090,7 @@
                 = (:parent item) parent
               scene/empty-scene-nodes
               fn (out item)
-                hint-fn $ Fn (List quamolit.scene-ir/SceneNode) quamolit.scene-ir/SceneNode $ -> (List quamolit.scene-ir/SceneNode)
+                hint-fn $ Fn (List scene/SceneNode) scene/SceneNode $ -> (List scene/SceneNode)
                 concat (conj out item)
                   tree-order nodes $ :id item
           :examples $ []
@@ -13302,7 +13296,7 @@
           :code $ quote $ defn acquire-instance-sources (registry sources actions)
             if (empty? sources) (resource/registry-transition registry actions)
               let
-                  source $ assert-type (-> sources first .unwrap) 'quamolit.scene-ir/InstanceSource
+                  source $ assert-type (-> sources first .unwrap) scene/InstanceSource
                   acquired $ resource/acquire-registry registry (instance-resource-identity source) (instance-resource-bytes source)
                 recur (:registry acquired) (rest sources)
                   concat actions $ :actions acquired
@@ -13376,7 +13370,7 @@
           :code $ quote $ defn release-instance-sources (registry sources actions)
             if (empty? sources) (resource/registry-transition registry actions)
               let
-                  source $ assert-type (-> sources first .unwrap) 'quamolit.scene-ir/InstanceSource
+                  source $ assert-type (-> sources first .unwrap) scene/InstanceSource
                   released $ resource/release-registry registry $ instance-resource-identity source
                 recur (:registry released) (rest sources)
                   concat actions $ :actions released
@@ -13484,7 +13478,7 @@
         'close-handle-loop! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn close-handle-loop! (handles released)
             if (empty? handles) released $ let
-                handle $ assert-type (-> handles first .unwrap) 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+                handle $ assert-type (-> handles first .unwrap) PresenceGpuHandle
                 _ $ gpu/dispose! $ :batch handle
               recur (rest handles) (inc released)
           :examples $ []
@@ -13580,10 +13574,7 @@
             -> $ Option load-queue/ResourceLoadEnqueue
         'execute-presence-device-action! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn execute-presence-device-action! (host active-device-generation canvas device format table references action)
-            hint-fn $ Fn quamolit.presence-webgpu-resources/PresenceGpuHost Number js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String quamolit.instance-resource/InstanceTableHost (List quamolit.presence/InstanceResourceRef) quamolit.presence-device-coordinator/PresenceDeviceAction
-              -> quamolit.presence-webgpu-resources/PresenceGpuHost
-              :features :js-ffi
-              :async
+            hint-fn $ Fn PresenceGpuHost Number browser/DomElementHost webgpu/DeviceHost String instances/InstanceTableHost (List presence/InstanceResourceRef) coordinator/PresenceDeviceAction (-> PresenceGpuHost) (:features :js-ffi) (:async)
             match action
               (:resource device-generation registry-action)
                 if (= device-generation active-device-generation)
@@ -13598,10 +13589,7 @@
           :schema $ quote $ Fn PresenceGpuHost Number browser/DomElementHost webgpu/DeviceHost String instances/InstanceTableHost (List presence/InstanceResourceRef) coordinator/PresenceDeviceAction (-> PresenceGpuHost) (:features :js-ffi) (:async)
         'execute-presence-resource-action! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn execute-presence-resource-action! (host device-generation canvas device format table references registry-action)
-            hint-fn $ Fn quamolit.presence-webgpu-resources/PresenceGpuHost Number js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String quamolit.instance-resource/InstanceTableHost (List quamolit.presence/InstanceResourceRef) quamolit.resource-lifecycle/RegistryAction
-              -> quamolit.presence-webgpu-resources/PresenceGpuHost
-              :features :js-ffi
-              :async
+            hint-fn $ Fn PresenceGpuHost Number browser/DomElementHost webgpu/DeviceHost String instances/InstanceTableHost (List presence/InstanceResourceRef) resource/RegistryAction (-> PresenceGpuHost) (:features :js-ffi) (:async)
             match registry-action $
               :resource resource-id action
               match action
@@ -13651,7 +13639,7 @@
         'installed-batch-loop $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn installed-batch-loop (handles resource-id)
             if (empty? handles) None $ let
-                handle $ assert-type (-> handles first .unwrap) 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+                handle $ assert-type (-> handles first .unwrap) PresenceGpuHandle
               if
                 and
                   = resource-id $ :identity handle
@@ -13663,10 +13651,7 @@
             -> $ Option gpu/RectBatchHost
         'load-presence-buffer! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn load-presence-buffer! (host device-generation canvas device format table source generation)
-            hint-fn $ Fn quamolit.presence-webgpu-resources/PresenceGpuHost Number js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String quamolit.instance-resource/InstanceTableHost quamolit.scene-ir/InstanceSource Number
-              -> quamolit.presence-webgpu-resources/PresenceGpuHost
-              :features :js-ffi
-              :async
+            hint-fn $ Fn PresenceGpuHost Number browser/DomElementHost webgpu/DeviceHost String instances/InstanceTableHost quamolit.scene-ir/InstanceSource Number (-> PresenceGpuHost) (:features :js-ffi) (:async)
             let
                 loaded $ js-await $ load-presence-buffer-safe! host device-generation canvas device format table source generation
               match loaded
@@ -13676,10 +13661,7 @@
           :schema $ quote $ Fn PresenceGpuHost Number browser/DomElementHost webgpu/DeviceHost String instances/InstanceTableHost quamolit.scene-ir/InstanceSource Number (-> PresenceGpuHost) (:features :js-ffi) (:async)
         'load-presence-buffer-safe! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn load-presence-buffer-safe! (host device-generation canvas device format table source generation)
-            hint-fn $ Fn quamolit.presence-webgpu-resources/PresenceGpuHost Number js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String quamolit.instance-resource/InstanceTableHost quamolit.scene-ir/InstanceSource Number
-              -> quamolit.presence-webgpu-resources/PresenceGpuLoadOutcome
-              :features :js-ffi
-              :async
+            hint-fn $ Fn PresenceGpuHost Number browser/DomElementHost webgpu/DeviceHost String instances/InstanceTableHost quamolit.scene-ir/InstanceSource Number (-> PresenceGpuLoadOutcome) (:features :js-ffi) (:async)
             let
                 resource-id $ presence-resource/instance-resource-identity source
                 _ $ assert |duplicate-presence-gpu-handle $ not
@@ -13734,7 +13716,7 @@
           :code $ quote $ defn release-handle-loop! (handles retained resource-id generation)
             if (empty? handles) (ReleaseResult :handles retained :released? false :bytes 0)
               let
-                  handle $ assert-type (-> handles first .unwrap) 'quamolit.presence-webgpu-resources/PresenceGpuHandle
+                  handle $ assert-type (-> handles first .unwrap) PresenceGpuHandle
                 if (same-handle? handle resource-id generation)
                   let
                       _ $ gpu/dispose! $ :batch handle
@@ -13758,10 +13740,7 @@
           :schema $ quote $ Fn PresenceGpuHost resource/ResourceIdentity Number (-> PresenceGpuHost) (:features :js-ffi)
         'run-presence-load-request! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn run-presence-load-request! (host active-device-generation canvas device format table references request)
-            hint-fn $ Fn quamolit.presence-webgpu-resources/PresenceGpuHost Number js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String quamolit.instance-resource/InstanceTableHost (List quamolit.presence/InstanceResourceRef) quamolit.presence-webgpu-resources/PresenceLoadRequest
-              -> quamolit.presence-webgpu-resources/PresenceLoadTaskResult
-              :features :js-ffi
-              :async
+            hint-fn $ Fn PresenceGpuHost Number browser/DomElementHost webgpu/DeviceHost String instances/InstanceTableHost (List presence/InstanceResourceRef) PresenceLoadRequest (-> PresenceLoadTaskResult) (:features :js-ffi) (:async)
             let
                 device-generation $ :device-generation request
                 resource-id $ :identity request
@@ -13780,10 +13759,7 @@
           :schema $ quote $ Fn PresenceGpuHost Number browser/DomElementHost webgpu/DeviceHost String instances/InstanceTableHost (List presence/InstanceResourceRef) PresenceLoadRequest (-> PresenceLoadTaskResult) (:features :js-ffi) (:async)
         'run-presence-load-task! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn run-presence-load-task! (host active-device-generation canvas device format table references task)
-            hint-fn $ Fn quamolit.presence-webgpu-resources/PresenceGpuHost Number js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String quamolit.instance-resource/InstanceTableHost (List quamolit.presence/InstanceResourceRef) quamolit.resource-load-queue/ResourceLoadTask
-              -> quamolit.presence-webgpu-resources/PresenceQueuedLoadResult
-              :features :js-ffi
-              :async
+            hint-fn $ Fn PresenceGpuHost Number browser/DomElementHost webgpu/DeviceHost String instances/InstanceTableHost (List presence/InstanceResourceRef) load-queue/ResourceLoadTask (-> PresenceQueuedLoadResult) (:features :js-ffi) (:async)
             let
                 request $ PresenceLoadRequest :device-generation (:device-generation task) :identity (:identity task) :resource-generation $ :resource-generation task
                 result $ js-await $ run-presence-load-request! host active-device-generation canvas device format table references request
@@ -14425,7 +14401,7 @@
                 component $ %{} Component (:name :probe) (:tree shape)
                   :on-tick $ fn (elapsed dispatch!) (swap! ticked inc)
                 leaf $ fn (ctx shape coord)
-                  hint-fn $ Fn Nil quamolit.types/Shape (List Dynamic) (-> Number)
+                  hint-fn $ Fn Nil Shape (List Dynamic) (-> Number)
                   swap! painted inc
               paint-tree-only-with nil component ([]) leaf
               is= 0 @ticked
@@ -14482,7 +14458,7 @@
     'quamolit.replay-archive $ %{} 'FileEntry
       :defs $ {}
         'ReplayArchive $ %{} 'CodeEntry (:doc "|完整 tick 输入日志与有界最近检查点的不可变 CPU 回放档案；原点永久保留。")
-          :code $ quote $ defstruct ReplayArchive ([] S I)
+          :code $ quote $ defstruct ReplayArchive (:generics S I)
             :origin $ quamolit.fixed-step/SimulationState S
             :latest $ quamolit.fixed-step/SimulationState S
             :inputs $ Map Number I
@@ -14496,7 +14472,7 @@
             if (empty? checkpoints) best $ let
                 candidate $ assert-type
                   -> (first checkpoints) .unwrap
-                  quamolit.fixed-step/SimulationState S
+                  fixed/SimulationState S
                 next-best $ if
                   <= (:tick candidate) target
                   , candidate best
@@ -14532,7 +14508,7 @@
             :code $ quote $ let
                 base-archive $ assert-type
                   start-archive (fixed/start-simulation 0.25 7 0) 2 0
-                  quamolit.replay-archive/ReplayArchive Number Number
+                  ReplayArchive Number Number
                 step-one $ record-input base-archive 2 quamolit.test.replay-archive-fixture/update-state
                 step-two $ record-input step-one 4 quamolit.test.replay-archive-fixture/update-state
                 reset-state $ reset-archive step-two
@@ -14726,7 +14702,7 @@
         'close-registry-actions $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn close-registry-actions (entries actions)
             if (empty? entries) actions $ let
-                entry $ assert-type (-> entries first .unwrap) 'quamolit.resource-lifecycle/RegistryEntry
+                entry $ assert-type (-> entries first .unwrap) RegistryEntry
                 closed $ close-resource $ :state entry
                 resource-id $ :identity $ :state entry
               recur (rest entries)
@@ -14770,7 +14746,7 @@
           :code $ quote $ defn evict-first-idle (entries retained)
             assert |resource-registry-capacity-exhausted $ not $ empty? entries
             let
-                entry $ assert-type (-> entries first .unwrap) 'quamolit.resource-lifecycle/RegistryEntry
+                entry $ assert-type (-> entries first .unwrap) RegistryEntry
               if
                 = 0 $ :references entry
                 let
@@ -14812,7 +14788,7 @@
           :code $ quote $ defn find-entry (entries descriptor)
             assert |missing-resource-registry-entry $ not $ empty? entries
             let
-                entry $ assert-type (-> entries first .unwrap) 'quamolit.resource-lifecycle/RegistryEntry
+                entry $ assert-type (-> entries first .unwrap) RegistryEntry
               if (same-identity? entry descriptor) entry $ recur (rest entries) descriptor
           :examples $ []
           :schema $ quote $ Fn (List RegistryEntry) ResourceIdentity (-> RegistryEntry)
@@ -14881,7 +14857,7 @@
             if (empty? entries)
               RegistryRebuild :entries retained :resident-bytes resident-bytes :loads loads :actions actions
               let
-                  entry $ assert-type (-> entries first .unwrap) 'quamolit.resource-lifecycle/RegistryEntry
+                  entry $ assert-type (-> entries first .unwrap) RegistryEntry
                   descriptor $ :identity $ :state entry
                   closed $ close-resource $ :state entry
                   closed-actions $ wrap-actions descriptor $ :actions closed
@@ -15158,7 +15134,7 @@
         'find-pending-load $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn find-pending-load (tasks device-generation descriptor resource-generation)
             if (empty? tasks) None $ let
-                task $ assert-type (-> tasks first .unwrap) 'quamolit.resource-load-queue/ResourceLoadTask
+                task $ assert-type (-> tasks first .unwrap) ResourceLoadTask
               if (same-load-request? task device-generation descriptor resource-generation) (Some task)
                 recur (rest tasks) device-generation descriptor resource-generation
           :examples $ []
@@ -15167,7 +15143,7 @@
         'find-running-load $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn find-running-load (slots device-generation descriptor resource-generation)
             if (empty? slots) None $ let
-                slot $ assert-type (-> slots first .unwrap) 'quamolit.resource-load-queue/ResourceLoadSlot
+                slot $ assert-type (-> slots first .unwrap) ResourceLoadSlot
                 task $ :task slot
               if
                 and
@@ -15191,7 +15167,7 @@
               if (empty? matched)
                 ResourceLoadFinish :queue queue :outcome $ ResourceLoadFinishOutcome :unknown
                 let
-                    slot $ assert-type (-> matched first .unwrap) 'quamolit.resource-load-queue/ResourceLoadSlot
+                    slot $ assert-type (-> matched first .unwrap) ResourceLoadSlot
                   ResourceLoadFinish :queue next :outcome $ if (:cancelled? slot)
                     ResourceLoadFinishOutcome :discarded $ :task slot
                     ResourceLoadFinishOutcome :accepted $ :task slot
@@ -15250,7 +15226,7 @@
               ResourceLoadTake :queue queue :task None
               let
                   ordered $ sort (:pending queue) task-order
-                  task $ assert-type (-> ordered first .unwrap) 'quamolit.resource-load-queue/ResourceLoadTask
+                  task $ assert-type (-> ordered first .unwrap) ResourceLoadTask
                   next-pending $ filter (:pending queue)
                     fn (candidate)
                       not= (:token candidate) (:token task)
@@ -15354,7 +15330,7 @@
             if (empty? nodes) slots $ let
                 node $ scene/first-node nodes
                 next $ foldl (:bindings node) slots $ fn (acc item)
-                  hint-fn $ Fn (List quamolit.retained-component/BoundScalar) quamolit.scene-ir/ScalarBinding $ -> (List quamolit.retained-component/BoundScalar)
+                  hint-fn $ Fn (List BoundScalar) scene/ScalarBinding $ -> (List BoundScalar)
                   append acc $ BoundScalar :index index :target (:target item) :descriptor $ binding/find-descriptor descriptors (:motion-id item) (:version item)
               recur (rest nodes) descriptors (inc index) next
           :examples $ []
@@ -15397,7 +15373,7 @@
         'evaluate-slots $ %{} 'CodeEntry (:doc "|只更新预编译绑定；持久列表保留其他节点。失败不会修改调用者持有的旧帧。")
           :code $ quote $ defn evaluate-slots (slots nodes time)
             foldl slots nodes $ fn (current slot)
-              hint-fn $ Fn (List quamolit.scene-ir/SceneNode) quamolit.retained-component/BoundScalar $ -> (List quamolit.scene-ir/SceneNode)
+              hint-fn $ Fn (List scene/SceneNode) BoundScalar $ -> (List scene/SceneNode)
               let
                   node $ node-at current $ :index slot
                   value $ motion/sample-scalar (:descriptor slot) time
@@ -15560,7 +15536,7 @@
       :defs $ {}
         'PathPlan $ %{} 'CodeEntry
           :doc "|静态折线 Scene 与自定义 CPU 变换采样器的不可变计划。Scene 不保存闭包；运行计划可以。更换任何输入需重建。"
-          :code $ quote $ defstruct PathPlan ([] P) (:scene quamolit.scene-ir/SceneDocument) (:props P)
+          :code $ quote $ defstruct PathPlan (:generics P) (:scene quamolit.scene-ir/SceneDocument) (:props P)
             :sample $ Fn P Number $ -> (List quamolit.scene-ir/Matrix2D)
             :time Number
             :transforms $ List quamolit.scene-ir/Matrix2D
@@ -18698,7 +18674,7 @@
                 request $ make-request 0.5 40 false 100
                 initial $ frame-at 0.5 40 false 100
                 reused $ component/resample-component-at initial request $ fn (props model input resources viewport)
-                  hint-fn $ Fn Number Number Number Bool Number $ -> quamolit.component-sample/ComponentDeclaration
+                  hint-fn $ Fn Number Number Number Bool Number $ -> component/ComponentDeclaration
                   raise |unexpected-component-evaluation
                 ready $ component/resample-component-at initial (make-request 0.5 40 true 100) declare-badge
                 timeline $ clock/start-clock 10 0 1
@@ -18793,7 +18769,7 @@
             let
                 base-registry $ assert-type
                   cpu/CpuFunctionRegistry :samplers $ {}
-                  quamolit.motion-cpu/CpuFunctionRegistry quamolit.test.cpu-motion-fixture/CustomInput quamolit.motion/Vec2
+                  cpu/CpuFunctionRegistry CustomInput motion/Vec2
               cpu/register-function base-registry |move sample-custom
           :examples $ []
           :schema $ quote $ Fn
@@ -19057,7 +19033,7 @@
         'constant-path-sample-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn constant-path-sample-plan (plan transforms)
             struct-with plan $ :sample $ fn (slots time)
-              hint-fn $ Fn (List quamolit.examples.binary-tree/BranchSlot) Number $ -> (List quamolit.scene-ir/Matrix2D)
+              hint-fn $ Fn (List tree/BranchSlot) Number $ -> (List quamolit.scene-ir/Matrix2D)
               , transforms
           :examples $ []
           :schema $ quote $ Fn
@@ -19274,7 +19250,7 @@
           :schema $ quote $ Fn (-> motion-gpu/GpuScalarLowering)
         'gpu-translation-plan $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gpu-translation-plan ()
-            hint-fn $ Fn $ -> quamolit.gpu-vec2-translation/GpuVec2TranslationLowering
+            hint-fn $ Fn $ -> gpu-translation/GpuVec2TranslationLowering
             gpu-translation/prepare $ gpu-vec2-plan
           :examples $ []
           :schema $ quote $ Fn (-> gpu-translation/GpuVec2TranslationLowering)
@@ -19449,7 +19425,7 @@
                 versions $ direct-frame/FrameVersions :component 0 :motion 0 :model model-version :input input-version :resources resource-version :viewport viewport-version
                 request $ direct-frame/DirectRequest :id |badge :time time :versions versions :motion descriptor :model model :input input :resources ready :viewport viewport
                 evaluate $ fn (motion model input resources viewport time)
-                  hint-fn $ Fn quamolit.motion/ScalarDescriptor Number Number Bool Number Number $ -> Number
+                  hint-fn $ Fn ScalarDescriptor Number Number Bool Number Number $ -> Number
                   +
                     +
                       +
@@ -19622,7 +19598,7 @@
             let
                 request $ make-playback-request ready
                 evaluate $ fn (motion model input resources viewport time)
-                  hint-fn $ Fn quamolit.motion/ScalarDescriptor Number Number Bool Number Number $ -> Number
+                  hint-fn $ Fn ScalarDescriptor Number Number Bool Number Number $ -> Number
                   + (sample-scalar motion time) model input (if resources 20 0) (/ viewport 10)
                 mapped $ playback/request-at-host timeline host-time request
                 direct-frame $ direct-frame/sample-at mapped evaluate
@@ -19696,7 +19672,7 @@
             let
                 base-archive $ assert-type
                   archive/start-archive (fixed/start-simulation 0.25 7 0) 2 2
-                  quamolit.replay-archive/ReplayArchive Number Number
+                  archive/ReplayArchive Number Number
                 a1 $ archive/record-input base-archive 2 update-state
                 a2 $ archive/record-input a1 4 update-state
                 a3 $ archive/record-input a2 -2 update-state
@@ -19758,7 +19734,7 @@
                 moving $ badge/declare-badge props model input resources viewport
                 tiles $ map (range 64)
                   fn (index)
-                    hint-fn $ Fn Number $ -> quamolit.scene-ir/SceneNode
+                    hint-fn $ Fn Number $ -> scene/SceneNode
                     let
                         id $ str |tile- index
                         color $ motion/ColorRgba :r 0.87 :g 0.9 :b 0.94 :a 1
@@ -20002,11 +19978,11 @@
           :code $ quote $ defn start-transform (time angle pivot scale)
             retained/build-execution-plan (make-request time 40 false 100)
               fn (props model input resources viewport)
-                hint-fn $ Fn Number Number Number Bool Number $ -> quamolit.retained-component/ExecutionDeclaration
+                hint-fn $ Fn Number Number Number Bool Number $ -> retained/ExecutionDeclaration
                 let
                     base $ declare-demo props model input resources viewport
                     descriptor $ fn (id from to)
-                      hint-fn $ Fn String Number Number $ -> quamolit.motion/ScalarDescriptor
+                      hint-fn $ Fn String Number Number $ -> motion/ScalarDescriptor
                       motion/ScalarDescriptor :id id :version 1 :motion $ motion/ScalarMotion :tween $ motion/ScalarTween :start 0 :duration 1 :from from :to to :easing (motion/Easing :smoothstep)
                     transform $ retained/TrsMotion :x (descriptor |trs-x 0 32) :y (descriptor |trs-y 0 -12) :rotation
                       descriptor |trs-angle (- 0 angle) angle
@@ -20732,7 +20708,7 @@
                 state* $ ref $ pointer/initial-pointer-state
                 count* $ ref 0
                 handle! $ fn (phase event)
-                  hint-fn $ Fn quamolit.scene-pointer/PointerPhase quamolit.scene-pointer-browser/PointerEventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn pointer/PointerPhase browser/PointerEventHost (-> Unit) (:features :js-ffi)
                   let
                       input $ browser/pointer-input-from-event surface phase event
                       routed $ browser/route-event! surface @plan* @state* phase event
@@ -20755,7 +20731,7 @@
                           (:none) |
                       _ |
                 handle-lost! $ fn (event)
-                  hint-fn $ Fn quamolit.scene-pointer-browser/PointerEventHost (-> Unit) (:features :js-ffi)
+                  hint-fn $ Fn browser/PointerEventHost (-> Unit) (:features :js-ffi)
                   let
                       reconciled $ pointer/lose-pointer-capture @state* $ browser/pointer-id-from-event event
                     reset! state* $ :state reconciled
@@ -20802,7 +20778,7 @@
               dom/add-event-listener! |quamolit-subtree-enter $ fn (_event) (set-disabled! false)
               dom/element-set-attribute! element |data-ready |true
               fn (next-plan)
-                hint-fn $ Fn quamolit.scene-hit/HitPlan (-> Unit) (:features :js-ffi)
+                hint-fn $ Fn hit/HitPlan (-> Unit) (:features :js-ffi)
                 let
                     before @state*
                     reconciled $ browser/reconcile-pointer-surface! surface next-plan before
@@ -21025,9 +21001,9 @@
           :code $ quote $ defn read-legacy-node (tree)
             cond
                 and (struct? tree) (&struct:matches? tree quamolit.types/Shape)
-                assert-type tree quamolit.types/Shape
+                assert-type tree Shape
               (and (struct? tree) (&struct:matches? tree quamolit.types/Component))
-                assert-type tree quamolit.types/Component
+                assert-type tree Component
               true $ raise "|Expected a Quamolit Shape or Component"
           :examples $ []
           :schema $ quote $ Fn T (-> LegacyNode) (:generics T)
@@ -21276,21 +21252,21 @@
           :schema $ quote StructDef
         'clear! $ %{} 'CodeEntry (:doc "|提交零实例帧，在完整图层边界清屏。")
           :code $ quote $ defn clear! (batch)
-            hint-fn $ Fn quamolit.webgpu-batches/RectBatchHost (-> quamolit.webgpu-batches/RectMetrics) (:features :js-ffi)
+            hint-fn $ Fn RectBatchHost (-> RectMetrics) (:features :js-ffi)
             draw! batch 0 0 (color 1 1 1 1) 1 (no-translation) (Some 0)
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ quote $ Fn RectBatchHost (-> RectMetrics) (:features :js-ffi)
         'color $ %{} 'CodeEntry (:doc "|把 Scene 颜色数值构造成 Quamolit 的类型化 RGBA。")
           :code $ quote $ defn color (r g b a)
-            hint-fn $ Fn Number Number Number Number $ -> quamolit.webgpu-batches/RectColor
+            hint-fn $ Fn Number Number Number Number $ -> RectColor
             RectColor :r r :g g :b b :a a
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
           :schema $ quote $ Fn Number Number Number Number (-> RectColor)
         'create! $ %{} 'CodeEntry (:doc "|创建保留式 GPU 实例图层，所有权留给调用者。")
           :code $ quote $ defn create! (canvas device format capacity)
-            hint-fn $ Fn js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String Number (-> quamolit.webgpu-batches/RectBatchHost) (:features :js-ffi) (:async)
+            hint-fn $ Fn js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String Number (-> RectBatchHost) (:features :js-ffi) (:async)
             unsafe-coerce
               js-await $ raw-create! (unsafe-coerce canvas JsObject) (unsafe-coerce device JsObject) format capacity
               , quamolit.webgpu-batches/RectBatchHost
@@ -21299,7 +21275,7 @@
           :schema $ quote $ Fn js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String Number (-> RectBatchHost) (:features :js-ffi) (:async)
         'dispose! $ %{} 'CodeEntry (:doc "|幂等释放图层宿主资源，不释放调用者持有的 device。")
           :code $ quote $ defn dispose! (batch)
-            hint-fn $ Fn quamolit.webgpu-batches/RectBatchHost (-> Bool) (:features :js-ffi)
+            hint-fn $ Fn RectBatchHost (-> Bool) (:features :js-ffi)
             batch .dispose
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
@@ -21368,7 +21344,7 @@
           :schema $ quote $ Fn JsObject JsObject String Number (-> JsObject) (:features :js-ffi)
         'read-pixel! $ %{} 'CodeEntry (:doc "|测试诊断读回；生产帧不得调用。")
           :code $ quote $ defn read-pixel! (batch x y)
-            hint-fn $ Fn quamolit.webgpu-batches/RectBatchHost Number Number (-> quamolit.webgpu-batches/RectPixel) (:features :js-ffi) (:async)
+            hint-fn $ Fn RectBatchHost Number Number (-> RectPixel) (:features :js-ffi) (:async)
             let
                 raw $ js-await $ batch .read-pixel x y
                 r $ contract/expect-number |RectBatch.pixel.r $ contract/object-field |RectBatch.pixel raw |0
@@ -21381,7 +21357,7 @@
           :schema $ quote $ Fn RectBatchHost Number Number (-> RectPixel) (:features :js-ffi) (:async)
         'read-translation! $ %{} 'CodeEntry (:doc "|测试诊断 GPU f32 时间位移；生产帧不得调用。")
           :code $ quote $ defn read-translation! (batch)
-            hint-fn $ Fn quamolit.webgpu-batches/RectBatchHost (-> quamolit.webgpu-batches/RectTranslationSample) (:features :js-ffi) (:async)
+            hint-fn $ Fn RectBatchHost (-> RectTranslationSample) (:features :js-ffi) (:async)
             let
                 raw $ js-await $ batch .read-translation
                 x $ contract/expect-number |RectBatch.translation.x $ contract/object-field |RectBatch.translation raw |x
@@ -21392,7 +21368,7 @@
           :schema $ quote $ Fn RectBatchHost (-> RectTranslationSample) (:features :js-ffi) (:async)
         'translation $ %{} 'CodeEntry (:doc "|把已验证的 Vec2 tween 参数构造成绝对时间 GPU 位移。")
           :code $ quote $ defn translation (from-x from-y to-x to-y time start duration easing)
-            hint-fn $ Fn Number Number Number Number Number Number Number String $ -> quamolit.webgpu-batches/RectTranslation
+            hint-fn $ Fn Number Number Number Number Number Number Number String $ -> RectTranslation
             let
                 from $ RectVec2 :x from-x :y from-y
                 to $ RectVec2 :x to-x :y to-y
@@ -21402,7 +21378,7 @@
           :schema $ quote $ Fn Number Number Number Number Number Number Number String (-> RectTranslation)
         'upload! $ %{} 'CodeEntry (:doc "|上传当前版本实例位置，调用次数按资源版本而非帧数增长。")
           :code $ quote $ defn upload! (batch positions instance-count)
-            hint-fn $ Fn quamolit.webgpu-batches/RectBatchHost js-ffi.typed-arrays/Float32ArrayHost Number (-> Number) (:features :js-ffi)
+            hint-fn $ Fn RectBatchHost js-ffi.typed-arrays/Float32ArrayHost Number (-> Number) (:features :js-ffi)
             let
                 result $ batch .upload positions 0 instance-count
               contract/expect-number |RectBatch.positionBytesUploaded $ contract/object-field |RectBatch.upload result |positionBytesUploaded
@@ -21411,7 +21387,7 @@
           :schema $ quote $ Fn RectBatchHost js-ffi.typed-arrays/Float32ArrayHost Number (-> Number) (:features :js-ffi)
         'upload-patch! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn upload-patch! (batch positions start amount)
-            hint-fn $ Fn quamolit.webgpu-batches/RectBatchHost js-ffi.typed-arrays/Float32ArrayHost Number Number (-> Number) (:features :js-ffi)
+            hint-fn $ Fn RectBatchHost js-ffi.typed-arrays/Float32ArrayHost Number Number (-> Number) (:features :js-ffi)
             let
                 result $ batch .upload-patch positions start amount
               contract/expect-number |RectBatch.positionBytesUploaded $ contract/object-field |RectBatch.uploadPatch result |positionBytesUploaded
@@ -21424,7 +21400,7 @@
       :defs $ {} $ 'probe!
         %{} 'CodeEntry (:doc "|获取上游封闭能力结果；调用方只在 ready 分支使用并最终释放设备。")
           :code $ quote $ defn probe! (navigator-host)
-            hint-fn $ Fn (JsNullish js-ffi.webgpu-capabilities/NavigatorHost) (-> js-ffi.webgpu-capabilities/DeviceProbe) (:features :js-ffi) (:async)
+            hint-fn $ Fn (JsNullish capabilities/NavigatorHost) (-> capabilities/DeviceProbe) (:features :js-ffi) (:async)
             js-await $ capabilities/probe-device! navigator-host
           :examples $ []
           :schema $ quote $ Fn (JsNullish capabilities/NavigatorHost) (-> capabilities/DeviceProbe) (:features :js-ffi) (:async)
@@ -21619,7 +21595,7 @@
           :schema $ quote $ Fn Number Number (-> Number)
         'open-runtime! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn open-runtime! (canvas device format descriptor generation capacity)
-            hint-fn $ Fn js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String quamolit.webgpu-texture-runner/TextureResourceDescriptor Number Number (-> quamolit.webgpu-images/ImageRuntime) (:features :js-ffi) (:async)
+            hint-fn $ Fn js-ffi.browser/DomElementHost js-ffi.webgpu/DeviceHost String textures/TextureResourceDescriptor Number Number (-> ImageRuntime) (:features :js-ffi) (:async)
             let
                 resource-id $ :identity descriptor
                 bytes $ textures/texture-resource-bytes descriptor
@@ -21961,7 +21937,7 @@
           :schema $ quote $ Fn webgpu/DeviceHost Number Number String (-> WebGpuTextureHost) (:features :js-ffi)
         'destroy-texture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn destroy-texture! (texture)
-            hint-fn $ Fn quamolit.webgpu-texture-runner/WebGpuTextureHost (-> Unit) (:features :js-ffi)
+            hint-fn $ Fn WebGpuTextureHost (-> Unit) (:features :js-ffi)
             texture .destroy
           :examples $ []
           :ffi $ {} (:backend :js) (:target :browser)
@@ -22056,7 +22032,7 @@
         'live-texture-bytes $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn live-texture-bytes (handles total)
             if (empty? handles) total $ let
-                handle $ assert-type (-> handles first .unwrap) 'quamolit.webgpu-texture-runner/TextureResourceHandle
+                handle $ assert-type (-> handles first .unwrap) TextureResourceHandle
               recur (rest handles)
                 + total $ :bytes handle
           :examples $ []
@@ -22097,7 +22073,7 @@
           :code $ quote $ defn release-texture-loop! (handles retained resource-id generation)
             if (empty? handles) (TextureReleaseResult :handles retained :released? false :bytes 0)
               let
-                  handle $ assert-type (-> handles first .unwrap) 'quamolit.webgpu-texture-runner/TextureResourceHandle
+                  handle $ assert-type (-> handles first .unwrap) TextureResourceHandle
                 if
                   and
                     = resource-id $ :identity handle
@@ -22112,10 +22088,7 @@
           :schema $ quote $ Fn (List TextureResourceHandle) (List TextureResourceHandle) resource/ResourceIdentity Number (-> TextureReleaseResult) (:features :js-ffi)
         'run-texture-load-task! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn run-texture-load-task! (descriptor device task)
-            hint-fn $ Fn quamolit.webgpu-texture-runner/TextureResourceDescriptor js-ffi.webgpu/DeviceHost quamolit.resource-load-queue/ResourceLoadTask
-              -> quamolit.webgpu-texture-runner/QueuedTextureLoadResult
-              :features :js-ffi
-              :async
+            hint-fn $ Fn TextureResourceDescriptor webgpu/DeviceHost load-queue/ResourceLoadTask (-> QueuedTextureLoadResult) (:features :js-ffi) (:async)
             assert |texture-load-task-identity-mismatch $ = (:identity descriptor) (:identity task)
             let
                 image $ browser/image-create
