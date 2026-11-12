@@ -1113,7 +1113,7 @@
                           raise |Expected-fade-callback-function
                       (:none) p1
           :examples $ []
-          :schema $ quote $ Fn (Map Dynamic Dynamic) Dynamic Dynamic (-> quamolit.types/Component)
+          :schema $ quote $ Fn (Map Dynamic Dynamic) Dynamic Dynamic (-> quamolit.types/Component) (:features :io :state)
         'comp-fade-in-out $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-fade-in-out (states props p1)
             let
@@ -1185,22 +1185,23 @@
                       (:some old-node) (either p1 old-node)
                       (:none) p1
           :examples $ []
-          :schema $ quote $ Fn (Map Dynamic Dynamic) Dynamic Dynamic (-> quamolit.types/Component)
+          :schema $ quote $ Fn (Map Dynamic Dynamic) Dynamic Dynamic (-> quamolit.types/Component) (:features :io :state)
         'delete-node-cache! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn delete-node-cache! (path)
             swap! *nodes-cache $ fn (nodes) (dissoc nodes path)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic (-> Dynamic) (:features :state)
         'get-node! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn get-node! (path) (get @*nodes-cache path)
           :examples $ []
           :schema $ quote $ Fn Dynamic
             -> $ Option Dynamic
+            :features :state
         'write-node-cache! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn write-node-cache! (path node)
             swap! *nodes-cache $ fn (nodes) (assoc nodes path node)
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :state)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.comp.fade-in-out
           :require
@@ -1608,7 +1609,7 @@
               reset! *last-tick seconds
               , elapsed
           :examples $ []
-          :schema $ quote $ Fn Number (-> Number)
+          :schema $ quote $ Fn Number (-> Number) (:features :state)
         'cache-element-tree! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn cache-element-tree! (tree)
             reset! *element-tree $ if (nil? tree) (LegacyRoot :empty)
@@ -1617,7 +1618,7 @@
                 (quamolit.types/Component component) (LegacyRoot :component component)
             , &unit
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Unit)
+          :schema $ quote $ Fn Dynamic (-> Unit) (:features :state)
         'call-paint $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn call-paint (tree target dispatch! elapsed tick?) (; js/console.log tree)
             let
@@ -1672,7 +1673,7 @@
                 paint-logs! ctx @*hud-logs
                 clear-hud-logs!
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic Number Bool (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic Dynamic Number Bool (-> Dynamic) (:features :js-ffi :state)
         'configure-canvas $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn configure-canvas (app-container)
             let
@@ -1766,7 +1767,7 @@
                   raise |invalid-legacy-listener
                 ; js/console.log "|no target"
           :examples $ []
-          :schema $ quote $ Fn Dynamic Tag EventHost Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Tag EventHost Dynamic (-> Dynamic) (:features :js-ffi :state)
         'on-control-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn on-control-event (elapsed states delta)
             if
@@ -1794,7 +1795,7 @@
                       , 0.02
                   .unwrap $ nth scales 1
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi :state)
         'paint-context-at $ %{} 'CodeEntry
           :doc "|Paint directly to a Canvas 2D context at an explicit absolute time in seconds, advancing on-tick callbacks once. Useful for visual fixtures."
           :code $ quote $ defn paint-context-at (tree ctx dispatch! seconds)
@@ -1803,7 +1804,7 @@
               cache-element-tree! tree
               paint ctx tree ([]) dispatch! elapsed true
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic Number (-> Unit) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic Dynamic Number (-> Unit) (:features :js-ffi :state)
         'paint-logs! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-logs! (ctx logs)
             set! (.-fillStyle ctx) "|hsla(0,0%,0%,0.5)"
@@ -1827,17 +1828,17 @@
           :code $ quote $ defn redraw-context (tree ctx dispatch!) (cache-element-tree! tree)
             paint ctx tree ([]) dispatch! 0 false
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Unit) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Unit) (:features :js-ffi :state)
         'redraw-page $ %{} 'CodeEntry
           :doc "|Repaint a browser canvas without advancing on-tick callbacks; pass a freshly constructed scene after a deterministic step."
           :code $ quote $ defn redraw-page (tree target dispatch!) (cache-element-tree! tree) (call-paint tree target dispatch! 0 false)
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi :state)
         'render-page $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn render-page (tree target dispatch!)
             render-page-at tree target dispatch! $ get-tick
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic Dynamic (-> Dynamic) (:features :js-ffi :state)
         'render-page-at $ %{} 'CodeEntry
           :doc "|Render a browser canvas at an explicit absolute time in seconds, advancing component on-tick callbacks once."
           :code $ quote $ defn render-page-at (tree target dispatch! seconds)
@@ -1846,12 +1847,12 @@
               cache-element-tree! tree
               call-paint tree target dispatch! elapsed true
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic Number (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic Dynamic Number (-> Dynamic) (:features :js-ffi :state)
         'reset-frame-clock! $ %{} 'CodeEntry
           :doc "|Set the absolute animation clock in seconds before deterministic stepping. This does not paint or tick components."
           :code $ quote $ defn reset-frame-clock! (seconds) (reset! *last-tick seconds) &unit
           :examples $ []
-          :schema $ quote $ Fn Number (-> Unit)
+          :schema $ quote $ Fn Number (-> Unit) (:features :state)
         'reset-stage-config! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reset-stage-config! ()
             let
@@ -1886,7 +1887,7 @@
                           > 0.01 $ decode-map-as (js/Math.abs delta) 'Number
                           , 1 $ + prev $ if (> delta 0) -0.01 0.01
           :examples $ []
-          :schema $ quote $ Fn (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn (-> Dynamic) (:features :js-ffi :state)
         'setup-events $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn setup-events (root-element dispatch)
             let
@@ -2004,7 +2005,7 @@
                           + x dy
                 , &unit
           :examples $ []
-          :schema $ quote $ Fn JsObject Dynamic (-> Unit) (:features :js-ffi)
+          :schema $ quote $ Fn JsObject Dynamic (-> Unit) (:features :js-ffi :state)
         'update-stage-config! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-stage-config! (move scale-change)
             let
@@ -2034,7 +2035,7 @@
                         next $ &+ prev $ * 0.01 scale-change
                       &max 0.2 $ &min next 8
           :examples $ []
-          :schema $ quote $ Fn (List Number) Number (-> Dynamic)
+          :schema $ quote $ Fn (List Number) Number (-> Dynamic) (:features :state)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.core
           :require
@@ -3332,7 +3333,7 @@
                 reset! *drag-model $ end-pointer model $ :pointer model
               , &unit
           :examples $ []
-          :schema $ quote $ Fn dom/DomElementHost (-> Unit) (:features :js-ffi)
+          :schema $ quote $ Fn dom/DomElementHost (-> Unit) (:features :js-ffi :state)
         'current-model $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn current-model () @*drag-model
           :examples $ []
@@ -3342,7 +3343,7 @@
         'current-pointer-state $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn current-pointer-state () @*drag-pointer-state
           :examples $ []
-          :schema $ quote $ Fn (-> pointer/PointerState)
+          :schema $ quote $ Fn (-> pointer/PointerState) (:features :state)
         'draw! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn draw! (context model)
             reference/draw-reference! context $ scene-at model
@@ -3371,7 +3372,7 @@
               reset! *drag-model next-model
               or (:capture-released reconciled) (not= model next-model)
           :examples $ []
-          :schema $ quote $ Fn pointer-browser/PointerEventHost (-> Bool) (:features :js-ffi)
+          :schema $ quote $ Fn pointer-browser/PointerEventHost (-> Bool) (:features :js-ffi :state)
         'handle-pointer-event! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn handle-pointer-event! (surface phase event)
             reset! *drag-client-position $ if
@@ -3402,7 +3403,7 @@
               reset! *drag-model next-model
               not= model next-model
           :examples $ []
-          :schema $ quote $ Fn pointer-browser/PointerSurfaceHost pointer/PointerPhase pointer-browser/PointerEventHost (-> Bool) (:features :js-ffi)
+          :schema $ quote $ Fn pointer-browser/PointerSurfaceHost pointer/PointerPhase pointer-browser/PointerEventHost (-> Bool) (:features :js-ffi :state)
         'hit-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hit-at (model x y)
             assert |invalid-drag-point $ and (motion/finite-number? x) (motion/finite-number? y)
@@ -3482,7 +3483,7 @@
           :schema $ quote $ Fn dom/DomElementHost
             Fn $ -> Unit
             -> $ Fn $ -> Unit
-            :features :js-ffi
+            :features :js-ffi :state
         'logical-pointer-input $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn logical-pointer-input (input view)
             let
@@ -3562,7 +3563,7 @@
               reset! *drag-model next-model
               or (:capture-released reconciled) (not= model next-model) (not= before next-state)
           :examples $ []
-          :schema $ quote $ Fn pointer-browser/PointerSurfaceHost (-> Bool) (:features :js-ffi)
+          :schema $ quote $ Fn pointer-browser/PointerSurfaceHost (-> Bool) (:features :js-ffi :state)
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () &unit
           :examples $ []
@@ -3603,14 +3604,14 @@
             reset! *drag-model $ struct-with @*drag-model $ :enabled? enabled?
             commit-drag-scene! element
           :examples $ []
-          :schema $ quote $ Fn dom/DomElementHost Bool (-> Unit) (:features :js-ffi)
+          :schema $ quote $ Fn dom/DomElementHost Bool (-> Unit) (:features :js-ffi :state)
         'set-drag-view! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn set-drag-view! (scale-x scale-y x y)
             assert |invalid-drag-view $ and (motion/finite-number? scale-x) (> scale-x 0) (motion/finite-number? scale-y) (> scale-y 0) (motion/finite-number? x) (motion/finite-number? y)
             reset! *drag-view $ DragView :scale-x scale-x :scale-y scale-y :x x :y y
             , &unit
           :examples $ []
-          :schema $ quote $ Fn Number Number Number Number (-> Unit)
+          :schema $ quote $ Fn Number Number Number Number (-> Unit) (:features :state)
         'text-node $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn text-node (id label x y)
             scene/SceneNode :id id :key id :parent | :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :text $ scene/TextNode :x x :y y :size 18 :text label :fill
@@ -4953,7 +4954,7 @@
               reset! *dashboard-plan next-plan
               , &unit
           :examples $ []
-          :schema $ quote $ Fn dom/DomElementHost js-ffi.canvas-batches/CanvasContextHost scene/SceneDocument Number Number (-> Unit) (:features :js-ffi)
+          :schema $ quote $ Fn dom/DomElementHost js-ffi.canvas-batches/CanvasContextHost scene/SceneDocument Number Number (-> Unit) (:features :js-ffi :state)
         'complete-media! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn complete-media! (state result)
             match result
@@ -5013,7 +5014,7 @@
         'current-pointer $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn current-pointer () @*dashboard-pointer
           :examples $ []
-          :schema $ quote $ Fn (-> pointer/PointerState)
+          :schema $ quote $ Fn (-> pointer/PointerState) (:features :state)
         'dashboard-font $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn dashboard-font ()
             struct-with (scene/default-font) (:family |QuamolitDashboard) (:version 1)
@@ -5137,7 +5138,7 @@
               reset! *dashboard-pointer next
               not= before next
           :examples $ []
-          :schema $ quote $ Fn pointer-browser/PointerSurfaceHost pointer/PointerPhase pointer-browser/PointerEventHost (-> Bool) (:features :js-ffi)
+          :schema $ quote $ Fn pointer-browser/PointerSurfaceHost pointer/PointerPhase pointer-browser/PointerEventHost (-> Bool) (:features :js-ffi :state)
         'image-error $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn image-error (state)
             let
@@ -5261,7 +5262,7 @@
           :schema $ quote $ Fn dom/DomElementHost
             Fn $ -> Unit
             -> $ Fn $ -> Unit
-            :features :js-ffi
+            :features :js-ffi :state
         'interactive-scene-at $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn interactive-scene-at (time width height)
             let
@@ -5395,7 +5396,7 @@
               reset! *dashboard-pointer next
               not= before next
           :examples $ []
-          :schema $ quote $ Fn pointer-browser/PointerSurfaceHost (-> Bool) (:features :js-ffi)
+          :schema $ quote $ Fn pointer-browser/PointerSurfaceHost (-> Bool) (:features :js-ffi :state)
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () &unit
           :examples $ []
@@ -10136,12 +10137,14 @@
           :examples $ []
           :schema $ quote $ Fn
             -> $ List String
+            :features :state
         'hud-log $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hud-log (& xs)
             swap! *hud-logs conj $ xs .join-string "|, "
           :examples $ []
           :schema $ quote $ Fn (& Dynamic)
             -> $ List String
+            :features :state
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.hud-logs
     'quamolit.image-resource-runner $ %{} 'FileEntry
@@ -13991,7 +13994,7 @@
                   swap! *image-pool assoc src image
                   , image
           :examples $ []
-          :schema $ quote $ Fn String (-> js-ffi.browser/ImageHost) (:features :js-ffi)
+          :schema $ quote $ Fn String (-> js-ffi.browser/ImageHost) (:features :js-ffi :state)
         'legacy-number $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn legacy-number (value fallback)
             if
@@ -14002,7 +14005,7 @@
         'paint $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint (ctx tree coord dispatch! elapsed tick?) (; js/console.log |paint tree) (paint-tree-with ctx tree coord dispatch! elapsed tick? paint-one)
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (List Dynamic) Dynamic Number Bool (-> Unit) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic (List Dynamic) Dynamic Number Bool (-> Unit) (:features :js-ffi :state)
         'paint-alpha $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-alpha (ctx style)
             let
@@ -14017,7 +14020,7 @@
               set! (.-globalAlpha ctx) opacity
               swap! *tracked-transform assoc :alpha opacity
           :examples $ []
-          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi :state)
         'paint-arc $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-arc (ctx style coord event)
             let
@@ -14058,7 +14061,7 @@
                 set! (.-miterLimit ctx) miter-limit
                 .!stroke ctx
           :examples $ []
-          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) Dynamic Dynamic (-> Dynamic) (:features :js-ffi :state)
         'paint-image $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-image (ctx style coord)
             let
@@ -14091,7 +14094,7 @@
                   , 'String
               .!drawImage ctx image sx sy sw sh dx dy dw dh
           :examples $ []
-          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) Dynamic (-> Dynamic) (:features :js-ffi :state)
         'paint-line $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-line (ctx style)
             let
@@ -14149,7 +14152,7 @@
                 (identical? op :group) nil
                 true $ js/console.log "|painting not implemented" directive
           :examples $ []
-          :schema $ quote $ Fn Dynamic Shape (List Dynamic) (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Shape (List Dynamic) (-> Dynamic) (:features :js-ffi :state)
         'paint-path $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-path (ctx style)
             let
@@ -14247,7 +14250,7 @@
                 set! (.-lineWidth ctx) line-width
                 .!stroke ctx
           :examples $ []
-          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) Dynamic Dynamic (-> Dynamic) (:features :js-ffi :state)
         'paint-restore $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-restore (ctx style) (.!restore ctx)
             if (empty? @*transforms-memory) (js/console.warn |nothing-to-restore)
@@ -14257,7 +14260,7 @@
                   , .unwrap-or $ {}
                 swap! *transforms-memory butlast
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :js-ffi :state)
         'paint-rotate $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-rotate (ctx style)
             let
@@ -14274,11 +14277,11 @@
                     decode-map-as (js/Math.cos angle) 'Number
                     decode-map-as (js/Math.sin angle) 'Number
           :examples $ []
-          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi :state)
         'paint-save $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-save (ctx style) (.!save ctx) (swap! *transforms-memory conj @*tracked-transform)
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic) (:features :js-ffi :state)
         'paint-scale $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-scale (ctx style)
             let
@@ -14293,7 +14296,7 @@
                   decode-map-as point $ List Number
                   [] ratio 0
           :examples $ []
-          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi :state)
         'paint-text $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint-text (ctx style)
             set! (.-fillStyle ctx)
@@ -14366,7 +14369,7 @@
                   decode-map-as point $ List Number
                   , delta
           :examples $ []
-          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi :state)
         'paint-tree-only-with $ %{} 'CodeEntry
           :doc "|Paint a scene without invoking on-tick callbacks or advancing frame time."
           :code $ quote $ defn paint-tree-only-with (ctx tree coord paint-leaf)
@@ -19049,6 +19052,7 @@
           :examples $ []
           :schema $ quote $ Fn Number Number
             -> $ quamolit.retained-path/PathPlan $ List tree/BranchSlot
+            :features :state
         'counted-tree-transforms $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn counted-tree-transforms (slots time)
             reset! *path-sample-calls $ inc $ deref *path-sample-calls
@@ -19056,18 +19060,19 @@
           :examples $ []
           :schema $ quote $ Fn (List tree/BranchSlot) Number
             -> $ List quamolit.scene-ir/Matrix2D
+            :features :state
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! () (reset-fixture!) ([] step-fixture! redraw-fixture! progress)
           :examples $ []
-          :schema $ quote $ Fn (-> Dynamic)
+          :schema $ quote $ Fn (-> Dynamic) (:features :state)
         'path-sample-calls $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn path-sample-calls () (deref *path-sample-calls)
           :examples $ []
-          :schema $ quote $ Fn (-> Number)
+          :schema $ quote $ Fn (-> Number) (:features :state)
         'progress $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn progress () (:model @*frame)
           :examples $ []
-          :schema $ quote $ Fn (-> Number)
+          :schema $ quote $ Fn (-> Number) (:features :state)
         'redraw-fixture! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn redraw-fixture! (ctx)
             paint-tree-only-with ctx (:scene @*frame) ([])
@@ -19078,7 +19083,7 @@
                     Map Tag Dynamic
                   , coord $ :event $ assert-type shape Shape
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic (-> Dynamic) (:features :js-ffi :state)
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () &unit
           :examples $ []
@@ -19088,7 +19093,7 @@
             reset! *frame $ initial-frame 0 0 scene
             , &unit
           :examples $ []
-          :schema $ quote $ Fn (-> Unit)
+          :schema $ quote $ Fn (-> Unit) (:features :state)
         'scene $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn scene (progress)
             rect $ {} (:w 48) (:h 48) (:y 80) (:fill-style |#ec4899)
@@ -19100,7 +19105,7 @@
             reset! *frame $ evaluate-at @*frame seconds update-progress scene
             redraw-fixture! ctx
           :examples $ []
-          :schema $ quote $ Fn Dynamic Number (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Dynamic Number (-> Dynamic) (:features :js-ffi :state)
         'update-progress $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-progress (model sample)
             + model $ :elapsed sample
@@ -21184,18 +21189,33 @@
           :code $ quote $ defref *counter 0
           :examples $ []
           :schema $ quote $ Ref Number
+        'HslChannel $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defunion HslChannel Number String
+          :examples $ []
+          :schema $ quote UnionDef
+        'channel-text $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn channel-text (channel)
+            match channel
+              (Number n) (str n)
+              (String text) text
+          :examples $ []
+          :schema $ quote $ Fn HslChannel (-> String)
         'gen-id! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn gen-id! () (swap! *counter inc) @*counter
           :examples $ []
-          :schema $ quote $ Fn (-> Number)
+          :schema $ quote $ Fn (-> Number) (:features :state)
         'hsl $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn hsl (h s l & alpha)
-            if (empty? alpha) (str "|hsl(" h |, s |%, l "|%)")
-              let
-                  a $ .unwrap $ first alpha
-                str "|hsla(" h |, s |%, l |%, a "|)"
+            let
+                hue $ channel-text h
+                saturation $ channel-text s
+                lightness $ channel-text l
+              if (empty? alpha) (str "|hsl(" hue |, saturation |%, lightness "|%)")
+                let
+                    a $ channel-text $ .unwrap (first alpha)
+                  str "|hsla(" hue |, saturation |%, lightness |%, a "|)"
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic Dynamic (& Dynamic) (-> String)
+          :schema $ quote $ Fn HslChannel HslChannel HslChannel (& HslChannel) (-> String)
           :tests $ [] $ %{} 'TestEntry (:name |formats-css-color)
             :code $ quote $ do
               assert= "|hsl(200,70%,80%)" $ hsl 200 70 80
