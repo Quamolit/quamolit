@@ -175,7 +175,7 @@
                   , nil
                 , :children children
           :examples $ []
-          :schema $ quote $ Fn N P C (-> Shape) (:generics N P C) (:features :js-ffi)
+          :schema $ quote $ Fn Tag P C (-> Shape) (:generics P C) (:features :js-ffi)
         'create-shape $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-shape (shape-name props children)
             if
@@ -187,7 +187,7 @@
                 , nil
               , :children $ arrange-children children
           :examples $ []
-          :schema $ quote $ Fn N P (List C) (-> Shape) (:generics N P C) (:features :js-ffi)
+          :schema $ quote $ Fn Tag P (List C) (-> Shape) (:generics P C) (:features :js-ffi)
         'defcomp $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defmacro defcomp (comp-name args & body)
             quasiquote $ defn ~comp-name ~args $ let
@@ -20999,7 +20999,7 @@
           :examples $ []
           :schema $ quote UnionDef
         'Shape $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct Shape (:name Dynamic) (:style Dynamic) (:event Dynamic) (:children Dynamic)
+          :code $ quote $ defstruct Shape (:name Tag) (:style Dynamic) (:event Dynamic) (:children Dynamic)
           :examples $ []
           :schema $ quote StructDef
         'read-legacy-node $ %{} 'CodeEntry (:doc |)
