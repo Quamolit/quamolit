@@ -1002,6 +1002,9 @@
             quamolit.scene-ir :as scene
     'quamolit.comp.debug $ %{} 'FileEntry
       :defs $ {}
+        'DebugStyleValue $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defunion DebugStyleValue Number String
+          :examples $ []
         'comp-debug $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-debug (data more-style)
             let
@@ -1018,7 +1021,7 @@
               :size 12
               :max-width 600
           :examples $ []
-          :schema $ quote $ Map Tag Dynamic
+          :schema $ quote $ Map Tag DebugStyleValue
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns quamolit.comp.debug
           :require
