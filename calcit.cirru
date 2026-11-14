@@ -14001,10 +14001,11 @@
         'legacy-number $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn legacy-number (value fallback)
             if
-              or (nil? value) (= value false)
+              or (nil? value)
+                and (bool? value) (not value)
               , fallback $ if (number? value) value $ raise |invalid-legacy-style-number
           :examples $ []
-          :schema $ quote $ Fn Dynamic Number (-> Number)
+          :schema $ quote $ Fn Input Number (-> Number) (:generics Input)
         'paint $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn paint (ctx tree coord dispatch! elapsed tick?) (; js/console.log |paint tree) (paint-tree-with ctx tree coord dispatch! elapsed tick? paint-one)
           :examples $ []
