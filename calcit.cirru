@@ -139,7 +139,7 @@
                 if (map? branch) branch $ raise |Expected-state-map
                 , :cursor $ append parent-cursor k
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic)
+          :schema $ quote $ Fn State Key (-> Dynamic) (:generics State Key)
         'arc $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arc (props & children) (create-shape :arc props children)
           :examples $ []
