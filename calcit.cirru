@@ -139,7 +139,7 @@
                 if (map? branch) branch $ raise |Expected-state-map
                 , :cursor $ append parent-cursor k
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Dynamic)
+          :schema $ quote $ Fn State Key (-> Dynamic) (:generics State Key)
         'arc $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arc (props & children) (create-shape :arc props children)
           :examples $ []
@@ -10791,11 +10791,11 @@
                   true x
               true $ js/console.warn "|invalid value to bound:" x
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Dynamic) (:features :js-ffi)
+          :schema $ quote $ Fn Input (-> Dynamic) (:generics Input) (:features :js-ffi)
         'bound-opacity $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn bound-opacity (x) (bound-01 x)
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Dynamic)
+          :schema $ quote $ Fn Input (-> Dynamic) (:generics Input)
         'bound-x $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn bound-x (left right x)
             decode-map-as
@@ -21124,7 +21124,7 @@
                 ty $ type-as-int y
               if (identical? tx ty) (compare-number x y) (compare-number tx ty)
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Number)
+          :schema $ quote $ Fn X Y (-> Number) (:generics X Y)
         'compare-number $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn compare-number (x y)
             let
@@ -21136,7 +21136,7 @@
                 (&> x y) 1
                 true 0
           :examples $ []
-          :schema $ quote $ Fn Dynamic Dynamic (-> Number)
+          :schema $ quote $ Fn X Y (-> Number) (:generics X Y)
         'type-as-int $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn type-as-int (x)
             cond
