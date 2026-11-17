@@ -14007,7 +14007,8 @@
           :examples $ []
           :schema $ quote $ Fn Input Number (-> Number) (:generics Input)
         'paint $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn paint (ctx tree coord dispatch! elapsed tick?) (; js/console.log |paint tree) (paint-tree-with ctx tree coord dispatch! elapsed tick? paint-one)
+          :code $ quote $ defn paint (ctx tree coord dispatch! elapsed tick?) (; js/console.log |paint tree)
+            paint-tree-with ctx tree coord dispatch! elapsed tick? $ fn (a b c) (paint-one a b c)
           :examples $ []
           :schema $ quote $ Fn Dynamic Dynamic (List Dynamic) Dynamic Number Bool (-> Unit) (:features :js-ffi :state)
         'paint-alpha $ %{} 'CodeEntry (:doc |)
@@ -19052,7 +19053,9 @@
             let
                 plan $ tree/build-plan time depth
               reset! *path-sample-calls 0
-              struct-with plan $ :sample counted-tree-transforms
+              struct-with plan $ :sample $ fn (a b)
+                hint-fn $ Fn (List tree/BranchSlot) Number $ -> (List quamolit.scene-ir/Matrix2D)
+                counted-tree-transforms a b
           :examples $ []
           :schema $ quote $ Fn Number Number
             -> $ quamolit.retained-path/PathPlan $ List tree/BranchSlot
@@ -20029,6 +20032,9 @@
           :require (quamolit.retained-component :as retained) (quamolit.component-sample :as component) (quamolit.test.component-fixture :as badge) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as canvas) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component)
             calcit.test :refer $ is= is-throws
             quamolit.scene-binding :as binding
+            quamolit.gpu-component :as gpu-component
+            quamolit.gpu-scalar-program :as gpu-scalar-program
+            quamolit.webgpu-capabilities :as webgpu-capabilities
     'quamolit.test.scene-hit-fixture $ %{} 'FileEntry
       :defs $ {}
         'arc-content $ %{} 'CodeEntry (:doc |)
