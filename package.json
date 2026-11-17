@@ -1,5 +1,5 @@
 {
-  "version": "0.0.20",
+  "version": "0.0.21",
   "dependencies": {
     "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.18",
     "@calcit/procs": "0.43.0",
