@@ -20032,6 +20032,9 @@
           :require (quamolit.retained-component :as retained) (quamolit.component-sample :as component) (quamolit.test.component-fixture :as badge) (quamolit.direct-frame :as direct) (quamolit.scene-ir :as scene) (quamolit.motion :as motion) (quamolit.canvas-reference :as canvas) (quamolit.presence :as presence) (quamolit.presence-component :as presence-component)
             calcit.test :refer $ is= is-throws
             quamolit.scene-binding :as binding
+            quamolit.gpu-component :as gpu-component
+            quamolit.gpu-scalar-program :as gpu-scalar-program
+            quamolit.webgpu-capabilities :as webgpu-capabilities
     'quamolit.test.scene-hit-fixture $ %{} 'FileEntry
       :defs $ {}
         'arc-content $ %{} 'CodeEntry (:doc |)
