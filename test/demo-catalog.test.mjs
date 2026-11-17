@@ -84,9 +84,10 @@ function verifyNamedEntries(configuration, commands) {
     const command = commands[`compile:${name}`];
     assert.match(
       command,
-      /^(?:mkdir -p target\/js\/[\w/-]+ && )?calcit --entry [\w-]+ --emit-path target\/js\/[\w-]+\/ calcit\.cirru js$/,
+      /^(?:mkdir -p target\/js\/[\w/-]+ && )?calcit --entry [\w-]+ --emit-path target\/js\/[\w-]+\/ calcit\.cirru js(?: && calcit --entry [\w-]+ --init-fn [\w./!-]+ --reload-fn [\w./!-]+ --emit-path target\/js\/[\w-]+\/ calcit\.cirru js)*$/,
     );
-    assert.ok(command.endsWith(`calcit --entry ${name} --emit-path target/js/${destination}/ calcit.cirru js`));
+    const [primary] = command.split(" && ").filter((part) => !part.startsWith("mkdir -p "));
+    assert.equal(primary, `calcit --entry ${name} --emit-path target/js/${destination}/ calcit.cirru js`);
   }
 }
 test("27 个命名 entry 对应原编译上下文，default 与独立消费者边界不变", () => {
