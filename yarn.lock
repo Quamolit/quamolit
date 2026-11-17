@@ -16,7 +16,7 @@ __metadata:
   version: 0.2.13
   resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=5bec8174895f55a0464581f054132f610358faf4"
   dependencies:
-    "@calcit/procs": "npm:0.43.0"
+    "@calcit/procs": "npm:0.35.1"
   checksum: 10c0/a50ef64964b83c80efaaac7a60bd7ede4bd91f2aad027593d9a93b3b8cd1bd334a793800d69862c38c0cbf0ce8dd07c4e4752b8d69a79ddbc1b9f8ac23753987
   languageName: node
   linkType: hard
