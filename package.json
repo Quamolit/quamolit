@@ -26,7 +26,7 @@
     "format:test-js": "prettier --write \"test/**/*.{js,mjs,cjs}\"",
     "check:test-js-format": "prettier --check \"test/**/*.{js,mjs,cjs}\"",
     "bench:gpu-component": "yarn compile:gpu-component && node test/gpu-component-bench.mjs",
-    "compile:gpu-component": "mkdir -p target/js/gpu-component && calcit --entry gpu-component --emit-path target/js/gpu-component/ calcit.cirru js",
+    "compile:gpu-component": "mkdir -p target/js/gpu-component && calcit --entry gpu-component --emit-path target/js/gpu-component/ calcit.cirru js && calcit --entry gpu-component --init-fn quamolit.examples.binary-tree/start-component --reload-fn quamolit.examples.binary-tree/start-component --emit-path target/js/gpu-component/ calcit.cirru js",
     "test:gpu-component": "calcit --check-only --ns quamolit.gpu-component --ns quamolit.gpu-scalar-program --ns quamolit.test.gpu-component-fixture && calcit test --tag gpu-component --require-match && yarn compile:gpu-component && node --test test/gpu-component-smoke.mjs test/gpu-scalar-program-smoke.mjs && yarn compile:retained-component && playwright test --config test/gpu-component.playwright.config.mjs",
     "compile:todolist": "calcit --entry todolist --emit-path target/js/todolist/ calcit.cirru js",
     "test:todolist": "calcit --check-only --ns quamolit.examples.todolist --ns quamolit.scene-ir --ns quamolit.scene-diff --ns quamolit.scene-binding --ns quamolit.presence-component --ns quamolit.canvas-reference --ns quamolit.font-resource && calcit test --tag font --require-match && calcit test --tag todolist --require-match && yarn compile:todolist && node --test test/todolist-smoke.mjs && playwright test --config test/todolist.playwright.config.mjs",
