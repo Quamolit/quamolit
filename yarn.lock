@@ -16,20 +16,20 @@ __metadata:
   version: 0.2.13
   resolution: "@calcit/js-ffi@https://github.com/calcit-lang/js-ffi.git#commit=5bec8174895f55a0464581f054132f610358faf4"
   dependencies:
-    "@calcit/procs": "npm:0.35.1"
+    "@calcit/procs": "npm:0.43.0"
   checksum: 10c0/a50ef64964b83c80efaaac7a60bd7ede4bd91f2aad027593d9a93b3b8cd1bd334a793800d69862c38c0cbf0ce8dd07c4e4752b8d69a79ddbc1b9f8ac23753987
   languageName: node
   linkType: hard
 
-"@calcit/procs@npm:0.42.1":
-  version: 0.42.1
-  resolution: "@calcit/procs@npm:0.42.1"
+"@calcit/procs@npm:0.43.0":
+  version: 0.43.0
+  resolution: "@calcit/procs@npm:0.43.0"
   dependencies:
     "@calcit/finger-vec": "npm:0.1.1"
     "@calcit/ternary-tree": "npm:0.0.26"
     "@cirru/parser.ts": "npm:0.0.10"
     "@cirru/writer.ts": "npm:^0.1.9"
-  checksum: 10c0/58e306e7bc72b258e07c33dae4d543241cd0c7ed6830262628bf61c734453d7907ef453af0b25a770ba911e9ce6ede19f869d9a78decea4589cf4ae1f7c40629
+  checksum: 10c0/6e2c11214e93e04d8a6679f34aa6a31f26bbb445f70b77299590d16d38563bee9fe700a77c919a843e0fa279b14ddb704c1ad5a17e17fa3e289f966dee17c7c5
   languageName: node
   linkType: hard
 
@@ -687,7 +687,7 @@ __metadata:
   resolution: "root-workspace-0b6124@workspace:."
   dependencies:
     "@calcit/js-ffi": "https://github.com/calcit-lang/js-ffi.git#tag=0.2.13"
-    "@calcit/procs": "npm:0.42.1"
+    "@calcit/procs": "npm:0.43.0"
     "@playwright/test": "npm:1.63.0"
     "@quamolit/touch-control": "npm:^0.0.13"
     bottom-tip: "npm:^0.1.5"
