@@ -146,16 +146,18 @@
           :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
         'arrange-children $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arrange-children (children)
-            if (every? children non-nil?)
-              -> children $ map-indexed $ fn (idx x) ([] idx x)
-              -> children
-                map-indexed $ fn (idx x) ([] idx x)
-                filter $ fn (entry)
-                  .some? $ last entry
+            map-indexed children $ fn (idx x)
+              hint-fn $ Fn Number C $ -> (Tuple Number C)
+              [] idx x
           :examples $ []
           :schema $ quote $ Fn (List C)
-            -> $ List $ List Dynamic
+            -> $ List $ Tuple Number C
             :generics C
+          :tests $ [] $ %{} 'TestEntry (:name |retains-indexed-values)
+            :code $ quote $ assert=
+              [] ([] 0 |a) ([] 1 nil) ([] 2 false) ([] 3 42)
+              arrange-children $ [] |a nil false 42
+            :tags $ #{} :unit
         'bezier $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn bezier (props & children) (create-shape :bezier props children)
           :examples $ []
