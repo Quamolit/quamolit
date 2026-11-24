@@ -1222,7 +1222,7 @@
                 position $ decode-map-as
                   match (get options :position)
                     (:some v)
-                      or v $ [] 0 0
+                      either v $ [] 0 0
                     (:none) ([] 0 0)
                   List Number
                 state $ get states :data
@@ -1298,7 +1298,7 @@
                     :fill-style $ hsl 330 90 70
                     :text $ str
                       match (get options :title)
-                        (:some v) (or v |Val)
+                        (:some v) (either v |Val)
                         (:none) |Val
                       , "|: " $ .!toFixed
                         decode-map-as
@@ -1776,11 +1776,13 @@
         'on-control-event $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn on-control-event (elapsed states delta)
             if
-              and $ .unwrap-or
-                get
-                  decode-map-as states $ Map Tag Dynamic
-                  , :left-b?
-                , false
+              decode-map-as
+                .unwrap-or
+                  get
+                    decode-map-as states $ Map Tag Dynamic
+                    , :left-b?
+                  , false
+                , Bool
               reset-stage-config!
               let
                   move $ decode-map-as
@@ -13832,25 +13834,25 @@
           :code $ quote $ defcomp button (style) (; js/console.log |button style)
             let
                 guide-text $ match (get style :text)
-                  (:some v) (or v |button)
+                  (:some v) (either v |button)
                   (:none) |button
                 x $ match (get style :x)
-                  (:some v) (or v 0)
+                  (:some v) (either v 0)
                   (:none) 0
                 y $ match (get style :y)
-                  (:some v) (or v 0)
+                  (:some v) (either v 0)
                   (:none) 0
                 w $ match (get style :w)
-                  (:some v) (or v 100)
+                  (:some v) (either v 100)
                   (:none) 100
                 h $ match (get style :h)
-                  (:some v) (or v 40)
+                  (:some v) (either v 40)
                   (:none) 40
                 style-bg $ merge
                   {} (:x x) (:y y)
                     :fill-style $ match (get style :surface-color)
                       (:some v)
-                        or v $ hsl 0 80 80
+                        either v $ hsl 0 80 80
                       (:none) (hsl 0 80 80)
                     :w w
                     :h h
@@ -13861,14 +13863,14 @@
                 style-text $ {}
                   :fill-style $ match (get style :text-color)
                     (:some v)
-                      or v $ hsl 0 0 10
+                      either v $ hsl 0 0 10
                     (:none) (hsl 0 0 10)
                   :text guide-text
                   :size $ match (get style :font-size)
-                    (:some v) (or v 20)
+                    (:some v) (either v 20)
                     (:none) 20
                   :font-family $ match (get style :font-family)
-                    (:some v) (or v |Optima)
+                    (:some v) (either v |Optima)
                     (:none) |Optima
                   :text-align |center
                   :x x
@@ -13888,10 +13890,10 @@
                     :stroke-style $ hsl 0 0 50
                     :line-width 2
                     :x $ match (get style :x)
-                      (:some v) (or v 0)
+                      (:some v) (either v 0)
                       (:none) 0
                     :y $ match (get style :y)
-                      (:some v) (or v 0)
+                      (:some v) (either v 0)
                       (:none) 0
                     :w w
                     :h h
@@ -13908,7 +13910,7 @@
                   :x 0
                   :y 0
                   :max-width $ match (get style :w)
-                    (:some v) (or v 400)
+                    (:some v) (either v 400)
                     (:none) 400
               group ({}) (rect style-bg)
                 translate style-place-text $ text style-text
@@ -14073,28 +14075,28 @@
           :code $ quote $ defn paint-image (ctx style coord)
             let
                 sx $ match (get style :sx)
-                  (:some v) (or v 0)
+                  (:some v) (either v 0)
                   (:none) 0
                 sy $ match (get style :sy)
-                  (:some v) (or v 0)
+                  (:some v) (either v 0)
                   (:none) 0
                 sw $ match (get style :sw)
-                  (:some v) (or v 40)
+                  (:some v) (either v 40)
                   (:none) 40
                 sh $ match (get style :sh)
-                  (:some v) (or v 40)
+                  (:some v) (either v 40)
                   (:none) 40
                 dx $ match (get style :dx)
-                  (:some v) (or v 0)
+                  (:some v) (either v 0)
                   (:none) 0
                 dy $ match (get style :dy)
-                  (:some v) (or v 0)
+                  (:some v) (either v 0)
                   (:none) 0
                 dw $ match (get style :dw)
-                  (:some v) (or v 40)
+                  (:some v) (either v 40)
                   (:none) 40
                 dh $ match (get style :dh)
-                  (:some v) (or v 40)
+                  (:some v) (either v 40)
                   (:none) 40
                 image $ get-image $ decode-map-as
                   .unwrap $ get style :src
@@ -14110,20 +14112,20 @@
                 x1 $ .unwrap-or (&map:get style :x1) 40
                 y1 $ .unwrap-or (&map:get style :y1) 40
                 line-width $ match (&map:get style :line-width)
-                  (:some legacy-value) (or legacy-value 4)
+                  (:some legacy-value) (either legacy-value 4)
                   (:none) 4
                 stroke-style $ match (&map:get style :stroke-style)
                   (:some legacy-value)
-                    or legacy-value $ hsl 200 70 50
+                    either legacy-value $ hsl 200 70 50
                   (:none) (hsl 200 70 50)
                 line-cap $ match (&map:get style :line-cap)
-                  (:some legacy-value) (or legacy-value |round)
+                  (:some legacy-value) (either legacy-value |round)
                   (:none) |round
                 line-join $ match (&map:get style :line-join)
-                  (:some legacy-value) (or legacy-value |round)
+                  (:some legacy-value) (either legacy-value |round)
                   (:none) |round
                 miter-limit $ match (&map:get style :miter-limit)
-                  (:some legacy-value) (or legacy-value 8)
+                  (:some legacy-value) (either legacy-value 8)
                   (:none) 8
               .!beginPath ctx
               .!moveTo ctx x0 y0
@@ -14273,7 +14275,7 @@
             let
                 angle $ decode-map-as
                   match (get style :angle)
-                    (:some v) (or v 30)
+                    (:some v) (either v 30)
                     (:none) 30
                   , 'Number
               .!rotate ctx angle
@@ -14294,7 +14296,7 @@
             let
                 ratio $ decode-map-as
                   match (get style :ratio)
-                    (:some v) (or v 1.2)
+                    (:some v) (either v 1.2)
                     (:none) 1.2
                   , 'Number
               .!scale ctx ratio ratio
@@ -14309,47 +14311,47 @@
             set! (.-fillStyle ctx)
               match (get style :fill-style)
                 (:some v)
-                  or v $ hsl 0 0 0
+                  either v $ hsl 0 0 0
                 (:none) (hsl 0 0 0)
             set! (.-textAlign ctx)
               match (get style :text-align)
-                (:some v) (or v |center)
+                (:some v) (either v |center)
                 (:none) |center
             set! (.-textBaseline ctx)
               match (get style :base-line)
-                (:some v) (or v |middle)
+                (:some v) (either v |middle)
                 (:none) |middle
             set! (.-font ctx)
               str
                 match (get style :size)
-                  (:some v) (or v 20)
+                  (:some v) (either v 20)
                   (:none) 20
                 , "|px " $ match (get style :font-family)
-                  (:some v) (or v |Optima)
+                  (:some v) (either v |Optima)
                   (:none) |Optima
             when (contains? style :fill-style)
               .!fillText ctx
                 .unwrap-or (get style :text) |
                 match (get style :x)
-                  (:some v) (or v 0)
+                  (:some v) (either v 0)
                   (:none) 0
                 match (get style :y)
-                  (:some v) (or v 0)
+                  (:some v) (either v 0)
                   (:none) 0
                 match (get style :max-width)
-                  (:some v) (or v 400)
+                  (:some v) (either v 400)
                   (:none) 400
             when (contains? style :stroke-style)
               .!strokeText ctx
                 .unwrap-or (get style :text) |
                 match (get style :x)
-                  (:some v) (or v 0)
+                  (:some v) (either v 0)
                   (:none) 0
                 match (get style :y)
-                  (:some v) (or v 0)
+                  (:some v) (either v 0)
                   (:none) 0
                 match (get style :max-width)
-                  (:some v) (or v 400)
+                  (:some v) (either v 400)
                   (:none) 400
           :examples $ []
           :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
@@ -14358,12 +14360,12 @@
             let
                 x $ decode-map-as
                   match (get style :x)
-                    (:some v) (or v 0)
+                    (:some v) (either v 0)
                     (:none) 0
                   , 'Number
                 y $ decode-map-as
                   match (get style :y)
-                    (:some v) (or v 0)
+                    (:some v) (either v 0)
                     (:none) 0
                   , 'Number
                 transform $ decode-map-as
@@ -16649,7 +16651,9 @@
                 vertex $ first-point remaining
                 tail $ rest remaining
                 next $ if (empty? tail) first-vertex $ first-point tail
-              or (butt-segment-hit? vertex next width x y) (miter-join-hit? previous vertex next width x y) (recur tail vertex first-vertex width x y)
+              if
+                or (butt-segment-hit? vertex next width x y) (miter-join-hit? previous vertex next width x y)
+                , true $ recur tail vertex first-vertex width x y
           :examples $ []
           :schema $ quote $ Fn (List motion/Vec2) motion/Vec2 motion/Vec2 Number Number Number (-> Bool)
         'collinear-cubic-ends $ %{} 'CodeEntry (:doc |)
@@ -16823,10 +16827,11 @@
           :code $ quote $ defn compiled-cubic-hit? (parts x y)
             if (empty? parts) false $ let
                 part $ -> (first parts) (.unwrap)
-              or
-                open-stroke-scan? (:points part) (:start part) (:width part) x y
-                miter-join-hit? (:previous-guide part) (:start part) (:first-guide part) (:width part) x y
-                recur (rest parts) x y
+              if
+                or
+                  open-stroke-scan? (:points part) (:start part) (:width part) x y
+                  miter-join-hit? (:previous-guide part) (:start part) (:first-guide part) (:width part) x y
+                , true $ recur (rest parts) x y
           :examples $ []
           :schema $ quote $ Fn (List CubicStrokePart) Number Number (-> Bool)
         'cubic-end-guide $ %{} 'CodeEntry (:doc |)
@@ -17247,14 +17252,15 @@
                   dy0 $ - (:y vertex) (:y previous)
                   dx1 $ - (:x next) (:x vertex)
                   dy1 $ - (:y next) (:y vertex)
-                or (butt-segment-hit? vertex next width x y) (miter-join-hit? previous vertex next width x y)
-                  and
-                    <
-                      + (* dx0 dx1) (* dy0 dy1)
-                      , 0
-                    = (* dx0 dy1) (* dy0 dx1)
-                    segment-hit? vertex vertex width x y
-                  recur tail vertex width x y
+                if
+                  or (butt-segment-hit? vertex next width x y) (miter-join-hit? previous vertex next width x y)
+                    and
+                      <
+                        + (* dx0 dx1) (* dy0 dy1)
+                        , 0
+                      = (* dx0 dy1) (* dy0 dx1)
+                      segment-hit? vertex vertex width x y
+                  , true $ recur tail vertex width x y
           :examples $ []
           :schema $ quote $ Fn (List motion/Vec2) motion/Vec2 Number Number Number (-> Bool)
         'point-in-rect? $ %{} 'CodeEntry (:doc |)
