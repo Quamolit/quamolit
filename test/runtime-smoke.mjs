@@ -20,9 +20,9 @@ const declaredJsFfiVersion = readFileSync(path.join(root, "deps.cirru"), "utf8")
   /\|calcit-lang\/js-ffi \|([^\s)]+)/,
 )?.[1];
 const jsFfiTag = packageJson.dependencies["@calcit/js-ffi"].match(/#tag=([^\s]+)$/)?.[1];
-const installedJsFfi = JSON.parse(
-  readFileSync(path.join(root, "node_modules/@calcit/js-ffi/package.json"), "utf8"),
-).version;
+const installedJsFfi = readFileSync(path.join(root, "node_modules/@calcit/js-ffi/deps.cirru"), "utf8").match(
+  /:version \|([^\s)]+)/,
+)?.[1];
 const installedCalcitJsFfi = readFileSync(path.join(root, ".calcit/modules/js-ffi/deps.cirru"), "utf8").match(
   /:version \|([^\s)]+)/,
 )?.[1];

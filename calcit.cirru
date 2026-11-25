@@ -192,31 +192,9 @@
           :schema $ quote $ Fn Tag P (List C) (-> Shape) (:generics P C) (:features :js-ffi)
         'defcomp $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defmacro defcomp (comp-name args & body)
-            quasiquote $ defn ~comp-name ~args $ let
-                ret $ do ~@body
-              cond
-                  and (struct? ret) (&struct:matches? ret Shape)
-                  %{} Component
-                    :name $ ~ $ turn-tag comp-name
-                    :on-tick nil
-                    :tree ret
-                (list? ret)
-                  do
-                    assert |expected-on-tick-and-tree $ = 2 $ count ret
-                    %{} Component
-                      :name $ ~ $ turn-tag comp-name
-                      :on-tick $ .unwrap $ &list:first ret
-                      :tree $ .unwrap $ &list:last ret
-                (map? ret)
-                  %{} Component
-                    :name $ ~ $ turn-tag comp-name
-                    :on-tick $ if (&map:contains? ret :on-tick)
-                      .unwrap $ &map:get ret :on-tick
-                      , nil
-                    :tree $ if (&map:contains? ret :tree)
-                      .unwrap $ &map:get ret :tree
-                      , nil
-                true $ raise |unknown-component
+            quasiquote $ defn ~comp-name ~args $ quamolit.alias/normalize-component
+              ~ $ turn-tag comp-name
+              do ~@body
           :examples $ []
           :schema $ quote $ Macro SyntaxSymbol SyntaxList (& Syntax)
             -> $ Definition Fn
@@ -268,6 +246,39 @@
           :code $ quote $ defn native-translate (props & children) (create-shape :native-translate props children)
           :examples $ []
           :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
+        'normalize-component $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn normalize-component (name ret)
+            cond
+                and (struct? ret) (&struct:matches? ret Shape)
+                Component :name name :on-tick nil :tree ret
+              (list? ret)
+                do
+                  assert |expected-on-tick-and-tree $ = 2 $ count ret
+                  Component :name name :on-tick
+                    .unwrap $ &list:first ret
+                    , :tree $ .unwrap $ &list:last ret
+              (map? ret)
+                Component :name name :on-tick
+                  if (&map:contains? ret :on-tick)
+                    .unwrap $ &map:get ret :on-tick
+                    , nil
+                  , :tree $ if (&map:contains? ret :tree)
+                    .unwrap $ &map:get ret :tree
+                    , nil
+              true $ raise |unknown-component
+          :examples $ []
+          :schema $ quote $ Fn Tag Value (-> Component) (:generics Value)
+          :tests $ [] $ %{} 'TestEntry (:name |preserves-component-inputs)
+            :code $ quote $ let
+                shape $ Shape :name :rect :style ({}) :event nil :children $ []
+              assert= (Component :name :demo :on-tick nil :tree shape) (normalize-component :demo shape)
+              assert= (Component :name :demo :on-tick |tick :tree shape)
+                normalize-component :demo $ [] |tick shape
+              assert= (Component :name :demo :on-tick |tick :tree shape)
+                normalize-component :demo $ {} (:on-tick |tick) (:tree shape)
+              assert= (Component :name :demo :on-tick nil :tree nil)
+                normalize-component :demo $ {}
+            :tags $ #{} :unit
         'path $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn path (props & children) (create-shape :path props children)
           :examples $ []
