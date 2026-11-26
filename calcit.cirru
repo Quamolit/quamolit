@@ -1259,6 +1259,7 @@
                           :v0 $ .unwrap-or (get options :value) 0
                           :x0 0
                       raise |Expected-slider-dispatch-function
+                    , nil
                 translate
                   {}
                     :x $ .unwrap-or (nth position 0) 0
@@ -1302,9 +1303,12 @@
                                   * dx $ decode-map-as unit 'Number
                               if
                                 match (get options :v)
-                                  (:some v) (not= next-v v)
+                                  (:some v)
+                                    not $ &= next-v v
                                   (:none) true
                                 on-change next-v d!
+                                , nil
+                            , nil
                   text $ {} (:x -36) (:y -20) (:text-align :left) (:size 14)
                     :fill-style $ hsl 330 90 70
                     :text $ str
@@ -1485,7 +1489,7 @@
                 match tree
                   (quamolit.types/Component component)
                     if
-                      = first-pos $ :name component
+                      &= first-pos $ :name component
                       recur
                         decode-map-as (:tree component) quamolit.types/LegacyNode
                         slice coord 1
@@ -1495,7 +1499,7 @@
                         children $ decode-map-as (:children shape)
                           List $ List Dynamic
                         picked-pair $ find children $ fn (child-pair)
-                          =
+                          &=
                             .unwrap $ first child-pair
                             , first-pos
                         picked $ picked-pair.map $ fn (pair)
@@ -1963,7 +1967,7 @@
                           &* (decode-map-as js/window.innerHeight 'Number) 0.5
                       , @*touch-event-areas
                     if
-                      = coord $ .unwrap $ get target :coord
+                      &= coord $ .unwrap $ get target :coord
                       handle-event coord :click event dispatch
                       , &unit
                 , &unit
@@ -21723,8 +21727,8 @@
                           source $ :source image
                           texture $ lookup (:id source) (:version source)
                         assert |texture-size-mismatch $ and
-                          = (js-get texture :width) (:width source)
-                          = (js-get texture :height) (:height source)
+                          &= (js-get texture :width) (:width source)
+                          &= (js-get texture :height) (:height source)
                         BoundImage :texture texture :parameters $ checked-parameters image scope width height
                     _ $ raise |unsupported-webgpu-image-node
           :examples $ []
