@@ -16,16 +16,15 @@
           :schema $ quote StructDef
         'arc-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn arc-document (time)
-            do
-              assert |invalid-consumer-arc-time $ motion/finite-number? time
-              let
-                  start $ * 0.7 time
-                scene/SceneDocument :nodes $ []
-                  scene/SceneNode :id |arc-root :parent | :key |arc-root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group $ scene/GroupNode :transform (hit/matrix 0 2 -2 0 200 50) :clip
-                    scene/ClipSpec :rect $ scene/ClipRect :x -30 :y -30 :width 40 :height 60
-                    , :opacity 0.4
-                  scene/SceneNode :id |consumer-arc :parent |arc-root :key |consumer-arc :bindings ([]) :interaction (scene/SceneInteraction :target |arc-action) :content $ scene/SceneContent :arc $ scene/ArcNode :cx 0 :cy 0 :radius 20 :start-angle start :end-angle (+ start 1.5707963267948966) :counterclockwise false :width 4 :stroke
-                    motion/ColorRgba :r 0 :g 1 :b 1 :a 1
+            assert |invalid-consumer-arc-time $ motion/finite-number? time
+            let
+                start $ * 0.7 time
+              scene/SceneDocument :nodes $ []
+                scene/SceneNode :id |arc-root :parent | :key |arc-root :bindings ([]) :interaction (scene/SceneInteraction :none) :content $ scene/SceneContent :group $ scene/GroupNode :transform (hit/matrix 0 2 -2 0 200 50) :clip
+                  scene/ClipSpec :rect $ scene/ClipRect :x -30 :y -30 :width 40 :height 60
+                  , :opacity 0.4
+                scene/SceneNode :id |consumer-arc :parent |arc-root :key |consumer-arc :bindings ([]) :interaction (scene/SceneInteraction :target |arc-action) :content $ scene/SceneContent :arc $ scene/ArcNode :cx 0 :cy 0 :radius 20 :start-angle start :end-angle (+ start 1.5707963267948966) :counterclockwise false :width 4 :stroke
+                  motion/ColorRgba :r 0 :g 1 :b 1 :a 1
           :examples $ []
           :schema $ quote $ Fn Number (-> scene/SceneDocument)
         'arc-hit-plan $ %{} 'CodeEntry (:doc |)
@@ -103,27 +102,26 @@
           :schema $ quote $ Fn (-> resource/InstanceTableHost) (:features :js-ffi)
         'curve-document $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn curve-document (time)
-            do
-              assert |invalid-consumer-curve-time $ motion/finite-number? time
-              let
-                  offset $ * 10 time
-                scene/SceneDocument :nodes $ []
-                  scene/SceneNode :id |curve-root :parent | :key |curve-root :content
-                    scene/SceneContent :group $ scene/GroupNode :transform (hit/matrix 0 2 -2 0 240 0) :clip
-                      scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 100 :height 80
-                      , :opacity 1
-                    , :bindings ([]) :interaction $ scene/SceneInteraction :none
-                  scene/SceneNode :id |consumer-curve :parent |curve-root :key |consumer-curve :content
-                    scene/SceneContent :cubic-path $ scene/CubicPathNode :start
-                      motion/Vec2 :x (+ 20 offset) :y 70
-                      , :segments
-                        [] $ scene/CubicSegment :control-1
-                          motion/Vec2 :x (+ 20 offset) :y 10
-                          , :control-2
-                            motion/Vec2 :x (+ 80 offset) :y 10
-                            , :end $ motion/Vec2 :x (+ 80 offset) :y 70
-                        , :width 20 :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
-                    , :bindings ([]) :interaction $ scene/SceneInteraction :target |curve-action
+            assert |invalid-consumer-curve-time $ motion/finite-number? time
+            let
+                offset $ * 10 time
+              scene/SceneDocument :nodes $ []
+                scene/SceneNode :id |curve-root :parent | :key |curve-root :content
+                  scene/SceneContent :group $ scene/GroupNode :transform (hit/matrix 0 2 -2 0 240 0) :clip
+                    scene/ClipSpec :rect $ scene/ClipRect :x 0 :y 0 :width 100 :height 80
+                    , :opacity 1
+                  , :bindings ([]) :interaction $ scene/SceneInteraction :none
+                scene/SceneNode :id |consumer-curve :parent |curve-root :key |consumer-curve :content
+                  scene/SceneContent :cubic-path $ scene/CubicPathNode :start
+                    motion/Vec2 :x (+ 20 offset) :y 70
+                    , :segments
+                      [] $ scene/CubicSegment :control-1
+                        motion/Vec2 :x (+ 20 offset) :y 10
+                        , :control-2
+                          motion/Vec2 :x (+ 80 offset) :y 10
+                          , :end $ motion/Vec2 :x (+ 80 offset) :y 70
+                      , :width 20 :stroke $ motion/ColorRgba :r 1 :g 0 :b 0 :a 1
+                  , :bindings ([]) :interaction $ scene/SceneInteraction :target |curve-action
           :examples $ []
           :schema $ quote $ Fn Number (-> scene/SceneDocument)
         'curve-hit $ %{} 'CodeEntry (:doc |)
@@ -399,9 +397,8 @@
           :examples $ []
           :schema $ quote $ Fn platform/CanvasContextHost retained/ComponentPlan (-> Unit) (:features :js-ffi)
         'draw-curve! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn draw-curve! (context document)
-            do (platform/clear-canvas! context 320 180)
-              canvas-scene/draw-document! context document 320 180 $ fn (id version) (raise |consumer-curve-has-no-images)
+          :code $ quote $ defn draw-curve! (context document) (platform/clear-canvas! context 320 180)
+            canvas-scene/draw-document! context document 320 180 $ fn (id version) (raise |consumer-curve-has-no-images)
           :examples $ []
           :schema $ quote $ Fn platform/CanvasContextHost scene/SceneDocument (-> Unit) (:features :js-ffi)
         'draw-document! $ %{} 'CodeEntry (:doc |)

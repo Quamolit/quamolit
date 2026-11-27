@@ -192,31 +192,9 @@
           :schema $ quote $ Fn Tag P (List C) (-> Shape) (:generics P C) (:features :js-ffi)
         'defcomp $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defmacro defcomp (comp-name args & body)
-            quasiquote $ defn ~comp-name ~args $ let
-                ret $ do ~@body
-              cond
-                  and (struct? ret) (&struct:matches? ret Shape)
-                  %{} Component
-                    :name $ ~ $ turn-tag comp-name
-                    :on-tick nil
-                    :tree ret
-                (list? ret)
-                  do
-                    assert |expected-on-tick-and-tree $ = 2 $ count ret
-                    %{} Component
-                      :name $ ~ $ turn-tag comp-name
-                      :on-tick $ .unwrap $ &list:first ret
-                      :tree $ .unwrap $ &list:last ret
-                (map? ret)
-                  %{} Component
-                    :name $ ~ $ turn-tag comp-name
-                    :on-tick $ if (&map:contains? ret :on-tick)
-                      .unwrap $ &map:get ret :on-tick
-                      , nil
-                    :tree $ if (&map:contains? ret :tree)
-                      .unwrap $ &map:get ret :tree
-                      , nil
-                true $ raise |unknown-component
+            quasiquote $ defn ~comp-name ~args $ quamolit.alias/normalize-component
+              ~ $ turn-tag comp-name
+              do ~@body
           :examples $ []
           :schema $ quote $ Macro SyntaxSymbol SyntaxList (& Syntax)
             -> $ Definition Fn
@@ -268,6 +246,39 @@
           :code $ quote $ defn native-translate (props & children) (create-shape :native-translate props children)
           :examples $ []
           :schema $ quote $ Fn P (& Dynamic) (-> Shape) (:generics P)
+        'normalize-component $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn normalize-component (name ret)
+            cond
+                and (struct? ret) (&struct:matches? ret Shape)
+                Component :name name :on-tick nil :tree ret
+              (list? ret)
+                do
+                  assert |expected-on-tick-and-tree $ = 2 $ count ret
+                  Component :name name :on-tick
+                    .unwrap $ &list:first ret
+                    , :tree $ .unwrap $ &list:last ret
+              (map? ret)
+                Component :name name :on-tick
+                  if (&map:contains? ret :on-tick)
+                    .unwrap $ &map:get ret :on-tick
+                    , nil
+                  , :tree $ if (&map:contains? ret :tree)
+                    .unwrap $ &map:get ret :tree
+                    , nil
+              true $ raise |unknown-component
+          :examples $ []
+          :schema $ quote $ Fn Tag Value (-> Component) (:generics Value)
+          :tests $ [] $ %{} 'TestEntry (:name |preserves-component-inputs)
+            :code $ quote $ let
+                shape $ Shape :name :rect :style ({}) :event nil :children $ []
+              assert= (Component :name :demo :on-tick nil :tree shape) (normalize-component :demo shape)
+              assert= (Component :name :demo :on-tick |tick :tree shape)
+                normalize-component :demo $ [] |tick shape
+              assert= (Component :name :demo :on-tick |tick :tree shape)
+                normalize-component :demo $ {} (:on-tick |tick) (:tree shape)
+              assert= (Component :name :demo :on-tick nil :tree nil)
+                normalize-component :demo $ {}
+            :tags $ #{} :unit
         'path $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn path (props & children) (create-shape :path props children)
           :examples $ []
@@ -1248,6 +1259,7 @@
                           :v0 $ .unwrap-or (get options :value) 0
                           :x0 0
                       raise |Expected-slider-dispatch-function
+                    , nil
                 translate
                   {}
                     :x $ .unwrap-or (nth position 0) 0
@@ -1291,9 +1303,12 @@
                                   * dx $ decode-map-as unit 'Number
                               if
                                 match (get options :v)
-                                  (:some v) (not= next-v v)
+                                  (:some v)
+                                    not $ &= next-v v
                                   (:none) true
                                 on-change next-v d!
+                                , nil
+                            , nil
                   text $ {} (:x -36) (:y -20) (:text-align :left) (:size 14)
                     :fill-style $ hsl 330 90 70
                     :text $ str
@@ -1474,7 +1489,7 @@
                 match tree
                   (quamolit.types/Component component)
                     if
-                      = first-pos $ :name component
+                      &= first-pos $ :name component
                       recur
                         decode-map-as (:tree component) quamolit.types/LegacyNode
                         slice coord 1
@@ -1484,7 +1499,7 @@
                         children $ decode-map-as (:children shape)
                           List $ List Dynamic
                         picked-pair $ find children $ fn (child-pair)
-                          =
+                          &=
                             .unwrap $ first child-pair
                             , first-pos
                         picked $ picked-pair.map $ fn (pair)
@@ -1952,7 +1967,7 @@
                           &* (decode-map-as js/window.innerHeight 'Number) 0.5
                       , @*touch-event-areas
                     if
-                      = coord $ .unwrap $ get target :coord
+                      &= coord $ .unwrap $ get target :coord
                       handle-event coord :click event dispatch
                       , &unit
                 , &unit
@@ -21712,8 +21727,8 @@
                           source $ :source image
                           texture $ lookup (:id source) (:version source)
                         assert |texture-size-mismatch $ and
-                          = (js-get texture :width) (:width source)
-                          = (js-get texture :height) (:height source)
+                          &= (js-get texture :width) (:width source)
+                          &= (js-get texture :height) (:height source)
                         BoundImage :texture texture :parameters $ checked-parameters image scope width height
                     _ $ raise |unsupported-webgpu-image-node
           :examples $ []
