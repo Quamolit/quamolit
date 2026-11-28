@@ -133,7 +133,7 @@
                   List Dynamic
                 branch $ match (&map:get states k)
                   (:some legacy-value)
-                    either legacy-value $ {}
+                    if (nil? legacy-value) ({}) legacy-value
                   (:none) ({})
               &map:assoc
                 if (map? branch) branch $ raise |Expected-state-map
@@ -350,7 +350,7 @@
                     let
                         source $ :source image
                         host $ lookup (:id source) (:version source)
-                      assert |missing-image-resource $ non-nil? host
+                      assert |missing-image-resource $ not $ js-nullish? host
                       assert |image-size-mismatch $ and
                         = (:width source) (browser/image-natural-width host)
                         = (:height source) (browser/image-natural-height host)
@@ -828,7 +828,7 @@
             let
                 source $ :source image
                 host $ lookup (:id source) (:version source)
-              assert |missing-image-resource $ non-nil? host
+              assert |missing-image-resource $ not $ js-nullish? host
               assert |image-size-mismatch $ and
                 = (:width source) (browser/image-natural-width host)
                 = (:height source) (browser/image-natural-height host)
@@ -1122,11 +1122,13 @@
                     :hidden nil
                     _ $ match (get-node! cursor)
                       (:some old-f)
-                        either p1 $ if (fn? old-f)
-                          old-f (>> states :renderer)
-                            .unwrap-or (get state :opacity) 0
-                            .unwrap-or (get state :stage) :hidden
-                          raise |Expected-fade-callback-function
+                        if (nil? p1)
+                          if (fn? old-f)
+                            old-f (>> states :renderer)
+                              .unwrap-or (get state :opacity) 0
+                              .unwrap-or (get state :stage) :hidden
+                            raise |Expected-fade-callback-function
+                          , p1
                       (:none) p1
           :examples $ []
           :schema $ quote $ Fn (Map Dynamic Dynamic) Dynamic Dynamic (-> quamolit.types/Component) (:features :io :state)
@@ -1198,7 +1200,8 @@
                     .unwrap-or (get state :stage) :hidden
                     :hidden nil
                     _ $ match (get-node! cursor)
-                      (:some old-node) (either p1 old-node)
+                      (:some old-node)
+                        if (nil? p1) old-node p1
                       (:none) p1
           :examples $ []
           :schema $ quote $ Fn (Map Dynamic Dynamic) Dynamic Dynamic (-> quamolit.types/Component) (:features :io :state)
@@ -1233,18 +1236,20 @@
                 position $ decode-map-as
                   match (get options :position)
                     (:some v)
-                      either v $ [] 0 0
+                      if (nil? v) ([] 0 0) v
                     (:none) ([] 0 0)
                   List Number
                 state $ get states :data
                 v-max $ decode-map-as
                   match (get options :max)
-                    (:some v) (either v 1000)
+                    (:some v)
+                      if (nil? v) 1000 v
                     (:none) 1000
                   , 'Number
                 v-min $ decode-map-as
                   match (get options :min)
-                    (:some v) (either v 1000)
+                    (:some v)
+                      if (nil? v) 1000 v
                     (:none) 1000
                   , 'Number
               []
@@ -1313,12 +1318,14 @@
                     :fill-style $ hsl 330 90 70
                     :text $ str
                       match (get options :title)
-                        (:some v) (either v |Val)
+                        (:some v)
+                          if (nil? v) |Val v
                         (:none) |Val
                       , "|: " $ .!toFixed
                         decode-map-as
                           match (get options :value)
-                            (:some v) (either v 0)
+                            (:some v)
+                              if (nil? v) 0 v
                             (:none) 0
                           , 'Number
                         , 2
@@ -1775,7 +1782,7 @@
           :code $ quote $ defn handle-event (coord event-name event dispatch)
             let
                 path $ decode-map-as
-                  either coord $ []
+                  if (nil? coord) ([]) coord
                   List Dynamic
               if-let
                 maybe-listener $ match @*element-tree
@@ -13849,25 +13856,30 @@
           :code $ quote $ defcomp button (style) (; js/console.log |button style)
             let
                 guide-text $ match (get style :text)
-                  (:some v) (either v |button)
+                  (:some v)
+                    if (nil? v) |button v
                   (:none) |button
                 x $ match (get style :x)
-                  (:some v) (either v 0)
+                  (:some v)
+                    if (nil? v) 0 v
                   (:none) 0
                 y $ match (get style :y)
-                  (:some v) (either v 0)
+                  (:some v)
+                    if (nil? v) 0 v
                   (:none) 0
                 w $ match (get style :w)
-                  (:some v) (either v 100)
+                  (:some v)
+                    if (nil? v) 100 v
                   (:none) 100
                 h $ match (get style :h)
-                  (:some v) (either v 40)
+                  (:some v)
+                    if (nil? v) 40 v
                   (:none) 40
                 style-bg $ merge
                   {} (:x x) (:y y)
                     :fill-style $ match (get style :surface-color)
                       (:some v)
-                        either v $ hsl 0 80 80
+                        if (nil? v) (hsl 0 80 80) v
                       (:none) (hsl 0 80 80)
                     :w w
                     :h h
@@ -13878,14 +13890,16 @@
                 style-text $ {}
                   :fill-style $ match (get style :text-color)
                     (:some v)
-                      either v $ hsl 0 0 10
+                      if (nil? v) (hsl 0 0 10) v
                     (:none) (hsl 0 0 10)
                   :text guide-text
                   :size $ match (get style :font-size)
-                    (:some v) (either v 20)
+                    (:some v)
+                      if (nil? v) 20 v
                     (:none) 20
                   :font-family $ match (get style :font-family)
-                    (:some v) (either v |Optima)
+                    (:some v)
+                      if (nil? v) |Optima v
                     (:none) |Optima
                   :text-align |center
                   :x x
@@ -13905,10 +13919,12 @@
                     :stroke-style $ hsl 0 0 50
                     :line-width 2
                     :x $ match (get style :x)
-                      (:some v) (either v 0)
+                      (:some v)
+                        if (nil? v) 0 v
                       (:none) 0
                     :y $ match (get style :y)
-                      (:some v) (either v 0)
+                      (:some v)
+                        if (nil? v) 0 v
                       (:none) 0
                     :w w
                     :h h
@@ -13925,7 +13941,8 @@
                   :x 0
                   :y 0
                   :max-width $ match (get style :w)
-                    (:some v) (either v 400)
+                    (:some v)
+                      if (nil? v) 400 v
                     (:none) 400
               group ({}) (rect style-bg)
                 translate style-place-text $ text style-text
@@ -14090,28 +14107,36 @@
           :code $ quote $ defn paint-image (ctx style coord)
             let
                 sx $ match (get style :sx)
-                  (:some v) (either v 0)
+                  (:some v)
+                    if (nil? v) 0 v
                   (:none) 0
                 sy $ match (get style :sy)
-                  (:some v) (either v 0)
+                  (:some v)
+                    if (nil? v) 0 v
                   (:none) 0
                 sw $ match (get style :sw)
-                  (:some v) (either v 40)
+                  (:some v)
+                    if (nil? v) 40 v
                   (:none) 40
                 sh $ match (get style :sh)
-                  (:some v) (either v 40)
+                  (:some v)
+                    if (nil? v) 40 v
                   (:none) 40
                 dx $ match (get style :dx)
-                  (:some v) (either v 0)
+                  (:some v)
+                    if (nil? v) 0 v
                   (:none) 0
                 dy $ match (get style :dy)
-                  (:some v) (either v 0)
+                  (:some v)
+                    if (nil? v) 0 v
                   (:none) 0
                 dw $ match (get style :dw)
-                  (:some v) (either v 40)
+                  (:some v)
+                    if (nil? v) 40 v
                   (:none) 40
                 dh $ match (get style :dh)
-                  (:some v) (either v 40)
+                  (:some v)
+                    if (nil? v) 40 v
                   (:none) 40
                 image $ get-image $ decode-map-as
                   .unwrap $ get style :src
@@ -14127,20 +14152,24 @@
                 x1 $ .unwrap-or (&map:get style :x1) 40
                 y1 $ .unwrap-or (&map:get style :y1) 40
                 line-width $ match (&map:get style :line-width)
-                  (:some legacy-value) (either legacy-value 4)
+                  (:some legacy-value)
+                    if (nil? legacy-value) 4 legacy-value
                   (:none) 4
                 stroke-style $ match (&map:get style :stroke-style)
                   (:some legacy-value)
-                    either legacy-value $ hsl 200 70 50
+                    if (nil? legacy-value) (hsl 200 70 50) legacy-value
                   (:none) (hsl 200 70 50)
                 line-cap $ match (&map:get style :line-cap)
-                  (:some legacy-value) (either legacy-value |round)
+                  (:some legacy-value)
+                    if (nil? legacy-value) |round legacy-value
                   (:none) |round
                 line-join $ match (&map:get style :line-join)
-                  (:some legacy-value) (either legacy-value |round)
+                  (:some legacy-value)
+                    if (nil? legacy-value) |round legacy-value
                   (:none) |round
                 miter-limit $ match (&map:get style :miter-limit)
-                  (:some legacy-value) (either legacy-value 8)
+                  (:some legacy-value)
+                    if (nil? legacy-value) 8 legacy-value
                   (:none) 8
               .!beginPath ctx
               .!moveTo ctx x0 y0
@@ -14290,7 +14319,8 @@
             let
                 angle $ decode-map-as
                   match (get style :angle)
-                    (:some v) (either v 30)
+                    (:some v)
+                      if (nil? v) 30 v
                     (:none) 30
                   , 'Number
               .!rotate ctx angle
@@ -14311,7 +14341,8 @@
             let
                 ratio $ decode-map-as
                   match (get style :ratio)
-                    (:some v) (either v 1.2)
+                    (:some v)
+                      if (nil? v) 1.2 v
                     (:none) 1.2
                   , 'Number
               .!scale ctx ratio ratio
@@ -14326,47 +14357,57 @@
             set! (.-fillStyle ctx)
               match (get style :fill-style)
                 (:some v)
-                  either v $ hsl 0 0 0
+                  if (nil? v) (hsl 0 0 0) v
                 (:none) (hsl 0 0 0)
             set! (.-textAlign ctx)
               match (get style :text-align)
-                (:some v) (either v |center)
+                (:some v)
+                  if (nil? v) |center v
                 (:none) |center
             set! (.-textBaseline ctx)
               match (get style :base-line)
-                (:some v) (either v |middle)
+                (:some v)
+                  if (nil? v) |middle v
                 (:none) |middle
             set! (.-font ctx)
               str
                 match (get style :size)
-                  (:some v) (either v 20)
+                  (:some v)
+                    if (nil? v) 20 v
                   (:none) 20
                 , "|px " $ match (get style :font-family)
-                  (:some v) (either v |Optima)
+                  (:some v)
+                    if (nil? v) |Optima v
                   (:none) |Optima
             when (contains? style :fill-style)
               .!fillText ctx
                 .unwrap-or (get style :text) |
                 match (get style :x)
-                  (:some v) (either v 0)
+                  (:some v)
+                    if (nil? v) 0 v
                   (:none) 0
                 match (get style :y)
-                  (:some v) (either v 0)
+                  (:some v)
+                    if (nil? v) 0 v
                   (:none) 0
                 match (get style :max-width)
-                  (:some v) (either v 400)
+                  (:some v)
+                    if (nil? v) 400 v
                   (:none) 400
             when (contains? style :stroke-style)
               .!strokeText ctx
                 .unwrap-or (get style :text) |
                 match (get style :x)
-                  (:some v) (either v 0)
+                  (:some v)
+                    if (nil? v) 0 v
                   (:none) 0
                 match (get style :y)
-                  (:some v) (either v 0)
+                  (:some v)
+                    if (nil? v) 0 v
                   (:none) 0
                 match (get style :max-width)
-                  (:some v) (either v 400)
+                  (:some v)
+                    if (nil? v) 400 v
                   (:none) 400
           :examples $ []
           :schema $ quote $ Fn Dynamic (Map Tag Dynamic) (-> Dynamic) (:features :js-ffi)
@@ -14375,12 +14416,14 @@
             let
                 x $ decode-map-as
                   match (get style :x)
-                    (:some v) (either v 0)
+                    (:some v)
+                      if (nil? v) 0 v
                     (:none) 0
                   , 'Number
                 y $ decode-map-as
                   match (get style :y)
-                    (:some v) (either v 0)
+                    (:some v)
+                      if (nil? v) 0 v
                     (:none) 0
                   , 'Number
                 transform $ decode-map-as
