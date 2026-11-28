@@ -2,7 +2,7 @@
 
 本目录是单独的 Calcit/Yarn 项目，不是 Quamolit workspace 子包。主要源码是 `calcit.cirru` 中的 `app.main`；通过统一 Calcit 执行入口声明静态横条、标量 Motion 矩形及 CPU 变换折线，使用同一个 ComponentPlan 绘制 Canvas。JS 入口只连接页面按钮、传入 Canvas 原生上下文与展示诊断计数，不实现动画或渲染循环。
 
-使用配套的正式 Calcit／runtime 0.46.0、Node.js 24 和 Yarn 4.18.0。验证尚未发布的候选模块时，先在仓库根目录运行 `QUAMOLIT_CONSUMER_REF=<候选提交> yarn test:consumer`。使用配套的正式模块时，可直接运行以下命令。
+使用正式 Calcit／runtime 0.48.0、Node.js 24 和 Yarn 4.18.0。当前固定的 Quamolit 0.0.23 仍使用 Calcit 0.46.0；在 0.48 兼容版本发布前，须在仓库根目录设置 `QUAMOLIT_CONSUMER_REF=<候选提交>`，通过 `yarn test:consumer` 或 `yarn compile` 验证候选模块。发布配套版本并更新下方依赖后，才可直接运行以下命令。
 
 ```sh
 cd examples/retained-consumer
